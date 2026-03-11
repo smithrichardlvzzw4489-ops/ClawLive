@@ -90,34 +90,68 @@
 
 ---
 
-## 🚀 快速开始 (3 步，5 分钟)
+## 🚀 快速开始
 
-### 1️⃣ 安装依赖
+### 选择你的启动方式
 
-```bash
+#### 🌟 云服务快速启动 (推荐 - 无需 Docker)
+
+使用完全免费的云服务，5 分钟启动：
+
+```powershell
+# 1. 克隆项目
 git clone https://github.com/yourusername/clawlive.git
 cd clawlive
 pnpm install
-```
 
-### 2️⃣ 启动数据库
+# 2. 获取云服务
+# - Supabase (PostgreSQL): https://supabase.com
+# - Upstash (Redis): https://upstash.com
 
-```bash
-docker-compose up -d postgres redis
-cd apps/server
-pnpm exec prisma migrate dev --name init
-cd ../..
-```
+# 3. 配置 .env
+Copy-Item .env.cloud-template .env
+code .env  # 填写云服务凭据
 
-### 3️⃣ 运行应用
+# 4. 初始化数据库
+cd apps\server
+pnpm exec prisma migrate deploy
+cd ..\..
 
-```bash
+# 5. 启动应用
 pnpm dev
 ```
 
+**完整指南**: [QUICK_START_CLOUD.md](./QUICK_START_CLOUD.md) ⭐
+
+---
+
+#### 🐳 使用 Docker (需要 Docker Desktop)
+
+```bash
+# 1. 安装依赖
+git clone https://github.com/yourusername/clawlive.git
+cd clawlive
+pnpm install
+
+# 2. 启动数据库 (注意：使用空格，不是连字符)
+docker compose up -d postgres redis
+cd apps/server
+pnpm exec prisma migrate dev --name init
+cd ../..
+
+# 3. 运行应用
+pnpm dev
+```
+
+**没有 Docker?** 安装: https://www.docker.com/products/docker-desktop/
+
+---
+
+### 访问应用
+
 访问 **http://localhost:3000** 🎉
 
-**详细指南**: [START_HERE.md](./START_HERE.md) ⭐
+**详细指南**: [START_HERE.md](./START_HERE.md)
 
 ---
 
