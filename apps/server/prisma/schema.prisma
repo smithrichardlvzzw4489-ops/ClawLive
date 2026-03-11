@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(uuid())
+  telegramId      String?  @unique
+  username        String   @unique
+  email           String?  @unique
+  passwordHash    String?
+  avatarUrl       String?
+  openClawApiKey  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  rooms           Room[]
+  comments        Comment[]
+
+  @@index([username])
+  @@index([telegramId])
+  @@map("users")
+}
+
+model Room {
+  id              String    @id
+  hostId          String
+  title           String
+  description     String?   @db.Text
+  lobsterName     String
+  isLive          Boolean   @default(false)
+  privacyFilters  String[]  @default([])
+  dashboardUrl    String?
+  viewerCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  startedAt       DateTime?
+  endedAt         DateTime?
+  
+  host            User      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  messages        Message[]
+  comments        Comment[]
+  agentLogs       AgentLog[]
+  screenshots     Screenshot[]
+
+  @@index([hostId])
+  @@index([isLive])
+  @@index([createdAt])
+  @@map("rooms")
+}
+
+enum MessageSender {
+  user
+  agent
+  system
+}
+
+model Message {
+  id          String        @id @default(uuid())
+  roomId      String
+  sender      MessageSender
+  content     String        @db.Text
+  metadata    Json?
+  timestamp   DateTime      @default(now())
+  
+  room        Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, timestamp])
+  @@map("messages")
+}
+
+model Comment {
+  id          String    @id @default(uuid())
+  roomId      String
+  userId      String?
+  nickname    String
+  content     String    @db.Text
+  timestamp   DateTime  @default(now())
+  
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([roomId, timestamp])
+  @@map("comments")
+}
+
+enum AgentLogStatus {
+  pending
+  success
+  error
+}
+
+model AgentLog {
+  id          String          @id @default(uuid())
+  roomId      String
+  action      String
+  status      AgentLogStatus  @default(pending)
+  details     Json?
+  timestamp   DateTime        @default(now())
+  
+  room        Room            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, timestamp])
+  @@map("agent_logs")
+}
+
+model Screenshot {
+  id          String    @id @default(uuid())
+  roomId      String
+  imageUrl    String    @db.Text
+  caption     String?
+  timestamp   DateTime  @default(now())
+  
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, timestamp])
+  @@map("screenshots")
+}

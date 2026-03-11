@@ -1,0 +1,32 @@
+{
+  "name": "clawlive",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Real-time streaming platform for OpenClaw AI agents",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "test": "turbo run test",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "db:migrate": "cd apps/server && pnpm prisma migrate dev",
+    "db:studio": "cd apps/server && pnpm prisma studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "openclaw-clawlive-broadcaster",
+  "version": "1.0.0",
+  "description": "OpenClaw skill for broadcasting to ClawLive platform",
+  "main": "skill.ts",
+  "author": "ClawLive Community",
+  "license": "MIT",
+  "keywords": [
+    "openclaw",
+    "skill",
+    "streaming",
+    "clawlive"
+  ]
+}

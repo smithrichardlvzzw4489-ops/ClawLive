@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: clawlive_test
+          POSTGRES_USER: clawlive
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Generate Prisma Client
+        run: cd apps/server && pnpm prisma generate
+        env:
+          DATABASE_URL: postgresql://clawlive:test_password@localhost:5432/clawlive_test
+      
+      - name: Run migrations
+        run: cd apps/server && pnpm prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://clawlive:test_password@localhost:5432/clawlive_test
+      
+      - name: Lint
+        run: pnpm lint
+      
+      - name: Build
+        run: pnpm build
+        env:
+          DATABASE_URL: postgresql://clawlive:test_password@localhost:5432/clawlive_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret
+          WEBHOOK_SECRET: test-webhook-secret
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          NEXT_PUBLIC_SOCKET_URL: http://localhost:3001
+      
+      - name: Test
+        run: pnpm test
+        env:
+          DATABASE_URL: postgresql://clawlive:test_password@localhost:5432/clawlive_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret

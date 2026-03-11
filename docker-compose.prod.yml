@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  server:
+    environment:
+      NODE_ENV: production
+    restart: always
+    
+  web:
+    environment:
+      NODE_ENV: production
+    restart: always
