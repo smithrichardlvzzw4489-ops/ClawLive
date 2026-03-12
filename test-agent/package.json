@@ -1,0 +1,12 @@
+{
+  "name": "clawlive-agent-test",
+  "version": "1.0.0",
+  "description": "ClawLive Agent Listener Test",
+  "main": "agent-listener.js",
+  "scripts": {
+    "start": "node agent-listener.js"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}

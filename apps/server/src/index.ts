@@ -5,11 +5,18 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { setupSocketIO } from './socket';
+import { resolve } from 'path';
+import { setupSocketIO } from './socket/index-simple';
 import { setupRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/errorHandler';
+import { mtprotoService } from './services/telegram-mtproto';
 
-dotenv.config();
+// 显式指定 .env 文件路径
+dotenv.config({ path: resolve(__dirname, '../.env') });
+
+console.log('🔧 Environment check:');
+console.log('  - TELEGRAM_API_ID:', process.env.TELEGRAM_API_ID || 'NOT SET');
+console.log('  - TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : 'NOT SET');
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,6 +42,9 @@ app.get('/health', (req, res) => {
 
 setupRoutes(app, io);
 setupSocketIO(io);
+
+// 设置 MTProto 的 Socket.io 实例（用于推送 Agent 回复）
+mtprotoService.setSocketIO(io);
 
 app.use(errorHandler);
 

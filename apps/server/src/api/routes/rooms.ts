@@ -6,6 +6,24 @@ import { CreateRoomRequest, UpdateRoomRequest } from '@clawlive/shared-types';
 
 const prisma = new PrismaClient();
 
+// Import agent config storage
+const agentConfigs = new Map<string, {
+  agentType: string;
+  agentEnabled: boolean;
+  agentBotToken?: string;
+  agentChatId?: string;
+  agentStatus: string;
+}>();
+
+// Store room info for authorization without DB
+const roomInfo = new Map<string, {
+  hostId: string;
+  isLive: boolean;
+}>();
+
+// Export for use in agent-config route
+export { agentConfigs, roomInfo };
+
 export function roomRoutes(io: Server): Router {
   const router = Router();
 
@@ -82,6 +100,12 @@ export function roomRoutes(io: Server): Router {
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
       }
+
+      // Cache room info for agent-config
+      roomInfo.set(roomId, {
+        hostId: room.hostId,
+        isLive: room.isLive,
+      });
 
       res.json(room);
     } catch (error) {
@@ -211,6 +235,28 @@ export function roomRoutes(io: Server): Router {
         startedAt: updatedRoom.startedAt,
       });
 
+      // Start Telegram bridge if agent is enabled
+      const agentConfig = agentConfigs.get(roomId);
+      if (agentConfig && agentConfig.agentEnabled && 
+          agentConfig.agentType === 'telegram' &&
+          agentConfig.agentBotToken &&
+          agentConfig.agentChatId) {
+        
+        const { bridgeManager } = await import('../../services/telegram-bridge');
+        const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'dev-webhook-secret-change-in-production';
+        
+        bridgeManager.startBridge(
+          roomId,
+          agentConfig.agentBotToken,
+          agentConfig.agentChatId,
+          WEBHOOK_SECRET,
+          io
+        );
+        
+        agentConfig.agentStatus = 'connected';
+        agentConfigs.set(roomId, agentConfig);
+      }
+
       res.json(updatedRoom);
     } catch (error) {
       console.error('Error starting room:', error);
@@ -247,10 +293,79 @@ export function roomRoutes(io: Server): Router {
         endedAt: updatedRoom.endedAt,
       });
 
+      // Stop Telegram bridge
+      const { bridgeManager } = await import('../../services/telegram-bridge');
+      bridgeManager.stopBridge(roomId);
+      
+      // Update agent status
+      const agentConfig = agentConfigs.get(roomId);
+      if (agentConfig) {
+        agentConfig.agentStatus = 'disconnected';
+        agentConfigs.set(roomId, agentConfig);
+      }
+
       res.json(updatedRoom);
     } catch (error) {
       console.error('Error stopping room:', error);
       res.status(500).json({ error: 'Failed to stop room' });
+    }
+  });
+
+  // Host sends message in room (for live chat with Agent)
+  router.post('/:roomId/message', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { roomId } = req.params;
+      const { content } = req.body;
+      const userId = req.user!.id;
+
+      if (!content || typeof content !== 'string') {
+        return res.status(400).json({ error: 'Message content is required' });
+      }
+
+      // Check room from memory
+      const room = roomInfo.get(roomId);
+      
+      if (!room) {
+        return res.status(404).json({ error: 'Room not found' });
+      }
+
+      if (room.hostId !== userId) {
+        return res.status(403).json({ error: 'Only room host can send messages' });
+      }
+
+      if (!room.isLive) {
+        return res.status(400).json({ error: 'Room is not live' });
+      }
+
+      // Create message object (no DB save)
+      const message = {
+        id: Date.now().toString(),
+        roomId,
+        sender: 'user',
+        content,
+        timestamp: new Date(),
+      };
+
+      // Broadcast to all viewers
+      io.to(roomId).emit('new-message', message);
+
+      // Forward to Telegram Agent if enabled
+      const agentConfig = agentConfigs.get(roomId);
+      if (agentConfig && agentConfig.agentEnabled && agentConfig.agentType === 'telegram') {
+        const { bridgeManager } = await import('../../services/telegram-bridge');
+        const bridge = bridgeManager.getBridge(roomId);
+        if (bridge) {
+          console.log(`📤 Forwarding message to Telegram: "${content}"`);
+          await bridge.sendToTelegram(content);
+        } else {
+          console.log('⚠️ Telegram bridge not active');
+        }
+      }
+
+      res.json({ message });
+    } catch (error) {
+      console.error('Error sending message:', error);
+      res.status(500).json({ error: 'Failed to send message' });
     }
   });
 

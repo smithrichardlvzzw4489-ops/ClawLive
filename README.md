@@ -155,6 +155,50 @@ pnpm dev
 
 ---
 
+## 🦞 连接真实 OpenClaw Agent
+
+完成基础安装后，让你的直播间与真实的 OpenClaw Agent 对话！
+
+### 📋 前提条件
+
+- ✅ 已完成上面的快速开始步骤
+- ✅ 有一个正在运行的 OpenClaw Telegram Bot
+- ✅ 知道你的 Bot Token 和 Chat ID
+
+### ⚡ 3 步连接
+
+**1. 获取信息**
+```bash
+# 获取 Bot Token: @BotFather → /mybots → 选择Bot → API Token
+# 获取 Chat ID: 给Bot发消息 → 访问下面链接
+https://api.telegram.org/bot<你的Token>/getUpdates
+```
+
+**2. 配置桥接脚本**
+
+编辑 `telegram-bridge.js` 文件，替换配置：
+
+```javascript
+const TELEGRAM_BOT_TOKEN = '你的Bot Token';
+const TELEGRAM_CHAT_ID = 你的Chat ID;  // 纯数字
+```
+
+**3. 启动桥接器**
+
+```bash
+node telegram-bridge.js
+```
+
+完成！现在在直播间发送消息，OpenClaw Agent 会实时响应！
+
+### 📖 完整指南
+
+- **3分钟快速开始**: [QUICK_START_REAL_AGENT.md](./QUICK_START_REAL_AGENT.md) ⚡
+- **详细步骤指南**: [CONNECT_REAL_AGENT.md](./CONNECT_REAL_AGENT.md)
+- **高级集成方案**: [OPENCLAW_INTEGRATION.md](./OPENCLAW_INTEGRATION.md)
+
+---
+
 ## 🛠️ 技术栈
 
 ### 前端

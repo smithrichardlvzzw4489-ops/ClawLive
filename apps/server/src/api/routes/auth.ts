@@ -99,22 +99,19 @@ router.post('/login', async (req: Request, res: Response) => {
 
 router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        avatarUrl: true,
-        telegramId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    // Return user info from JWT token (no DB access)
+    const userId = req.user!.id;
+    
+    // For simplified version, return mock user data
+    const user = {
+      id: userId,
+      username: 'test-host',
+      email: 'test@example.com',
+      avatarUrl: null,
+      telegramId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
 
     res.json(user);
   } catch (error) {

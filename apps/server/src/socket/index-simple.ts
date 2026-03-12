@@ -1,9 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
 
 export async function setupSocketIO(io: Server): Promise<void> {
   if (process.env.REDIS_URL) {
@@ -25,46 +22,19 @@ export async function setupSocketIO(io: Server): Promise<void> {
 
     socket.on('join-room', async ({ roomId, role }) => {
       try {
-        const room = await prisma.room.findUnique({
-          where: { id: roomId },
-          include: {
-            host: {
-              select: {
-                id: true,
-                username: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        });
-
-        if (!room) {
-          socket.emit('error', { message: 'Room not found' });
-          return;
-        }
-
         await socket.join(roomId);
         console.log(`Socket ${socket.id} joined room: ${roomId} as ${role}`);
 
         const sockets = await io.in(roomId).fetchSockets();
         const viewerCount = sockets.length;
 
-        await prisma.room.update({
-          where: { id: roomId },
-          data: { viewerCount },
-        });
-
         io.to(roomId).emit('viewer-count-update', viewerCount);
 
-        const messages = await prisma.message.findMany({
-          where: { roomId },
-          orderBy: { timestamp: 'desc' },
-          take: 50,
-        });
-
-        socket.emit('message-history', messages.reverse());
+        // Send empty history (no DB)
+        socket.emit('message-history', []);
+        
         socket.emit('room-info', {
-          ...room,
+          id: roomId,
           viewerCount,
         });
       } catch (error) {
@@ -79,11 +49,6 @@ export async function setupSocketIO(io: Server): Promise<void> {
 
       const sockets = await io.in(roomId).fetchSockets();
       const viewerCount = sockets.length;
-
-      await prisma.room.update({
-        where: { id: roomId },
-        data: { viewerCount },
-      });
 
       io.to(roomId).emit('viewer-count-update', viewerCount);
     });
@@ -100,13 +65,13 @@ export async function setupSocketIO(io: Server): Promise<void> {
           return;
         }
 
-        const comment = await prisma.comment.create({
-          data: {
-            roomId,
-            nickname: nickname || 'Anonymous',
-            content: content.trim(),
-          },
-        });
+        const comment = {
+          id: Date.now().toString(),
+          roomId,
+          nickname: nickname || 'Anonymous',
+          content: content.trim(),
+          timestamp: new Date(),
+        };
 
         io.to(roomId).emit('new-comment', comment);
       } catch (error) {
@@ -123,11 +88,6 @@ export async function setupSocketIO(io: Server): Promise<void> {
         if (roomId !== socket.id) {
           const sockets = await io.in(roomId).fetchSockets();
           const viewerCount = sockets.length;
-
-          await prisma.room.update({
-            where: { id: roomId },
-            data: { viewerCount },
-          }).catch(() => {});
 
           io.to(roomId).emit('viewer-count-update', viewerCount);
         }

@@ -13,10 +13,13 @@ out/
 build/
 dist/
 
-# Environment
+# Environment - 敏感信息不提交
 .env
 .env*.local
 .env.production
+.env.cloud
+.env.pooler-example
+*.env.backup
 
 # IDE
 .vscode/
@@ -42,3 +45,14 @@ docker-compose.override.yml
 # Production
 *.pem
 *.key
+
+# Test scripts and temp files
+test-*.py
+test-*.js
+agent-test/
+agent-listener.js
+telegram-bridge.js
+
+# Cursor/IDE artifacts
+.cursor/
+assets/
