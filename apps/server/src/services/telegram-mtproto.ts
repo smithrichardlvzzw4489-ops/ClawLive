@@ -333,6 +333,13 @@ export class MTProtoUserService {
   }
 
   /**
+   * 以用户身份发送消息（简化版，直接调用sendAsUser）
+   */
+  async sendMessageAsUser(roomId: string, chatId: string, message: string): Promise<{ success: boolean; error?: string }> {
+    return this.sendAsUser(roomId, chatId, message);
+  }
+
+  /**
    * 断开用户会话
    */
   async disconnect(roomId: string): Promise<void> {
@@ -352,17 +359,69 @@ export class MTProtoUserService {
   }
 
   /**
+   * 登出并清除会话（用于结束直播时清理）
+   */
+  async logout(roomId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      console.log(`🚪 Logging out room ${roomId}`);
+      
+      const session = this.sessions.get(roomId);
+      const loginState = this.loginStates.get(roomId);
+      
+      // Disconnect and destroy client
+      if (session?.client) {
+        try {
+          await session.client.disconnect();
+          await session.client.destroy();
+          console.log(`✅ Client disconnected for room ${roomId}`);
+        } catch (error) {
+          console.error(`⚠️  Error disconnecting client:`, error);
+        }
+      }
+      
+      if (loginState?.client) {
+        try {
+          await loginState.client.disconnect();
+          await loginState.client.destroy();
+          console.log(`✅ Login state client disconnected for room ${roomId}`);
+        } catch (error) {
+          console.error(`⚠️  Error disconnecting login state client:`, error);
+        }
+      }
+      
+      // Clear from memory
+      this.sessions.delete(roomId);
+      this.loginStates.delete(roomId);
+      
+      console.log(`✅ Session cleared for room ${roomId}`);
+      return { success: true };
+      
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`❌ Logout failed for room ${roomId}:`, errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  /**
    * 开始监听 Telegram 新消息（Agent 回复）
    * 只监听来自指定 Chat ID 的消息
    */
   private async startListeningForMessages(roomId: string, client: TelegramClient) {
     console.log(`👂 Starting to listen for messages in room ${roomId}`);
 
-    // 获取当前房间的 Agent Chat ID
+    // 获取当前房间/作品的 Agent Chat ID
     const getAgentChatId = () => {
-      const { agentConfigs } = require('../api/routes/rooms-simple');
-      const config = agentConfigs.get(roomId);
-      return config?.agentChatId;
+      // Check if this is a work or a room
+      if (roomId.startsWith('work-')) {
+        const { workAgentConfigs } = require('../api/routes/work-agent-config');
+        const config = workAgentConfigs.get(roomId);
+        return config?.agentChatId;
+      } else {
+        const { agentConfigs } = require('../api/routes/rooms-simple');
+        const config = agentConfigs.get(roomId);
+        return config?.agentChatId;
+      }
     };
 
     // 监听新消息事件
@@ -417,18 +476,40 @@ export class MTProtoUserService {
 
         console.log(`✅ Message from Agent! Pushing to ClawLive...`);
 
-        // 推送到 ClawLive 直播间
+        // 推送到 ClawLive 直播间或作品工作室
         if (this.ioInstance && text) {
           const agentMessage = {
             id: Date.now().toString(),
             roomId,
-            sender: 'agent',
+            sender: 'agent' as const,
             content: text,
             timestamp: messageDate,
           };
 
-          this.ioInstance.to(roomId).emit('new-message', agentMessage);
-          console.log(`✅ Agent reply pushed to ClawLive room ${roomId}`);
+          // Check if this is a work or a room
+          if (roomId.startsWith('work-')) {
+            // Save to work messages
+            const { workMessages } = require('../api/routes/rooms-simple');
+            const messages = workMessages.get(roomId) || [];
+            messages.push(agentMessage);
+            workMessages.set(roomId, messages);
+
+            this.ioInstance.to(roomId).emit('work-message', agentMessage);
+            console.log(`✅ Agent reply pushed to work ${roomId}`);
+          } else {
+            // Save to room message history
+            const { messageHistory } = require('../api/routes/rooms-simple');
+            const history = messageHistory.get(roomId) || [];
+            history.push(agentMessage);
+            // Keep only last 100 messages to prevent memory issues
+            if (history.length > 100) {
+              history.shift();
+            }
+            messageHistory.set(roomId, history);
+
+            this.ioInstance.to(roomId).emit('new-message', agentMessage);
+            console.log(`✅ Agent reply pushed to ClawLive room ${roomId}`);
+          }
         }
 
       } catch (error) {

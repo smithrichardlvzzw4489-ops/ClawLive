@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { Message, AgentLog, Comment, Screenshot, Room } from '@clawlive/shared-types';
 import { ChatBubble } from './ChatBubble';
-import { AgentLogPanel } from './AgentLogPanel';
 import { CommentSection } from './CommentSection';
 import { ScreenshotViewer } from './ScreenshotViewer';
 import { AgentSettings } from './AgentSettings';
@@ -27,6 +26,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const [isSending, setIsSending] = useState(false);
   const [isTogglingLive, setIsTogglingLive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isStartingLive, setIsStartingLive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Check if current user is host
@@ -62,15 +62,55 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     checkHost();
   }, [roomId]);
 
-  // Toggle live status
-  const toggleLiveStatus = async () => {
-    if (!isHost || isTogglingLive) return;
+  // Start live - check config first
+  const startLivestream = async () => {
+    console.log('🎬 startLivestream called, isHost:', isHost, 'isTogglingLive:', isTogglingLive);
+    
+    if (!isHost || isTogglingLive) {
+      console.log('❌ Early return: not host or toggling');
+      return;
+    }
 
+    // Check if agent is configured
+    try {
+      const token = localStorage.getItem('token');
+      const configResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      console.log('📡 Config response status:', configResponse.status);
+
+      if (configResponse.ok) {
+        const config = await configResponse.json();
+        console.log('⚙️ Config:', config);
+        
+        // If agent is already configured and active, start live directly
+        if (config.agentEnabled && (config.agentStatus === 'active' || config.agentStatus === 'connected')) {
+          console.log('✅ Agent already configured, starting live directly');
+          await doStartLive();
+          return;
+        }
+      } else if (configResponse.status === 404) {
+        console.log('ℹ️ No config found, will show settings');
+      }
+    } catch (error) {
+      console.error('❌ Failed to check config:', error);
+    }
+
+    // If no config or config not complete, show settings for configuration
+    console.log('🔧 Showing settings modal');
+    setShowSettings(true);
+    setIsStartingLive(true);
+  };
+
+  // Actually start live after config is complete
+  const doStartLive = async () => {
     setIsTogglingLive(true);
     try {
       const token = localStorage.getItem('token');
-      const endpoint = room?.isLive ? 'stop' : 'start';
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/${endpoint}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/start`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -82,11 +122,56 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         setRoom(updatedRoom);
       } else {
         const error = await response.json();
-        alert(`操作失败: ${error.error || '未知错误'}`);
+        alert(`开始直播失败: ${error.error || '未知错误'}`);
       }
     } catch (error) {
-      console.error('Failed to toggle live status:', error);
-      alert('操作失败，请检查网络连接');
+      console.error('Failed to start live:', error);
+      alert('开始直播失败，请检查网络连接');
+    } finally {
+      setIsTogglingLive(false);
+    }
+  };
+
+  // Stop live and clear config
+  const stopLivestream = async () => {
+    if (!isHost || isTogglingLive) return;
+
+    if (!confirm('确认结束直播？\n\n⚠️ 结束后将清空所有 Agent 配置信息（包括登录状态），确保账号安全。')) {
+      return;
+    }
+
+    setIsTogglingLive(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/stop`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const updatedRoom = await response.json();
+        setRoom(updatedRoom);
+
+        // Clear agent config after stopping
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}/clear`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+        } catch (clearError) {
+          console.error('Failed to clear config:', clearError);
+        }
+      } else {
+        const error = await response.json();
+        alert(`结束直播失败: ${error.error || '未知错误'}`);
+      }
+    } catch (error) {
+      console.error('Failed to stop live:', error);
+      alert('结束直播失败，请检查网络连接');
     } finally {
       setIsTogglingLive(false);
     }
@@ -196,9 +281,26 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           </Link>
           <div>
             <h1 className="text-xl font-bold">{room.title}</h1>
-            <p className="text-sm text-gray-600">
-              {room.lobsterName} • 主播: {room.host?.username}
-            </p>
+            <div className="text-sm text-gray-600 flex items-center gap-2">
+              <span>🦞 {room.lobsterName}</span>
+              <span>•</span>
+              {room.host && (
+                <Link
+                  href={`/host/${room.host.id}`}
+                  className="flex items-center gap-1 hover:text-lobster"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {room.host.avatarUrl ? (
+                    <img src={room.host.avatarUrl} alt={room.host.username} className="w-5 h-5 rounded-full" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-lobster text-white flex items-center justify-center text-xs">
+                      {room.host.username.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span>主播: {room.host.username}</span>
+                </Link>
+              )}
+            </div>
           </div>
           {room.isLive && (
             <span className="flex items-center gap-2 px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-full">
@@ -209,27 +311,17 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         </div>
         <div className="flex items-center gap-3">
           {isHost && (
-            <>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors flex items-center gap-2"
-                title="Agent 设置"
-              >
-                <span>⚙️</span>
-                <span className="hidden sm:inline">设置</span>
-              </button>
-              <button
-                onClick={toggleLiveStatus}
-                disabled={isTogglingLive}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  room.isLive
-                    ? 'bg-red-600 text-white hover:bg-red-700'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-              >
-                {isTogglingLive ? '处理中...' : room.isLive ? '🔴 结束直播' : '🎬 开始直播'}
-              </button>
-            </>
+            <button
+              onClick={room.isLive ? stopLivestream : startLivestream}
+              disabled={isTogglingLive}
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
+                room.isLive
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {isTogglingLive ? '处理中...' : room.isLive ? '🔴 结束直播' : '🎬 开始直播'}
+            </button>
           )}
           <span className="flex items-center gap-1 text-sm text-gray-600">
             <span>👁️</span>
@@ -274,12 +366,10 @@ export function LiveStream({ roomId }: LiveStreamProps) {
               </p>
             </div>
           )}
-          
-          <CommentSection roomId={roomId} socket={socket} comments={comments} />
         </div>
 
         <div className="flex flex-col gap-4 overflow-hidden">
-          <AgentLogPanel logs={logs} />
+          <CommentSection roomId={roomId} socket={socket} comments={comments} />
           {screenshots.length > 0 && (
             <ScreenshotViewer screenshots={screenshots} />
           )}
@@ -299,7 +389,18 @@ export function LiveStream({ roomId }: LiveStreamProps) {
       {showSettings && (
         <AgentSettings
           roomId={roomId}
-          onClose={() => setShowSettings(false)}
+          onClose={() => {
+            setShowSettings(false);
+            setIsStartingLive(false);
+          }}
+          onConfigComplete={async () => {
+            setShowSettings(false);
+            setIsStartingLive(false);
+            if (!room.isLive) {
+              await doStartLive();
+            }
+          }}
+          isPreLiveConfig={isStartingLive}
         />
       )}
     </div>

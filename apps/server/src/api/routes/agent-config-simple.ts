@@ -315,6 +315,50 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       res.status(500).json({ error: 'Failed to submit password' });
     }
   });
+
+  /**
+   * POST /api/agent-config/:roomId/clear
+   * 清空房间的所有 Agent 配置信息（用于结束直播时保护用户隐私）
+   */
+  router.post('/:roomId/clear', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { roomId } = req.params;
+      const userId = req.user!.id;
+      
+      // Check room from memory
+      const room = roomInfo.get(roomId);
+      if (!room) {
+        return res.status(404).json({ error: 'Room not found' });
+      }
+      
+      if (room.hostId !== userId) {
+        return res.status(403).json({ error: 'Not authorized' });
+      }
+      
+      console.log(`🧹 Clearing agent config for room ${roomId}`);
+      
+      // Clear MTProto session if exists
+      const config = agentConfigs.get(roomId);
+      if (config && config.agentType === 'telegram-user') {
+        try {
+          await mtprotoService.logout(roomId);
+          console.log(`✅ MTProto session cleared for room ${roomId}`);
+        } catch (error) {
+          console.error('Error clearing MTProto session:', error);
+        }
+      }
+      
+      // Clear all config from memory
+      agentConfigs.delete(roomId);
+      
+      console.log(`✅ Agent config cleared for room ${roomId}`);
+      res.json({ success: true, message: 'Agent configuration cleared' });
+      
+    } catch (error) {
+      console.error('Error clearing agent config:', error);
+      res.status(500).json({ error: 'Failed to clear agent config' });
+    }
+  });
   
   return router;
 }

@@ -7,35 +7,197 @@ import Link from 'next/link';
 
 export default function CreateRoomPage() {
   const router = useRouter();
+  const [currentStep, setCurrentStep] = useState<'basic' | 'agent'>('basic');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [createdRoomId, setCreatedRoomId] = useState('');
+  
+  // Basic info
   const [formData, setFormData] = useState({
-    id: '',
     title: '',
     description: '',
     lobsterName: '',
-    dashboardUrl: '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Agent config
+  const [chatId, setChatId] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [twoFactorPassword, setTwoFactorPassword] = useState('');
+  const [loginStep, setLoginStep] = useState<'phone' | 'code' | 'password' | 'done'>('phone');
+  const [passwordHint, setPasswordHint] = useState('');
+  const [sendingCode, setSendingCode] = useState(false);
+  const [submittingCode, setSubmittingCode] = useState(false);
+  const [submittingPassword, setSubmittingPassword] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Step 1: Create room with basic info
+  const handleBasicInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
+      // Generate room ID from title
+      const generatedId = formData.title
+        .toLowerCase()
+        .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .substring(0, 30) + '-' + Date.now().toString().slice(-6);
+
       const room = await api.rooms.create({
-        id: formData.id,
+        id: generatedId,
         title: formData.title,
         description: formData.description || undefined,
         lobsterName: formData.lobsterName,
-        dashboardUrl: formData.dashboardUrl || undefined,
       });
 
-      router.push(`/rooms/${room.id}`);
+      setCreatedRoomId(room.id);
+      setCurrentStep('agent');
+      setMessage({ type: 'success', text: '✅ 直播间创建成功！现在配置你的 Agent' });
     } catch (err: any) {
       setError(err.message || '创建失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Step 2: Configure Agent (MTProto)
+  const sendVerificationCode = async () => {
+    if (!phoneNumber.trim() || !chatId.trim()) {
+      setMessage({ type: 'error', text: '请填写手机号和 Agent Chat ID' });
+      return;
+    }
+
+    setSendingCode(true);
+    setMessage(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}/mtproto-start`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber.trim(),
+          chatId: chatId.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setLoginStep('code');
+        setMessage({ type: 'success', text: '✅ 验证码已发送到你的手机，请查看 Telegram 消息' });
+      } else {
+        setMessage({ type: 'error', text: data.error || '发送失败' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: '网络错误' });
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const submitVerificationCode = async () => {
+    if (!verificationCode.trim()) {
+      setMessage({ type: 'error', text: '请输入验证码' });
+      return;
+    }
+
+    setSubmittingCode(true);
+    setMessage(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}/mtproto-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          code: verificationCode.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setLoginStep('done');
+        setMessage({ type: 'success', text: '🎉 Agent 配置成功！正在开始直播...' });
+        await startLivestream();
+      } else if (data.needsPassword) {
+        setLoginStep('password');
+        setPasswordHint(data.passwordHint || '');
+        setMessage({ type: 'error', text: `🔐 需要两步验证密码。提示：${data.passwordHint || '无'}` });
+      } else {
+        setMessage({ type: 'error', text: data.error || '验证码错误' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: '网络错误' });
+    } finally {
+      setSubmittingCode(false);
+    }
+  };
+
+  const submitTwoFactorPassword = async () => {
+    if (!twoFactorPassword.trim()) {
+      setMessage({ type: 'error', text: '请输入两步验证密码' });
+      return;
+    }
+
+    setSubmittingPassword(true);
+    setMessage(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}/mtproto-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          password: twoFactorPassword.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setLoginStep('done');
+        setMessage({ type: 'success', text: '🎉 Agent 配置成功！正在开始直播...' });
+        await startLivestream();
+      } else {
+        setMessage({ type: 'error', text: data.error || '密码错误' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: '网络错误' });
+    } finally {
+      setSubmittingPassword(false);
+    }
+  };
+
+  // Step 3: Start livestream and redirect
+  const startLivestream = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${createdRoomId}/start`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      setTimeout(() => {
+        router.push(`/rooms/${createdRoomId}`);
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to start livestream:', error);
+      setMessage({ type: 'error', text: '开始直播失败' });
     }
   };
 
@@ -52,34 +214,37 @@ export default function CreateRoomPage() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">创建直播间</h1>
-          <p className="text-gray-600 mb-8">配置你的龙虾直播间</p>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold mb-2">创建直播间</h1>
+            <p className="text-gray-600">配置你的龙虾直播间并开始直播</p>
+            
+            {/* Progress indicator */}
+            <div className="flex items-center gap-4 mt-6">
+              <div className={`flex items-center gap-2 ${currentStep === 'basic' ? 'text-lobster font-semibold' : currentStep === 'agent' ? 'text-green-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'basic' ? 'bg-lobster text-white' : currentStep === 'agent' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'}`}>
+                  {currentStep === 'agent' ? '✓' : '1'}
+                </div>
+                <span>基本信息</span>
+              </div>
+              <div className="flex-1 h-1 bg-gray-200 rounded">
+                <div className={`h-full bg-lobster rounded transition-all ${currentStep === 'agent' ? 'w-full' : 'w-0'}`}></div>
+              </div>
+              <div className={`flex items-center gap-2 ${currentStep === 'agent' ? 'text-lobster font-semibold' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'agent' ? 'bg-lobster text-white' : 'bg-gray-300 text-white'}`}>
+                  2
+                </div>
+                <span>Agent 配置</span>
+              </div>
+            </div>
+          </div>
 
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow p-8 space-y-6">
+          {currentStep === 'basic' && (
+            <form onSubmit={handleBasicInfoSubmit} className="bg-white rounded-xl shadow p-8 space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 {error}
               </div>
             )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                房间 ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.id}
-                onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                placeholder="my-lobster-room"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
-                pattern="[a-z0-9-]+"
-                title="只能包含小写字母、数字和连字符"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                唯一标识符，只能包含小写字母、数字和连字符
-              </p>
-            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -122,29 +287,13 @@ export default function CreateRoomPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Dashboard URL (可选)
-              </label>
-              <input
-                type="url"
-                value={formData.dashboardUrl}
-                onChange={(e) => setFormData({ ...formData, dashboardUrl: e.target.value })}
-                placeholder="https://lobsterboard.example.com"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                如果你有 LobsterBoard/ClawMetry，可以嵌入到直播间
-              </p>
-            </div>
-
             <div className="flex gap-4">
               <button
                 type="submit"
                 disabled={loading}
                 className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? '创建中...' : '创建直播间'}
+                {loading ? '创建中...' : '下一步：配置 Agent →'}
               </button>
               <Link
                 href="/rooms"
@@ -154,6 +303,193 @@ export default function CreateRoomPage() {
               </Link>
             </div>
           </form>
+          )}
+
+          {currentStep === 'agent' && (
+            <div className="bg-white rounded-xl shadow p-8 space-y-6">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+
+              <div className="bg-purple-50 border border-purple-200 rounded p-4">
+                <p className="text-gray-700 text-sm">
+                  以<strong>你的真实 Telegram 用户身份</strong>发送消息，Agent 完美识别你的对话！
+                </p>
+              </div>
+
+              {/* Step 1: Phone Number */}
+              {loginStep === 'phone' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      手机号（带国家码）<span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="+8613800138000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      例如：+86 开头（中国）、+1 开头（美国）
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Agent Chat ID <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={chatId}
+                      onChange={(e) => setChatId(e.target.value)}
+                      placeholder="@your_agent 或 123456789"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      你的 OpenClaw Agent 的 Telegram 用户名或 ID
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={sendVerificationCode}
+                    disabled={sendingCode || !phoneNumber.trim() || !chatId.trim()}
+                    className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+                  >
+                    {sendingCode ? '发送中...' : '📱 发送验证码'}
+                  </button>
+                </>
+              )}
+
+              {/* Step 2: Verification Code */}
+              {loginStep === 'code' && (
+                <>
+                  <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
+                    <p className="text-green-800">
+                      ✅ 验证码已发送到 <strong>{phoneNumber}</strong>
+                    </p>
+                    <p className="text-gray-600 mt-1">请打开 Telegram 查看验证码</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      验证码 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value)}
+                      placeholder="123456"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none text-center text-2xl tracking-widest"
+                      maxLength={6}
+                      autoFocus
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      输入 Telegram 发送给你的 6 位验证码
+                    </p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginStep('phone');
+                        setVerificationCode('');
+                        setMessage(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      ← 返回
+                    </button>
+                    <button
+                      onClick={submitVerificationCode}
+                      disabled={submittingCode || !verificationCode.trim()}
+                      className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+                    >
+                      {submittingCode ? '验证中...' : '✅ 提交验证码'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 3: Two-Factor Password (Optional) */}
+              {loginStep === 'password' && (
+                <>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
+                    <p className="text-yellow-800 font-medium">
+                      🔐 检测到两步验证
+                    </p>
+                    <p className="text-gray-700 mt-1">
+                      提示：{passwordHint || '无提示'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      两步验证密码 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={twoFactorPassword}
+                      onChange={(e) => setTwoFactorPassword(e.target.value)}
+                      placeholder="输入你的两步验证密码"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginStep('code');
+                        setTwoFactorPassword('');
+                        setMessage(null);
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      ← 返回
+                    </button>
+                    <button
+                      type="button"
+                      onClick={submitTwoFactorPassword}
+                      disabled={submittingPassword || !twoFactorPassword.trim()}
+                      className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+                    >
+                      {submittingPassword ? '验证中...' : '🔓 提交密码'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 4: Done */}
+              {loginStep === 'done' && (
+                <div className="bg-green-50 border border-green-200 rounded p-6 text-center">
+                  <div className="text-6xl mb-4 animate-bounce">🎉</div>
+                  <p className="text-green-800 font-semibold text-xl mb-2">配置完成！</p>
+                  <p className="text-gray-600">正在进入直播间...</p>
+                  <div className="mt-4 animate-spin text-4xl">🦞</div>
+                </div>
+              )}
+
+              {/* Message */}
+              {message && (
+                <div
+                  className={`p-4 rounded-lg ${
+                    message.type === 'success'
+                      ? 'bg-green-50 border border-green-200 text-green-800'
+                      : 'bg-red-50 border border-red-200 text-red-800'
+                  }`}
+                >
+                  {message.text}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>

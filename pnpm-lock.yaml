@@ -201,12 +201,6 @@ importers:
         specifier: ^5.3.3
         version: 5.9.3
 
-  test-agent:
-    dependencies:
-      socket.io-client:
-        specifier: ^4.8.3
-        version: 4.8.3
-
 packages:
 
   /@alloc/quick-lru@5.2.0:

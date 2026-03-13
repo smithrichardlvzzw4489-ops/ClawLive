@@ -70,10 +70,16 @@ export interface RoomListItem {
   id: string;
   title: string;
   lobsterName: string;
-  hostUsername: string;
+  description?: string;
   viewerCount: number;
   isLive: boolean;
   startedAt?: Date;
+  host: {
+    id: string;
+    username: string;
+    avatarUrl?: string;
+  };
+  hostUsername?: string; // Deprecated: use host.username
 }
 
 export interface CreateRoomRequest {

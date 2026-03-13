@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
+import { messageHistory } from '../api/routes/rooms-simple';
 
 export async function setupSocketIO(io: Server): Promise<void> {
   if (process.env.REDIS_URL) {
@@ -30,8 +31,10 @@ export async function setupSocketIO(io: Server): Promise<void> {
 
         io.to(roomId).emit('viewer-count-update', viewerCount);
 
-        // Send empty history (no DB)
-        socket.emit('message-history', []);
+        // Send message history from memory
+        const history = messageHistory.get(roomId) || [];
+        socket.emit('message-history', history);
+        console.log(`📨 Sent ${history.length} historical messages to ${socket.id}`);
         
         socket.emit('room-info', {
           id: roomId,
@@ -51,6 +54,27 @@ export async function setupSocketIO(io: Server): Promise<void> {
       const viewerCount = sockets.length;
 
       io.to(roomId).emit('viewer-count-update', viewerCount);
+    });
+
+    socket.on('join-work', async (workId: string) => {
+      try {
+        await socket.join(workId);
+        console.log(`Socket ${socket.id} joined work: ${workId}`);
+        
+        // Send work message history
+        const { workMessages } = require('../api/routes/rooms-simple');
+        const messages = workMessages.get(workId) || [];
+        socket.emit('work-history', messages);
+        console.log(`📨 Sent ${messages.length} work messages to ${socket.id}`);
+      } catch (error) {
+        console.error('Error joining work:', error);
+        socket.emit('error', { message: 'Failed to join work' });
+      }
+    });
+
+    socket.on('leave-work', async (workId: string) => {
+      await socket.leave(workId);
+      console.log(`Socket ${socket.id} left work: ${workId}`);
     });
 
     socket.on('send-comment', async ({ roomId, content, nickname }) => {

@@ -14,9 +14,9 @@ export default function HomePage() {
           <p className="text-2xl text-gray-700 mb-4">爪播</p>
           
           <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
-            专为 OpenClaw AI Agent 设计的实时直播平台
+            专为 OpenClaw AI Agent 设计的创作平台
             <br />
-            分享你的龙虾工作实况，让世界围观 AI 的魔法
+            实时直播你的工作实况，或创作独特的 AI 互动作品
           </p>
 
           <div className="flex gap-4 justify-center mb-16">
@@ -24,38 +24,30 @@ export default function HomePage() {
               href="/rooms"
               className="px-8 py-4 bg-lobster text-white rounded-lg font-semibold text-lg hover:bg-lobster-dark transition-colors shadow-lg"
             >
-              浏览直播间
+              🎬 直播间
             </Link>
             <Link
-              href="/login"
-              className="px-8 py-4 bg-white text-lobster border-2 border-lobster rounded-lg font-semibold text-lg hover:bg-gray-50 transition-colors shadow-lg"
+              href="/works"
+              className="px-8 py-4 bg-purple-600 text-white rounded-lg font-semibold text-lg hover:bg-purple-700 transition-colors shadow-lg"
             >
-              开始直播
+              📚 作品库
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 mt-16">
+          <div className="grid md:grid-cols-2 gap-8 mt-16 max-w-3xl mx-auto">
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-              <div className="text-4xl mb-4">💬</div>
-              <h3 className="text-xl font-semibold mb-2">实时聊天</h3>
+              <div className="text-4xl mb-4">🎬</div>
+              <h3 className="text-xl font-semibold mb-2">实时直播</h3>
               <p className="text-gray-600">
-                展示你与龙虾的完整对话，让观众见证 AI 的思考过程
+                与你的 Agent 实时互动，观众可以同步观看你们的对话过程
               </p>
             </div>
 
             <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-              <div className="text-4xl mb-4">📊</div>
-              <h3 className="text-xl font-semibold mb-2">Agent 日志</h3>
+              <div className="text-4xl mb-4">📚</div>
+              <h3 className="text-xl font-semibold mb-2">创作作品</h3>
               <p className="text-gray-600">
-                实时追踪 agent 动作、token 消耗、任务进度
-              </p>
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-              <div className="text-4xl mb-4">🖼️</div>
-              <h3 className="text-xl font-semibold mb-2">浏览器实况</h3>
-              <p className="text-gray-600">
-                看龙虾如何操作网页，自动推送截图
+                与 Agent 深度互动创作内容，打磨完成后发布给所有人欣赏
               </p>
             </div>
           </div>

@@ -56,3 +56,6 @@ telegram-bridge.js
 # Cursor/IDE artifacts
 .cursor/
 assets/
+
+# Work agent configs (contains sensitive session data)
+apps/server/.data/

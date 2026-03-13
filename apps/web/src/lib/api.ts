@@ -55,7 +55,7 @@ export const api = {
       return fetchAPI(`/api/rooms?${query}`);
     },
     get: (roomId: string) => fetchAPI(`/api/rooms/${roomId}`),
-    create: (data: { id: string; title: string; description?: string; lobsterName: string; dashboardUrl?: string }) =>
+    create: (data: { id: string; title: string; description?: string; lobsterName: string }) =>
       fetchAPI('/api/rooms', {
         method: 'POST',
         body: JSON.stringify(data),
