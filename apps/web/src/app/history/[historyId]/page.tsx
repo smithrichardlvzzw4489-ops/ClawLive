@@ -91,90 +91,90 @@ export default function HistoryPage() {
     );
   }
 
-  const durationMs = new Date(data.endedAt).getTime() - new Date(data.startedAt).getTime();
-  const duration = Math.round(durationMs / 60000);
+  const msPerMin = 60000;
+  const durationMinutes = Math.round(
+    (new Date(data.endedAt).getTime() - new Date(data.startedAt).getTime()) / msPerMin
+  );
 
-  return (
-    <MainLayout showSidebar={false}>
-      <div className="container mx-auto px-6 py-8 max-w-5xl">
-        {/* Header Card */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <Link href={`/host/${data.hostId}`} className="text-lobster hover:underline mb-4 inline-block text-sm">
-            ← {t('history.backToHost')}
-          </Link>
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-3xl font-bold text-gray-900">{data.title}</h1>
-                <span className="px-3 py-1 bg-gray-200 text-gray-600 text-sm font-semibold rounded">
-                  {t('history.ended')}
-                </span>
-              </div>
-              <p className="text-gray-600 mb-2">🦞 {data.lobsterName}</p>
-              {data.description && (
-                <p className="text-gray-500 mb-4">{data.description}</p>
-              )}
-              <div className="flex items-center gap-6 text-sm text-gray-600">
-                <Link href={`/host/${data.hostId}`} className="flex items-center gap-2 hover:text-lobster">
-                  {data.host.avatarUrl ? (
-                    <img src={data.host.avatarUrl} alt={data.host.username} className="w-6 h-6 rounded-full" />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-lobster text-white flex items-center justify-center text-xs">
-                      {data.host.username.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <span>{data.host.username}</span>
-                </Link>
-                <span>💬 {data.messages.length} 条消息</span>
-                <span>⏱️ {duration} 分钟</span>
-                <span>📅 {new Date(data.endedAt).toLocaleDateString('zh-CN')}</span>
-              </div>
+  const body = (
+    <div className="container mx-auto px-6 py-8 max-w-5xl">
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <Link href={`/host/${data.hostId}`} className="text-lobster hover:underline mb-4 inline-block text-sm">
+          ← {t('history.backToHost')}
+        </Link>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-3xl font-bold text-gray-900">{data.title}</h1>
+              <span className="px-3 py-1 bg-gray-200 text-gray-600 text-sm font-semibold rounded">
+                {t('history.ended')}
+              </span>
+            </div>
+            <p className="text-gray-600 mb-2">🦞 {data.lobsterName}</p>
+            {data.description && (
+              <p className="text-gray-500 mb-4">{data.description}</p>
+            )}
+            <div className="flex items-center gap-6 text-sm text-gray-600">
+              <Link href={`/host/${data.hostId}`} className="flex items-center gap-2 hover:text-lobster">
+                {data.host.avatarUrl ? (
+                  <img src={data.host.avatarUrl} alt={data.host.username} className="w-6 h-6 rounded-full" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-lobster text-white flex items-center justify-center text-xs">
+                    {data.host.username.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span>{data.host.username}</span>
+              </Link>
+              <span>💬 {data.messages.length} 条消息</span>
+              <span>⏱️ {durationMinutes} 分钟</span>
+              <span>📅 {new Date(data.endedAt).toLocaleDateString('zh-CN')}</span>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Chat History */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         <div className="border-b p-4 bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-900">{t('history.replayTitle')}</h2>
+          <h2 className="text-xl font-semibold text-gray-900">{t('history.replayTitle')}</h2>
           <p className="text-sm text-gray-600 mt-1">
             {new Date(data.startedAt).toLocaleString('zh-CN')} - {new Date(data.endedAt).toLocaleString('zh-CN')}
           </p>
         </div>
-        
         <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-            {data.messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-12">
-                {t('history.noMessages')}
-              </div>
-            ) : (
-              data.messages.map((msg) => (
+          {data.messages.length === 0 ? (
+            <div className="text-center text-gray-500 py-12">
+              {t('history.noMessages')}
+            </div>
+          ) : (
+            data.messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.sender === 'host' ? 'justify-end' : 'justify-start'}`}
+              >
                 <div
-                  key={msg.id}
-                  className={`flex ${msg.sender === 'host' ? 'justify-end' : 'justify-start'}`}
+                  className={`max-w-[70%] rounded-lg p-4 ${
+                    msg.sender === 'host'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-purple-100 text-gray-900'
+                  }`}
                 >
-                  <div
-                    className={`max-w-[70%] rounded-lg p-4 ${
-                      msg.sender === 'host'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-purple-100 text-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold opacity-90">
-                        {msg.sender === 'host' ? '🎤 主播' : '🦞 Agent'}
-                      </span>
-                      <span className={`text-xs opacity-75`}>
-                        {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
-                      </span>
-                    </div>
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold opacity-90">
+                      {msg.sender === 'host' ? '🎤 主播' : '🦞 Agent'}
+                    </span>
+                    <span className="text-xs opacity-75">
+                      {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
+                    </span>
                   </div>
+                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                 </div>
-              ))
-            )}
+              </div>
+            ))
+          )}
         </div>
       </div>
-    </MainLayout>
+    </div>
   );
+
+  return <MainLayout showSidebar={false}>{body}</MainLayout>;
 }
