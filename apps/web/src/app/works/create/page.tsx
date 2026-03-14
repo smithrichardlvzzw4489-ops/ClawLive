@@ -114,7 +114,7 @@ export default function CreateWorkPage() {
             <ul className="text-sm text-blue-800 space-y-1">
               <li>• 创建后，你将进入工作室与 Agent 互动</li>
               <li>• 可以随时保存草稿，不用一次完成</li>
-              <li>• 满意后点击"发布"，让大家欣赏你的作品</li>
+              <li>• 满意后点击「发布」，让大家欣赏你的作品</li>
             </ul>
           </div>
 

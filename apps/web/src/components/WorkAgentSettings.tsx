@@ -388,7 +388,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
                 <div className="space-y-4">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                     <p className="text-sm text-green-900">
-                      ✅ 验证码已发送到你的 Telegram！请查看"Telegram"应用中的消息。
+                      ✅ 验证码已发送到你的 Telegram！请查看「Telegram」应用中的消息。
                     </p>
                   </div>
 

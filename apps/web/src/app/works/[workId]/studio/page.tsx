@@ -340,7 +340,7 @@ export default function WorkStudioPage() {
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              💡 提示：与 Agent 充分交流，创作出更好的内容。满意后点击"发布作品"
+              💡 提示：与 Agent 充分交流，创作出更好的内容。满意后点击「发布作品」
             </p>
           </div>
         </div>
