@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from 'react';
 
+interface UserConnection {
+  id: string;
+  name: string;
+  agentChatId?: string;
+  phone?: string;
+}
+
 interface WorkAgentSettingsProps {
   workId: string;
   onClose: () => void;
@@ -9,6 +16,13 @@ interface WorkAgentSettingsProps {
 }
 
 export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAgentSettingsProps) {
+  const [connectionChoice, setConnectionChoice] = useState<'choice' | 'existing' | 'new'>('choice');
+  const [connections, setConnections] = useState<UserConnection[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState('');
+  const [applyingConnection, setApplyingConnection] = useState(false);
+
+  const [connectionName, setConnectionName] = useState('');
+  const [tempId, setTempId] = useState('');
   const [chatId, setChatId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -24,6 +38,24 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
   useEffect(() => {
     loadConfig();
   }, [workId]);
+
+  useEffect(() => {
+    const loadConnections = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConnections(data.connections || []);
+        }
+      } catch {
+        setConnections([]);
+      }
+    };
+    loadConnections();
+  }, []);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -49,9 +81,36 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
     }
   };
 
+  const applyExistingConnection = async () => {
+    if (!selectedConnectionId) {
+      setMessage({ type: 'error', text: '请选择一个连接' });
+      return;
+    }
+    setApplyingConnection(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ connectionId: selectedConnectionId }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '应用失败');
+      setLoginStep('done');
+      setMessage({ type: 'success', text: '✅ 连接已应用！' });
+      onConfigComplete?.();
+      setTimeout(() => onClose(), 1500);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '应用失败' });
+    } finally {
+      setApplyingConnection(false);
+    }
+  };
+
   const sendVerificationCode = async () => {
-    if (!phoneNumber.trim() || !chatId.trim()) {
-      setMessage({ type: 'error', text: '请填写手机号和 Chat ID' });
+    if (!phoneNumber.trim() || !chatId.trim() || !connectionName.trim()) {
+      setMessage({ type: 'error', text: '请填写连接名称、手机号和 Chat ID' });
       return;
     }
 
@@ -60,55 +119,48 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/work-agent-config/${workId}/mtproto-start`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-start`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          name: connectionName.trim(),
           phoneNumber: phoneNumber.trim(),
+          agentChatId: chatId.trim(),
         }),
       });
 
       const data = await response.json();
-
       if (data.success) {
+        setTempId(data.tempId);
         setLoginStep('code');
         setMessage({ type: 'success', text: '✅ 验证码已发送到你的手机，请查看 Telegram 消息' });
-        if (data.needsPassword) {
-          setPasswordHint(data.passwordHint || '');
-        }
       } else {
-        setMessage({ type: 'error', text: `❌ ${data.error || '发送验证码失败'}` });
+        setMessage({ type: 'error', text: data.error || '发送验证码失败' });
       }
     } catch (error) {
-      console.error('Error sending verification code:', error);
-      setMessage({ type: 'error', text: '❌ 网络错误，请重试' });
+      setMessage({ type: 'error', text: '网络错误，请重试' });
     } finally {
       setSendingCode(false);
     }
   };
 
   const submitVerificationCode = async () => {
-    if (!verificationCode.trim()) {
-      setMessage({ type: 'error', text: '请输入验证码' });
-      return;
-    }
+    if (!verificationCode.trim() || !tempId) return;
 
     setSubmittingCode(true);
     setMessage(null);
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/work-agent-config/${workId}/mtproto-code`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-code`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          tempId,
           code: verificationCode.trim(),
+          name: connectionName.trim(),
+          agentChatId: chatId.trim(),
+          phoneNumber: phoneNumber.trim(),
         }),
       });
 
@@ -120,7 +172,17 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
           setPasswordHint(data.passwordHint || '');
           setMessage({ type: 'success', text: '✅ 验证码正确，请输入两步验证密码' });
         } else {
-          await completeConfiguration();
+          const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ connectionId: data.connection.id }),
+          });
+          const applyData = await applyRes.json();
+          if (!applyData.success) throw new Error(applyData.error || '应用失败');
+          setLoginStep('done');
+          setMessage({ type: 'success', text: '✅ Agent 配置成功！' });
+          onConfigComplete?.();
+          setTimeout(() => onClose(), 1500);
         }
       } else {
         setMessage({ type: 'error', text: `❌ ${data.error || '验证码错误'}` });
@@ -134,71 +196,45 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
   };
 
   const submitTwoFactorPassword = async () => {
-    if (!twoFactorPassword.trim()) {
-      setMessage({ type: 'error', text: '请输入两步验证密码' });
-      return;
-    }
+    if (!twoFactorPassword.trim() || !tempId) return;
 
     setSubmittingPassword(true);
     setMessage(null);
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/work-agent-config/${workId}/mtproto-password`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          password: twoFactorPassword,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        await completeConfiguration();
-      } else {
-        setMessage({ type: 'error', text: `❌ ${data.error || '密码错误'}` });
-      }
-    } catch (error) {
-      console.error('Error submitting password:', error);
-      setMessage({ type: 'error', text: '❌ 网络错误，请重试' });
-    } finally {
-      setSubmittingPassword(false);
-    }
-  };
-
-  const completeConfiguration = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/work-agent-config/${workId}/mtproto-complete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+          tempId,
+          password: twoFactorPassword.trim(),
+          name: connectionName.trim(),
           agentChatId: chatId.trim(),
+          phoneNumber: phoneNumber.trim(),
         }),
       });
 
       const data = await response.json();
-
       if (data.success) {
+        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ connectionId: data.connection.id }),
+        });
+        const applyData = await applyRes.json();
+        if (!applyData.success) throw new Error(applyData.error || '应用失败');
         setLoginStep('done');
         setMessage({ type: 'success', text: '✅ Agent 配置成功！' });
         onConfigComplete?.();
-        setTimeout(() => {
-          onClose();
-        }, 1500);
+        setTimeout(() => onClose(), 1500);
       } else {
-        setMessage({ type: 'error', text: `❌ ${data.error || '配置失败'}` });
+        setMessage({ type: 'error', text: data.error || '密码错误' });
       }
-    } catch (error) {
-      console.error('Error completing configuration:', error);
-      setMessage({ type: 'error', text: '❌ 网络错误，请重试' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '网络错误，请重试' });
+    } finally {
+      setSubmittingPassword(false);
     }
   };
 
@@ -235,9 +271,61 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
                 </p>
               </div>
 
-              {/* Phone Number Step */}
-              {loginStep === 'phone' && (
+              {/* Connection choice: existing or new */}
+              {connectionChoice === 'choice' && loginStep !== 'done' && (
                 <div className="space-y-4">
+                  {connections.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">使用已有连接</label>
+                      <select
+                        value={selectedConnectionId}
+                        onChange={(e) => setSelectedConnectionId(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                      >
+                        <option value="">-- 选择一个连接 --</option>
+                        {connections.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.phone ? `(${c.phone})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={applyExistingConnection}
+                        disabled={applyingConnection || !selectedConnectionId}
+                        className="mt-3 w-full px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {applyingConnection ? '应用中...' : '应用'}
+                      </button>
+                    </div>
+                  )}
+                  {connections.length > 0 && <div className="text-center text-gray-500">或</div>}
+                  <button
+                    type="button"
+                    onClick={() => setConnectionChoice('new')}
+                    className="w-full px-6 py-3 border-2 border-dashed border-lobster text-lobster rounded-lg hover:bg-lobster/5 font-semibold"
+                  >
+                    + 新建连接
+                  </button>
+                </div>
+              )}
+
+              {/* Phone Number Step (new connection only) */}
+              {connectionChoice === 'new' && loginStep === 'phone' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      连接名称 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={connectionName}
+                      onChange={(e) => setConnectionName(e.target.value)}
+                      placeholder="如：我的工作龙虾"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">保存后可多次复用</p>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       手机号（带国家码）<span className="text-red-500">*</span>
@@ -270,25 +358,33 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
                     </p>
                   </div>
 
-                  <button
-                    onClick={sendVerificationCode}
-                    disabled={sendingCode}
-                    className="w-full px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {sendingCode ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        发送中...
-                      </>
-                    ) : (
-                      <>📱 发送验证码</>
-                    )}
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setConnectionChoice('choice'); setMessage(null); }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
+                    >
+                      ← 返回
+                    </button>
+                    <button
+                      onClick={sendVerificationCode}
+                      disabled={sendingCode || !phoneNumber.trim() || !chatId.trim() || !connectionName.trim()}
+                      className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {sendingCode ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          发送中...
+                        </>
+                      ) : (
+                        <>📱 发送验证码</>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* Verification Code Step */}
-              {loginStep === 'code' && (
+              {connectionChoice === 'new' && loginStep === 'code' && (
                 <div className="space-y-4">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                     <p className="text-sm text-green-900">
@@ -337,7 +433,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
               )}
 
               {/* 2FA Password Step */}
-              {loginStep === 'password' && (
+              {connectionChoice === 'new' && loginStep === 'password' && (
                 <div className="space-y-4">
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                     <p className="text-sm text-yellow-900">

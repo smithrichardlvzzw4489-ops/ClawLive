@@ -44,6 +44,10 @@ export default function HostPage() {
   const [data, setData] = useState<HostData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [following, setFollowing] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   useEffect(() => {
     const fetchHostData = async () => {
@@ -65,6 +69,59 @@ export default function HostPage() {
 
     fetchHostData();
   }, [hostId]);
+
+  // 检查登录状态和关注状态
+  useEffect(() => {
+    const checkAuthAndFollow = async () => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        setIsLoggedIn(false);
+        return;
+      }
+      try {
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!meRes.ok) {
+          setIsLoggedIn(false);
+          return;
+        }
+        const me = await meRes.json();
+        setIsLoggedIn(true);
+        setCurrentUserId(me.id);
+        if (me.id === hostId) return; // 自己的主页不检查关注
+        const followRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/check/${hostId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (followRes.ok) {
+          const { following: f } = await followRes.json();
+          setFollowing(f);
+        }
+      } catch {
+        setIsLoggedIn(false);
+      }
+    };
+    checkAuthAndFollow();
+  }, [hostId]);
+
+  const toggleFollow = async () => {
+    if (!isLoggedIn || isToggling || currentUserId === hostId) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setIsToggling(true);
+    try {
+      const method = following ? 'DELETE' : 'POST';
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/${hostId}`, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setFollowing(!following);
+      }
+    } finally {
+      setIsToggling(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -115,20 +172,48 @@ export default function HostPage() {
                 </div>
               )}
             </div>
-            <div className="flex-1 text-white">
-              <h1 className="text-4xl font-bold mb-3">{host.username}</h1>
-              {host.bio && (
-                <p className="text-lg opacity-90 mb-4">{host.bio}</p>
-              )}
-              <div className="flex gap-8 text-sm">
+            <div className="flex-1 text-white flex flex-col">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <span className="font-bold text-2xl">{stats.totalSessions}</span>
-                  <span className="ml-2 opacity-90">直播</span>
+                  <h1 className="text-4xl font-bold mb-3">{host.username}</h1>
+                  {host.bio && (
+                    <p className="text-lg opacity-90 mb-4">{host.bio}</p>
+                  )}
+                  <div className="flex gap-8 text-sm">
+                    <div>
+                      <span className="font-bold text-2xl">{stats.totalSessions}</span>
+                      <span className="ml-2 opacity-90">直播</span>
+                    </div>
+                    <div>
+                      <span className="font-bold text-2xl">{stats.totalMessages}</span>
+                      <span className="ml-2 opacity-90">消息</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="font-bold text-2xl">{stats.totalMessages}</span>
-                  <span className="ml-2 opacity-90">消息</span>
-                </div>
+                {currentUserId !== hostId && (
+                  <div className="flex-shrink-0">
+                    {isLoggedIn ? (
+                      <button
+                        onClick={toggleFollow}
+                        disabled={isToggling}
+                        className={`px-6 py-2.5 rounded-lg font-semibold transition-colors disabled:opacity-50 ${
+                          following
+                            ? 'bg-white/20 hover:bg-white/30 text-white border border-white/50'
+                            : 'bg-white text-lobster hover:bg-white/90'
+                        }`}
+                      >
+                        {isToggling ? '...' : following ? '已关注' : '+ 关注'}
+                      </button>
+                    ) : (
+                      <Link
+                        href="/login"
+                        className="inline-block px-6 py-2.5 rounded-lg font-semibold bg-white text-lobster hover:bg-white/90 transition-colors"
+                      >
+                        登录后关注
+                      </Link>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

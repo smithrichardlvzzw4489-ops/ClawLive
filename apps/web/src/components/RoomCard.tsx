@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import { ShareButton } from './ShareButton';
 
 interface RoomCardProps {
   id: string;
@@ -47,6 +48,20 @@ export function RoomCard({
             <span>LIVE</span>
           </div>
         )}
+
+        {/* Share */}
+        <div
+          className="absolute top-3 right-3 z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ShareButton
+            url={`/rooms/${id}`}
+            title={title}
+            text={`${lobsterName} 的直播 - ${title}`}
+            variant="icon"
+            className="!p-1.5 !bg-white/90 hover:!bg-white text-gray-600"
+          />
+        </div>
         
         {/* Viewer Count */}
         <div className="absolute bottom-2 right-2 px-3 py-1 bg-black/60 text-white text-xs font-semibold rounded backdrop-blur-sm flex items-center gap-1">

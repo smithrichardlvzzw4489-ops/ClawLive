@@ -1,9 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+
+interface UserConnection {
+  id: string;
+  name: string;
+  agentChatId?: string;
+  phone?: string;
+  hasSession?: boolean;
+}
 
 export default function CreateRoomPage() {
   const router = useRouter();
@@ -19,7 +27,15 @@ export default function CreateRoomPage() {
     lobsterName: '',
   });
 
-  // Agent config
+  // Connection choice: use existing or create new
+  const [connectionChoice, setConnectionChoice] = useState<'choice' | 'existing' | 'new'>('choice');
+  const [connections, setConnections] = useState<UserConnection[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState('');
+  const [applyingConnection, setApplyingConnection] = useState(false);
+
+  // Agent config (for new connection)
+  const [connectionName, setConnectionName] = useState('');
+  const [tempId, setTempId] = useState('');
   const [chatId, setChatId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -30,6 +46,26 @@ export default function CreateRoomPage() {
   const [submittingCode, setSubmittingCode] = useState(false);
   const [submittingPassword, setSubmittingPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Load user connections when entering agent step
+  useEffect(() => {
+    if (currentStep !== 'agent' || !createdRoomId) return;
+    const loadConnections = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConnections(data.connections || []);
+        }
+      } catch {
+        setConnections([]);
+      }
+    };
+    loadConnections();
+  }, [currentStep, createdRoomId]);
 
   // Step 1: Create room with basic info
   const handleBasicInfoSubmit = async (e: React.FormEvent) => {
@@ -62,10 +98,41 @@ export default function CreateRoomPage() {
     }
   };
 
-  // Step 2: Configure Agent (MTProto)
+  // Apply existing connection and start livestream
+  const applyExistingConnection = async () => {
+    if (!selectedConnectionId) {
+      setMessage({ type: 'error', text: '请选择一个连接' });
+      return;
+    }
+    setApplyingConnection(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ connectionId: selectedConnectionId }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '应用失败');
+      setMessage({ type: 'success', text: '✅ 连接已应用！正在开始直播...' });
+      setConnectionChoice('existing');
+      setLoginStep('done');
+      await startLivestream();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '应用失败' });
+    } finally {
+      setApplyingConnection(false);
+    }
+  };
+
+  // Step 2: Configure Agent - NEW connection (user-agent-connections API)
   const sendVerificationCode = async () => {
-    if (!phoneNumber.trim() || !chatId.trim()) {
-      setMessage({ type: 'error', text: '请填写手机号和 Agent Chat ID' });
+    if (!phoneNumber.trim() || !chatId.trim() || !connectionName.trim()) {
+      setMessage({ type: 'error', text: '请填写连接名称、手机号和 Agent Chat ID' });
       return;
     }
 
@@ -74,21 +141,23 @@ export default function CreateRoomPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}/mtproto-start`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
+          name: connectionName.trim(),
           phoneNumber: phoneNumber.trim(),
-          chatId: chatId.trim(),
+          agentChatId: chatId.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        setTempId(data.tempId);
         setLoginStep('code');
         setMessage({ type: 'success', text: '✅ 验证码已发送到你的手机，请查看 Telegram 消息' });
       } else {
@@ -102,7 +171,7 @@ export default function CreateRoomPage() {
   };
 
   const submitVerificationCode = async () => {
-    if (!verificationCode.trim()) {
+    if (!verificationCode.trim() || !tempId) {
       setMessage({ type: 'error', text: '请输入验证码' });
       return;
     }
@@ -112,22 +181,33 @@ export default function CreateRoomPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}/mtproto-code`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
+          tempId,
           code: verificationCode.trim(),
+          name: connectionName.trim(),
+          agentChatId: chatId.trim(),
+          phoneNumber: phoneNumber.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        setMessage({ type: 'success', text: '🎉 连接已保存！正在应用到直播间并开始直播...' });
+        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ connectionId: data.connection.id }),
+        });
+        const applyData = await applyRes.json();
+        if (!applyData.success) throw new Error(applyData.error || '应用失败');
         setLoginStep('done');
-        setMessage({ type: 'success', text: '🎉 Agent 配置成功！正在开始直播...' });
         await startLivestream();
       } else if (data.needsPassword) {
         setLoginStep('password');
@@ -136,15 +216,15 @@ export default function CreateRoomPage() {
       } else {
         setMessage({ type: 'error', text: data.error || '验证码错误' });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: '网络错误' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '网络错误' });
     } finally {
       setSubmittingCode(false);
     }
   };
 
   const submitTwoFactorPassword = async () => {
-    if (!twoFactorPassword.trim()) {
+    if (!twoFactorPassword.trim() || !tempId) {
       setMessage({ type: 'error', text: '请输入两步验证密码' });
       return;
     }
@@ -154,28 +234,39 @@ export default function CreateRoomPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}/mtproto-password`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
+          tempId,
           password: twoFactorPassword.trim(),
+          name: connectionName.trim(),
+          agentChatId: chatId.trim(),
+          phoneNumber: phoneNumber.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        setMessage({ type: 'success', text: '🎉 连接已保存！正在应用到直播间并开始直播...' });
+        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ connectionId: data.connection.id }),
+        });
+        const applyData = await applyRes.json();
+        if (!applyData.success) throw new Error(applyData.error || '应用失败');
         setLoginStep('done');
-        setMessage({ type: 'success', text: '🎉 Agent 配置成功！正在开始直播...' });
         await startLivestream();
       } else {
         setMessage({ type: 'error', text: data.error || '密码错误' });
       }
-    } catch (error) {
-      setMessage({ type: 'error', text: '网络错误' });
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '网络错误' });
     } finally {
       setSubmittingPassword(false);
     }
@@ -185,19 +276,22 @@ export default function CreateRoomPage() {
   const startLivestream = async () => {
     try {
       const token = localStorage.getItem('token');
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${createdRoomId}/start`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${createdRoomId}/start`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
-
-      setTimeout(() => {
-        router.push(`/rooms/${createdRoomId}`);
-      }, 1500);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage({ type: 'error', text: data.error || '开始直播失败' });
+        return;
+      }
+      setMessage({ type: 'success', text: '✅ 直播已开始！正在跳转...' });
+      setTimeout(() => router.push(`/rooms/${createdRoomId}`), 1500);
     } catch (error) {
       console.error('Failed to start livestream:', error);
-      setMessage({ type: 'error', text: '开始直播失败' });
+      setMessage({ type: 'error', text: '开始直播失败，请到直播间页点击「开始直播」' });
     }
   };
 
@@ -319,9 +413,63 @@ export default function CreateRoomPage() {
                 </p>
               </div>
 
-              {/* Step 1: Phone Number */}
-              {loginStep === 'phone' && (
+              {/* Connection choice: existing or new */}
+              {connectionChoice === 'choice' && (
+                <div className="space-y-4">
+                  {connections.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">使用已有连接</label>
+                      <select
+                        value={selectedConnectionId}
+                        onChange={(e) => setSelectedConnectionId(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster"
+                      >
+                        <option value="">-- 选择一个连接 --</option>
+                        {connections.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} {c.phone ? `(${c.phone})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={applyExistingConnection}
+                        disabled={applyingConnection || !selectedConnectionId}
+                        className="mt-3 w-full px-6 py-3 bg-lobster text-white rounded-lg hover:bg-lobster-dark disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                      >
+                        {applyingConnection ? '应用中...' : '应用并开始直播'}
+                      </button>
+                    </div>
+                  )}
+                  {connections.length > 0 && (
+                    <div className="text-center text-gray-500">或</div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setConnectionChoice('new')}
+                    className="w-full px-6 py-3 border-2 border-dashed border-lobster text-lobster rounded-lg hover:bg-lobster/5 font-semibold"
+                  >
+                    + 新建连接
+                  </button>
+                </div>
+              )}
+
+              {/* Step 1: Phone Number (new connection) */}
+              {connectionChoice === 'new' && loginStep === 'phone' && (
                 <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      连接名称 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={connectionName}
+                      onChange={(e) => setConnectionName(e.target.value)}
+                      placeholder="如：我的工作龙虾"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">保存后可多次复用</p>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       手机号（带国家码）<span className="text-red-500">*</span>
@@ -354,19 +502,28 @@ export default function CreateRoomPage() {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={sendVerificationCode}
-                    disabled={sendingCode || !phoneNumber.trim() || !chatId.trim()}
-                    className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
-                  >
-                    {sendingCode ? '发送中...' : '📱 发送验证码'}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setConnectionChoice('choice'); setMessage(null); }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      ← 返回
+                    </button>
+                    <button
+                      type="button"
+                      onClick={sendVerificationCode}
+                      disabled={sendingCode || !phoneNumber.trim() || !chatId.trim() || !connectionName.trim()}
+                      className="flex-1 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+                    >
+                      {sendingCode ? '发送中...' : '📱 发送验证码'}
+                    </button>
+                  </div>
                 </>
               )}
 
               {/* Step 2: Verification Code */}
-              {loginStep === 'code' && (
+              {connectionChoice === 'new' && loginStep === 'code' && (
                 <>
                   <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
                     <p className="text-green-800">
@@ -417,7 +574,7 @@ export default function CreateRoomPage() {
               )}
 
               {/* Step 3: Two-Factor Password (Optional) */}
-              {loginStep === 'password' && (
+              {connectionChoice === 'new' && loginStep === 'password' && (
                 <>
                   <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
                     <p className="text-yellow-800 font-medium">
@@ -467,7 +624,7 @@ export default function CreateRoomPage() {
               )}
 
               {/* Step 4: Done */}
-              {loginStep === 'done' && (
+              {(connectionChoice === 'existing' || connectionChoice === 'new') && loginStep === 'done' && (
                 <div className="bg-green-50 border border-green-200 rounded p-6 text-center">
                   <div className="text-6xl mb-4 animate-bounce">🎉</div>
                   <p className="text-green-800 font-semibold text-xl mb-2">配置完成！</p>
@@ -485,7 +642,15 @@ export default function CreateRoomPage() {
                       : 'bg-red-50 border border-red-200 text-red-800'
                   }`}
                 >
-                  {message.text}
+                  <p>{message.text}</p>
+                  {message.type === 'error' && createdRoomId && (
+                    <Link
+                      href={`/rooms/${createdRoomId}`}
+                      className="mt-3 inline-block px-4 py-2 bg-lobster text-white rounded-lg hover:bg-lobster-dark font-semibold"
+                    >
+                      前往直播间手动开始 →
+                    </Link>
+                  )}
                 </div>
               )}
             </div>

@@ -129,9 +129,40 @@ export interface WebhookScreenshotPayload {
   caption?: string;
 }
 
+/** Agent Viewer: AI agents that subscribe to live/work content for learning */
+export interface AgentViewerRegisterRequest {
+  agentId: string;
+  name?: string;
+  webhookUrl?: string;
+}
+
+export interface AgentViewerRegisterResponse {
+  agentId: string;
+  apiKey: string;
+  message: string;
+}
+
+export interface AgentViewerSubscriptions {
+  agentId: string;
+  roomIds: string[];
+  workIds: string[];
+}
+
+export interface AgentViewerFeedItem {
+  id: string;
+  roomId?: string;
+  workId?: string;
+  sender: string;
+  content: string;
+  timestamp: Date;
+  type: 'message';
+}
+
 export interface SocketEvents {
-  'join-room': { roomId: string; role: 'host' | 'viewer' };
-  'leave-room': { roomId: string };
+  'join-room': { roomId: string; role?: 'host' | 'viewer' | 'agent'; agentId?: string } | string;
+  'leave-room': { roomId: string } | string;
+  'join-work': { workId: string; role?: 'viewer' | 'agent'; agentId?: string } | string;
+  'leave-work': { workId: string } | string;
   'send-comment': { roomId: string; content: string; nickname: string };
   'message-history': Message[];
   'new-message': Message;

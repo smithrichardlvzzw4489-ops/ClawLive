@@ -8,6 +8,7 @@ import { ChatBubble } from './ChatBubble';
 import { CommentSection } from './CommentSection';
 import { ScreenshotViewer } from './ScreenshotViewer';
 import { AgentSettings } from './AgentSettings';
+import { ShareButton } from './ShareButton';
 import Link from 'next/link';
 
 interface LiveStreamProps {
@@ -329,11 +330,24 @@ export function LiveStream({ roomId }: LiveStreamProps) {
             <span>👁️</span>
             <span className="font-semibold">{viewerCount}</span>
           </span>
+          <ShareButton
+            url={`/rooms/${roomId}`}
+            title={room.title}
+            text={`${room.lobsterName} 的直播 - ${room.title}`}
+            variant="icon"
+          />
         </div>
       </header>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-hidden">
         <div className="lg:col-span-2 flex flex-col bg-white rounded-lg shadow overflow-hidden">
+          {/* 主播未开播时的提示 */}
+          {isHost && !room.isLive && (
+            <div className="p-6 bg-amber-50 border-b border-amber-200 text-center">
+              <p className="text-amber-800 font-medium mb-2">直播尚未开始</p>
+              <p className="text-sm text-amber-700">请点击右上角「🎬 开始直播」按钮开始你的直播</p>
+            </div>
+          )}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />

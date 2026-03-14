@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ShareButton } from './ShareButton';
 
 interface WorkCardProps {
   id: string;
@@ -51,6 +52,20 @@ export function WorkCard({
         
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300"></div>
+
+        {/* Share */}
+        <div
+          className="absolute top-2 right-2 z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ShareButton
+            url={`/works/${id}`}
+            title={title}
+            text={description || `${lobsterName} 的作品 - ${title}`}
+            variant="icon"
+            className="!p-1.5 !bg-white/90 hover:!bg-white text-gray-600"
+          />
+        </div>
         
         {/* Stats Overlay */}
         <div className="absolute bottom-2 right-2 flex items-center gap-2 text-white text-xs font-semibold">

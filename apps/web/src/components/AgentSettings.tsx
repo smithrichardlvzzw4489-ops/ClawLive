@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from 'react';
 
+interface UserConnection {
+  id: string;
+  name: string;
+  agentChatId?: string;
+  phone?: string;
+}
+
 interface AgentSettingsProps {
   roomId: string;
   onClose: () => void;
@@ -10,6 +17,13 @@ interface AgentSettingsProps {
 }
 
 export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConfig = false }: AgentSettingsProps) {
+  const [connectionChoice, setConnectionChoice] = useState<'choice' | 'existing' | 'new'>('choice');
+  const [connections, setConnections] = useState<UserConnection[]>([]);
+  const [selectedConnectionId, setSelectedConnectionId] = useState('');
+  const [applyingConnection, setApplyingConnection] = useState(false);
+
+  const [connectionName, setConnectionName] = useState('');
+  const [tempId, setTempId] = useState('');
   const [chatId, setChatId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -25,6 +39,24 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
   useEffect(() => {
     loadConfig();
   }, [roomId]);
+
+  useEffect(() => {
+    const loadConnections = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setConnections(data.connections || []);
+        }
+      } catch {
+        setConnections([]);
+      }
+    };
+    loadConnections();
+  }, []);
 
   const loadConfig = async () => {
     setLoading(true);
@@ -50,9 +82,36 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
     }
   };
 
+  const applyExistingConnection = async () => {
+    if (!selectedConnectionId) {
+      setMessage({ type: 'error', text: '请选择一个连接' });
+      return;
+    }
+    setApplyingConnection(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ connectionId: selectedConnectionId }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '应用失败');
+      setLoginStep('done');
+      setMessage({ type: 'success', text: '✅ 连接已应用！' });
+      onConfigComplete?.();
+      if (isPreLiveConfig) setTimeout(() => onClose(), 1500);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '应用失败' });
+    } finally {
+      setApplyingConnection(false);
+    }
+  };
+
   const sendVerificationCode = async () => {
-    if (!phoneNumber.trim() || !chatId.trim()) {
-      setMessage({ type: 'error', text: '请填写手机号和 Chat ID' });
+    if (!phoneNumber.trim() || !chatId.trim() || !connectionName.trim()) {
+      setMessage({ type: 'error', text: '请填写连接名称、手机号和 Chat ID' });
       return;
     }
 
@@ -61,21 +120,20 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}/mtproto-start`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-start`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          name: connectionName.trim(),
           phoneNumber: phoneNumber.trim(),
-          chatId: chatId.trim(),
+          agentChatId: chatId.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        setTempId(data.tempId);
         setLoginStep('code');
         setMessage({ type: 'success', text: '✅ 验证码已发送到你的手机，请查看 Telegram 消息' });
       } else {
@@ -89,46 +147,45 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
   };
 
   const submitVerificationCode = async () => {
-    if (!verificationCode.trim()) {
-      setMessage({ type: 'error', text: '请输入验证码' });
-      return;
-    }
+    if (!verificationCode.trim() || !tempId) return;
 
     setSubmittingCode(true);
     setMessage(null);
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}/mtproto-code`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-code`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          tempId,
           code: verificationCode.trim(),
+          name: connectionName.trim(),
+          agentChatId: chatId.trim(),
+          phoneNumber: phoneNumber.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        setLoginStep('done');
-        if (isPreLiveConfig) {
-          setMessage({ type: 'success', text: '🎉 登录成功！正在开始直播...' });
-          setTimeout(() => {
-            onConfigComplete?.();
-          }, 1500);
+        if (data.needsPassword) {
+          setLoginStep('password');
+          setPasswordHint(data.passwordHint || '');
+          setMessage({ type: 'success', text: '✅ 验证码正确，请输入两步验证密码' });
         } else {
-          setMessage({ type: 'success', text: '🎉 登录成功！现在你可以以真实用户身份发送消息了' });
-          setTimeout(() => {
-            onClose();
-          }, 2000);
+          const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ connectionId: data.connection.id }),
+          });
+          const applyData = await applyRes.json();
+          if (!applyData.success) throw new Error(applyData.error || '应用失败');
+          setLoginStep('done');
+          setMessage({ type: 'success', text: isPreLiveConfig ? '🎉 登录成功！正在开始直播...' : '🎉 登录成功！' });
+          onConfigComplete?.();
+          setTimeout(() => onClose(), isPreLiveConfig ? 1500 : 2000);
         }
-      } else if (data.needsPassword) {
-        setLoginStep('password');
-        setPasswordHint(data.passwordHint || '');
-        setMessage({ type: 'error', text: `🔐 需要两步验证密码。提示：${data.passwordHint || '无'}` });
       } else {
         setMessage({ type: 'error', text: data.error || '验证码错误' });
       }
@@ -140,42 +197,39 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
   };
 
   const submitTwoFactorPassword = async () => {
-    if (!twoFactorPassword.trim()) {
-      setMessage({ type: 'error', text: '请输入两步验证密码' });
-      return;
-    }
+    if (!twoFactorPassword.trim() || !tempId) return;
 
     setSubmittingPassword(true);
     setMessage(null);
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}/mtproto-password`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          tempId,
           password: twoFactorPassword.trim(),
+          name: connectionName.trim(),
+          agentChatId: chatId.trim(),
+          phoneNumber: phoneNumber.trim(),
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ connectionId: data.connection.id }),
+        });
+        const applyData = await applyRes.json();
+        if (!applyData.success) throw new Error(applyData.error || '应用失败');
         setLoginStep('done');
-        if (isPreLiveConfig) {
-          setMessage({ type: 'success', text: '🎉 登录成功！正在开始直播...' });
-          setTimeout(() => {
-            onConfigComplete?.();
-          }, 1500);
-        } else {
-          setMessage({ type: 'success', text: '🎉 登录成功！现在你可以以真实用户身份发送消息了' });
-          setTimeout(() => {
-            onClose();
-          }, 2000);
-        }
+        setMessage({ type: 'success', text: isPreLiveConfig ? '🎉 登录成功！正在开始直播...' : '🎉 登录成功！' });
+        onConfigComplete?.();
+        setTimeout(() => onClose(), isPreLiveConfig ? 1500 : 2000);
       } else {
         setMessage({ type: 'error', text: data.error || '密码错误' });
       }
@@ -231,9 +285,61 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
               </p>
             </div>
 
-            {/* Step 1: Phone Number */}
-            {loginStep === 'phone' && (
+            {/* Connection choice: existing or new */}
+            {connectionChoice === 'choice' && loginStep !== 'done' && (
+              <div className="space-y-4">
+                {connections.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">使用已有连接</label>
+                    <select
+                      value={selectedConnectionId}
+                      onChange={(e) => setSelectedConnectionId(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="">-- 选择一个连接 --</option>
+                      {connections.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.phone ? `(${c.phone})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={applyExistingConnection}
+                      disabled={applyingConnection || !selectedConnectionId}
+                      className="mt-3 w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      {applyingConnection ? '应用中...' : '应用'}
+                    </button>
+                  </div>
+                )}
+                {connections.length > 0 && <div className="text-center text-gray-500">或</div>}
+                <button
+                  type="button"
+                  onClick={() => setConnectionChoice('new')}
+                  className="w-full px-6 py-3 border-2 border-dashed border-purple-600 text-purple-600 rounded-lg hover:bg-purple-50 font-semibold"
+                >
+                  + 新建连接
+                </button>
+              </div>
+            )}
+
+            {/* Step 1: Phone Number (new connection only) */}
+            {connectionChoice === 'new' && loginStep === 'phone' && (
               <>
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    连接名称 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={connectionName}
+                    onChange={(e) => setConnectionName(e.target.value)}
+                    placeholder="如：我的直播龙虾"
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  />
+                  <p className="text-xs text-gray-600 mt-1">保存后可多次复用</p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     手机号（带国家码）<span className="text-red-500">*</span>
@@ -266,18 +372,26 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
                   </p>
                 </div>
 
-                <button
-                  onClick={sendVerificationCode}
-                  disabled={sendingCode || !phoneNumber.trim() || !chatId.trim()}
-                  className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
-                >
-                  {sendingCode ? '发送中...' : '📱 发送验证码'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setConnectionChoice('choice'); setMessage(null); }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    ← 返回
+                  </button>
+                  <button
+                    onClick={sendVerificationCode}
+                    disabled={sendingCode || !phoneNumber.trim() || !chatId.trim() || !connectionName.trim()}
+                    className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg"
+                  >
+                    {sendingCode ? '发送中...' : '📱 发送验证码'}
+                  </button>
+                </div>
               </>
             )}
 
             {/* Step 2: Verification Code */}
-            {loginStep === 'code' && (
+            {connectionChoice === 'new' && loginStep === 'code' && (
               <>
                 <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
                   <p className="text-green-800">
@@ -327,7 +441,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
             )}
 
             {/* Step 3: Two-Factor Password (Optional) */}
-            {loginStep === 'password' && (
+            {connectionChoice === 'new' && loginStep === 'password' && (
               <>
                 <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
                   <p className="text-yellow-800 font-medium">

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { ShareButton } from '@/components/ShareButton';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Message {
@@ -100,7 +101,7 @@ export default function WorkDetailPage() {
           <Link href="/works" className="text-lobster hover:underline mb-4 inline-block text-sm">
             ← {t('workDetail.backToList')}
           </Link>
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{work.title}</h1>
               {work.description && (
@@ -132,6 +133,11 @@ export default function WorkDetailPage() {
                 </div>
               )}
             </div>
+            <ShareButton
+              url={`/works/${workId}`}
+              title={work.title}
+              text={work.description || `${work.lobsterName} 的作品 - ${work.title}`}
+            />
           </div>
         </div>
 

@@ -21,10 +21,22 @@ export async function setupSocketIO(io: Server): Promise<void> {
   io.on('connection', (socket: Socket) => {
     console.log(`Client connected: ${socket.id}`);
 
-    socket.on('join-room', async ({ roomId, role }) => {
+    socket.on('join-room', async (payload) => {
       try {
+        const roomId = typeof payload === 'string' ? payload : payload?.roomId;
+        const role = (typeof payload === 'object' && payload?.role) || 'viewer';
+        const agentId = typeof payload === 'object' ? payload?.agentId : undefined;
+
+        if (!roomId) {
+          socket.emit('error', { message: 'roomId is required' });
+          return;
+        }
+
         await socket.join(roomId);
-        console.log(`Socket ${socket.id} joined room: ${roomId} as ${role}`);
+        socket.data.role = role;
+        socket.data.agentId = agentId;
+        socket.data.roomId = roomId;
+        console.log(`Socket ${socket.id} joined room: ${roomId} as ${role}${agentId ? ` (agent: ${agentId})` : ''}`);
 
         const sockets = await io.in(roomId).fetchSockets();
         const viewerCount = sockets.length;
@@ -35,7 +47,7 @@ export async function setupSocketIO(io: Server): Promise<void> {
         const history = messageHistory.get(roomId) || [];
         socket.emit('message-history', history);
         console.log(`[MSG] Sent ${history.length} historical messages to ${socket.id}`);
-        
+
         socket.emit('room-info', {
           id: roomId,
           viewerCount,
@@ -46,8 +58,13 @@ export async function setupSocketIO(io: Server): Promise<void> {
       }
     });
 
-    socket.on('leave-room', async ({ roomId }) => {
+    socket.on('leave-room', async (payload) => {
+      const roomId = typeof payload === 'string' ? payload : payload?.roomId;
+      if (!roomId) return;
       await socket.leave(roomId);
+      delete socket.data.roomId;
+      delete socket.data.role;
+      delete socket.data.agentId;
       console.log(`Socket ${socket.id} left room: ${roomId}`);
 
       const sockets = await io.in(roomId).fetchSockets();
@@ -56,11 +73,23 @@ export async function setupSocketIO(io: Server): Promise<void> {
       io.to(roomId).emit('viewer-count-update', viewerCount);
     });
 
-    socket.on('join-work', async (workId: string) => {
+    socket.on('join-work', async (payload) => {
       try {
+        const workId = typeof payload === 'string' ? payload : payload?.workId;
+        const role = (typeof payload === 'object' && payload?.role) || 'viewer';
+        const agentId = typeof payload === 'object' ? payload?.agentId : undefined;
+
+        if (!workId) {
+          socket.emit('error', { message: 'workId is required' });
+          return;
+        }
+
         await socket.join(workId);
-        console.log(`Socket ${socket.id} joined work: ${workId}`);
-        
+        socket.data.role = role;
+        socket.data.agentId = agentId;
+        socket.data.workId = workId;
+        console.log(`Socket ${socket.id} joined work: ${workId} as ${role}${agentId ? ` (agent: ${agentId})` : ''}`);
+
         // Send work message history
         const { workMessages } = require('../api/routes/rooms-simple');
         const messages = workMessages.get(workId) || [];
@@ -72,8 +101,13 @@ export async function setupSocketIO(io: Server): Promise<void> {
       }
     });
 
-    socket.on('leave-work', async (workId: string) => {
+    socket.on('leave-work', async (payload) => {
+      const workId = typeof payload === 'string' ? payload : payload?.workId;
+      if (!workId) return;
       await socket.leave(workId);
+      delete socket.data.workId;
+      delete socket.data.role;
+      delete socket.data.agentId;
       console.log(`Socket ${socket.id} left work: ${workId}`);
     });
 
