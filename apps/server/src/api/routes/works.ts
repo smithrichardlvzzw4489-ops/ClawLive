@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { works, workMessages, userProfiles } from './rooms-simple';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';
+import { recordBehavior } from '../../services/user-behavior';
 
 export function worksRoutes(io: Server): Router {
   const router = Router();
@@ -118,6 +120,24 @@ export function worksRoutes(io: Server): Router {
       // Increment view count
       work.viewCount++;
       works.set(workId, work);
+
+      // 记录浏览行为（用于个性化推荐），登录用户且非本人作品
+      const token = req.headers.authorization?.replace('Bearer ', '');
+      if (token && work.authorId) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+          if (decoded.userId !== work.authorId) {
+            recordBehavior({
+              userId: decoded.userId,
+              type: 'work_view',
+              targetId: workId,
+              authorId: work.authorId,
+              tags: work.tags,
+              lobsterName: work.lobsterName,
+            });
+          }
+        } catch (_) {}
+      }
 
       const author = userProfiles.get(work.authorId);
 

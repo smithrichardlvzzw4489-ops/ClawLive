@@ -1,0 +1,100 @@
+'use client';
+
+import Link from 'next/link';
+import { formatDistanceToNow } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+
+interface RoomCardProps {
+  id: string;
+  title: string;
+  description?: string;
+  lobsterName: string;
+  isLive: boolean;
+  viewerCount: number;
+  startedAt?: Date;
+  host: {
+    id: string;
+    username: string;
+    avatarUrl?: string;
+  };
+}
+
+export function RoomCard({
+  id,
+  title,
+  description,
+  lobsterName,
+  isLive,
+  viewerCount,
+  startedAt,
+  host,
+}: RoomCardProps) {
+  return (
+    <Link
+      href={`/rooms/${id}`}
+      className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
+    >
+      {/* Cover/Thumbnail */}
+      <div className="relative aspect-video bg-gradient-to-br from-red-400 to-pink-500 overflow-hidden">
+        <div className="w-full h-full flex items-center justify-center">
+          <span className="text-6xl opacity-70 group-hover:scale-110 transition-transform duration-300">🦞</span>
+        </div>
+        
+        {/* LIVE Badge */}
+        {isLive && (
+          <div className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1.5 bg-red-500 text-white text-sm font-bold rounded shadow-lg">
+            <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
+            <span>LIVE</span>
+          </div>
+        )}
+        
+        {/* Viewer Count */}
+        <div className="absolute bottom-2 right-2 px-3 py-1 bg-black/60 text-white text-xs font-semibold rounded backdrop-blur-sm flex items-center gap-1">
+          <span>👁️</span>
+          <span>{viewerCount}</span>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        {/* Title */}
+        <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900 group-hover:text-lobster transition-colors">
+          {title}
+        </h3>
+
+        {/* Lobster Name */}
+        <p className="text-sm text-gray-600 mb-3 flex items-center gap-1">
+          <span>🦞</span>
+          <span>{lobsterName}</span>
+        </p>
+
+        {/* Host & Time Info */}
+        <div className="flex items-center justify-between pt-3 border-t">
+          <Link
+            href={`/host/${host.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-2 hover:text-lobster transition-colors"
+          >
+            {host.avatarUrl ? (
+              <img src={host.avatarUrl} alt={host.username} className="w-6 h-6 rounded-full" />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-lobster text-white flex items-center justify-center text-xs font-semibold">
+                {host.username.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-sm text-gray-600">{host.username}</span>
+          </Link>
+          
+          {startedAt && (
+            <span className="text-xs text-gray-400">
+              {formatDistanceToNow(new Date(startedAt), { 
+                addSuffix: true,
+                locale: zhCN 
+              })}
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}

@@ -7,22 +7,22 @@ import { WorkConfigPersistence } from '../../services/work-config-persistence';
 // Work Agent configurations (in-memory + persistent)
 export const workAgentConfigs = WorkConfigPersistence.loadAllConfigs();
 
-console.log(`📂 Initialized work agent configs: ${workAgentConfigs.size} configs loaded`);
+console.log(`[CFG] Initialized work agent configs: ${workAgentConfigs.size} configs loaded`);
 
 // Restore MTProto sessions for active configs
 (async () => {
   for (const [workId, config] of workAgentConfigs.entries()) {
     if (config.sessionString && config.agentStatus === 'active') {
-      console.log(`🔄 Restoring MTProto session for work ${workId}...`);
+      console.log(`[RESTORE] Restoring MTProto session for work ${workId}...`);
       try {
         const result = await mtprotoService.restoreSession(workId, config.sessionString);
         if (result.success) {
-          console.log(`✅ MTProto session restored for work ${workId}`);
+          console.log(`[OK] MTProto session restored for work ${workId}`);
         } else {
-          console.error(`❌ Failed to restore session for work ${workId}:`, result.error);
+          console.error(`[ERR] Failed to restore session for work ${workId}:`, result.error);
         }
       } catch (error) {
-        console.error(`❌ Error restoring session for work ${workId}:`, error);
+        console.error(`[ERR] Error restoring session for work ${workId}:`, error);
       }
     }
   }

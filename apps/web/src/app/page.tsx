@@ -1,62 +1,148 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { MainLayout } from '@/components/MainLayout';
+import { RoomCard } from '@/components/RoomCard';
+import { WorkCard } from '@/components/WorkCard';
+import { useLocale } from '@/lib/i18n/LocaleContext';
+
+interface Room {
+  id: string;
+  title: string;
+  description?: string;
+  lobsterName: string;
+  isLive: boolean;
+  viewerCount: number;
+  startedAt?: Date;
+  host: {
+    id: string;
+    username: string;
+    avatarUrl?: string;
+  };
+}
+
+interface Work {
+  id: string;
+  title: string;
+  description?: string;
+  lobsterName: string;
+  coverImage?: string;
+  tags: string[];
+  viewCount: number;
+  likeCount: number;
+  messageCount: number;
+  publishedAt: Date;
+  author: {
+    id: string;
+    username: string;
+    avatarUrl?: string;
+  };
+}
 
 export default function HomePage() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100">
-      <div className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="mb-8 text-8xl">🦞</div>
-          
-          <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-lobster-dark to-purple-600 bg-clip-text text-transparent">
-            ClawLive
-          </h1>
-          
-          <p className="text-2xl text-gray-700 mb-4">爪播</p>
-          
-          <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
-            专为 OpenClaw AI Agent 设计的创作平台
-            <br />
-            实时直播你的工作实况，或创作独特的 AI 互动作品
-          </p>
+  const { t } = useLocale();
+  const [liveRooms, setLiveRooms] = useState<Room[]>([]);
+  const [recommendedWorks, setRecommendedWorks] = useState<Work[]>([]);
+  const [loading, setLoading] = useState(true);
 
-          <div className="flex gap-4 justify-center mb-16">
+  useEffect(() => {
+    loadContent();
+  }, []);
+
+  const loadContent = async () => {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/recommendations/home`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setLiveRooms(data.liveRooms || []);
+        setRecommendedWorks(data.recommendedWorks || []);
+      }
+    } catch (error) {
+      console.error('Error loading recommendations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <MainLayout>
+      <div className="container mx-auto px-6 py-8">
+        {/* Live Rooms Section */}
+        <section className="mb-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-1 h-8 bg-lobster rounded-full"></span>
+              <span>{t('home.liveSection')}</span>
+            </h2>
             <Link
               href="/rooms"
-              className="px-8 py-4 bg-lobster text-white rounded-lg font-semibold text-lg hover:bg-lobster-dark transition-colors shadow-lg"
+              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1"
             >
-              🎬 直播间
+              <span>{t('more')}</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </Link>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin text-6xl">🦞</div>
+            </div>
+          ) : liveRooms.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-xl">
+              <p className="text-gray-500">{t('home.noLive')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {liveRooms.map((room) => (
+                <RoomCard key={room.id} {...room} />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Recommended Works Section */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-1 h-8 bg-lobster rounded-full"></span>
+              <span>{t('home.worksSection')}</span>
+            </h2>
             <Link
               href="/works"
-              className="px-8 py-4 bg-purple-600 text-white rounded-lg font-semibold text-lg hover:bg-purple-700 transition-colors shadow-lg"
+              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1"
             >
-              📚 作品库
+              <span>{t('more')}</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </Link>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 mt-16 max-w-3xl mx-auto">
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-              <div className="text-4xl mb-4">🎬</div>
-              <h3 className="text-xl font-semibold mb-2">实时直播</h3>
-              <p className="text-gray-600">
-                与你的 Agent 实时互动，观众可以同步观看你们的对话过程
-              </p>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin text-6xl">🦞</div>
             </div>
-
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-              <div className="text-4xl mb-4">📚</div>
-              <h3 className="text-xl font-semibold mb-2">创作作品</h3>
-              <p className="text-gray-600">
-                与 Agent 深度互动创作内容，打磨完成后发布给所有人欣赏
-              </p>
+          ) : recommendedWorks.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-xl">
+              <p className="text-gray-500">{t('home.noWorks')}</p>
             </div>
-          </div>
-
-          <div className="mt-16 text-gray-500 text-sm">
-            <p>开源 | MIT License | 社区驱动</p>
-          </div>
-        </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {recommendedWorks.map((work) => (
+                <WorkCard key={work.id} {...work} />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
-    </div>
+    </MainLayout>
   );
 }
+

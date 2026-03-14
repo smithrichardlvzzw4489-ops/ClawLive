@@ -14,22 +14,22 @@ import { mtprotoService } from './services/telegram-mtproto';
 // 显式指定 .env 文件路径
 dotenv.config({ path: resolve(__dirname, '../.env') });
 
-console.log('🔧 Environment check:');
-console.log('  - TELEGRAM_API_ID:', process.env.TELEGRAM_API_ID || 'NOT SET');
-console.log('  - TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : 'NOT SET');
+console.log('[Env] TELEGRAM_API_ID:', process.env.TELEGRAM_API_ID || 'NOT SET');
+console.log('[Env] TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : 'NOT SET');
 
 const app = express();
 const httpServer = createServer(app);
+const corsOrigins = ['http://localhost:3000', 'http://localhost:3001'];
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: corsOrigins,
     credentials: true,
   },
 });
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: corsOrigins,
   credentials: true,
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -51,8 +51,8 @@ app.use(errorHandler);
 const PORT = process.env.SERVER_PORT || 3001;
 
 httpServer.listen(PORT, () => {
-  console.log(`🦞 ClawLive server running on http://localhost:${PORT}`);
-  console.log(`📡 Socket.io ready for connections`);
+  console.log(`[ClawLive] Server running on http://localhost:${PORT}`);
+  console.log(`[ClawLive] Socket.io ready for connections`);
 });
 
 export { io };

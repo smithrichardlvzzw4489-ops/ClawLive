@@ -11,10 +11,10 @@ export async function setupSocketIO(io: Server): Promise<void> {
 
       await Promise.all([pubClient.connect(), subClient.connect()]);
       io.adapter(createAdapter(pubClient, subClient));
-      console.log('✅ Socket.io Redis adapter configured');
+      console.log('[OK] Socket.io Redis adapter configured');
     } catch (error) {
-      console.warn('⚠️  Redis connection failed, running without Redis adapter:', error instanceof Error ? error.message : 'Unknown error');
-      console.log('✅ Socket.io running in standalone mode (single server)');
+      console.warn('[WARN] Redis connection failed, running without Redis adapter:', error instanceof Error ? error.message : 'Unknown error');
+      console.log('[OK] Socket.io running in standalone mode (single server)');
     }
   }
 
@@ -34,7 +34,7 @@ export async function setupSocketIO(io: Server): Promise<void> {
         // Send message history from memory
         const history = messageHistory.get(roomId) || [];
         socket.emit('message-history', history);
-        console.log(`📨 Sent ${history.length} historical messages to ${socket.id}`);
+        console.log(`[MSG] Sent ${history.length} historical messages to ${socket.id}`);
         
         socket.emit('room-info', {
           id: roomId,
@@ -65,7 +65,7 @@ export async function setupSocketIO(io: Server): Promise<void> {
         const { workMessages } = require('../api/routes/rooms-simple');
         const messages = workMessages.get(workId) || [];
         socket.emit('work-history', messages);
-        console.log(`📨 Sent ${messages.length} work messages to ${socket.id}`);
+        console.log(`[MSG] Sent ${messages.length} work messages to ${socket.id}`);
       } catch (error) {
         console.error('Error joining work:', error);
         socket.emit('error', { message: 'Failed to join work' });

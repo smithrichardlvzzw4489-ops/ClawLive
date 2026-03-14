@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSocket } from '@/hooks/useSocket';
+import { trackBehavior } from '@/hooks/useBehaviorTrack';
 import { Message, AgentLog, Comment, Screenshot, Room } from '@clawlive/shared-types';
 import { ChatBubble } from './ChatBubble';
 import { CommentSection } from './CommentSection';
@@ -211,6 +212,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     if (!socket || !isConnected) return;
 
     socket.emit('join-room', { roomId, role: 'viewer' });
+    trackBehavior('room_join', roomId);
 
     socket.on('room-info', (roomData) => {
       setRoom(roomData);

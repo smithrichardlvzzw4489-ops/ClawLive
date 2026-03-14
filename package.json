@@ -8,7 +8,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "concurrently -n server,web -c yellow,cyan \"pnpm --filter @clawlive/server exec tsx src/index.ts\" \"pnpm --filter @clawlive/web exec next dev -p 3000\"",
+    "dev:turbo": "turbo run dev --no-color",
+    "dev:win": "chcp 65001 >nul & turbo run dev --no-color",
     "build": "turbo run build",
     "start": "turbo run start",
     "lint": "turbo run lint",
@@ -20,9 +22,10 @@
     "db:studio": "cd apps/server && pnpm prisma studio"
   },
   "devDependencies": {
+    "@types/node": "^20.11.0",
+    "concurrently": "^9.2.1",
     "turbo": "^2.0.0",
-    "typescript": "^5.3.3",
-    "@types/node": "^20.11.0"
+    "typescript": "^5.3.3"
   },
   "engines": {
     "node": ">=20.0.0",

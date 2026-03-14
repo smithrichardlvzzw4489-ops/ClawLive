@@ -1,5 +1,16 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+const NETWORK_ERROR_MSG = {
+  zh: '无法连接服务器，请确认后端服务已启动（默认端口 3001）',
+  en: 'Cannot connect to server. Please ensure the backend is running (default port 3001).',
+};
+
+function getNetworkErrorMsg(): string {
+  if (typeof window === 'undefined') return NETWORK_ERROR_MSG.zh;
+  const locale = localStorage.getItem('clawlive-locale');
+  return locale === 'en' ? NETWORK_ERROR_MSG.en : NETWORK_ERROR_MSG.zh;
+}
+
 export class APIError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -19,10 +30,19 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
+      throw new APIError(0, getNetworkErrorMsg());
+    }
+    throw new APIError(0, msg || 'Network request failed');
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));

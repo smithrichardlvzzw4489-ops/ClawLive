@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { MainLayout } from '@/components/MainLayout';
+import { RoomCard } from '@/components/RoomCard';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Host {
   id: string;
@@ -35,9 +38,9 @@ interface HostData {
 
 export default function HostPage() {
   const params = useParams();
-  const router = useRouter();
   const hostId = params.hostId as string;
   
+  const { t } = useLocale();
   const [data, setData] = useState<HostData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,105 +68,92 @@ export default function HostPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+      <MainLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
+            <p className="text-gray-600">{t('loading')}</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error || '加载失败'}</p>
-          <Link href="/rooms" className="text-lobster hover:underline">
-            返回房间列表
-          </Link>
+      <MainLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error || t('history.loadFailed')}</p>
+            <Link href="/rooms" className="text-lobster hover:underline">
+              {t('history.backToList')}
+            </Link>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   const { host, liveRooms, historySessions, stats } = data;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-6">
-          <Link href="/rooms" className="text-lobster hover:underline mb-4 inline-block">
-            ← 返回房间列表
-          </Link>
-          <div className="flex items-start gap-6">
+    <MainLayout>
+      <div className="container mx-auto px-6 py-8">
+        {/* Host Profile Banner */}
+        <div className="bg-gradient-to-r from-lobster-light to-purple-200 rounded-xl p-8 mb-8">
+          <div className="flex items-center gap-6">
             <div className="flex-shrink-0">
               {host.avatarUrl ? (
                 <img
                   src={host.avatarUrl}
                   alt={host.username}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-lobster"
+                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
                 />
               ) : (
-                <div className="w-24 h-24 rounded-full bg-lobster text-white flex items-center justify-center text-3xl font-bold">
+                <div className="w-32 h-32 rounded-full bg-white text-lobster flex items-center justify-center text-4xl font-bold shadow-lg">
                   {host.username.charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{host.username}</h1>
+            <div className="flex-1 text-white">
+              <h1 className="text-4xl font-bold mb-3">{host.username}</h1>
               {host.bio && (
-                <p className="text-gray-600 mb-4">{host.bio}</p>
+                <p className="text-lg opacity-90 mb-4">{host.bio}</p>
               )}
-              <div className="flex gap-6 text-sm">
+              <div className="flex gap-8 text-sm">
                 <div>
-                  <span className="font-semibold text-gray-900">{stats.totalSessions}</span>
-                  <span className="text-gray-600 ml-1">直播场次</span>
+                  <span className="font-bold text-2xl">{stats.totalSessions}</span>
+                  <span className="ml-2 opacity-90">直播</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-gray-900">{stats.totalMessages}</span>
-                  <span className="text-gray-600 ml-1">总消息数</span>
+                  <span className="font-bold text-2xl">{stats.totalMessages}</span>
+                  <span className="ml-2 opacity-90">消息</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
         {/* Live Rooms */}
         {liveRooms.length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-              正在直播
+              <span className="w-1 h-8 bg-red-500 rounded-full"></span>
+              <span>{t('host.liveNow')}</span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {liveRooms.map((room) => (
-                <Link
+                <RoomCard
                   key={room.id}
-                  href={`/rooms/${room.id}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-semibold text-gray-900">{room.title}</h3>
-                    <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-semibold rounded">
-                      直播中
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-3">🦞 {room.lobsterName}</p>
-                  {room.description && (
-                    <p className="text-gray-500 text-sm mb-3">{room.description}</p>
-                  )}
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>👁️ {room.viewerCount} 观看中</span>
-                    {room.startedAt && (
-                      <span>{new Date(room.startedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
-                    )}
-                  </div>
-                </Link>
+                  id={room.id}
+                  title={room.title}
+                  description={room.description}
+                  lobsterName={room.lobsterName}
+                  isLive={room.isLive}
+                  viewerCount={room.viewerCount}
+                  startedAt={room.startedAt}
+                  host={host}
+                />
               ))}
             </div>
           </section>
@@ -171,38 +161,46 @@ export default function HostPage() {
 
         {/* History Sessions */}
         <section>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">历史直播</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <span className="w-1 h-8 bg-lobster rounded-full"></span>
+            <span>{t('host.history')}</span>
+          </h2>
           {historySessions.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-              暂无历史直播记录
+            <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-500">
+              {t('host.noHistory')}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {historySessions.map((session) => (
                 <Link
                   key={session.id}
                   href={`/history/${session.id}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 block"
+                  className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{session.title}</h3>
-                      <p className="text-gray-600 mb-3">🦞 {session.lobsterName}</p>
-                      {session.description && (
-                        <p className="text-gray-500 text-sm mb-3">{session.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>💬 {session.messageCount || 0} 条消息</span>
-                        {session.startedAt && session.endedAt && (
-                          <span>
-                            ⏱️ {Math.round((new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()) / 1000 / 60)} 分钟
-                          </span>
-                        )}
-                      </div>
+                  <div className="relative aspect-video bg-gradient-to-br from-gray-400 to-gray-600">
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-6xl opacity-50">🦞</span>
                     </div>
-                    <div className="text-right text-sm text-gray-500">
+                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 text-white text-xs font-semibold rounded backdrop-blur-sm">
+                      {session.startedAt && session.endedAt && (
+                        <>
+                          {Math.round(
+                            (new Date(session.endedAt).getTime() -
+                              new Date(session.startedAt).getTime()) /
+                              1000 /
+                              60
+                          )} 分钟
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900">{session.title}</h3>
+                    <p className="text-sm text-gray-600 mb-3">🦞 {session.lobsterName}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t">
+                      <span>💬 {session.messageCount || 0}</span>
                       {session.endedAt && (
-                        <div>{new Date(session.endedAt).toLocaleString('zh-CN')}</div>
+                        <span>{new Date(session.endedAt).toLocaleDateString('zh-CN')}</span>
                       )}
                     </div>
                   </div>
@@ -212,6 +210,6 @@ export default function HostPage() {
           )}
         </section>
       </div>
-    </div>
+    </MainLayout>
   );
 }

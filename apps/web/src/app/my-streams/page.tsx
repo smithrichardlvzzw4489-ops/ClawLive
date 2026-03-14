@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MainLayout } from '@/components/MainLayout';
+import { RoomCard } from '@/components/RoomCard';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Room {
   id: string;
@@ -33,6 +36,7 @@ interface MyStreamsData {
 
 export default function MyStreamsPage() {
   const router = useRouter();
+  const { t } = useLocale();
   const [data, setData] = useState<MyStreamsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -85,38 +89,39 @@ export default function MyStreamsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+      <MainLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
+            <p className="text-gray-600">{t('loading')}</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error || '加载失败'}</p>
-          <Link href="/rooms" className="text-lobster hover:underline">
-            返回房间列表
-          </Link>
+      <MainLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error || t('history.loadFailed')}</p>
+            <Link href="/rooms" className="text-lobster hover:underline">
+              {t('history.backToList')}
+            </Link>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   const { host, liveRooms, historySessions, stats } = data;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-6">
-          <Link href="/rooms" className="text-lobster hover:underline mb-4 inline-block">
-            ← 返回房间列表
-          </Link>
+    <MainLayout>
+      <div className="container mx-auto px-6 py-8">
+        {/* User Profile Card */}
+        <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
           <div className="flex items-start gap-6">
             <div className="flex-shrink-0">
               {host.avatarUrl ? (
@@ -132,16 +137,16 @@ export default function MyStreamsPage() {
               )}
             </div>
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">我的直播</h1>
-              <p className="text-gray-600 mb-4">主播：{host.username}</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('myStreams.title')}</h1>
+              <p className="text-gray-600 mb-4">{host.username}</p>
               <div className="flex gap-6 text-sm">
                 <div>
                   <span className="font-semibold text-gray-900">{stats.totalSessions}</span>
-                  <span className="text-gray-600 ml-1">直播场次</span>
+                  <span className="text-gray-600 ml-1">{t('myStreams.sessions')}</span>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-900">{stats.totalMessages}</span>
-                  <span className="text-gray-600 ml-1">总消息数</span>
+                  <span className="text-gray-600 ml-1">{t('myStreams.messages')}</span>
                 </div>
               </div>
             </div>
@@ -149,50 +154,31 @@ export default function MyStreamsPage() {
               href="/rooms/create"
               className="px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
             >
-              + 创建新直播
+              + {t('myStreams.createNew')}
             </Link>
           </div>
         </div>
-      </header>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
         {/* Live Rooms */}
         {liveRooms.length > 0 && (
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
               <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-              正在直播
+              {t('myStreams.liveNow')}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {liveRooms.map((room) => (
-                <Link
+                <RoomCard
                   key={room.id}
-                  href={`/rooms/${room.id}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-xl font-semibold text-gray-900">{room.title}</h3>
-                    <span className="px-2 py-1 bg-red-100 text-red-600 text-xs font-semibold rounded">
-                      直播中
-                    </span>
-                  </div>
-                  <p className="text-gray-600 mb-3">🦞 {room.lobsterName}</p>
-                  {room.description && (
-                    <p className="text-gray-500 text-sm mb-3">{room.description}</p>
-                  )}
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>👁️ {room.viewerCount} 观看中</span>
-                    {room.startedAt && (
-                      <span>
-                        {new Date(room.startedAt).toLocaleTimeString('zh-CN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    )}
-                  </div>
-                </Link>
+                  id={room.id}
+                  title={room.title}
+                  description={room.description}
+                  lobsterName={room.lobsterName}
+                  isLive={room.isLive}
+                  viewerCount={room.viewerCount}
+                  startedAt={room.startedAt}
+                  host={host}
+                />
               ))}
             </div>
           </section>
@@ -203,13 +189,13 @@ export default function MyStreamsPage() {
           <section className="mb-12">
             <div className="bg-white rounded-lg shadow p-12 text-center">
               <div className="text-6xl mb-4">🎬</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">暂无正在进行的直播</h3>
-              <p className="text-gray-600 mb-6">创建一个新的直播间，开始与你的 Agent 互动吧！</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('myStreams.noLive')}</h3>
+              <p className="text-gray-600 mb-6">{t('myStreams.createPrompt')}</p>
               <Link
                 href="/rooms/create"
                 className="inline-block px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
               >
-                创建直播间
+                {t('rooms.createRoom')}
               </Link>
             </div>
           </section>
@@ -217,45 +203,43 @@ export default function MyStreamsPage() {
 
         {/* History Sessions */}
         <section>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">历史直播</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('myStreams.history')}</h2>
           {historySessions.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-              暂无历史直播记录
+              {t('myStreams.noHistory')}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {historySessions.map((session) => (
                 <Link
                   key={session.id}
                   href={`/history/${session.id}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 block"
+                  className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{session.title}</h3>
-                      <p className="text-gray-600 mb-3">🦞 {session.lobsterName}</p>
-                      {session.description && (
-                        <p className="text-gray-500 text-sm mb-3">{session.description}</p>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>💬 {session.messageCount || 0} 条消息</span>
-                        {session.startedAt && session.endedAt && (
-                          <span>
-                            ⏱️{' '}
-                            {Math.round(
-                              (new Date(session.endedAt).getTime() -
-                                new Date(session.startedAt).getTime()) /
-                                1000 /
-                                60
-                            )}{' '}
-                            分钟
-                          </span>
-                        )}
-                      </div>
+                  <div className="relative aspect-video bg-gradient-to-br from-gray-400 to-gray-600">
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-6xl opacity-50">🦞</span>
                     </div>
-                    <div className="text-right text-sm text-gray-500">
+                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 text-white text-xs font-semibold rounded backdrop-blur-sm">
+                      {session.startedAt && session.endedAt && (
+                        <>
+                          {Math.round(
+                            (new Date(session.endedAt).getTime() -
+                              new Date(session.startedAt).getTime()) /
+                              1000 /
+                              60
+                          )} 分钟
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900">{session.title}</h3>
+                    <p className="text-sm text-gray-600 mb-3">🦞 {session.lobsterName}</p>
+                    <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t">
+                      <span>💬 {session.messageCount || 0}</span>
                       {session.endedAt && (
-                        <div>{new Date(session.endedAt).toLocaleString('zh-CN')}</div>
+                        <span>{new Date(session.endedAt).toLocaleDateString('zh-CN')}</span>
                       )}
                     </div>
                   </div>
@@ -265,6 +249,6 @@ export default function MyStreamsPage() {
           )}
         </section>
       </div>
-    </div>
+    </MainLayout>
   );
 }

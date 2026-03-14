@@ -62,10 +62,19 @@ const config: Config = {
           '0%': { transform: 'translateY(10px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
         },
+        'float': {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-8px)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-in-out',
         'slide-up': 'slide-up 0.3s ease-out',
+        'float': 'float 3s ease-in-out infinite',
+      },
+      boxShadow: {
+        'card': '0 2px 8px rgba(0, 0, 0, 0.08)',
+        'card-hover': '0 8px 20px rgba(0, 0, 0, 0.12)',
       },
     },
   },

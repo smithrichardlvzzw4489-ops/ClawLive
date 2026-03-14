@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MainLayout } from '@/components/MainLayout';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Work {
   id: string;
@@ -37,6 +39,7 @@ interface MyWorksData {
 
 export default function MyWorksPage() {
   const router = useRouter();
+  const { t } = useLocale();
   const [data, setData] = useState<MyWorksData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -93,7 +96,7 @@ export default function MyWorksPage() {
   };
 
   const deleteWork = async (workId: string) => {
-    if (!confirm('确认删除这个作品吗？此操作无法撤销。')) {
+    if (!confirm(t('myWorks.confirmDelete'))) {
       return;
     }
 
@@ -107,53 +110,53 @@ export default function MyWorksPage() {
       });
 
       if (response.ok) {
-        // Reload works
         checkAuth();
       } else {
-        alert('删除失败');
+        alert(t('myWorks.deleteFailed'));
       }
     } catch (error) {
       console.error('Error deleting work:', error);
-      alert('删除失败');
+      alert(t('myWorks.deleteFailed'));
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+      <MainLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
+            <p className="text-gray-600">{t('loading')}</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error || '加载失败'}</p>
-          <Link href="/works" className="text-lobster hover:underline">
-            返回作品列表
-          </Link>
+      <MainLayout>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error || t('workDetail.loadFailed')}</p>
+            <Link href="/works" className="text-lobster hover:underline">
+              {t('workDetail.backToList')}
+            </Link>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   const { author, works, stats } = data;
-  const draftWorks = works.filter(w => w.status === 'draft');
-  const publishedWorks = works.filter(w => w.status === 'published');
+  const draftWorks = works.filter((w) => w.status === 'draft');
+  const publishedWorks = works.filter((w) => w.status === 'published');
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-6">
-          <Link href="/works" className="text-lobster hover:underline mb-4 inline-block">
-            ← 返回作品列表
-          </Link>
+    <MainLayout>
+      <div className="container mx-auto px-6 py-8">
+        {/* User Profile Card */}
+        <div className="bg-white rounded-xl shadow-sm p-8 mb-8">
           <div className="flex items-start gap-6">
             <div className="flex-shrink-0">
               {author?.avatarUrl ? (
@@ -169,20 +172,20 @@ export default function MyWorksPage() {
               )}
             </div>
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">我的作品</h1>
-              <p className="text-gray-600 mb-4">作者：{author?.username}</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('myWorks.title')}</h1>
+              <p className="text-gray-600 mb-4">{author?.username}</p>
               <div className="flex gap-6 text-sm">
                 <div>
                   <span className="font-semibold text-gray-900">{stats.totalWorks}</span>
-                  <span className="text-gray-600 ml-1">已发布作品</span>
+                  <span className="text-gray-600 ml-1">{t('myWorks.works')}</span>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-900">{stats.totalViews}</span>
-                  <span className="text-gray-600 ml-1">总浏览量</span>
+                  <span className="text-gray-600 ml-1">{t('myWorks.views')}</span>
                 </div>
                 <div>
                   <span className="font-semibold text-gray-900">{stats.totalLikes}</span>
-                  <span className="text-gray-600 ml-1">总点赞数</span>
+                  <span className="text-gray-600 ml-1">{t('myWorks.likes')}</span>
                 </div>
               </div>
             </div>
@@ -190,19 +193,16 @@ export default function MyWorksPage() {
               href="/works/create"
               className="px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
             >
-              + 创建新作品
+              + {t('myWorks.createNew')}
             </Link>
           </div>
         </div>
-      </header>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
         {/* Draft Works */}
         {draftWorks.length > 0 && (
           <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">📝 草稿</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">📝 {t('myWorks.drafts')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {draftWorks.map((work) => (
                 <div
                   key={work.id}
@@ -211,7 +211,7 @@ export default function MyWorksPage() {
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-xl font-semibold text-gray-900 flex-1">{work.title}</h3>
                     <span className="px-2 py-1 bg-yellow-100 text-yellow-600 text-xs font-semibold rounded">
-                      草稿
+                      {t('myWorks.drafts')}
                     </span>
                   </div>
                   <p className="text-gray-600 mb-3">🦞 {work.lobsterName}</p>
@@ -227,13 +227,13 @@ export default function MyWorksPage() {
                       href={`/works/${work.id}/studio`}
                       className="flex-1 px-4 py-2 bg-lobster text-white text-center rounded-lg hover:bg-lobster-dark transition-colors"
                     >
-                      继续创作
+                      {t('myWorks.continueEdit')}
                     </Link>
                     <button
                       onClick={() => deleteWork(work.id)}
                       className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                     >
-                      删除
+                      {t('myWorks.delete')}
                     </button>
                   </div>
                 </div>
@@ -247,13 +247,13 @@ export default function MyWorksPage() {
           <section className="mb-12">
             <div className="bg-white rounded-lg shadow p-12 text-center">
               <div className="text-6xl mb-4">📚</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">还没有作品</h3>
-              <p className="text-gray-600 mb-6">开始创作你的第一个作品吧！</p>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('myWorks.noWorks')}</h3>
+              <p className="text-gray-600 mb-6">{t('myWorks.createPrompt')}</p>
               <Link
                 href="/works/create"
                 className="inline-block px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
               >
-                创建作品
+                {t('myWorks.createWork')}
               </Link>
             </div>
           </section>
@@ -262,41 +262,40 @@ export default function MyWorksPage() {
         {/* Published Works */}
         {publishedWorks.length > 0 && (
           <section>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">✅ 已发布</h2>
-            <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">✅ {t('myWorks.published')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {publishedWorks.map((work) => (
-                <Link
-                  key={work.id}
-                  href={`/works/${work.id}`}
-                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6 block"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{work.title}</h3>
-                      <p className="text-gray-600 mb-3">🦞 {work.lobsterName}</p>
-                      {work.description && (
-                        <p className="text-gray-500 text-sm mb-3">{work.description}</p>
+                <div key={work.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+                  <Link href={`/works/${work.id}`} className="block">
+                    <div className="relative aspect-video bg-gradient-to-br from-lobster-light to-purple-200">
+                      {work.coverImage ? (
+                        <img src={work.coverImage} alt={work.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <span className="text-6xl opacity-50">🦞</span>
+                        </div>
                       )}
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>👁️ {work.viewCount} 浏览</span>
-                        <span>💬 {work.messageCount} 对话</span>
-                        {work.tags && work.tags.length > 0 && (
-                          <span>🏷️ {work.tags.join(', ')}</span>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900">{work.title}</h3>
+                      <p className="text-sm text-gray-600 mb-3">🦞 {work.lobsterName}</p>
+                      <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t">
+                        <div className="flex items-center gap-2">
+                          <span>👁️ {work.viewCount}</span>
+                          <span>💬 {work.messageCount}</span>
+                        </div>
+                        {work.publishedAt && (
+                          <span>{new Date(work.publishedAt).toLocaleDateString('zh-CN')}</span>
                         )}
                       </div>
                     </div>
-                    <div className="text-right text-sm text-gray-500">
-                      {work.publishedAt && (
-                        <div>{new Date(work.publishedAt).toLocaleDateString('zh-CN')}</div>
-                      )}
-                    </div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               ))}
             </div>
           </section>
         )}
       </div>
-    </div>
+    </MainLayout>
   );
 }

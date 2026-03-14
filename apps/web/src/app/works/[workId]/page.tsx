@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { MainLayout } from '@/components/MainLayout';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Message {
   id: string;
@@ -32,6 +34,7 @@ interface Work {
 export default function WorkDetailPage() {
   const params = useParams();
   const workId = params.workId as string;
+  const { t } = useLocale();
   
   const [work, setWork] = useState<Work | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,7 +46,10 @@ export default function WorkDetailPage() {
 
   const loadWork = async () => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}`);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}`, { headers });
       
       if (!response.ok) {
         throw new Error('Failed to load work');
@@ -60,35 +66,39 @@ export default function WorkDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+      <MainLayout showSidebar={false}>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
+            <p className="text-gray-600">{t('loading')}</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   if (error || !work) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error || '作品不存在'}</p>
-          <Link href="/works" className="text-lobster hover:underline">
-            返回作品列表
-          </Link>
+      <MainLayout showSidebar={false}>
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error || t('workDetail.notFound')}</p>
+            <Link href="/works" className="text-lobster hover:underline">
+              {t('workDetail.backToList')}
+            </Link>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="container mx-auto px-4 py-6">
-          <Link href="/works" className="text-lobster hover:underline mb-4 inline-block">
-            ← 返回作品列表
+    <MainLayout showSidebar={false}>
+      <div className="container mx-auto px-6 py-8 max-w-5xl">
+        {/* Header Card */}
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <Link href="/works" className="text-lobster hover:underline mb-4 inline-block text-sm">
+            ← {t('workDetail.backToList')}
           </Link>
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -96,7 +106,7 @@ export default function WorkDetailPage() {
               {work.description && (
                 <p className="text-gray-600 mb-4">{work.description}</p>
               )}
-              <div className="flex items-center gap-6 text-sm text-gray-600">
+              <div className="flex items-center gap-6 text-sm text-gray-600 flex-wrap">
                 <Link href={`/host/${work.author.id}`} className="flex items-center gap-2 hover:text-lobster">
                   {work.author.avatarUrl ? (
                     <img src={work.author.avatarUrl} alt={work.author.username} className="w-6 h-6 rounded-full" />
@@ -108,8 +118,8 @@ export default function WorkDetailPage() {
                   <span>{work.author.username}</span>
                 </Link>
                 <span>🦞 {work.lobsterName}</span>
-                <span>👁️ {work.viewCount} 浏览</span>
-                <span>💬 {work.messages.length} 对话</span>
+                <span>👁️ {work.viewCount}</span>
+                <span>💬 {work.messages.length}</span>
                 <span>📅 {new Date(work.publishedAt).toLocaleDateString('zh-CN')}</span>
               </div>
               {work.tags && work.tags.length > 0 && (
@@ -124,32 +134,31 @@ export default function WorkDetailPage() {
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
+        {/* Cover Image */}
         {work.coverImage && (
-          <div className="mb-8">
+          <div className="mb-6">
             <img
               src={work.coverImage}
               alt={work.title}
-              className="w-full max-h-96 object-cover rounded-lg shadow"
+              className="w-full max-h-96 object-cover rounded-xl shadow-sm"
             />
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Chat Content */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="border-b p-4 bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-900">创作过程</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{t('workDetail.creativeProcess')}</h2>
             <p className="text-sm text-gray-600 mt-1">
-              作者与 {work.lobsterName} 的对话记录
+              {t('workDetail.processDesc', { name: work.lobsterName })}
             </p>
           </div>
           
           <div className="p-6 space-y-4">
             {work.messages.length === 0 ? (
               <div className="text-center text-gray-500 py-12">
-                这个作品还没有对话记录
+                {t('workDetail.noMessages')}
               </div>
             ) : (
               work.messages.map((msg) => (
@@ -168,7 +177,7 @@ export default function WorkDetailPage() {
                       <span className="text-xs font-semibold opacity-90">
                         {msg.sender === 'user' ? `👤 ${work.author.username}` : `🦞 ${work.lobsterName}`}
                       </span>
-                      <span className={`text-xs opacity-75`}>
+                      <span className="text-xs opacity-75">
                         {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
                       </span>
                     </div>
@@ -180,6 +189,6 @@ export default function WorkDetailPage() {
           </div>
         </div>
       </div>
-    </div>
+    </MainLayout>
   );
 }
