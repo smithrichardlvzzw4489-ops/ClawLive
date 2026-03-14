@@ -62,18 +62,19 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       }
       
       // Get existing config
-      const existingConfig = agentConfigs.get(roomId) || {};
+      const existingConfig = agentConfigs.get(roomId) as Record<string, unknown> | undefined;
+      const existing = existingConfig || {};
       
       // Update configuration in memory (preserve MTProto fields)
       const newConfig = {
-        agentType: agentType || existingConfig.agentType || 'mock',
-        agentEnabled: agentEnabled !== undefined ? agentEnabled : existingConfig.agentEnabled || false,
-        agentBotToken: agentBotToken || existingConfig.agentBotToken,
-        agentChatId: agentChatId || existingConfig.agentChatId,
-        agentStatus: existingConfig.agentStatus || 'disconnected',
+        agentType: agentType || (existing.agentType as string) || 'mock',
+        agentEnabled: agentEnabled !== undefined ? agentEnabled : (existing.agentEnabled as boolean) || false,
+        agentBotToken: agentBotToken || (existing.agentBotToken as string),
+        agentChatId: agentChatId || (existing.agentChatId as string),
+        agentStatus: (existing.agentStatus as string) || 'disconnected',
         // Preserve MTProto session fields
-        mtprotoSessionString: (existingConfig as any).mtprotoSessionString,
-        mtprotoPhone: (existingConfig as any).mtprotoPhone,
+        mtprotoSessionString: (existing as Record<string, unknown>).mtprotoSessionString,
+        mtprotoPhone: (existing as Record<string, unknown>).mtprotoPhone,
       };
       
       agentConfigs.set(roomId, newConfig);
@@ -183,14 +184,16 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       }
       
       // Save phone and chatId to config (for later use)
-      const existingConfig = agentConfigs.get(roomId) || {};
-      const newConfig = {
-        ...existingConfig,
-        agentType: 'telegram-user' as any,
+      const existingConfig = agentConfigs.get(roomId);
+      agentConfigs.set(roomId, {
+        ...(existingConfig || {}),
+        agentType: 'telegram-user',
+        agentEnabled: existingConfig?.agentEnabled ?? false,
+        agentStatus: existingConfig?.agentStatus || 'disconnected',
+        agentBotToken: existingConfig?.agentBotToken,
+        agentChatId: chatId || existingConfig?.agentChatId || '',
         mtprotoPhone: phoneNumber,
-        agentChatId: chatId || existingConfig.agentChatId,
-      };
-      agentConfigs.set(roomId, newConfig);
+      } as Parameters<typeof agentConfigs.set>[1]);
       
       console.log(`✅ Verification code sent for room ${roomId}`);
       res.json({ success: true, needsCode: true, message: 'Verification code sent to your phone' });

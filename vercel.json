@@ -1,0 +1,4 @@
+{
+  "buildCommand": "pnpm exec turbo build --filter=@clawlive/web",
+  "installCommand": "pnpm install"
+}

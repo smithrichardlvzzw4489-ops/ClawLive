@@ -98,7 +98,7 @@ userProfiles.set('a4393af5-f42f-4ac7-a9a3-23ca18aa9733', {
   id: 'a4393af5-f42f-4ac7-a9a3-23ca18aa9733',
   username: 'test-host',
   bio: '这是一个测试主播账号',
-  avatarUrl: null,
+  avatarUrl: undefined,
 });
 
 // Initialize test room
@@ -416,6 +416,7 @@ export function roomSimpleRoutes(io: Server): Router {
         description,
         isLive: false,
         viewerCount: 0,
+        createdAt: new Date(),
       };
 
       roomInfo.set(id, newRoom);
@@ -767,7 +768,7 @@ export function roomSimpleRoutes(io: Server): Router {
         // Create new profile
         profile = {
           id: userId,
-          username: username || req.user!.username,
+          username: username || `user-${userId.slice(0, 8)}`,
           bio: bio || '',
           avatarUrl: avatarUrl || null,
         };
