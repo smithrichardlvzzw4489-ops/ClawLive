@@ -91,7 +91,8 @@ export default function HistoryPage() {
     );
   }
 
-  const duration = Math.round((new Date(data.endedAt).getTime() - new Date(data.startedAt).getTime()) / 1000 / 60);
+  const durationMs = new Date(data.endedAt).getTime() - new Date(data.startedAt).getTime();
+  const duration = Math.round(durationMs / 60000);
 
   return (
     <MainLayout showSidebar={false}>
