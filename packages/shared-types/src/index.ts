@@ -21,6 +21,12 @@ export interface Room {
   createdAt: Date;
   startedAt?: Date;
   endedAt?: Date;
+  /** Optional; included when room is fetched from API */
+  host?: {
+    id: string;
+    username: string;
+    avatarUrl?: string;
+  };
 }
 
 export type MessageSender = 'user' | 'agent' | 'system';
