@@ -12,16 +12,6 @@ import { Locale, translations } from './translations';
 
 const STORAGE_KEY = 'clawlive-locale';
 
-type NestedKeyOf<O> = {
-  [K in keyof O]: O[K] extends object
-    ? O[K] extends Record<string, unknown>
-      ? K | `${K & string}.${NestedKeyOf<O[K]> & string}`
-      : K
-    : K;
-}[keyof O];
-
-type TranslationPaths = NestedKeyOf<typeof translations.zh>;
-
 function getNested(obj: object, path: string): string | undefined {
   const keys = path.split('.');
   let current: unknown = obj;
