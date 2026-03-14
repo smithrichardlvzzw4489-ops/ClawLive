@@ -21,13 +21,15 @@ export class APIError extends Error {
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
   };
-
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  const optsHeaders = options.headers;
+  if (optsHeaders && typeof optsHeaders === 'object' && !(optsHeaders instanceof Headers) && !Array.isArray(optsHeaders)) {
+    Object.assign(headers, optsHeaders as Record<string, string>);
   }
 
   let response: Response;
