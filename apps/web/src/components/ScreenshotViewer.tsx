@@ -6,29 +6,33 @@ import { format } from 'date-fns';
 
 interface ScreenshotViewerProps {
   screenshots: Screenshot[];
+  embedded?: boolean;
 }
 
-export function ScreenshotViewer({ screenshots }: ScreenshotViewerProps) {
+export function ScreenshotViewer({ screenshots, embedded }: ScreenshotViewerProps) {
   const [selectedIndex, setSelectedIndex] = useState(screenshots.length - 1);
 
   const currentScreenshot = screenshots[selectedIndex];
 
   if (!currentScreenshot) return null;
 
+  const wrapperClass = embedded ? 'h-full flex flex-col overflow-hidden' : 'bg-white rounded-lg shadow overflow-hidden';
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className={wrapperClass}>
+      {!embedded && (
       <div className="bg-gray-100 px-4 py-2 border-b flex items-center justify-between">
         <h3 className="font-semibold text-gray-700">🖼️ 浏览器截图</h3>
         <span className="text-xs text-gray-500">
           {selectedIndex + 1} / {screenshots.length}
         </span>
       </div>
+      )}
 
-      <div className="p-3">
+      <div className={embedded ? 'flex-1 p-2 overflow-auto' : 'p-3'}>
         <img
           src={currentScreenshot.imageUrl}
           alt={currentScreenshot.caption || 'Screenshot'}
-          className="w-full rounded border"
+          className={`w-full rounded border ${embedded ? 'object-contain max-h-full' : ''}`}
         />
         
         {currentScreenshot.caption && (

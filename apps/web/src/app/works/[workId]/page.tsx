@@ -5,12 +5,14 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { ShareButton } from '@/components/ShareButton';
+import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Message {
   id: string;
   sender: 'user' | 'agent';
   content: string;
+  videoUrl?: string;
   timestamp: Date;
 }
 
@@ -21,6 +23,7 @@ interface Work {
   lobsterName: string;
   tags?: string[];
   coverImage?: string;
+  videoUrl?: string;
   viewCount: number;
   likeCount: number;
   publishedAt: Date;
@@ -152,6 +155,13 @@ export default function WorkDetailPage() {
           </div>
         )}
 
+        {/* 作品主视频 */}
+        {work.videoUrl && (
+          <div className="mb-6">
+            <VideoUrlPlayer url={work.videoUrl} className="w-full" />
+          </div>
+        )}
+
         {/* Chat Content */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="border-b p-4 bg-gray-50">
@@ -173,7 +183,7 @@ export default function WorkDetailPage() {
                   className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[70%] rounded-lg p-4 ${
+                    className={`max-w-[85%] rounded-lg p-4 ${
                       msg.sender === 'user'
                         ? 'bg-blue-500 text-white'
                         : 'bg-purple-100 text-gray-900'
@@ -187,7 +197,14 @@ export default function WorkDetailPage() {
                         {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
                       </span>
                     </div>
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    {msg.videoUrl && (
+                      <div className="mb-2 rounded overflow-hidden max-w-sm">
+                        <VideoUrlPlayer url={msg.videoUrl} />
+                      </div>
+                    )}
+                    {msg.content ? (
+                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    ) : null}
                   </div>
                 </div>
               ))

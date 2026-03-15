@@ -9,6 +9,7 @@ interface WorkCardProps {
   description?: string;
   lobsterName: string;
   coverImage?: string;
+  videoUrl?: string;
   tags: string[];
   viewCount: number;
   likeCount: number;
@@ -25,7 +26,8 @@ export function WorkCard({
   title, 
   description, 
   lobsterName, 
-  coverImage, 
+  coverImage,
+  videoUrl,
   tags, 
   viewCount, 
   messageCount, 
@@ -36,7 +38,7 @@ export function WorkCard({
       href={`/works/${id}`}
       className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
     >
-      {/* Cover Image */}
+      {/* Cover Image / Video Preview */}
       <div className="relative aspect-video bg-gradient-to-br from-lobster-light to-purple-200 overflow-hidden">
         {coverImage ? (
           <img
@@ -44,6 +46,10 @@ export function WorkCard({
             alt={title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
+        ) : videoUrl ? (
+          <div className="w-full h-full flex items-center justify-center bg-gray-900">
+            <span className="text-5xl opacity-80">🎬</span>
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="text-6xl opacity-50">🦞</span>

@@ -6,6 +6,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { resolve } from 'path';
+import { join } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { setupSocketIO } from './socket/index-simple';
 import { setupRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/errorHandler';
@@ -39,13 +41,21 @@ app.use(cors({
   origin: corsOrigins,
   credentials: true,
 }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// 视频 base64 可能较大，提高限制
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(morgan('dev'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// 静态文件：作品视频上传目录（与 works 路由写入路径一致）
+const uploadsDir = join(process.cwd(), 'uploads');
+if (!existsSync(uploadsDir)) {
+  mkdirSync(uploadsDir, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsDir));
 
 setupRoutes(app, io);
 setupSocketIO(io);

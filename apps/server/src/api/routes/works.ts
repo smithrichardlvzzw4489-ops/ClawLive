@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { works, workMessages, userProfiles } from './rooms-simple';
 import { mtprotoService } from '../../services/telegram-mtproto';
@@ -26,6 +29,7 @@ export function worksRoutes(io: Server): Router {
             description: work.description,
             lobsterName: work.lobsterName,
             coverImage: work.coverImage,
+            videoUrl: work.videoUrl,
             tags: work.tags || [],
             viewCount: work.viewCount,
             likeCount: work.likeCount,
@@ -180,6 +184,7 @@ export function worksRoutes(io: Server): Router {
         messages: [],
         tags: [],
         coverImage: undefined,
+        videoUrl: undefined,
         viewCount: 0,
         likeCount: 0,
         createdAt: new Date(),
@@ -198,12 +203,59 @@ export function worksRoutes(io: Server): Router {
     }
   });
 
+  // POST /api/works/:workId/upload-video - 上传摄像头录制的视频
+  router.post('/:workId/upload-video', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { workId } = req.params;
+      const userId = req.user!.id;
+      const { video } = req.body as { video?: string };
+
+      if (!video || typeof video !== 'string') {
+        return res.status(400).json({ error: 'Video data is required (base64)' });
+      }
+
+      const work = works.get(workId);
+      if (!work) return res.status(404).json({ error: 'Work not found' });
+      if (work.authorId !== userId) return res.status(403).json({ error: 'Not authorized' });
+      if (work.status === 'published') return res.status(400).json({ error: 'Cannot edit published work' });
+
+      // 解析 base64：支持 "data:video/webm;base64,xxx" 或纯 base64
+      let base64Data = video;
+      let ext = 'webm';
+      if (video.startsWith('data:')) {
+        const match = video.match(/^data:(video\/[^;]+);base64,/);
+        if (match) {
+          if (match[1].includes('webm')) ext = 'webm';
+          else if (match[1].includes('mp4')) ext = 'mp4';
+        }
+        base64Data = video.split(',')[1] || video;
+      }
+      const buf = Buffer.from(base64Data, 'base64');
+      if (buf.length === 0) return res.status(400).json({ error: 'Invalid video data' });
+
+      const uploadDir = join(process.cwd(), 'uploads', 'works', workId);
+      if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
+      const filename = `${uuidv4()}.${ext}`;
+      const filepath = join(uploadDir, filename);
+      writeFileSync(filepath, buf);
+
+      const baseUrl = process.env.API_BASE_URL || (req.protocol + '://' + req.get('host'));
+      const url = `${baseUrl}/uploads/works/${workId}/${filename}`;
+      console.log(`📹 Video uploaded for work ${workId}: ${filename}`);
+      res.json({ url });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error uploading video:', error);
+      res.status(500).json({ error: `视频上传失败: ${msg}` });
+    }
+  });
+
   // PUT /api/works/:workId - 更新作品信息
   router.put('/:workId', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { title, description, tags, coverImage } = req.body;
+      const { title, description, tags, coverImage, videoUrl } = req.body;
 
       const work = works.get(workId);
       if (!work) {
@@ -218,6 +270,7 @@ export function worksRoutes(io: Server): Router {
       if (description !== undefined) work.description = description;
       if (tags) work.tags = tags;
       if (coverImage !== undefined) work.coverImage = coverImage;
+      if (videoUrl !== undefined) work.videoUrl = videoUrl === '' || videoUrl === null ? undefined : videoUrl;
       work.updatedAt = new Date();
 
       works.set(workId, work);
@@ -295,10 +348,10 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { content } = req.body;
+      const { content, videoUrl } = req.body;
 
-      if (!content || !content.trim()) {
-        return res.status(400).json({ error: 'Message content is required' });
+      if ((!content || !content.trim()) && !videoUrl?.trim()) {
+        return res.status(400).json({ error: 'Message content or video URL is required' });
       }
 
       const work = works.get(workId);
@@ -318,7 +371,8 @@ export function worksRoutes(io: Server): Router {
         id: Date.now().toString(),
         workId,
         sender: 'user' as const,
-        content: content.trim(),
+        content: (content || '').trim(),
+        videoUrl: videoUrl?.trim() || undefined,
         timestamp: new Date(),
       };
 

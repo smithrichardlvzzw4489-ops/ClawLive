@@ -5,11 +5,14 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
+import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
+import { CameraRecordModal } from '@/components/CameraRecordModal';
 
 interface Message {
   id: string;
   sender: 'user' | 'agent';
   content: string;
+  videoUrl?: string;
   timestamp: Date;
 }
 
@@ -19,6 +22,7 @@ interface Work {
   description?: string;
   lobsterName: string;
   status: 'draft' | 'published';
+  videoUrl?: string;
   updatedAt: Date;
 }
 
@@ -30,10 +34,14 @@ export default function WorkStudioPage() {
   const [work, setWork] = useState<Work | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [inputVideoUrl, setInputVideoUrl] = useState('');
+  const [workVideoUrl, setWorkVideoUrl] = useState('');
+  const [savingVideoUrl, setSavingVideoUrl] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
   const [agentConfigured, setAgentConfigured] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -109,6 +117,7 @@ export default function WorkStudioPage() {
 
       const workData = await response.json();
       setWork(workData);
+      setWorkVideoUrl(workData.videoUrl || '');
     } catch (error) {
       console.error('Error loading work:', error);
     } finally {
@@ -134,8 +143,34 @@ export default function WorkStudioPage() {
     }
   };
 
+  const saveWorkVideoUrl = async (url?: string) => {
+    if (savingVideoUrl) return;
+    const toSave = url ?? workVideoUrl.trim();
+    setSavingVideoUrl(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ videoUrl: toSave || null }),
+      });
+      if (response.ok) {
+        const savedUrl = toSave || undefined;
+        setWorkVideoUrl(savedUrl);
+        setWork((w) => (w ? { ...w, videoUrl: savedUrl } : null));
+      }
+    } catch (e) {
+      console.error('Failed to save video URL:', e);
+    } finally {
+      setSavingVideoUrl(false);
+    }
+  };
+
   const sendMessage = async () => {
-    if (!inputMessage.trim() || sending) return;
+    if ((!inputMessage.trim() && !inputVideoUrl.trim()) || sending) return;
 
     setSending(true);
     try {
@@ -146,13 +181,17 @@ export default function WorkStudioPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ content: inputMessage.trim() }),
+        body: JSON.stringify({
+          content: inputMessage.trim(),
+          videoUrl: inputVideoUrl.trim() || undefined,
+        }),
       });
 
       if (response.ok) {
         // Don't add message here - wait for Socket.io to push it back
         // This prevents duplicate messages
         setInputMessage('');
+        setInputVideoUrl('');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -233,7 +272,36 @@ export default function WorkStudioPage() {
             <p className="text-sm text-gray-600">🦞 {work.lobsterName} • 创作中</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* 作品视频：摄像头录制 或 链接 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowCameraModal(true)}
+              className="px-3 py-1.5 text-sm bg-lobster text-white rounded-lg hover:bg-lobster-dark font-medium"
+            >
+              🎬 打开摄像头录制
+            </button>
+            <span className="text-gray-400">|</span>
+            <input
+              type="url"
+              value={workVideoUrl}
+              onChange={(e) => setWorkVideoUrl(e.target.value)}
+              onBlur={saveWorkVideoUrl}
+              placeholder="或粘贴视频链接"
+              className="w-40 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-lobster"
+            />
+            {workVideoUrl && (
+              <button
+                type="button"
+                onClick={saveWorkVideoUrl}
+                disabled={savingVideoUrl}
+                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
+              >
+                {savingVideoUrl ? '保存中...' : '保存'}
+              </button>
+            )}
+          </div>
           {/* Agent Status */}
           {agentConfigured ? (
             <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
@@ -280,8 +348,23 @@ export default function WorkStudioPage() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden p-4">
-        <div className="h-full bg-white rounded-lg shadow overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden p-4 flex flex-col">
+        {/* 摄像头录制面板（内联，不遮挡聊天） */}
+        {showCameraModal && (
+          <CameraRecordModal
+            isOpen={true}
+            onClose={() => setShowCameraModal(false)}
+            onVideoReady={(url, target) => {
+              if (target === 'work') {
+                saveWorkVideoUrl(url);
+              } else {
+                setInputVideoUrl(url);
+              }
+            }}
+            workId={workId}
+          />
+        )}
+        <div className="flex-1 min-h-0 bg-white rounded-lg shadow overflow-hidden flex flex-col">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 ? (
@@ -297,7 +380,7 @@ export default function WorkStudioPage() {
                   className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[70%] rounded-lg p-4 ${
+                    className={`max-w-[85%] rounded-lg p-4 ${
                       msg.sender === 'user'
                         ? 'bg-blue-500 text-white'
                         : 'bg-purple-100 text-gray-900'
@@ -311,7 +394,14 @@ export default function WorkStudioPage() {
                         {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
                       </span>
                     </div>
-                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    {msg.videoUrl && (
+                      <div className="mb-2 rounded overflow-hidden max-w-sm">
+                        <VideoUrlPlayer url={msg.videoUrl} />
+                      </div>
+                    )}
+                    {msg.content ? (
+                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    ) : null}
                   </div>
                 </div>
               ))
@@ -321,7 +411,7 @@ export default function WorkStudioPage() {
 
           {/* Input */}
           <div className="border-t bg-gray-50 p-4">
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-2">
               <input
                 type="text"
                 value={inputMessage}
@@ -333,14 +423,31 @@ export default function WorkStudioPage() {
               />
               <button
                 onClick={sendMessage}
-                disabled={sending || !inputMessage.trim()}
+                disabled={sending || (!inputMessage.trim() && !inputVideoUrl.trim())}
                 className="px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {sending ? '发送中...' : '发送'}
               </button>
             </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCameraModal(true)}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+              >
+                🎥 打开摄像头录制
+              </button>
+              <input
+                type="url"
+                value={inputVideoUrl}
+                onChange={(e) => setInputVideoUrl(e.target.value)}
+                placeholder="或粘贴视频链接（直链、YouTube、B站）"
+                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lobster"
+                disabled={sending}
+              />
+            </div>
             <p className="text-xs text-gray-500 mt-2">
-              💡 提示：与 Agent 充分交流，创作出更好的内容。满意后点击「发布作品」
+              💡 提示：与 Agent 充分交流，可附带视频链接。满意后点击「发布作品」
             </p>
           </div>
         </div>

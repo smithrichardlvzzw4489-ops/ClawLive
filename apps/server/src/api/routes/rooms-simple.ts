@@ -73,10 +73,12 @@ const works = new Map<string, {
     id: string;
     sender: 'user' | 'agent';
     content: string;
+    videoUrl?: string;
     timestamp: Date;
   }>;
   tags?: string[];
   coverImage?: string;
+  videoUrl?: string;
   viewCount: number;
   likeCount: number;
   createdAt: Date;
@@ -90,6 +92,7 @@ const workMessages = new Map<string, Array<{
   workId: string;
   sender: 'user' | 'agent';
   content: string;
+  videoUrl?: string;
   timestamp: Date;
 }>>();
 

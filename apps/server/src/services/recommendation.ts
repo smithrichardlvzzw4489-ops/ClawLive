@@ -38,6 +38,7 @@ interface WorkWithScore {
   description?: string;
   lobsterName: string;
   coverImage?: string;
+  videoUrl?: string;
   tags: string[];
   viewCount: number;
   likeCount: number;
@@ -151,6 +152,7 @@ export function getRecommendedWorks(userId?: string): WorkWithScore[] {
         description: work.description,
         lobsterName: work.lobsterName,
         coverImage: work.coverImage,
+        videoUrl: work.videoUrl,
         tags: work.tags || [],
         viewCount: work.viewCount,
         likeCount: work.likeCount,

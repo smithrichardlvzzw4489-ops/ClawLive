@@ -424,7 +424,20 @@ export class MTProtoUserService {
       }
     };
 
-    // 监听新消息事件
+    // 从 peerId 获取可比较的 ID（避免 getChat() 触发 users.GetUsers，减少 flood wait）
+    const getPeerIdStr = (msg: any): string => {
+      const p = msg?.peerId;
+      if (!p) return '';
+      if (p.className === 'PeerChannel') return `-100${p.channelId}`;
+      if (p.className === 'PeerChat') return `-${p.chatId}`;
+      if (p.className === 'PeerUser') return `${p.userId}`;
+      return '';
+    };
+
+    // peerId -> username 缓存，避免重复 getChat 调用
+    const chatUsernameCache = new Map<string, string>();
+
+    // 监听新消息事件（仅非自己发送的，减少事件量）
     client.addEventHandler(async (event: any) => {
       try {
         const message = event.message;
@@ -433,48 +446,46 @@ export class MTProtoUserService {
         const text = message.message || message.text || '';
         if (!text) return;
 
-        // 获取发送者信息
-        const chat = await message.getChat();
-        const chatId = chat?.id?.toString() || '';
-        const chatUsername = chat?.username ? `@${chat.username}` : '';
-        const senderId = message.senderId?.toString() || '';
-        
-        console.log(`📨 Received Telegram message:`);
-        console.log(`  - Text: ${text.substring(0, 50)}`);
-        console.log(`  - Chat ID: ${chatId}`);
-        console.log(`  - Chat Username: ${chatUsername}`);
-        console.log(`  - Sender ID: ${senderId}`);
-
-        // 获取配置的 Agent Chat ID
         const agentChatId = getAgentChatId();
-        if (!agentChatId) {
-          console.log(`⚠️  No Agent Chat ID configured for room ${roomId}`);
-          return;
+        if (!agentChatId) return;
+
+        const peerIdStr = getPeerIdStr(message);
+        const senderId = message.senderId?.toString() || '';
+
+        let isFromAgent = false;
+        if (agentChatId.startsWith('@')) {
+          // 配置的是用户名，需解析（带缓存）
+          const cached = chatUsernameCache.get(peerIdStr || senderId);
+          if (cached) {
+            isFromAgent = cached === agentChatId || cached === agentChatId.replace('@', '');
+          } else {
+            try {
+              const chat = await message.getChat();
+              const uname = chat?.username ? `@${chat.username}` : '';
+              if (peerIdStr) chatUsernameCache.set(peerIdStr, uname);
+              isFromAgent = uname === agentChatId || uname === agentChatId.replace('@', '');
+              if (chatUsernameCache.size > 50) chatUsernameCache.clear();
+            } catch {
+              return;
+            }
+          }
+        } else {
+          isFromAgent =
+            peerIdStr === agentChatId ||
+            peerIdStr === agentChatId.replace('@', '') ||
+            senderId === agentChatId ||
+            senderId === agentChatId.replace(/^-100/, '');
         }
 
-        // 过滤：只接收来自指定 Agent 的消息
-        const isFromAgent = 
-          chatId === agentChatId || 
-          chatUsername === agentChatId || 
-          senderId === agentChatId ||
-          chatId === agentChatId.replace('@', '') ||
-          senderId === agentChatId.replace('@', '');
-
-        if (!isFromAgent) {
-          console.log(`⏭️  Skipping message from ${chatUsername || chatId} (not from Agent ${agentChatId})`);
-          return;
-        }
+        if (!isFromAgent) return;
 
         const messageDate = message.date ? new Date(message.date * 1000) : new Date();
-        
+
         // 只处理最近 60 秒的消息（避免旧消息）
         const messageAge = Date.now() - messageDate.getTime();
-        if (messageAge > 60000) {
-          console.log(`⏭️  Skipping old message (age: ${Math.floor(messageAge / 1000)}s)`);
-          return;
-        }
+        if (messageAge > 60000) return;
 
-        console.log(`✅ Message from Agent! Pushing to ClawLive...`);
+        console.log(`✅ Agent message (room ${roomId}): ${text.substring(0, 40)}...`);
 
         // 推送到 ClawLive 直播间或作品工作室
         if (this.ioInstance && text) {
@@ -515,7 +526,7 @@ export class MTProtoUserService {
       } catch (error) {
         console.error(`❌ Error handling Telegram message:`, error);
       }
-    }, new NewMessage({}));
+    }, new NewMessage({ outgoing: false }));
 
     console.log(`✅ Message listener started for room ${roomId}`);
   }

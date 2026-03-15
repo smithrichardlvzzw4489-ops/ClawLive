@@ -3,6 +3,9 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { messageHistory } from '../api/routes/rooms-simple';
 
+// roomId -> host socket id（视频直播推流方）
+const videoStreamHosts = new Map<string, string>();
+
 export async function setupSocketIO(io: Server): Promise<void> {
   if (process.env.REDIS_URL) {
     try {
@@ -111,6 +114,42 @@ export async function setupSocketIO(io: Server): Promise<void> {
       console.log(`Socket ${socket.id} left work: ${workId}`);
     });
 
+    // ========== WebRTC 视频直播信令 ==========
+    socket.on('webrtc-register-host', ({ roomId }: { roomId: string }) => {
+      if (roomId) {
+        videoStreamHosts.set(roomId, socket.id);
+        io.to(roomId).emit('webrtc-host-ready');
+        console.log(`[WebRTC] Host registered for room ${roomId}`);
+      }
+    });
+
+    socket.on('webrtc-unregister-host', ({ roomId }: { roomId: string }) => {
+      if (roomId) {
+        videoStreamHosts.delete(roomId);
+        io.to(roomId).emit('webrtc-stream-ended');
+        console.log(`[WebRTC] Host unregistered for room ${roomId}`);
+      }
+    });
+
+    socket.on('webrtc-viewer-request', ({ roomId }: { roomId: string }) => {
+      const hostId = videoStreamHosts.get(roomId);
+      if (hostId) {
+        io.to(hostId).emit('webrtc-viewer-request', { viewerId: socket.id });
+      }
+    });
+
+    socket.on('webrtc-offer', ({ roomId, toViewerId, sdp }: { roomId: string; toViewerId: string; sdp: RTCSessionDescriptionInit }) => {
+      io.to(toViewerId).emit('webrtc-offer', { sdp, fromHostId: socket.id });
+    });
+
+    socket.on('webrtc-answer', ({ roomId, toHostId, sdp }: { roomId: string; toHostId: string; sdp: RTCSessionDescriptionInit }) => {
+      io.to(toHostId).emit('webrtc-answer', { sdp, fromViewerId: socket.id });
+    });
+
+    socket.on('webrtc-ice', ({ roomId, toId, candidate }: { roomId?: string; toId: string; candidate: RTCIceCandidateInit }) => {
+      io.to(toId).emit('webrtc-ice', { candidate, fromId: socket.id });
+    });
+
     socket.on('send-comment', async ({ roomId, content, nickname }) => {
       try {
         if (!content || content.trim().length === 0) {
@@ -139,6 +178,13 @@ export async function setupSocketIO(io: Server): Promise<void> {
     });
 
     socket.on('disconnect', async () => {
+      // 清理视频直播 host 注册
+      for (const [rid, hid] of videoStreamHosts) {
+        if (hid === socket.id) {
+          videoStreamHosts.delete(rid);
+          io.to(rid).emit('webrtc-stream-ended');
+        }
+      }
       console.log(`Client disconnected: ${socket.id}`);
 
       const rooms = Array.from(socket.rooms);

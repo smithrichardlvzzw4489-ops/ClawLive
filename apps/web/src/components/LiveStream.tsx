@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSocket } from '@/hooks/useSocket';
+import { useVideoStream } from '@/hooks/useVideoStream';
 import { trackBehavior } from '@/hooks/useBehaviorTrack';
 import { Message, AgentLog, Comment, Screenshot, Room } from '@clawlive/shared-types';
 import { ChatBubble } from './ChatBubble';
@@ -9,6 +10,7 @@ import { CommentSection } from './CommentSection';
 import { ScreenshotViewer } from './ScreenshotViewer';
 import { AgentSettings } from './AgentSettings';
 import { ShareButton } from './ShareButton';
+import { VideoPlayer } from './VideoPlayer';
 import Link from 'next/link';
 
 interface LiveStreamProps {
@@ -30,6 +32,20 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [isStartingLive, setIsStartingLive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const {
+    stream: videoStream,
+    error: videoError,
+    isSharing,
+    startScreenShare,
+    stopScreenShare,
+    requestStream: requestVideoStream,
+  } = useVideoStream({
+    roomId,
+    socket,
+    isHost,
+    isLive: room?.isLive ?? false,
+  });
 
   // Check if current user is host
   useEffect(() => {
@@ -155,6 +171,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
       if (response.ok) {
         const updatedRoom = await response.json();
         setRoom(updatedRoom);
+        stopScreenShare();
 
         // Clear agent config after stopping
         try {
@@ -312,7 +329,17 @@ export function LiveStream({ roomId }: LiveStreamProps) {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {isHost && room.isLive && (
+            <button
+              onClick={isSharing ? stopScreenShare : startScreenShare}
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
+                isSharing ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {isSharing ? '📵 停止摄像' : '📷 摄像头直播'}
+            </button>
+          )}
           {isHost && (
             <button
               onClick={room.isLive ? stopLivestream : startLivestream}
@@ -326,10 +353,6 @@ export function LiveStream({ roomId }: LiveStreamProps) {
               {isTogglingLive ? '处理中...' : room.isLive ? '🔴 结束直播' : '🎬 开始直播'}
             </button>
           )}
-          <span className="flex items-center gap-1 text-sm text-gray-600">
-            <span>👁️</span>
-            <span className="font-semibold">{viewerCount}</span>
-          </span>
           <ShareButton
             url={`/rooms/${roomId}`}
             title={room.title}
@@ -384,20 +407,83 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           )}
         </div>
 
-        <div className="flex flex-col gap-4 overflow-hidden">
-          <CommentSection roomId={roomId} socket={socket} comments={comments} />
-          {screenshots.length > 0 && (
-            <ScreenshotViewer screenshots={screenshots} />
-          )}
-          {room.dashboardUrl && (
-            <div className="bg-white rounded-lg shadow overflow-hidden flex-1">
-              <iframe
-                src={room.dashboardUrl}
-                className="w-full h-full border-0"
-                title="Dashboard"
-              />
+        {/* 右侧：视频区 + 实时聊天（VibeLab 风格） */}
+        <div className="flex flex-col gap-4 overflow-hidden min-h-0">
+          {/* 视频直播区域 - 右上角独立面板 */}
+          <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between px-4 py-2 bg-black/5 border-b">
+              <span
+                className={`flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full ${
+                  room.isLive ? 'bg-red-500 text-white' : 'bg-gray-300 text-gray-600'
+                }`}
+              >
+                {room.isLive && (
+                  <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                )}
+                直播中 ({viewerCount})
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className="p-2 rounded-lg hover:bg-black/10 transition-colors"
+                  title="静音"
+                >
+                  <span className="text-lg">🔇</span>
+                </button>
+                <button
+                  type="button"
+                  className="p-2 rounded-lg hover:bg-black/10 transition-colors"
+                  title="全屏"
+                >
+                  <span className="text-lg">⛶</span>
+                </button>
+              </div>
             </div>
-          )}
+            <div className="flex-1 min-h-[200px] overflow-hidden bg-black">
+              {videoStream ? (
+                <VideoPlayer stream={videoStream} className="w-full h-full object-contain" muted={false} />
+              ) : screenshots.length > 0 ? (
+                <ScreenshotViewer screenshots={screenshots} embedded />
+              ) : room.dashboardUrl ? (
+                <iframe
+                  src={room.dashboardUrl}
+                  className="w-full h-full border-0"
+                  title="Dashboard"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-400">
+                  {videoError ? (
+                    <p className="text-sm text-amber-400 mb-2">{videoError}</p>
+                  ) : null}
+                  <p>{room.isLive ? '等待画面...' : '直播未开始'}</p>
+                  {isHost && room.isLive && !isSharing && (
+                    <button
+                      onClick={startScreenShare}
+                      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                    >
+                      打开摄像头开始视频直播
+                    </button>
+                  )}
+                  {!isHost && room.isLive && requestVideoStream && (
+                    <button
+                      onClick={requestVideoStream}
+                      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                    >
+                      重新连接视频
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 实时聊天 */}
+          <CommentSection
+            roomId={roomId}
+            socket={socket}
+            comments={comments}
+            hostUsername={room.host?.username}
+          />
         </div>
       </div>
 

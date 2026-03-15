@@ -102,6 +102,7 @@ export default function WorksPage() {
                 description={work.description}
                 lobsterName={work.lobsterName}
                 coverImage={work.coverImage}
+                videoUrl={work.videoUrl}
                 tags={work.tags}
                 viewCount={work.viewCount}
                 likeCount={work.likeCount}
