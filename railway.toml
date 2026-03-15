@@ -1,0 +1,7 @@
+# ClawLive 后端 Railway 配置
+# 重要：请在 Railway 控制台 → Settings → Root Directory 设为空（使用仓库根目录）
+# pnpm-lock.yaml 在根目录，Root Directory 非空会导致构建失败
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.server"
