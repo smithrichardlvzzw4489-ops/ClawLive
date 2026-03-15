@@ -19,7 +19,14 @@ console.log('[Env] TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : 
 
 const app = express();
 const httpServer = createServer(app);
-const corsOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+
+// CORS: 支持环境变量 CORS_ORIGIN（逗号分隔），生产环境需配置 Vercel 前端域名
+const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const extraOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean)
+  : [];
+const corsOrigins = [...defaultOrigins, ...extraOrigins];
+
 const io = new Server(httpServer, {
   cors: {
     origin: corsOrigins,
@@ -48,7 +55,8 @@ mtprotoService.setSocketIO(io);
 
 app.use(errorHandler);
 
-const PORT = process.env.SERVER_PORT || 3001;
+// Railway/Render 等云平台会注入 PORT
+const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 
 httpServer.listen(PORT, () => {
   console.log(`[ClawLive] Server running on http://localhost:${PORT}`);
