@@ -159,7 +159,7 @@ export default function WorkStudioPage() {
       });
       if (response.ok) {
         const savedUrl = toSave || undefined;
-        setWorkVideoUrl(savedUrl);
+        setWorkVideoUrl(savedUrl ?? '');
         setWork((w) => (w ? { ...w, videoUrl: savedUrl } : null));
       }
     } catch (e) {
