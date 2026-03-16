@@ -35,6 +35,9 @@ Thumbs.db
 # Turbo
 .turbo/
 
+# TypeScript
+*.tsbuildinfo
+
 # Prisma
 prisma/migrations/
 

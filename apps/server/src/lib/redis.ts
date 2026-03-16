@@ -1,9 +1,10 @@
 import { createClient } from 'redis';
+import type { RedisClientType } from 'redis';
 import { config } from '../config';
 
-let redisClient: ReturnType<typeof createClient> | null = null;
+let redisClient: RedisClientType | null = null;
 
-export async function getRedisClient() {
+export async function getRedisClient(): Promise<RedisClientType | null> {
   if (!config.redis.url) {
     console.warn('Redis URL not configured, skipping Redis connection');
     return null;
