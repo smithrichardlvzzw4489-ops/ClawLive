@@ -12,6 +12,7 @@ interface Work {
   description?: string;
   lobsterName: string;
   coverImage?: string;
+  videoUrl?: string;
   tags: string[];
   viewCount: number;
   likeCount: number;
