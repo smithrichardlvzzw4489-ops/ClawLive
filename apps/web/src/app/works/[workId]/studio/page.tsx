@@ -287,14 +287,14 @@ export default function WorkStudioPage() {
               type="url"
               value={workVideoUrl}
               onChange={(e) => setWorkVideoUrl(e.target.value)}
-              onBlur={saveWorkVideoUrl}
+              onBlur={() => saveWorkVideoUrl()}
               placeholder="或粘贴视频链接"
               className="w-40 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-lobster"
             />
             {workVideoUrl && (
               <button
                 type="button"
-                onClick={saveWorkVideoUrl}
+                onClick={() => saveWorkVideoUrl()}
                 disabled={savingVideoUrl}
                 className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
               >
