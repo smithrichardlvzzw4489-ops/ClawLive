@@ -1,6 +1,5 @@
 # ClawLive 后端 Railway 配置
-# 必须：Settings → Root Directory 设为空
-# 若构建仍失败，在 Settings → Build 中清除缓存后重试
+# 必须：Settings → Root Directory 设为空（构建上下文需包含 pnpm-lock.yaml）
 
 [build]
 builder = "DOCKERFILE"
