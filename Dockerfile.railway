@@ -1,24 +1,19 @@
-# ClawLive 后端 Dockerfile（仓库根目录，确保 pnpm-lock.yaml 在构建上下文中）
+# ClawLive 后端 - Railway 部署（与 Dockerfile.server 一致）
 FROM node:20-alpine
 
 WORKDIR /app
 
-# 复制整个 monorepo（需以仓库根为构建上下文）
 COPY . .
 
-# 安装 pnpm
 RUN npm install -g pnpm
 
-# 安装依赖（Railway 需 Root Directory 为空，否则用 pnpm install）
+# 使用 pnpm install（Root Directory 非空时 lockfile 可能缺失）
 RUN pnpm install
 
-# 生成 Prisma 客户端
 RUN cd apps/server && pnpm prisma generate
 
-# 构建
 RUN pnpm --filter @clawlive/server build
 
-# 运行时
 WORKDIR /app/apps/server
 
 ENV NODE_ENV=production
