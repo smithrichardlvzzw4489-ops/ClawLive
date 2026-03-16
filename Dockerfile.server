@@ -9,8 +9,7 @@ COPY . .
 # 安装 pnpm
 RUN npm install -g pnpm
 
-# 安装依赖（Railway 需 Root Directory 为空，否则用 pnpm install）
-RUN pnpm install
+RUN pnpm install --no-frozen-lockfile
 
 # 生成 Prisma 客户端
 RUN cd apps/server && pnpm prisma generate
