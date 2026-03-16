@@ -74,13 +74,13 @@ export class AuthService {
   generateToken(userId: string): string {
     return jwt.sign({ userId }, config.jwt.secret, {
       expiresIn: config.jwt.expiresIn,
-    });
+    } as jwt.SignOptions);
   }
 
   generateRefreshToken(userId: string): string {
     return jwt.sign({ userId }, config.jwt.refreshSecret, {
       expiresIn: config.jwt.refreshExpiresIn,
-    });
+    } as jwt.SignOptions);
   }
 
   verifyToken(token: string): { userId: string } {

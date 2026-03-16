@@ -73,7 +73,13 @@ export function agentConfigRoutes(io: Server): Router {
       }
       
       // Get existing config
-      const existingConfig = agentConfigs.get(roomId) || {};
+      const existingConfig = agentConfigs.get(roomId) || {
+        agentType: 'mock',
+        agentEnabled: false,
+        agentBotToken: undefined,
+        agentChatId: undefined,
+        agentStatus: 'disconnected',
+      };
       
       // Update configuration in memory
       const newConfig = {

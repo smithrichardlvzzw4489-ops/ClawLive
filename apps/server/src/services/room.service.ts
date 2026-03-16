@@ -1,5 +1,5 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { Room } from '@clawlive/shared-types';
 
 export class RoomService {
   async findAll(params?: { page?: number; limit?: number; isLive?: boolean }) {
@@ -70,7 +70,7 @@ export class RoomService {
     });
   }
 
-  async update(roomId: string, data: Partial<Room>) {
+  async update(roomId: string, data: Prisma.RoomUpdateInput) {
     return await prisma.room.update({
       where: { id: roomId },
       data,

@@ -96,7 +96,7 @@ export class TelegramBridgeService {
         `https://api.telegram.org/bot${this.botToken}/deleteWebhook`,
         { method: 'POST' }
       );
-      const data = await response.json();
+      const data = await response.json() as { ok?: boolean; description?: string };
       if (data.ok) {
         console.log(`✅ Webhook deleted successfully`);
       } else {
@@ -141,7 +141,7 @@ export class TelegramBridgeService {
         }
       );
       
-      const data = await response.json();
+      const data = await response.json() as { ok?: boolean; description?: string };
       
       if (data.ok) {
         console.log(`✅ Sent to Telegram successfully`);
@@ -200,7 +200,7 @@ export class TelegramBridgeService {
         return;
       }
       
-      const data: { ok: boolean; result: TelegramUpdate[] } = await response.json();
+      const data = await response.json() as { ok: boolean; result: TelegramUpdate[] };
       
       if (data.ok) {
         if (data.result.length > 0) {
@@ -378,7 +378,7 @@ export class TelegramBridgeService {
       const botResponse = await fetch(
         `https://api.telegram.org/bot${botToken}/getMe`
       );
-      const botData = await botResponse.json();
+      const botData = await botResponse.json() as { ok?: boolean };
       
       if (!botData.ok) {
         return { success: false, error: 'Invalid Bot Token' };
@@ -388,7 +388,7 @@ export class TelegramBridgeService {
       const chatResponse = await fetch(
         `https://api.telegram.org/bot${botToken}/getChat?chat_id=${chatId}`
       );
-      const chatData = await chatResponse.json();
+      const chatData = await chatResponse.json() as { ok?: boolean };
       
       if (!chatData.ok) {
         return { success: false, error: 'Invalid Chat ID or bot not authorized' };

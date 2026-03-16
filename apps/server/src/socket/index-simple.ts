@@ -3,6 +3,18 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import { messageHistory } from '../api/routes/rooms-simple';
 
+// WebRTC types (not in Node lib, define locally)
+interface RTCSessionDescriptionInit {
+  type?: string;
+  sdp?: string;
+}
+interface RTCIceCandidateInit {
+  candidate?: string;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+  usernameFragment?: string | null;
+}
+
 // roomId -> host socket id（视频直播推流方）
 const videoStreamHosts = new Map<string, string>();
 
