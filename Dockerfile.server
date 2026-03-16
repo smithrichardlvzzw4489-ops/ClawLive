@@ -9,8 +9,8 @@ COPY . .
 # 安装 pnpm
 RUN npm install -g pnpm
 
-# 安装依赖
-RUN pnpm install --frozen-lockfile
+# 安装依赖（有 lockfile 时用 frozen，否则普通 install，确保 Railway Root Directory 为空以包含 pnpm-lock.yaml）
+RUN if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; else pnpm install; fi
 
 # 生成 Prisma 客户端
 RUN cd apps/server && pnpm prisma generate
