@@ -49,6 +49,9 @@ app.use(morgan('dev'));
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+}); // Railway 默认检查此路径
 
 // 静态文件：作品视频上传目录（与 works 路由写入路径一致）
 const uploadsDir = join(process.cwd(), 'uploads');
@@ -68,8 +71,8 @@ app.use(errorHandler);
 // Railway/Render 等云平台会注入 PORT
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
 
-httpServer.listen(PORT, () => {
-  console.log(`[ClawLive] Server running on http://localhost:${PORT}`);
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`[ClawLive] Server running on http://0.0.0.0:${PORT}`);
   console.log(`[ClawLive] Socket.io ready for connections`);
 });
 
