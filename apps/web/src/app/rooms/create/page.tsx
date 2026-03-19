@@ -29,12 +29,14 @@ export default function CreateRoomPage() {
 
   // Connection choice: use existing or create new
   const [connectionChoice, setConnectionChoice] = useState<'choice' | 'existing' | 'new'>('choice');
+  const [connectionType, setConnectionType] = useState<'choice' | 'bot' | 'mtproto'>('choice');
   const [connections, setConnections] = useState<UserConnection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState('');
   const [applyingConnection, setApplyingConnection] = useState(false);
 
   // Agent config (for new connection)
   const [connectionName, setConnectionName] = useState('');
+  const [botToken, setBotToken] = useState('');
   const [tempId, setTempId] = useState('');
   const [chatId, setChatId] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -130,6 +132,46 @@ export default function CreateRoomPage() {
   };
 
   // Step 2: Configure Agent - NEW connection (user-agent-connections API)
+  const createBotConnection = async () => {
+    if (!connectionName.trim() || !botToken.trim() || !chatId.trim()) {
+      setMessage({ type: 'error', text: '请填写连接名称、Bot Token 和 Agent Chat ID' });
+      return;
+    }
+    setLoading(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/bot-create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: connectionName.trim(),
+          botToken: botToken.trim(),
+          agentChatId: chatId.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || '创建失败');
+      setMessage({ type: 'success', text: '🎉 连接已保存！正在应用到直播间并开始直播...' });
+      const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ connectionId: data.connection.id }),
+      });
+      const applyData = await applyRes.json();
+      if (!applyData.success) throw new Error(applyData.error || '应用失败');
+      setLoginStep('done');
+      await startLivestream();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '创建失败' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const sendVerificationCode = async () => {
     if (!phoneNumber.trim() || !chatId.trim() || !connectionName.trim()) {
       setMessage({ type: 'error', text: '请填写连接名称、手机号和 Agent Chat ID' });
@@ -407,12 +449,6 @@ export default function CreateRoomPage() {
                 </div>
               )}
 
-              <div className="bg-purple-50 border border-purple-200 rounded p-4">
-                <p className="text-gray-700 text-sm">
-                  以<strong>你的真实 Telegram 用户身份</strong>发送消息，Agent 完美识别你的对话！
-                </p>
-              </div>
-
               {/* Connection choice: existing or new */}
               {connectionChoice === 'choice' && (
                 <div className="space-y-4">
@@ -446,7 +482,7 @@ export default function CreateRoomPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => setConnectionChoice('new')}
+                    onClick={() => { setConnectionChoice('new'); setConnectionType('choice'); }}
                     className="w-full px-6 py-3 border-2 border-dashed border-lobster text-lobster rounded-lg hover:bg-lobster/5 font-semibold"
                   >
                     + 新建连接
@@ -454,8 +490,105 @@ export default function CreateRoomPage() {
                 </div>
               )}
 
-              {/* Step 1: Phone Number (new connection) */}
-              {connectionChoice === 'new' && loginStep === 'phone' && (
+              {/* New connection: choose type (Bot Token vs 真实用户) */}
+              {connectionChoice === 'new' && connectionType === 'choice' && (
+                <div className="space-y-4">
+                  <p className="text-gray-700 font-medium">选择连接方式：</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setConnectionType('bot')}
+                      className="p-6 border-2 border-lobster rounded-xl hover:bg-lobster/5 transition-colors text-left"
+                    >
+                      <span className="text-sm font-medium text-lobster">推荐</span>
+                      <h3 className="font-semibold text-lg mt-1">Bot Token</h3>
+                      <p className="text-sm text-gray-600 mt-2">
+                        连接名称 + Bot Token + Agent Chat ID，无需 API 凭证
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConnectionType('mtproto')}
+                      className="p-6 border-2 border-gray-300 rounded-xl hover:border-purple-400 hover:bg-purple-50/50 transition-colors text-left"
+                    >
+                      <h3 className="font-semibold text-lg">真实用户身份</h3>
+                      <p className="text-sm text-gray-600 mt-2">
+                        手机号 + Agent Chat ID，以你的 Telegram 账号发送消息
+                      </p>
+                      <p className="text-xs text-gray-500 mt-2">以你的 Telegram 账号发送消息</p>
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setConnectionChoice('choice'); setConnectionType('choice'); setMessage(null); }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    ← 返回
+                  </button>
+                </div>
+              )}
+
+              {/* Bot Token form */}
+              {connectionChoice === 'new' && connectionType === 'bot' && (
+                <>
+                  <div className="bg-green-50 border border-green-200 rounded p-4">
+                    <p className="text-gray-700 text-sm">
+                      <strong>Bot Token</strong>：无需 API ID/API Hash，只需 Bot Token 和 Agent Chat ID
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">连接名称 <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={connectionName}
+                      onChange={(e) => setConnectionName(e.target.value)}
+                      placeholder="如：我的工作龙虾"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Bot Token <span className="text-red-500">*</span></label>
+                    <input
+                      type="password"
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:outline-none"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">从 @BotFather 获取</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Agent Chat ID <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={chatId}
+                      onChange={(e) => setChatId(e.target.value)}
+                      placeholder="@your_agent 或 123456789"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setConnectionType('choice'); setMessage(null); }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      ← 返回
+                    </button>
+                    <button
+                      type="button"
+                      onClick={createBotConnection}
+                      disabled={loading || !connectionName.trim() || !botToken.trim() || !chatId.trim()}
+                      className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg hover:bg-lobster-dark disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                    >
+                      {loading ? '保存中...' : '保存并开始直播'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 1: Phone Number (MTProto - 真实用户) */}
+              {connectionChoice === 'new' && connectionType === 'mtproto' && loginStep === 'phone' && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -505,7 +638,7 @@ export default function CreateRoomPage() {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => { setConnectionChoice('choice'); setMessage(null); }}
+                      onClick={() => { setConnectionType('choice'); setMessage(null); }}
                       className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                     >
                       ← 返回
@@ -522,8 +655,8 @@ export default function CreateRoomPage() {
                 </>
               )}
 
-              {/* Step 2: Verification Code */}
-              {connectionChoice === 'new' && loginStep === 'code' && (
+              {/* Step 2: Verification Code (MTProto) */}
+              {connectionChoice === 'new' && connectionType === 'mtproto' && loginStep === 'code' && (
                 <>
                   <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
                     <p className="text-green-800">
@@ -573,8 +706,8 @@ export default function CreateRoomPage() {
                 </>
               )}
 
-              {/* Step 3: Two-Factor Password (Optional) */}
-              {connectionChoice === 'new' && loginStep === 'password' && (
+              {/* Step 3: Two-Factor Password (MTProto) */}
+              {connectionChoice === 'new' && connectionType === 'mtproto' && loginStep === 'password' && (
                 <>
                   <div className="bg-yellow-50 border border-yellow-200 rounded p-3 text-sm">
                     <p className="text-yellow-800 font-medium">

@@ -37,8 +37,43 @@ export function userAgentConnectionsRoutes(): Router {
   });
 
   /**
+   * POST /api/user-agent-connections/bot-create
+   * 新建连接 - Bot Token 模式（无需 API 配置，只需 Bot Token + Agent Chat ID）
+   * body: { name, botToken, agentChatId }
+   */
+  router.post('/bot-create', async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { name, botToken, agentChatId } = req.body;
+
+      if (!name?.trim() || !botToken?.trim() || !agentChatId?.trim()) {
+        return res.status(400).json({ error: 'name, botToken, agentChatId are required' });
+      }
+
+      const conn = create(userId, {
+        name: name.trim(),
+        agentType: 'telegram-bot',
+        botToken: botToken.trim(),
+        agentChatId: agentChatId.trim(),
+      });
+
+      res.json({
+        success: true,
+        connection: {
+          id: conn.id,
+          name: conn.name,
+          agentChatId: conn.agentChatId,
+        },
+      });
+    } catch (error) {
+      console.error('user-agent-connections bot-create:', error);
+      res.status(500).json({ error: 'Failed to create connection' });
+    }
+  });
+
+  /**
    * POST /api/user-agent-connections/mtproto-start
-   * 新建连接 - 第一步：发送验证码
+   * 新建连接 - 第一步：发送验证码（用户只需手机号 + Agent Chat ID，服务器使用内置默认凭证）
    * body: { name, phoneNumber, agentChatId }
    */
   router.post('/mtproto-start', async (req: AuthRequest, res: Response) => {
@@ -221,20 +256,32 @@ export function userAgentConnectionsRoutes(): Router {
         return res.status(403).json({ error: 'Not authorized' });
       }
 
-      const result = await mtprotoService.restoreSession(roomId, conn.sessionString);
-      if (!result.success) {
-        return res.status(400).json({ error: result.error || 'Failed to restore session' });
+      if (conn.agentType === 'telegram-bot' && conn.botToken) {
+        // Bot Token 模式：无需 API 配置
+        const config = {
+          agentType: 'telegram' as const,
+          agentEnabled: true,
+          agentBotToken: conn.botToken,
+          agentChatId: conn.agentChatId,
+          agentStatus: 'connected' as const,
+        };
+        agentConfigs.set(roomId, config);
+      } else {
+        // MTProto 模式
+        const result = await mtprotoService.restoreSession(roomId, conn.sessionString!);
+        if (!result.success) {
+          return res.status(400).json({ error: result.error || 'Failed to restore session' });
+        }
+        const config = {
+          agentType: 'telegram-user' as const,
+          agentEnabled: true,
+          agentChatId: conn.agentChatId,
+          agentStatus: 'connected' as const,
+          mtprotoSessionString: conn.sessionString,
+          mtprotoPhone: conn.phone,
+        };
+        agentConfigs.set(roomId, config);
       }
-
-      const config = {
-        agentType: 'telegram-user' as const,
-        agentEnabled: true,
-        agentChatId: conn.agentChatId,
-        agentStatus: 'connected' as const,
-        mtprotoSessionString: conn.sessionString,
-        mtprotoPhone: conn.phone,
-      };
-      agentConfigs.set(roomId, config);
 
       res.json({ success: true, message: 'Connection applied to room' });
     } catch (error) {
@@ -266,7 +313,11 @@ export function userAgentConnectionsRoutes(): Router {
       if (!work) return res.status(404).json({ error: 'Work not found' });
       if (work.authorId !== userId) return res.status(403).json({ error: 'Not authorized' });
 
-      const result = await mtprotoService.restoreSession(workId, conn.sessionString);
+      if (conn.agentType === 'telegram-bot') {
+        return res.status(400).json({ error: 'Bot Token 连接暂不支持应用到作品，请使用真实用户身份连接' });
+      }
+
+      const result = await mtprotoService.restoreSession(workId, conn.sessionString!);
       if (!result.success) {
         return res.status(400).json({ error: result.error || 'Failed to restore session' });
       }

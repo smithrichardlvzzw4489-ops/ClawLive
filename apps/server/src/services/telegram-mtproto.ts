@@ -10,9 +10,13 @@ import { Api } from 'telegram/tl';
 import { NewMessage } from 'telegram/events';
 
 // 懒加载环境变量（在实际使用时读取，而不是在 import 时）
+// 若未配置，使用公开的 Telegram 应用凭证作为默认值，用户只需提供手机号 + Agent Chat ID
+const DEFAULT_API_ID = 94575;
+const DEFAULT_API_HASH = 'a3406de8d171bb422bb6ddf3bbd800e2';
+
 function getApiCredentials() {
-  const API_ID = parseInt(process.env.TELEGRAM_API_ID || '0');
-  const API_HASH = process.env.TELEGRAM_API_HASH || '';
+  const API_ID = parseInt(process.env.TELEGRAM_API_ID || String(DEFAULT_API_ID));
+  const API_HASH = process.env.TELEGRAM_API_HASH || DEFAULT_API_HASH;
   return { API_ID, API_HASH };
 }
 
@@ -52,16 +56,8 @@ export class MTProtoUserService {
     try {
       console.log(`📱 Starting Telegram login for room ${roomId}, phone: ${phoneNumber}`);
 
-      // 懒加载环境变量
+      // 懒加载环境变量（未配置时使用内置默认凭证）
       const { API_ID, API_HASH } = getApiCredentials();
-
-      // 检查配置
-      if (!API_ID || !API_HASH || API_ID === 0) {
-        return {
-          success: false,
-          error: 'Telegram API credentials not configured'
-        };
-      }
 
       // 创建新会话
       const stringSession = new StringSession('');
@@ -239,15 +235,8 @@ export class MTProtoUserService {
     try {
       console.log(`🔄 Restoring Telegram session for room ${roomId}`);
 
-      // 懒加载环境变量
+      // 懒加载环境变量（未配置时使用内置默认凭证）
       const { API_ID, API_HASH } = getApiCredentials();
-
-      if (!API_ID || !API_HASH || API_ID === 0) {
-        return {
-          success: false,
-          error: 'Missing TELEGRAM_API_ID or TELEGRAM_API_HASH in .env'
-        };
-      }
 
       const stringSession = new StringSession(sessionString);
       const client = new TelegramClient(stringSession, API_ID, API_HASH, {

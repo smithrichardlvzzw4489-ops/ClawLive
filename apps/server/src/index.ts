@@ -15,8 +15,8 @@ import { mtprotoService } from './services/telegram-mtproto';
 
 dotenv.config({ path: resolve(__dirname, '../.env') });
 
-console.log('[Env] TELEGRAM_API_ID:', process.env.TELEGRAM_API_ID || 'NOT SET');
-console.log('[Env] TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : 'NOT SET');
+console.log('[Env] TELEGRAM_API_ID:', process.env.TELEGRAM_API_ID || '(使用内置默认)');
+console.log('[Env] TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : '(使用内置默认)');
 
 const app = express();
 const httpServer = createServer(app);

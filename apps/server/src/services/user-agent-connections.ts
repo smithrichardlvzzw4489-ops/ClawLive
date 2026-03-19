@@ -14,8 +14,9 @@ export interface UserAgentConnection {
   id: string;
   userId: string;
   name: string;
-  agentType: 'telegram-mtproto';
-  sessionString: string;
+  agentType: 'telegram-mtproto' | 'telegram-bot';
+  sessionString?: string;  // MTProto 用
+  botToken?: string;      // Bot 模式用
   agentChatId: string;
   phone?: string;
   createdAt: string;
@@ -43,11 +44,15 @@ function saveAll(connections: Record<string, UserAgentConnection>) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(connections, null, 2));
 }
 
-export function listByUser(userId: string): Omit<UserAgentConnection, 'sessionString'>[] {
+export function listByUser(userId: string): Omit<UserAgentConnection, 'sessionString' | 'botToken'>[] {
   const all = loadAll();
   return Object.values(all)
     .filter((c) => c.userId === userId)
-    .map(({ sessionString, ...rest }) => ({ ...rest, hasSession: !!sessionString }));
+    .map(({ sessionString, botToken, ...rest }) => ({
+      ...rest,
+      hasSession: !!sessionString,
+      hasBotToken: !!botToken,
+    }));
 }
 
 export function getById(connectionId: string): UserAgentConnection | null {
@@ -65,8 +70,9 @@ export function create(
   userId: string,
   data: {
     name: string;
-    agentType: 'telegram-mtproto';
-    sessionString: string;
+    agentType: 'telegram-mtproto' | 'telegram-bot';
+    sessionString?: string;
+    botToken?: string;
     agentChatId: string;
     phone?: string;
   }
@@ -79,6 +85,7 @@ export function create(
     name: data.name,
     agentType: data.agentType,
     sessionString: data.sessionString,
+    botToken: data.botToken,
     agentChatId: data.agentChatId,
     phone: data.phone,
     createdAt: new Date().toISOString(),
