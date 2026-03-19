@@ -32,11 +32,13 @@ const extraOrigins = process.env.CORS_ORIGIN
   : [];
 const corsOrigins = [...defaultOrigins, ...extraOrigins];
 
-// 允许所有 *.vercel.app 域名（Vercel 预览/生产）
+// 允许 *.vercel.app、clawlab.live 及其子域名
 function corsOriginFn(origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) {
   if (!origin) return cb(null, true);
   if (corsOrigins.includes(origin)) return cb(null, true);
   if (origin.endsWith('.vercel.app')) return cb(null, true);
+  if (origin === 'https://clawlab.live' || origin === 'https://www.clawlab.live') return cb(null, true);
+  if (origin.endsWith('.clawlab.live')) return cb(null, true);
   cb(null, false);
 }
 
