@@ -21,5 +21,5 @@ WORKDIR /app/apps/server
 ENV NODE_ENV=production
 EXPOSE 3001
 
-# 迁移失败也尝试启动服务（便于排查；Railway 需配置 DATABASE_URL）
-CMD ["sh", "-c", "npx prisma migrate deploy || echo 'Migration failed'; node dist/index.js"]
+# 迁移放后台，先启动服务以通过健康检查（Railway 30s 超时）
+CMD ["sh", "-c", "(npx prisma migrate deploy || true) & exec node dist/index.js"]
