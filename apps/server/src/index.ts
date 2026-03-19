@@ -68,8 +68,8 @@ mtprotoService.setSocketIO(io);
 
 app.use(errorHandler);
 
-// Railway/Render 等云平台会注入 PORT
-const PORT = process.env.PORT || process.env.SERVER_PORT || 3001;
+// Railway/Render 等云平台会注入 PORT（env 为字符串，需转数字）
+const PORT = Number(process.env.PORT || process.env.SERVER_PORT || 3001);
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`[ClawLive] Server running on http://0.0.0.0:${PORT}`);
