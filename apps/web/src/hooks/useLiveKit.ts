@@ -19,6 +19,7 @@ export function useLiveKit({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [reconnectKey, setReconnectKey] = useState(0);
   const roomRef = useRef<Room | null>(null);
 
   const fetchToken = useCallback(
@@ -29,7 +30,10 @@ export function useLiveKit({
         ? { roomId, participantName: participantName || `host-${Date.now()}`, isHost: true }
         : { roomId };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      if (!apiUrl) throw new Error('未配置 API 地址，请设置 NEXT_PUBLIC_API_URL');
+
+      const res = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +41,14 @@ export function useLiveKit({
         },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
+
+      let data: { token?: string; url?: string; error?: string };
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(res.status === 503 ? 'LiveKit 未配置，请联系管理员' : `请求失败 (${res.status})`);
+      }
+      if (!res.ok) throw new Error(data.error || `请求失败 (${res.status})`);
       if (!data.token || !data.url) throw new Error(data.error || '获取令牌失败');
       return data;
     },
@@ -94,6 +105,12 @@ export function useLiveKit({
     setStream(null);
     setIsSharing(false);
   }, [stream]);
+
+  const requestStream = useCallback(() => {
+    if (!LIVEKIT_URL || isHost) return;
+    setError(null);
+    setReconnectKey((k) => k + 1);
+  }, [LIVEKIT_URL, isHost]);
 
   // 观众：连接并订阅主播画面
   useEffect(() => {
@@ -153,7 +170,7 @@ export function useLiveKit({
       roomRef.current = null;
       setStream(null);
     };
-  }, [LIVEKIT_URL, isHost, isLive, roomId, fetchToken]);
+  }, [LIVEKIT_URL, isHost, isLive, roomId, fetchToken, reconnectKey]);
 
   return {
     stream,
@@ -161,6 +178,6 @@ export function useLiveKit({
     isSharing,
     startScreenShare: startCameraStream,
     stopScreenShare: stopCameraStream,
-    requestStream: undefined,
+    requestStream,
   };
 }
