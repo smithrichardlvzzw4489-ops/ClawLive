@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { mtprotoService } from '../../services/telegram-mtproto';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../../lib/prisma';
 
 // In-memory storage
 const roomInfo = new Map<string, {
