@@ -19,6 +19,8 @@ export function useLiveKit({
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isRoomConnected, setIsRoomConnected] = useState(false);
   const [reconnectKey, setReconnectKey] = useState(0);
   const roomRef = useRef<Room | null>(null);
 
@@ -109,6 +111,13 @@ export function useLiveKit({
   const requestStream = useCallback(() => {
     if (!LIVEKIT_URL || isHost) return;
     setError(null);
+    setIsReconnecting(true);
+    setIsRoomConnected(false);
+    if (roomRef.current) {
+      roomRef.current.disconnect();
+      roomRef.current = null;
+    }
+    setStream(null);
     setReconnectKey((k) => k + 1);
   }, [LIVEKIT_URL, isHost]);
 
@@ -134,6 +143,8 @@ export function useLiveKit({
           return;
         }
 
+        setIsRoomConnected(true);
+
         room.on(RoomEvent.TrackSubscribed, (track) => {
           if (track.kind === Track.Kind.Video && track.source === Track.Source.Camera) {
             setStream(new MediaStream([track.mediaStreamTrack]));
@@ -142,6 +153,7 @@ export function useLiveKit({
 
         room.on(RoomEvent.TrackUnsubscribed, () => setStream(null));
         room.on(RoomEvent.Disconnected, () => {
+          setIsRoomConnected(false);
           setStream(null);
           roomRef.current = null;
         });
@@ -159,6 +171,8 @@ export function useLiveKit({
           setError(err.message || '连接失败');
           setStream(null);
         }
+      } finally {
+        if (!cancelled) setIsReconnecting(false);
       }
     };
 
@@ -166,6 +180,7 @@ export function useLiveKit({
 
     return () => {
       cancelled = true;
+      setIsRoomConnected(false);
       if (room) room.disconnect();
       roomRef.current = null;
       setStream(null);
@@ -176,6 +191,8 @@ export function useLiveKit({
     stream,
     error,
     isSharing,
+    isReconnecting,
+    isRoomConnected,
     startScreenShare: startCameraStream,
     stopScreenShare: stopCameraStream,
     requestStream,

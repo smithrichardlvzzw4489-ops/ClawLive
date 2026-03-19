@@ -222,6 +222,8 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
     stream,
     error,
     isSharing,
+    isReconnecting: false,
+    isRoomConnected: false,
     startScreenShare,
     stopScreenShare,
     requestStream: isHost ? undefined : requestStream,

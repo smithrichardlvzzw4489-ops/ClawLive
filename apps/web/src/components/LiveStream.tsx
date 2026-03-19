@@ -55,6 +55,8 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     stream: videoStream,
     error: videoError,
     isSharing,
+    isReconnecting,
+    isRoomConnected,
     startScreenShare,
     stopScreenShare,
     requestStream: requestVideoStream,
@@ -469,7 +471,13 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                   {videoError ? (
                     <p className="text-sm text-amber-400 mb-2">{videoError}</p>
                   ) : null}
-                  <p>{room.isLive ? '等待画面...' : '直播未开始'}</p>
+                  <p>
+                    {room.isLive
+                      ? isRoomConnected
+                        ? '已连接房间，等待主播开启摄像头'
+                        : '等待画面...'
+                      : '直播未开始'}
+                  </p>
                   {room.isLive && !isHost && (
                     <p className="text-xs text-gray-500 mt-2">若长时间无画面，请主播点击「摄像头直播」</p>
                   )}
@@ -484,9 +492,10 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                   {!isHost && room.isLive && requestVideoStream && (
                     <button
                       onClick={requestVideoStream}
-                      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                      disabled={isReconnecting}
+                      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      重新连接视频
+                      {isReconnecting ? '正在重新连接...' : '重新连接视频'}
                     </button>
                   )}
                 </div>
