@@ -3,6 +3,16 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Socket } from 'socket.io-client';
 
+// 多 STUN + TURN 提升跨网/移动端连接成功率
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  // freeTURN 公共 TURN，NAT 严格时兜底（带宽有限）
+  { urls: 'turn:freeturn.net:3478', username: 'free', credential: 'free' },
+  { urls: 'turn:freeturn.net:5349?transport=tcp', username: 'free', credential: 'free' },
+];
+
 interface UseVideoStreamOptions {
   roomId: string;
   socket: Socket | null;
@@ -76,10 +86,10 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
     };
   }, [socket, isHost, requestStream]);
 
-  // 观众：无画面时每隔 3 秒重试请求（可能是晚加入或连接失败）
+  // 观众：无画面时每隔 2 秒重试请求（晚加入或连接失败时自动恢复）
   useEffect(() => {
     if (!socket || isHost || !isLive || stream) return;
-    const interval = setInterval(requestStream, 3000);
+    const interval = setInterval(requestStream, 2000);
     return () => clearInterval(interval);
   }, [socket, isHost, isLive, stream, requestStream]);
 
@@ -90,9 +100,7 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
 
     const handleViewerRequest = async ({ viewerId }: { viewerId: string }) => {
       if (!localStreamRef.current) return;
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       localStreamRef.current?.getTracks().forEach((track) => {
         pc.addTrack(track, localStreamRef.current!);
       });
@@ -132,12 +140,21 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
     const handleOffer = async ({ sdp, fromHostId }: { sdp: RTCSessionDescriptionInit; fromHostId: string }) => {
       hostIdRef.current = fromHostId;
       pcRef.current?.close();
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-      });
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       pcRef.current = pc;
       pc.ontrack = (e) => {
         if (e.streams[0]) setStream(e.streams[0]);
+      };
+      const handleConnectionFailed = () => {
+        setStream(null);
+        hostIdRef.current = null;
+        pcRef.current = null;
+      };
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'failed' || pc.connectionState === 'closed') handleConnectionFailed();
+      };
+      pc.oniceconnectionstatechange = () => {
+        if (pc.iceConnectionState === 'failed') handleConnectionFailed();
       };
       pc.onicecandidate = (e) => {
         if (e.candidate && hostIdRef.current) {
