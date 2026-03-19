@@ -32,12 +32,20 @@ const extraOrigins = process.env.CORS_ORIGIN
   : [];
 const corsOrigins = [...defaultOrigins, ...extraOrigins];
 
+// 允许所有 *.vercel.app 域名（Vercel 预览/生产）
+function corsOriginFn(origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) {
+  if (!origin) return cb(null, true);
+  if (corsOrigins.includes(origin)) return cb(null, true);
+  if (origin.endsWith('.vercel.app')) return cb(null, true);
+  cb(null, false);
+}
+
 const io = new Server(httpServer, {
-  cors: { origin: corsOrigins, credentials: true },
+  cors: { origin: corsOriginFn, credentials: true },
 });
 
 app.use(helmet());
-app.use(cors({ origin: corsOrigins, credentials: true }));
+app.use(cors({ origin: corsOriginFn, credentials: true }));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(morgan('dev'));

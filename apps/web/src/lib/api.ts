@@ -47,8 +47,9 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new APIError(response.status, error.error || 'Request failed');
+    const error = await response.json().catch(() => ({}));
+    const msg = error?.error || (response.status >= 500 ? `服务器错误 (${response.status})` : response.status === 0 ? '网络或 CORS 错误，请检查后端 CORS 配置' : `请求失败 (${response.status})`);
+    throw new APIError(response.status, msg);
   }
 
   return response.json();
