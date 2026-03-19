@@ -27,6 +27,6 @@ export async function authenticateToken(
     req.user = { id: decoded.userId };
     next();
   } catch (error) {
-    res.status(403).json({ error: 'Invalid or expired token' });
+    res.status(401).json({ error: '登录已过期，请重新登录', code: 'TOKEN_EXPIRED' });
   }
 }

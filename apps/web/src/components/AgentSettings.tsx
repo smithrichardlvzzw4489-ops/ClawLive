@@ -137,7 +137,12 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
         setLoginStep('code');
         setMessage({ type: 'success', text: '✅ 验证码已发送到你的手机，请查看 Telegram 消息' });
       } else {
-        setMessage({ type: 'error', text: data.error || '发送失败' });
+        if (response.status === 401 || data.code === 'TOKEN_EXPIRED') {
+          localStorage.removeItem('token');
+          setMessage({ type: 'error', text: '登录已过期，请刷新页面重新登录' });
+        } else {
+          setMessage({ type: 'error', text: data.error || '发送失败' });
+        }
       }
     } catch (error) {
       setMessage({ type: 'error', text: '网络错误' });
