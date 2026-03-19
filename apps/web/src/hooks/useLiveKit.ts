@@ -50,7 +50,7 @@ export function useLiveKit({
       }
       if (!res.ok) throw new Error(data.error || `请求失败 (${res.status})`);
       if (!data.token || !data.url) throw new Error(data.error || '获取令牌失败');
-      return data;
+      return { token: data.token, url: data.url };
     },
     [roomId, participantName]
   );
