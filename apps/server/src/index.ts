@@ -22,6 +22,11 @@ console.log('[Env] TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : 
 const app = express();
 const httpServer = createServer(app);
 
+// 健康检查放在最前，确保 Railway 能尽快通过（不依赖任何中间件）
+app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/', (req, res) => res.json({ status: 'ok', service: 'clawlive-server' }));
+
 // CORS: 支持环境变量 CORS_ORIGIN（逗号分隔），生产环境需配置 Vercel 前端域名
 const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001'];
 const extraOrigins = process.env.CORS_ORIGIN
@@ -45,13 +50,6 @@ app.use(cors({
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(morgan('dev'));
-
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-}); // Railway 默认检查此路径
 
 // 静态文件：作品视频上传目录（与 works 路由写入路径一致）
 const uploadsDir = join(process.cwd(), 'uploads');

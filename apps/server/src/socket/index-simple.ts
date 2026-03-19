@@ -19,18 +19,19 @@ interface RTCIceCandidateInit {
 const videoStreamHosts = new Map<string, string>();
 
 export async function setupSocketIO(io: Server): Promise<void> {
+  // Redis 连接放后台，不阻塞服务启动（健康检查需尽快通过）
   if (process.env.REDIS_URL) {
-    try {
-      const pubClient = createClient({ url: process.env.REDIS_URL });
-      const subClient = pubClient.duplicate();
-
-      await Promise.all([pubClient.connect(), subClient.connect()]);
-      io.adapter(createAdapter(pubClient, subClient));
-      console.log('[OK] Socket.io Redis adapter configured');
-    } catch (error) {
-      console.warn('[WARN] Redis connection failed, running without Redis adapter:', error instanceof Error ? error.message : 'Unknown error');
-      console.log('[OK] Socket.io running in standalone mode (single server)');
-    }
+    const pubClient = createClient({ url: process.env.REDIS_URL });
+    const subClient = pubClient.duplicate();
+    Promise.all([pubClient.connect(), subClient.connect()])
+      .then(() => {
+        io.adapter(createAdapter(pubClient, subClient));
+        console.log('[OK] Socket.io Redis adapter configured');
+      })
+      .catch((err) => {
+        console.warn('[WARN] Redis connection failed, running without Redis adapter:', err instanceof Error ? err.message : 'Unknown error');
+        console.log('[OK] Socket.io running in standalone mode (single server)');
+      });
   }
 
   io.on('connection', (socket: Socket) => {
