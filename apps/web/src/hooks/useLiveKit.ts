@@ -54,7 +54,6 @@ export function useLiveKit({
 
       await room.connect(url, token, {
         autoSubscribe: true,
-        dynacast: true,
       });
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -111,7 +110,7 @@ export function useLiveKit({
         room = new Room();
         roomRef.current = room;
 
-        await room.connect(url, token, { autoSubscribe: true, dynacast: true });
+        await room.connect(url, token, { autoSubscribe: true });
 
         if (cancelled) {
           room.disconnect();
