@@ -1,6 +1,9 @@
 # ClawLive 后端 - 需以仓库根目录为构建上下文（Railway Root Directory 设为空）
 FROM node:20-alpine
 
+# Prisma 需要 OpenSSL
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 COPY . .
