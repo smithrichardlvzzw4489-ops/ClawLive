@@ -14,6 +14,7 @@ RUN pnpm install --no-frozen-lockfile
 
 RUN cd apps/server && pnpm prisma generate
 
+RUN pnpm --filter @clawlive/privacy-filter build
 RUN pnpm --filter @clawlive/server build
 
 WORKDIR /app/apps/server
