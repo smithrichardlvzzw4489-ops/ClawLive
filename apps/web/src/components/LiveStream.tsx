@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useVideoStream } from '@/hooks/useVideoStream';
+import { useLiveKit } from '@/hooks/useLiveKit';
 import { trackBehavior } from '@/hooks/useBehaviorTrack';
 import { Message, AgentLog, Comment, Screenshot, Room } from '@clawlive/shared-types';
 import { ChatBubble } from './ChatBubble';
@@ -31,7 +32,24 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const [isTogglingLive, setIsTogglingLive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isStartingLive, setIsStartingLive] = useState(false);
+  const [participantName, setParticipantName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const useLiveKitMode = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
+
+  const p2pVideo = useVideoStream({
+    roomId,
+    socket,
+    isHost,
+    isLive: room?.isLive ?? false,
+  });
+
+  const livekitVideo = useLiveKit({
+    roomId,
+    isHost,
+    isLive: room?.isLive ?? false,
+    participantName: participantName || `user-${Date.now()}`,
+  });
 
   const {
     stream: videoStream,
@@ -40,14 +58,9 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     startScreenShare,
     stopScreenShare,
     requestStream: requestVideoStream,
-  } = useVideoStream({
-    roomId,
-    socket,
-    isHost,
-    isLive: room?.isLive ?? false,
-  });
+  } = useLiveKitMode ? livekitVideo : p2pVideo;
 
-  // Check if current user is host
+  // Check if current user is host + participant name
   useEffect(() => {
     const checkHost = async () => {
       try {
@@ -65,6 +78,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
         if (response.ok) {
           const user = await response.json();
+          setParticipantName(user.username || user.id?.slice(0, 8) || 'user');
           const roomResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}`);
           if (roomResponse.ok) {
             const roomData = await roomResponse.json();

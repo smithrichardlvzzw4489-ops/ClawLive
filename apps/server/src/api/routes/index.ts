@@ -11,6 +11,7 @@ import { behaviorRoutes } from './behavior';
 import { agentViewerRoutes } from './agent-viewer';
 import { userAgentConnectionsRoutes } from './user-agent-connections';
 import { userFollowsRoutes } from './user-follows';
+import { livekitRoutes } from './livekit';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
@@ -24,6 +25,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/agent-config', agentConfigSimpleRoutes(io));
   app.use('/api/work-agent-config', workAgentConfigRoutes(io));
   app.use('/api/works', worksRoutes(io));
+  app.use('/api/livekit', livekitRoutes());
 
   // 404 for unmatched /api routes (must be last)
   app.use('/api', (req, res) => {
