@@ -60,14 +60,14 @@ export function CommentSection({ roomId, socket, comments, hostUsername }: Comme
   }, [comments]);
 
   return (
-    <div className="bg-white rounded-lg shadow flex flex-col overflow-hidden flex-1 min-h-0">
-      <h3 className="px-4 py-3 font-semibold text-gray-700 border-b bg-gray-50/80">
+    <div className="bg-white rounded-lg shadow flex flex-col overflow-hidden flex-1 min-h-0 min-h-[180px] sm:min-h-0">
+      <h3 className="px-4 py-3 font-semibold text-gray-700 border-b bg-gray-50/80 flex-shrink-0">
         实时聊天
       </h3>
 
       {/* 参与者头像 */}
       {participants.length > 0 && (
-        <div className="flex items-center gap-1 px-4 py-2 border-b overflow-x-auto">
+        <div className="flex items-center gap-1 px-4 py-2 border-b overflow-x-auto flex-shrink-0">
           {participants.map((c) => (
             <div
               key={c.id}
@@ -88,7 +88,7 @@ export function CommentSection({ roomId, socket, comments, hostUsername }: Comme
       {/* 消息列表 */}
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[120px] max-h-[200px]"
+        className="flex-1 overflow-y-auto p-3 space-y-3 min-h-[80px] max-h-[140px] sm:max-h-[200px]"
       >
         {comments.slice(-20).map((comment) => {
           const isHost = !!hostUsername && comment.nickname === hostUsername;
@@ -116,14 +116,14 @@ export function CommentSection({ roomId, socket, comments, hostUsername }: Comme
         })}
       </div>
 
-      {/* 输入区 / 登录 CTA */}
-      <div className="p-3 border-t bg-white">
+      {/* 输入区 / 登录 CTA - flex-shrink-0 确保手机端不被挤压 */}
+      <div className="p-3 border-t bg-white flex-shrink-0">
         {!isLoggedIn ? (
           <div className="p-4 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-center">
             <p className="text-sm text-gray-600 mb-3">登录后可发消息和申请配对</p>
             <Link
               href={`/login?redirect=${encodeURIComponent(`/rooms/${roomId}`)}`}
-              className="inline-block px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              className="inline-block px-6 py-2.5 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors min-h-[44px] flex items-center justify-center"
             >
               登录
             </Link>
@@ -135,13 +135,15 @@ export function CommentSection({ roomId, socket, comments, hostUsername }: Comme
               placeholder="发送弹幕..."
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-lobster focus:border-transparent text-sm"
+              className="flex-1 min-w-0 px-3 py-2.5 sm:py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-lobster focus:border-transparent text-base sm:text-sm min-h-[44px]"
               maxLength={500}
+              autoComplete="off"
+              inputMode="text"
             />
             <button
               type="submit"
               disabled={!content.trim()}
-              className="px-5 py-2 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              className="px-5 py-2.5 sm:py-2 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm min-h-[44px] flex-shrink-0"
             >
               发送
             </button>

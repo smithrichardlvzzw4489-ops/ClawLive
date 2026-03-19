@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { mtprotoService } from '../../services/telegram-mtproto';
+import { prisma } from '../lib/prisma';
 
 // In-memory storage
 const roomInfo = new Map<string, {
@@ -95,6 +96,23 @@ const workMessages = new Map<string, Array<{
   videoUrl?: string;
   timestamp: Date;
 }>>();
+
+// 获取主播信息：优先内存，否则从数据库拉取并缓存
+async function getHostInfo(hostId: string): Promise<{ id: string; username: string; avatarUrl?: string | null }> {
+  let host = userProfiles.get(hostId);
+  if (host) return { id: host.id, username: host.username, avatarUrl: host.avatarUrl };
+  try {
+    const user = await prisma.user.findUnique({ where: { id: hostId }, select: { id: true, username: true, avatarUrl: true } });
+    if (user) {
+      const profile = { id: user.id, username: user.username, avatarUrl: user.avatarUrl ?? undefined };
+      userProfiles.set(hostId, { ...profile, bio: undefined });
+      return profile;
+    }
+  } catch (e) {
+    console.warn('[getHostInfo] Prisma lookup failed:', e);
+  }
+  return { id: hostId, username: 'Unknown', avatarUrl: null };
+}
 
 // Initialize test user profile
 userProfiles.set('a4393af5-f42f-4ac7-a9a3-23ca18aa9733', {
@@ -315,7 +333,7 @@ works.set('work-sample-2', {
   updatedAt: new Date(threeDaysAgo.getTime() + 20 * 60 * 1000),
 });
 
-export { roomInfo, agentConfigs, messageHistory, liveHistory, userProfiles, works, workMessages };
+export { roomInfo, agentConfigs, messageHistory, liveHistory, userProfiles, works, workMessages, getHostInfo };
 
 export function roomSimpleRoutes(io: Server): Router {
   const router = Router();
@@ -325,8 +343,9 @@ export function roomSimpleRoutes(io: Server): Router {
     try {
       const { isLive } = req.query;
       
-      let rooms = Array.from(roomInfo.values()).map(room => {
-        const host = userProfiles.get(room.hostId);
+      const roomList = Array.from(roomInfo.values());
+      const rooms = await Promise.all(roomList.map(async (room) => {
+        const host = await getHostInfo(room.hostId);
         return {
           id: room.id,
           title: room.title,
@@ -335,29 +354,21 @@ export function roomSimpleRoutes(io: Server): Router {
           viewerCount: room.viewerCount,
           isLive: room.isLive,
           startedAt: room.startedAt,
-          host: host ? {
-            id: host.id,
-            username: host.username,
-            avatarUrl: host.avatarUrl,
-          } : {
-            id: room.hostId,
-            username: 'Unknown',
-            avatarUrl: null,
-          },
+          host: { id: host.id, username: host.username, avatarUrl: host.avatarUrl ?? null },
         };
-      });
+      }));
 
-      // Filter by live status if requested
+      let filtered = rooms;
       if (isLive === 'true') {
-        rooms = rooms.filter(room => room.isLive);
+        filtered = rooms.filter(room => room.isLive);
       }
 
       res.json({
-        rooms,
+        rooms: filtered,
         pagination: {
           page: 1,
           limit: 20,
-          total: rooms.length,
+          total: filtered.length,
           pages: 1,
         },
       });
@@ -376,19 +387,11 @@ export function roomSimpleRoutes(io: Server): Router {
         return res.status(404).json({ error: 'Room not found' });
       }
 
-      const host = userProfiles.get(room.hostId);
+      const host = await getHostInfo(room.hostId);
 
       res.json({
         ...room,
-        host: host ? {
-          id: host.id,
-          username: host.username,
-          avatarUrl: host.avatarUrl,
-        } : {
-          id: room.hostId,
-          username: 'Unknown',
-          avatarUrl: null,
-        },
+        host: { id: host.id, username: host.username, avatarUrl: host.avatarUrl ?? null },
       });
     } catch (error) {
       console.error('Error fetching room:', error);
@@ -685,12 +688,7 @@ export function roomSimpleRoutes(io: Server): Router {
     try {
       const { hostId } = req.params;
 
-      // Get host profile
-      const host = userProfiles.get(hostId);
-      
-      if (!host) {
-        return res.status(404).json({ error: 'Host not found' });
-      }
+      const host = await getHostInfo(hostId);
 
       // Get live rooms
       const liveRooms = Array.from(roomInfo.values())
@@ -726,7 +724,7 @@ export function roomSimpleRoutes(io: Server): Router {
         host: {
           id: host.id,
           username: host.username,
-          bio: host.bio,
+          bio: userProfiles.get(hostId)?.bio,
           avatarUrl: host.avatarUrl,
         },
         liveRooms,

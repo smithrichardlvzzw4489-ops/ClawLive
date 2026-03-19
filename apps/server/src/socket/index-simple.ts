@@ -1,7 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
-import { messageHistory, roomInfo, userProfiles } from '../api/routes/rooms-simple';
+import { messageHistory, roomInfo, getHostInfo } from '../api/routes/rooms-simple';
 
 // WebRTC types (not in Node lib, define locally)
 interface RTCSessionDescriptionInit {
@@ -66,34 +66,34 @@ export async function setupSocketIO(io: Server): Promise<void> {
 
         // 发送完整房间信息（含 isLive），否则观众端会一直显示「直播未开始」
         const room = roomInfo.get(roomId);
-        const host = room ? userProfiles.get(room.hostId) : undefined;
-        const roomData = room
-          ? {
-              id: room.id,
-              hostId: room.hostId,
-              title: room.title,
-              lobsterName: room.lobsterName,
-              description: room.description,
-              isLive: room.isLive,
-              startedAt: room.startedAt,
-              endedAt: room.endedAt,
-              viewerCount,
-              createdAt: room.createdAt,
-              host: host
-                ? { id: host.id, username: host.username, avatarUrl: host.avatarUrl }
-                : { id: room.hostId, username: 'Unknown', avatarUrl: null },
-            }
-          : {
-              id: roomId,
-              viewerCount,
-              isLive: false,
-              title: '未知房间',
-              lobsterName: '龙虾',
-              hostId: '',
-              host: { id: '', username: 'Unknown', avatarUrl: null },
-              createdAt: new Date(),
-            };
-
+        let roomData: Record<string, unknown>;
+        if (room) {
+          const host = await getHostInfo(room.hostId);
+          roomData = {
+            id: room.id,
+            hostId: room.hostId,
+            title: room.title,
+            lobsterName: room.lobsterName,
+            description: room.description,
+            isLive: room.isLive,
+            startedAt: room.startedAt,
+            endedAt: room.endedAt,
+            viewerCount,
+            createdAt: room.createdAt,
+            host: { id: host.id, username: host.username, avatarUrl: host.avatarUrl ?? null },
+          };
+        } else {
+          roomData = {
+            id: roomId,
+            viewerCount,
+            isLive: false,
+            title: '未知房间',
+            lobsterName: '龙虾',
+            hostId: '',
+            host: { id: '', username: 'Unknown', avatarUrl: null },
+            createdAt: new Date(),
+          };
+        }
         socket.emit('room-info', roomData);
       } catch (error) {
         console.error('Error joining room:', error);

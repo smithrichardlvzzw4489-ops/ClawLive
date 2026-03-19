@@ -24,6 +24,7 @@ export function VideoPlayer({ stream, muted = true, className = '' }: VideoPlaye
       playsInline
       muted={muted}
       className={className}
+      style={{ objectFit: 'contain' }}
     />
   );
 }

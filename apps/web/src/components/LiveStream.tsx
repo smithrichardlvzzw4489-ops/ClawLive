@@ -362,7 +362,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         </div>
       </header>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-y-auto lg:overflow-hidden">
         <div className="lg:col-span-2 flex flex-col bg-white rounded-lg shadow overflow-hidden">
           {/* 主播未开播时的提示 */}
           {isHost && !room.isLive && (
@@ -409,8 +409,8 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
         {/* 右侧：视频区 + 实时聊天（VibeLab 风格） */}
         <div className="flex flex-col gap-4 overflow-hidden min-h-0">
-          {/* 视频直播区域 - 右上角独立面板 */}
-          <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-0">
+          {/* 视频直播区域 - 手机端保证最小高度 */}
+          <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-[180px]">
             <div className="flex items-center justify-between px-4 py-2 bg-black/5 border-b">
               <span
                 className={`flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full ${
@@ -439,7 +439,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-[200px] overflow-hidden bg-black">
+            <div className="flex-1 min-h-[160px] sm:min-h-[200px] overflow-hidden bg-black flex items-center justify-center">
               {videoStream ? (
                 <VideoPlayer stream={videoStream} className="w-full h-full object-contain" muted={false} />
               ) : screenshots.length > 0 ? (
@@ -451,11 +451,14 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                   title="Dashboard"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-400">
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-400 p-4 text-center">
                   {videoError ? (
                     <p className="text-sm text-amber-400 mb-2">{videoError}</p>
                   ) : null}
                   <p>{room.isLive ? '等待画面...' : '直播未开始'}</p>
+                  {room.isLive && !isHost && (
+                    <p className="text-xs text-gray-500 mt-2">若长时间无画面，请主播点击「摄像头直播」</p>
+                  )}
                   {isHost && room.isLive && !isSharing && (
                     <button
                       onClick={startScreenShare}
