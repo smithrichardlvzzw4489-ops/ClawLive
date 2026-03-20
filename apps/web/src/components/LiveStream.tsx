@@ -43,6 +43,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     socket,
     isHost,
     isLive: room?.isLive ?? false,
+    disabled: useLiveKitMode,
   });
 
   const livekitVideo = useLiveKit({

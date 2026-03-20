@@ -13,7 +13,18 @@ import { setupRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/errorHandler';
 import { mtprotoService } from './services/telegram-mtproto';
 
+// 捕获未处理异常，便于 Railway 等平台排查部署崩溃
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] unhandledRejection:', reason);
+  process.exit(1);
+});
+
 dotenv.config({ path: resolve(__dirname, '../.env') });
+console.log('[ClawLive] Server bootstrap starting...');
 
 console.log('[Env] TELEGRAM_API_ID:', process.env.TELEGRAM_API_ID || '(使用内置默认)');
 console.log('[Env] TELEGRAM_API_HASH:', process.env.TELEGRAM_API_HASH ? 'SET' : '(使用内置默认)');
@@ -61,11 +72,16 @@ const PORT = Number(process.env.PORT || process.env.SERVER_PORT || 3001);
 // 先 listen，通过健康检查后再加载路由（避免 setupRoutes 等阻塞/崩溃导致无法监听）
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`[ClawLive] Server running on http://0.0.0.0:${PORT}`);
-  setupRoutes(app, io);
-  setupSocketIO(io);
-  mtprotoService.setSocketIO(io);
-  app.use(errorHandler);
-  console.log(`[ClawLive] Socket.io ready for connections`);
+  try {
+    setupRoutes(app, io);
+    setupSocketIO(io);
+    mtprotoService.setSocketIO(io);
+    app.use(errorHandler);
+    console.log(`[ClawLive] Socket.io ready for connections`);
+  } catch (err) {
+    console.error('[FATAL] Startup error:', err);
+    process.exit(1);
+  }
 });
 
 export { io };

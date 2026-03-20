@@ -18,9 +18,11 @@ interface UseVideoStreamOptions {
   socket: Socket | null;
   isHost: boolean;
   isLive: boolean;
+  /** 为 true 时跳过所有 P2P 逻辑（例如使用 LiveKit 时），避免 WebRTC 冲突 */
+  disabled?: boolean;
 }
 
-export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStreamOptions) {
+export function useVideoStream({ roomId, socket, isHost, isLive, disabled = false }: UseVideoStreamOptions) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -29,7 +31,7 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
 
   // 主播：开始摄像头直播（电脑/手机摄像头）
   const startCameraStream = useCallback(async () => {
-    if (!socket || !isHost) return;
+    if (disabled || !socket || !isHost) return;
     setError(null);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -49,7 +51,7 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
       setError(msg);
       console.error('getUserMedia error:', err);
     }
-  }, [socket, isHost, roomId]);
+  }, [disabled, socket, isHost, roomId]);
 
   // 主播：停止摄像头直播
   const stopCameraStream = useCallback(() => {
@@ -69,34 +71,35 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
 
   // 观众：请求流（加入时 + host 就绪时）
   const requestStream = useCallback(() => {
-    if (socket && !isHost) socket.emit('webrtc-viewer-request', { roomId });
-  }, [socket, isHost, roomId]);
+    if (disabled || !socket || isHost) return;
+    socket.emit('webrtc-viewer-request', { roomId });
+  }, [disabled, socket, isHost, roomId]);
 
   useEffect(() => {
-    if (!socket || isHost || !isLive) return;
+    if (disabled || !socket || isHost || !isLive) return;
     const t = setTimeout(requestStream, 300);
     return () => clearTimeout(t);
-  }, [socket, isHost, isLive, roomId, requestStream]);
+  }, [disabled, socket, isHost, isLive, roomId, requestStream]);
 
   useEffect(() => {
-    if (!socket || isHost) return;
+    if (disabled || !socket || isHost) return;
     socket.on('webrtc-host-ready', requestStream);
     return () => {
       socket.off('webrtc-host-ready', requestStream);
     };
-  }, [socket, isHost, requestStream]);
+  }, [disabled, socket, isHost, requestStream]);
 
   // 观众：无画面时每隔 2 秒重试请求（晚加入或连接失败时自动恢复）
   useEffect(() => {
-    if (!socket || isHost || !isLive || stream) return;
+    if (disabled || !socket || isHost || !isLive || stream) return;
     const interval = setInterval(requestStream, 2000);
     return () => clearInterval(interval);
-  }, [socket, isHost, isLive, stream, requestStream]);
+  }, [disabled, socket, isHost, isLive, stream, requestStream]);
 
   // 主播：处理观众请求，创建 PeerConnection 并发送 offer
   // 必须依赖 isSharing，否则主播点击摄像头后 effect 不会重新跑，handler 不会注册
   useEffect(() => {
-    if (!socket || !isHost) return;
+    if (disabled || !socket || !isHost) return;
 
     const handleViewerRequest = async ({ viewerId }: { viewerId: string }) => {
       if (!localStreamRef.current) return;
@@ -119,23 +122,30 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
 
       peersRef.current.set(viewerId, pc);
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('webrtc-offer', { roomId, toViewerId: viewerId, sdp: offer });
+      try {
+        const offer = await pc.createOffer();
+        if (pc.connectionState === 'closed') return;
+        await pc.setLocalDescription(offer);
+        socket.emit('webrtc-offer', { roomId, toViewerId: viewerId, sdp: offer });
+      } catch (err) {
+        console.warn('[P2P] createOffer failed:', err);
+        peersRef.current.delete(viewerId);
+        pc.close();
+      }
     };
 
     socket.on('webrtc-viewer-request', handleViewerRequest);
     return () => {
       socket.off('webrtc-viewer-request', handleViewerRequest);
     };
-  }, [socket, isHost, roomId, isSharing]);
+  }, [disabled, socket, isHost, roomId, isSharing]);
 
   // 观众：处理 offer、answer、ice
   const hostIdRef = useRef<string | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
 
   useEffect(() => {
-    if (!socket || isHost) return;
+    if (disabled || !socket || isHost) return;
 
     const handleOffer = async ({ sdp, fromHostId }: { sdp: RTCSessionDescriptionInit; fromHostId: string }) => {
       hostIdRef.current = fromHostId;
@@ -162,7 +172,17 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
         }
       };
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-      const answer = await pc.createAnswer();
+      let answer: RTCSessionDescriptionInit;
+      try {
+        answer = await pc.createAnswer();
+      } catch (err) {
+        console.warn('[P2P] createAnswer failed:', err);
+        pc.close();
+        pcRef.current = null;
+        hostIdRef.current = null;
+        return;
+      }
+      if (pc.connectionState === 'closed') return;
       await pc.setLocalDescription(answer);
       socket.emit('webrtc-answer', { roomId, toHostId: fromHostId, sdp: answer });
     };
@@ -188,11 +208,11 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
       socket.off('webrtc-stream-ended', handleStreamEnded);
       pcRef.current?.close();
     };
-  }, [socket, isHost, roomId]);
+  }, [disabled, socket, isHost, roomId]);
 
   // 主播：处理 answer 和 ice
   useEffect(() => {
-    if (!socket || !isHost) return;
+    if (disabled || !socket || !isHost) return;
 
     const handleAnswer = async ({ sdp, fromViewerId }: { sdp: RTCSessionDescriptionInit; fromViewerId: string }) => {
       const pc = peersRef.current.get(fromViewerId);
@@ -210,10 +230,10 @@ export function useVideoStream({ roomId, socket, isHost, isLive }: UseVideoStrea
     socket.on('webrtc-ice', handleIce);
 
     return () => {
-      socket.off('webrtc-answer', handleAnswer);
-      socket.off('webrtc-ice', handleIce);
+    socket.off('webrtc-answer', handleAnswer);
+    socket.off('webrtc-ice', handleIce);
     };
-  }, [socket, isHost]);
+  }, [disabled, socket, isHost]);
 
   // 问题：观众收到 offer 时，answer 要发回给 host，但观众不知道 host 的 socket.id
   // 解决：在 webrtc-offer 事件里附带 fromHostId，观众存下来，发 answer 时用
