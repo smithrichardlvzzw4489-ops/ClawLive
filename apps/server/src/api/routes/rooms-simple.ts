@@ -12,6 +12,7 @@ const roomInfo = new Map<string, {
   lobsterName: string;
   description?: string;
   isLive: boolean;
+  liveMode?: 'video' | 'audio';
   startedAt?: Date;
   endedAt?: Date;
   viewerCount: number;
@@ -447,6 +448,7 @@ export function roomSimpleRoutes(io: Server): Router {
     try {
       const { roomId } = req.params;
       const userId = req.user!.id;
+      const { liveMode = 'video' } = req.body || {};
 
       const room = roomInfo.get(roomId);
       
@@ -459,11 +461,13 @@ export function roomSimpleRoutes(io: Server): Router {
       }
 
       room.isLive = true;
+      room.liveMode = liveMode === 'audio' ? 'audio' : 'video';
       room.startedAt = new Date();
       roomInfo.set(roomId, room);
 
       io.to(roomId).emit('room-status-change', {
         isLive: true,
+        liveMode: room.liveMode,
         startedAt: room.startedAt,
       });
 

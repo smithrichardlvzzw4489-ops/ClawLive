@@ -50,17 +50,21 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     isHost,
     isLive: room?.isLive ?? false,
     participantName: participantName || stableViewerId,
+    liveMode: room?.liveMode ?? 'video',
   });
 
   const {
     stream: videoStream,
     error: videoError,
     isSharing,
+    isSpeaker,
     isReconnecting,
     isRoomConnected,
     startScreenShare,
     stopScreenShare,
     requestStream: requestVideoStream,
+    startSpeaker,
+    stopSpeaker,
   } = useLiveKitMode ? livekitVideo : p2pVideo;
 
   // Check if current user is host + participant name
@@ -97,14 +101,13 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     checkHost();
   }, [roomId]);
 
-  // Start live - check config first
-  const startLivestream = async () => {
+  const [pendingLiveMode, setPendingLiveMode] = useState<'video' | 'audio'>('video');
+
+  const startLivestream = async (liveMode: 'video' | 'audio' = 'video') => {
     console.log('🎬 startLivestream called, isHost:', isHost, 'isTogglingLive:', isTogglingLive);
     
-    if (!isHost || isTogglingLive) {
-      console.log('❌ Early return: not host or toggling');
-      return;
-    }
+    if (!isHost || isTogglingLive) return;
+    setPendingLiveMode(liveMode);
 
     // Check if agent is configured
     try {
@@ -123,8 +126,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         
         // If agent is already configured and active, start live directly
         if (config.agentEnabled && (config.agentStatus === 'active' || config.agentStatus === 'connected')) {
-          console.log('✅ Agent already configured, starting live directly');
-          await doStartLive();
+          await doStartLive(liveMode);
           return;
         }
       } else if (configResponse.status === 404) {
@@ -140,16 +142,14 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     setIsStartingLive(true);
   };
 
-  // Actually start live after config is complete
-  const doStartLive = async () => {
+  const doStartLive = async (liveMode: 'video' | 'audio' = 'video') => {
     setIsTogglingLive(true);
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/start`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ liveMode }),
       });
 
       if (response.ok) {
@@ -269,8 +269,8 @@ export function LiveStream({ roomId }: LiveStreamProps) {
       setViewerCount(count);
     });
 
-    socket.on('room-status-change', ({ isLive, startedAt, endedAt }) => {
-      setRoom((prev) => prev ? { ...prev, isLive, startedAt, endedAt } : null);
+    socket.on('room-status-change', ({ isLive, liveMode, startedAt, endedAt }) => {
+      setRoom((prev) => prev ? { ...prev, isLive, ...(liveMode && { liveMode }), startedAt, endedAt } : null);
     });
 
     return () => {
@@ -337,25 +337,45 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         <div className="flex items-center gap-2">
           {isHost && room.isLive && (
             <button
-              onClick={isSharing ? stopScreenShare : startScreenShare}
+              onClick={isSharing ? stopScreenShare : () => startScreenShare((room.liveMode ?? 'video') === 'video')}
               className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 ${
                 isSharing ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              {isSharing ? '📵 停止摄像' : '📷 摄像头直播'}
+              {isSharing
+                ? (room.liveMode ?? 'video') === 'video'
+                  ? '📵 停止摄像'
+                  : '📵 停止麦克风'
+                : (room.liveMode ?? 'video') === 'video'
+                  ? '📷 摄像头直播'
+                  : '🎤 麦克风直播'}
             </button>
           )}
-          {isHost && (
+          {isHost && !room.isLive && (
+            <>
+              <button
+                onClick={() => startLivestream('video')}
+                disabled={isTogglingLive}
+                className="px-4 py-2 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isTogglingLive ? '处理中...' : '📷 视频直播'}
+              </button>
+              <button
+                onClick={() => startLivestream('audio')}
+                disabled={isTogglingLive}
+                className="px-4 py-2 rounded-lg font-semibold bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isTogglingLive ? '处理中...' : '🎤 语音直播'}
+              </button>
+            </>
+          )}
+          {isHost && room.isLive && (
             <button
-              onClick={room.isLive ? stopLivestream : startLivestream}
+              onClick={stopLivestream}
               disabled={isTogglingLive}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
-                room.isLive
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
+              className="px-4 py-2 rounded-lg font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
             >
-              {isTogglingLive ? '处理中...' : room.isLive ? '🔴 结束直播' : '🎬 开始直播'}
+              {isTogglingLive ? '处理中...' : '🔴 结束直播'}
             </button>
           )}
           <ShareButton
@@ -419,8 +439,12 @@ export function LiveStream({ roomId }: LiveStreamProps) {
             {/* 主播未开摄像头时的醒目提示 */}
             {isHost && room.isLive && !isSharing && (
               <div className="px-4 py-2 bg-amber-500 text-white text-center text-sm font-medium flex items-center justify-center gap-2">
-                <span>📷</span>
-                <span>观众看不到画面！请点击上方「摄像头直播」或下方按钮开启摄像头</span>
+                <span>{(room.liveMode ?? 'video') === 'video' ? '📷' : '🎤'}</span>
+                <span>
+                  {(room.liveMode ?? 'video') === 'video'
+                    ? '观众看不到画面！请点击上方「摄像头直播」或下方按钮开启'
+                    : '观众听不到声音！请点击上方「麦克风直播」或下方按钮开启'}
+                </span>
               </div>
             )}
             <div className="flex items-center justify-between px-4 py-2 bg-black/5 border-b">
@@ -435,6 +459,16 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 直播中 ({viewerCount})
               </span>
               <div className="flex items-center gap-1">
+                {!isHost && room.isLive && useLiveKitMode && startSpeaker && (
+                  <button
+                    onClick={isSpeaker ? stopSpeaker : startSpeaker}
+                    className={`px-3 py-1 rounded-lg text-sm font-medium ${
+                      isSpeaker ? 'bg-amber-600 text-white' : 'bg-purple-600 text-white hover:bg-purple-700'
+                    }`}
+                  >
+                    {isSpeaker ? '结束连麦' : '申请连麦'}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="p-2 rounded-lg hover:bg-black/10 transition-colors"
@@ -470,19 +504,27 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                   <p>
                     {room.isLive
                       ? isRoomConnected
-                        ? '已连接房间，等待主播开启摄像头'
-                        : '等待画面...'
+                        ? (room.liveMode ?? 'video') === 'video'
+                          ? '已连接房间，等待主播开启摄像头'
+                          : '已连接房间，等待主播开启麦克风'
+                        : (room.liveMode ?? 'video') === 'video'
+                          ? '等待画面...'
+                          : '等待声音...'
                       : '直播未开始'}
                   </p>
                   {room.isLive && !isHost && (
-                    <p className="text-xs text-gray-500 mt-2">若长时间无画面，请主播点击「摄像头直播」</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {(room.liveMode ?? 'video') === 'video'
+                        ? '若长时间无画面，请主播点击「摄像头直播」'
+                        : '若长时间无声音，请主播点击「麦克风直播」'}
+                    </p>
                   )}
                   {isHost && room.isLive && !isSharing && (
                     <button
-                      onClick={startScreenShare}
+                      onClick={() => startScreenShare(room.liveMode === 'video')}
                       className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
                     >
-                      打开摄像头开始视频直播
+                      {(room.liveMode ?? 'video') === 'video' ? '打开摄像头开始视频直播' : '打开麦克风开始语音直播'}
                     </button>
                   )}
                   {!isHost && room.isLive && requestVideoStream && (
@@ -521,7 +563,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
             setShowSettings(false);
             setIsStartingLive(false);
             if (!room.isLive) {
-              await doStartLive();
+              await doStartLive(pendingLiveMode);
             }
           }}
           isPreLiveConfig={isStartingLive}

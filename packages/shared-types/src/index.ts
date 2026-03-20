@@ -8,6 +8,8 @@ export interface User {
   updatedAt: Date;
 }
 
+export type LiveMode = 'video' | 'audio';
+
 export interface Room {
   id: string;
   hostId: string;
@@ -15,6 +17,7 @@ export interface Room {
   description?: string;
   lobsterName: string;
   isLive: boolean;
+  liveMode?: LiveMode;
   privacyFilters: string[];
   dashboardUrl?: string;
   viewerCount: number;
@@ -176,5 +179,5 @@ export interface SocketEvents {
   'new-screenshot': Screenshot;
   'new-comment': Comment;
   'viewer-count-update': number;
-  'room-status-change': { isLive: boolean; startedAt?: Date; endedAt?: Date };
+  'room-status-change': { isLive: boolean; liveMode?: LiveMode; startedAt?: Date; endedAt?: Date };
 }

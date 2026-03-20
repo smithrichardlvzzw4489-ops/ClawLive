@@ -10,19 +10,23 @@ export function useLiveKit({
   isHost,
   isLive,
   participantName,
+  liveMode = 'video',
 }: {
   roomId: string;
   isHost: boolean;
   isLive: boolean;
   participantName: string;
+  liveMode?: 'video' | 'audio';
 }) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [isSpeaker, setIsSpeaker] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [isRoomConnected, setIsRoomConnected] = useState(false);
   const [reconnectKey, setReconnectKey] = useState(0);
   const roomRef = useRef<Room | null>(null);
+  const speakerStreamRef = useRef<MediaStream | null>(null);
 
   const fetchToken = useCallback(
     async (asHost: boolean) => {
@@ -57,46 +61,72 @@ export function useLiveKit({
     [roomId, participantName]
   );
 
-  const startCameraStream = useCallback(async () => {
-    if (!LIVEKIT_URL || !isHost) return;
-    setError(null);
-    try {
-      const { token, url } = await fetchToken(true);
-      const room = new Room();
-      roomRef.current = room;
+  const fetchSpeakerToken = useCallback(async () => {
+    const authToken = localStorage.getItem('token');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+    if (!apiUrl) throw new Error('未配置 API 地址');
+    const res = await fetch(`${apiUrl}/api/livekit/token-speaker`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
+      body: JSON.stringify({ roomId, participantName: participantName || undefined }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '获取连麦令牌失败');
+    if (!data.token || !data.url) throw new Error(data.error || '获取令牌失败');
+    return data;
+  }, [roomId, participantName]);
 
-      await room.connect(url, token, {
-        autoSubscribe: true,
-      });
+  const startMediaStream = useCallback(
+    async (withVideo: boolean) => {
+      if (!LIVEKIT_URL || !isHost) return;
+      setError(null);
+      try {
+        const { token, url } = await fetchToken(true);
+        const room = new Room();
+        roomRef.current = room;
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: true,
-      });
+        await room.connect(url, token, { autoSubscribe: true });
 
-      await room.localParticipant.publishTrack(mediaStream.getVideoTracks()[0], {
-        name: 'camera',
-        source: Track.Source.Camera,
-      });
-      await room.localParticipant.publishTrack(mediaStream.getAudioTracks()[0], {
-        name: 'microphone',
-        source: Track.Source.Microphone,
-      });
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: withVideo ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
+          audio: true,
+        });
 
-      setStream(mediaStream);
-      setIsSharing(true);
+        if (withVideo && mediaStream.getVideoTracks()[0]) {
+          await room.localParticipant.publishTrack(mediaStream.getVideoTracks()[0], {
+            name: 'camera',
+            source: Track.Source.Camera,
+          });
+          mediaStream.getVideoTracks()[0]?.addEventListener('ended', () => {
+            roomRef.current?.disconnect();
+            roomRef.current = null;
+            mediaStream.getTracks().forEach((t) => t.stop());
+            setStream(null);
+            setIsSharing(false);
+          });
+        }
+        if (mediaStream.getAudioTracks()[0]) {
+          await room.localParticipant.publishTrack(mediaStream.getAudioTracks()[0], {
+            name: 'microphone',
+            source: Track.Source.Microphone,
+          });
+        }
 
-      mediaStream.getVideoTracks()[0]?.addEventListener('ended', () => {
-        stopCameraStream();
-      });
-    } catch (err: any) {
-      const msg = err.message || '获取摄像头失败，请确保已授权';
-      setError(msg);
-      console.error('[LiveKit] startCameraStream:', err);
-    }
-  }, [isHost, fetchToken]);
+        setStream(mediaStream);
+        setIsSharing(true);
+      } catch (err: any) {
+        const msg = err.message || (withVideo ? '获取摄像头失败，请确保已授权' : '获取麦克风失败，请确保已授权');
+        setError(msg);
+        console.error('[LiveKit] startMediaStream:', err);
+      }
+    },
+    [isHost, fetchToken]
+  );
 
-  const stopCameraStream = useCallback(() => {
+  const stopMediaStream = useCallback(() => {
     if (roomRef.current) {
       roomRef.current.disconnect();
       roomRef.current = null;
@@ -107,6 +137,80 @@ export function useLiveKit({
     setStream(null);
     setIsSharing(false);
   }, [stream]);
+
+  const startSpeaker = useCallback(async () => {
+    if (!LIVEKIT_URL || isHost) return;
+    setError(null);
+    try {
+      const { token, url } = await fetchSpeakerToken();
+      if (roomRef.current) {
+        roomRef.current.disconnect();
+        roomRef.current = null;
+      }
+      setStream(null);
+      const room = new Room();
+      roomRef.current = room;
+      await room.connect(url, token, { autoSubscribe: true });
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: liveMode === 'video',
+        audio: true,
+      });
+      if (mediaStream.getAudioTracks()[0]) {
+        await room.localParticipant.publishTrack(mediaStream.getAudioTracks()[0], {
+          name: 'microphone',
+          source: Track.Source.Microphone,
+        });
+      }
+      if (liveMode === 'video' && mediaStream.getVideoTracks()[0]) {
+        await room.localParticipant.publishTrack(mediaStream.getVideoTracks()[0], {
+          name: 'camera',
+          source: Track.Source.Camera,
+        });
+      }
+      speakerStreamRef.current = mediaStream;
+      mediaStream.getTracks().forEach((t) => t.addEventListener('ended', () => stopSpeaker()));
+
+      setIsSpeaker(true);
+      setIsRoomConnected(true);
+
+      const updateStreamFromRoom = () => {
+        const allTracks: MediaStreamTrack[] = [];
+        room.remoteParticipants.forEach((p) => {
+          p.trackPublications.forEach((pub) => {
+            if (pub.track?.mediaStreamTrack) allTracks.push(pub.track.mediaStreamTrack);
+          });
+        });
+        if (allTracks.length > 0) setStream(new MediaStream(allTracks));
+      };
+
+      room.on(RoomEvent.TrackSubscribed, updateStreamFromRoom);
+      room.on(RoomEvent.Disconnected, () => {
+        setIsSpeaker(false);
+        setIsRoomConnected(false);
+        setStream(null);
+        roomRef.current = null;
+      });
+      updateStreamFromRoom();
+    } catch (err: any) {
+      setError(err.message || '连麦失败');
+      console.error('[LiveKit] startSpeaker:', err);
+    }
+  }, [LIVEKIT_URL, isHost, liveMode, fetchSpeakerToken]);
+
+  const stopSpeaker = useCallback(() => {
+    if (speakerStreamRef.current) {
+      speakerStreamRef.current.getTracks().forEach((t) => t.stop());
+      speakerStreamRef.current = null;
+    }
+    if (roomRef.current) {
+      roomRef.current.disconnect();
+      roomRef.current = null;
+    }
+    setStream(null);
+    setIsSpeaker(false);
+    setReconnectKey((k) => k + 1);
+  }, []);
 
   const requestStream = useCallback(() => {
     if (!LIVEKIT_URL || isHost) return;
@@ -121,9 +225,19 @@ export function useLiveKit({
     setReconnectKey((k) => k + 1);
   }, [LIVEKIT_URL, isHost]);
 
-  // 观众：连接并订阅主播画面
+  const updateStreamFromAllParticipants = useCallback((r: Room) => {
+    const allTracks: MediaStreamTrack[] = [];
+    r.remoteParticipants.forEach((p) => {
+      p.trackPublications.forEach((pub) => {
+        if (pub.track?.mediaStreamTrack) allTracks.push(pub.track.mediaStreamTrack);
+      });
+    });
+    setStream(allTracks.length > 0 ? new MediaStream(allTracks) : null);
+  }, []);
+
+  // 观众：连接并订阅（不连麦时）
   useEffect(() => {
-    if (!LIVEKIT_URL || isHost || !isLive) return;
+    if (!LIVEKIT_URL || isHost || !isLive || isSpeaker) return;
 
     let room: Room | null = null;
     let cancelled = false;
@@ -145,32 +259,15 @@ export function useLiveKit({
 
         setIsRoomConnected(true);
 
-        room.on(RoomEvent.TrackSubscribed, (track) => {
-          const participant = track.participant;
-          const tracks = participant.trackPublications
-            .filter((pub) => pub.track?.mediaStreamTrack)
-            .map((pub) => pub.track!.mediaStreamTrack);
-          if (tracks.length > 0) {
-            setStream(new MediaStream(tracks));
-          }
-        });
-
-        room.on(RoomEvent.TrackUnsubscribed, () => setStream(null));
+        room.on(RoomEvent.TrackSubscribed, () => updateStreamFromAllParticipants(room!));
+        room.on(RoomEvent.TrackUnsubscribed, () => updateStreamFromAllParticipants(room!));
         room.on(RoomEvent.Disconnected, () => {
           setIsRoomConnected(false);
           setStream(null);
           roomRef.current = null;
         });
 
-        // 若已有主播在房间，订阅其所有轨道（视频+音频）
-        room.remoteParticipants.forEach((p) => {
-          const tracks = p.trackPublications
-            .filter((pub) => pub.track?.mediaStreamTrack)
-            .map((pub) => pub.track!.mediaStreamTrack);
-          if (tracks.length > 0) {
-            setStream(new MediaStream(tracks));
-          }
-        });
+        updateStreamFromAllParticipants(room);
       } catch (err: any) {
         if (!cancelled) {
           setError(err.message || '连接失败');
@@ -190,16 +287,19 @@ export function useLiveKit({
       roomRef.current = null;
       setStream(null);
     };
-  }, [LIVEKIT_URL, isHost, isLive, roomId, fetchToken, reconnectKey]);
+  }, [LIVEKIT_URL, isHost, isLive, isSpeaker, roomId, fetchToken, reconnectKey, updateStreamFromAllParticipants]);
 
   return {
     stream,
     error,
     isSharing,
+    isSpeaker,
     isReconnecting,
     isRoomConnected,
-    startScreenShare: startCameraStream,
-    stopScreenShare: stopCameraStream,
+    startScreenShare: (withVideo?: boolean) => startMediaStream(withVideo ?? liveMode === 'video'),
+    stopScreenShare: stopMediaStream,
     requestStream,
+    startSpeaker,
+    stopSpeaker,
   };
 }
