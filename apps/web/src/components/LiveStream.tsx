@@ -102,6 +102,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   }, [roomId]);
 
   const [pendingLiveMode, setPendingLiveMode] = useState<'video' | 'audio'>('video');
+  const [videoMuted, setVideoMuted] = useState(true);
 
   const startLivestream = async (liveMode: 'video' | 'audio' = 'video') => {
     console.log('🎬 startLivestream called, isHost:', isHost, 'isTogglingLive:', isTogglingLive);
@@ -391,9 +392,26 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         <div className="lg:col-span-2 flex flex-col bg-white rounded-lg shadow overflow-hidden">
           {/* 主播未开播时的提示 */}
           {isHost && !room.isLive && (
-            <div className="p-6 bg-amber-50 border-b border-amber-200 text-center">
-              <p className="text-amber-800 font-medium mb-2">直播尚未开始</p>
-              <p className="text-sm text-amber-700">请点击右上角「🎬 开始直播」按钮开始你的直播</p>
+            <div className="p-6 bg-amber-50 border-b border-amber-200">
+              <p className="text-amber-800 font-medium mb-3 text-center">直播尚未开始，选择直播模式：</p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <button
+                  onClick={() => startLivestream('video')}
+                  disabled={isTogglingLive}
+                  className="flex-1 px-6 py-4 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <span className="text-2xl">📷</span>
+                  <span>视频直播（画面+声音）</span>
+                </button>
+                <button
+                  onClick={() => startLivestream('audio')}
+                  disabled={isTogglingLive}
+                  className="flex-1 px-6 py-4 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <span className="text-2xl">🎤</span>
+                  <span>语音直播（仅声音）</span>
+                </button>
+              </div>
             </div>
           )}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -471,10 +489,11 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 )}
                 <button
                   type="button"
+                  onClick={() => videoStream && setVideoMuted((m) => !m)}
                   className="p-2 rounded-lg hover:bg-black/10 transition-colors"
-                  title="静音"
+                  title={videoMuted ? '取消静音' : '静音'}
                 >
-                  <span className="text-lg">🔇</span>
+                  <span className="text-lg">{videoMuted ? '🔇' : '🔊'}</span>
                 </button>
                 <button
                   type="button"
@@ -485,9 +504,16 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-[160px] sm:min-h-[200px] overflow-hidden bg-black flex items-center justify-center">
+            <div className="flex-1 min-h-[160px] sm:min-h-[200px] overflow-hidden bg-black flex items-center justify-center relative">
               {videoStream ? (
-                <VideoPlayer stream={videoStream} className="w-full h-full object-contain" muted={false} />
+                <>
+                  <VideoPlayer stream={videoStream} className="w-full h-full object-contain" muted={videoMuted} />
+                  {videoMuted && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-black/60 text-white text-sm pointer-events-none">
+                      点击右上角 🔊 播放声音
+                    </div>
+                  )}
+                </>
               ) : screenshots.length > 0 ? (
                 <ScreenshotViewer screenshots={screenshots} embedded />
               ) : room.dashboardUrl ? (
