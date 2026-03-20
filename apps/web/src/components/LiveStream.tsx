@@ -58,14 +58,11 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     stream: videoStream,
     error: videoError,
     isSharing,
-    isSpeaker,
     isReconnecting,
     isRoomConnected,
     startScreenShare,
     stopScreenShare,
     requestStream: requestVideoStream,
-    startSpeaker,
-    stopSpeaker,
   } = useLiveKitMode ? livekitVideo : p2pVideo;
 
   // Check if current user is host + participant name
@@ -484,16 +481,6 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 直播中 ({viewerCount})
               </span>
               <div className="flex items-center gap-1">
-                {!isHost && room.isLive && useLiveKitMode && startSpeaker && (
-                  <button
-                    onClick={isSpeaker ? stopSpeaker : startSpeaker}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium ${
-                      isSpeaker ? 'bg-amber-600 text-white' : 'bg-purple-600 text-white hover:bg-purple-700'
-                    }`}
-                  >
-                    {isSpeaker ? '结束连麦' : '申请连麦'}
-                  </button>
-                )}
                 <button
                   type="button"
                   onClick={() => videoStream && setVideoMuted((m) => !m)}

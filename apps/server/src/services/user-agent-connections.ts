@@ -1,6 +1,7 @@
 /**
- * User-level Agent Connections
+ * User-level Agent Connections（永久保存）
  * 用户级龙虾连接池：一次配置，多处复用
+ * 退出登录等任何情况下均保留，仅用户主动删除连接时才会移除
  */
 
 import * as fs from 'fs';

@@ -345,14 +345,13 @@ export function agentConfigSimpleRoutes(io: Server): Router {
 
   /**
    * POST /api/agent-config/:roomId/clear
-   * 清空房间的所有 Agent 配置信息（用于结束直播时保护用户隐私）
+   * 仅断开当前 MTProto 会话，不清除持久化配置（Agent 链接信息永久保留，退出登录等任何情况都不删除）
    */
   router.post('/:roomId/clear', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { roomId } = req.params;
       const userId = req.user!.id;
       
-      // Check room from memory
       const room = roomInfo.get(roomId);
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
@@ -362,25 +361,21 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         return res.status(403).json({ error: 'Not authorized' });
       }
       
-      console.log(`🧹 Clearing agent config for room ${roomId}`);
+      console.log(`🧹 Disconnecting agent session for room ${roomId} (config kept permanently)`);
       
-      // Clear MTProto session if exists
+      // 仅断开 MTProto 会话，不删除持久化
       const config = agentConfigs.get(roomId);
       if (config && config.agentType === 'telegram-user') {
         try {
           await mtprotoService.logout(roomId);
-          console.log(`✅ MTProto session cleared for room ${roomId}`);
+          console.log(`✅ MTProto session disconnected for room ${roomId}`);
         } catch (error) {
-          console.error('Error clearing MTProto session:', error);
+          console.error('Error disconnecting MTProto session:', error);
         }
       }
       
-      // Clear from memory and persistence
+      // 仅清除内存，永久保留持久化配置（下次开播/访问时自动恢复）
       agentConfigs.delete(roomId);
-      RoomAgentConfigPersistence.deleteConfig(roomId);
-      
-      console.log(`✅ Agent config cleared for room ${roomId}`);
-      res.json({ success: true, message: 'Agent configuration cleared' });
       
     } catch (error) {
       console.error('Error clearing agent config:', error);
