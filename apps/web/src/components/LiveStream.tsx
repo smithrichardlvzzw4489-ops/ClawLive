@@ -332,6 +332,9 @@ export function LiveStream({ roomId }: LiveStreamProps) {
             <span className="flex items-center gap-2 px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-full">
               <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
               直播中
+              <span className="opacity-90 text-xs">
+                ({(room.liveMode ?? 'video') === 'video' ? '视频' : '语音'}模式)
+              </span>
             </span>
           )}
         </div>
@@ -456,12 +459,15 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-[180px]">
             {/* 主播未开摄像头时的醒目提示 */}
             {isHost && room.isLive && !isSharing && (
-              <div className="px-4 py-2 bg-amber-500 text-white text-center text-sm font-medium flex items-center justify-center gap-2">
+              <div className="px-4 py-2 bg-amber-500 text-white text-center text-sm font-medium flex flex-col sm:flex-row items-center justify-center gap-2">
                 <span>{(room.liveMode ?? 'video') === 'video' ? '📷' : '🎤'}</span>
                 <span>
                   {(room.liveMode ?? 'video') === 'video'
                     ? '观众看不到画面！请点击上方「摄像头直播」或下方按钮开启'
                     : '观众听不到声音！请点击上方「麦克风直播」或下方按钮开启'}
+                </span>
+                <span className="text-xs opacity-90">
+                  （需语音直播？请先结束直播，再选择「语音直播」）
                 </span>
               </div>
             )}

@@ -46,6 +46,7 @@ export default function CreateRoomPage() {
   const [submittingCode, setSubmittingCode] = useState(false);
   const [submittingPassword, setSubmittingPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [liveMode, setLiveMode] = useState<'video' | 'audio'>('video');
 
   // Load user connections when entering agent step
   useEffect(() => {
@@ -283,8 +284,10 @@ export default function CreateRoomPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${createdRoomId}/start`, {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        body: JSON.stringify({ liveMode }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -410,6 +413,40 @@ export default function CreateRoomPage() {
                   {error}
                 </div>
               )}
+
+              {/* Live mode selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">直播模式</label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLiveMode('video')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 font-semibold transition-colors ${
+                      liveMode === 'video'
+                        ? 'border-lobster bg-lobster/10 text-lobster'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <span>📹</span>
+                    <span>视频直播</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLiveMode('audio')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 font-semibold transition-colors ${
+                      liveMode === 'audio'
+                        ? 'border-lobster bg-lobster/10 text-lobster'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <span>🎙️</span>
+                    <span>语音直播</span>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {liveMode === 'video' ? '开启摄像头进行视频直播' : '仅使用麦克风进行语音直播'}
+                </p>
+              </div>
 
               {/* Connection choice: existing or new */}
               {connectionChoice === 'choice' && (
