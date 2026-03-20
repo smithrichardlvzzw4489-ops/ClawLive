@@ -239,8 +239,8 @@ export function worksRoutes(io: Server): Router {
       const filepath = join(uploadDir, filename);
       writeFileSync(filepath, buf);
 
-      const baseUrl = process.env.API_BASE_URL || (req.protocol + '://' + req.get('host'));
-      const url = `${baseUrl}/uploads/works/${workId}/${filename}`;
+      // 返回相对路径，前端用 NEXT_PUBLIC_API_URL 补全，避免 baseUrl 配置错误导致播放失败
+      const url = `/uploads/works/${workId}/${filename}`;
       console.log(`📹 Video uploaded for work ${workId}: ${filename}`);
       res.json({ url });
     } catch (error: unknown) {

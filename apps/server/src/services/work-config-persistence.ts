@@ -1,3 +1,7 @@
+/**
+ * 作品 Agent 配置持久化（永久保存）
+ * 所有需要配置 Agent 的作品均可保存、复用，退出登录等任何情况下均不删除
+ */
 import * as fs from 'fs';
 import * as path from 'path';
 

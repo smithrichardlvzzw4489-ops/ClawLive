@@ -2,11 +2,28 @@
 
 /**
  * 播放视频 URL，支持直接视频链接、YouTube、Bilibili 等
+ * 相对路径（如 /uploads/...）会自动补全为 API 地址，确保跨域部署时能正确加载
  */
 interface VideoUrlPlayerProps {
   url: string;
   className?: string;
   poster?: string;
+}
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+/** 将相对路径或非完整 URL 解析为可访问的绝对地址 */
+function resolveVideoUrl(url: string): string {
+  const trimmed = url.trim();
+  if (!trimmed) return trimmed;
+  // 已是完整 URL（http/https）或外部链接，直接使用
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // 相对路径（如 /uploads/works/xxx/file.webm）补全为 API 地址
+  if (trimmed.startsWith('/')) {
+    const base = API_URL.replace(/\/$/, '');
+    return base ? `${base}${trimmed}` : trimmed;
+  }
+  return trimmed;
 }
 
 function getYouTubeEmbedUrl(url: string): string {
@@ -64,11 +81,12 @@ export function VideoUrlPlayer({ url, className = '', poster }: VideoUrlPlayerPr
     );
   }
 
-  // 直接视频文件（mp4、webm 等）
+  // 直接视频文件（mp4、webm 等）：相对路径补全为 API 地址
+  const videoSrc = resolveVideoUrl(trimmedUrl);
   return (
     <div className={`w-full overflow-hidden rounded-lg ${className}`}>
       <video
-        src={trimmedUrl}
+        src={videoSrc}
         controls
         playsInline
         poster={poster}

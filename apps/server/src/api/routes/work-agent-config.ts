@@ -33,6 +33,7 @@ export function workAgentConfigRoutes(io: Server): Router {
 
   /**
    * GET /api/work-agent-config/:workId
+   * 内存无配置时从持久化恢复（服务重启后自动恢复）
    */
   router.get('/:workId', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
@@ -40,7 +41,16 @@ export function workAgentConfigRoutes(io: Server): Router {
       
       console.log(`📥 GET work-agent-config for work: ${workId}`);
       
-      const config = workAgentConfigs.get(workId) || {
+      let config = workAgentConfigs.get(workId);
+      if (!config) {
+        const persisted = WorkConfigPersistence.loadConfig(workId);
+        if (persisted) {
+          workAgentConfigs.set(workId, persisted);
+          config = persisted;
+          console.log(`✅ [WorkAgent] Restored config for work ${workId} from persistence`);
+        }
+      }
+      config = config || {
         agentType: 'mock',
         agentEnabled: false,
         agentChatId: '',
@@ -212,21 +222,25 @@ export function workAgentConfigRoutes(io: Server): Router {
 
   /**
    * DELETE /api/work-agent-config/:workId/clear
+   * 仅断开 MTProto 会话，不删除持久化配置（Agent 链接信息永久保留）
    */
   router.delete('/:workId/clear', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { workId } = req.params;
       
-      console.log(`🧹 Clearing work agent config for work ${workId}`);
+      console.log(`🧹 Disconnecting work agent session for ${workId} (config kept permanently)`);
       
-      // Logout from Telegram
       await mtprotoService.logout(workId);
       
-      // Clear config from memory and disk
-      workAgentConfigs.delete(workId);
-      WorkConfigPersistence.deleteConfig(workId);
+      // 仅断开，保留配置以便下次恢复
+      const config = workAgentConfigs.get(workId);
+      if (config) {
+        config.agentStatus = 'disconnected';
+        workAgentConfigs.set(workId, config);
+        WorkConfigPersistence.saveConfig(workId, config);
+      }
       
-      console.log(`✅ Work agent config cleared for ${workId}`);
+      console.log(`✅ Work agent session disconnected for ${workId}`);
       res.json({ success: true });
     } catch (error) {
       console.error('Error clearing work agent config:', error);
