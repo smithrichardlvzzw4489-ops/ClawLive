@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSocket } from '@/hooks/useSocket';
 import { useVideoStream } from '@/hooks/useVideoStream';
 import { useLiveKit } from '@/hooks/useLiveKit';
@@ -34,6 +34,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const [isStartingLive, setIsStartingLive] = useState(false);
   const [participantName, setParticipantName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const stableViewerId = useMemo(() => `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, []);
 
   const useLiveKitMode = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
@@ -48,7 +49,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     roomId,
     isHost,
     isLive: room?.isLive ?? false,
-    participantName: participantName || `user-${Date.now()}`,
+    participantName: participantName || stableViewerId,
   });
 
   const {
@@ -415,6 +416,13 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         <div className="flex flex-col gap-4 overflow-hidden min-h-0">
           {/* 视频直播区域 - 手机端保证最小高度 */}
           <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-[180px]">
+            {/* 主播未开摄像头时的醒目提示 */}
+            {isHost && room.isLive && !isSharing && (
+              <div className="px-4 py-2 bg-amber-500 text-white text-center text-sm font-medium flex items-center justify-center gap-2">
+                <span>📷</span>
+                <span>观众看不到画面！请点击上方「摄像头直播」或下方按钮开启摄像头</span>
+              </div>
+            )}
             <div className="flex items-center justify-between px-4 py-2 bg-black/5 border-b">
               <span
                 className={`flex items-center gap-2 px-3 py-1 text-sm font-semibold rounded-full ${

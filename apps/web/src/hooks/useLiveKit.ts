@@ -146,7 +146,7 @@ export function useLiveKit({
         setIsRoomConnected(true);
 
         room.on(RoomEvent.TrackSubscribed, (track) => {
-          if (track.kind === Track.Kind.Video && track.source === Track.Source.Camera) {
+          if (track.kind === Track.Kind.Video) {
             setStream(new MediaStream([track.mediaStreamTrack]));
           }
         });
@@ -158,10 +158,10 @@ export function useLiveKit({
           roomRef.current = null;
         });
 
-        // 若已有主播在房间，直接订阅
+        // 若已有主播在房间，直接订阅任意视频轨道
         room.remoteParticipants.forEach((p) => {
           p.trackPublications.forEach((pub) => {
-            if (pub.track && pub.kind === Track.Kind.Video && pub.source === Track.Source.Camera) {
+            if (pub.track && pub.kind === Track.Kind.Video) {
               setStream(new MediaStream([pub.track.mediaStreamTrack]));
             }
           });
