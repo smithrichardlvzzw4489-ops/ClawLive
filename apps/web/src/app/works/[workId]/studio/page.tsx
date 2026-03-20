@@ -34,7 +34,6 @@ export default function WorkStudioPage() {
   const [work, setWork] = useState<Work | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [inputVideoUrl, setInputVideoUrl] = useState('');
   const [workVideoUrl, setWorkVideoUrl] = useState('');
   const [savingVideoUrl, setSavingVideoUrl] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -170,7 +169,7 @@ export default function WorkStudioPage() {
   };
 
   const sendMessage = async () => {
-    if ((!inputMessage.trim() && !inputVideoUrl.trim()) || sending) return;
+    if (!inputMessage.trim() || sending) return;
 
     setSending(true);
     try {
@@ -183,15 +182,11 @@ export default function WorkStudioPage() {
         },
         body: JSON.stringify({
           content: inputMessage.trim(),
-          videoUrl: inputVideoUrl.trim() || undefined,
         }),
       });
 
       if (response.ok) {
-        // Don't add message here - wait for Socket.io to push it back
-        // This prevents duplicate messages
         setInputMessage('');
-        setInputVideoUrl('');
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -208,12 +203,19 @@ export default function WorkStudioPage() {
 
     setPublishing(true);
     try {
+      // 发布前先保存视频（若有），确保作品包含视频内容
+      if (workVideoUrl.trim()) {
+        await saveWorkVideoUrl();
+      }
+
       const token = localStorage.getItem('token');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/publish`, {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
+        body: JSON.stringify({ videoUrl: workVideoUrl.trim() || undefined }),
       });
 
       if (response.ok) {
@@ -355,11 +357,7 @@ export default function WorkStudioPage() {
             isOpen={true}
             onClose={() => setShowCameraModal(false)}
             onVideoReady={(url, target) => {
-              if (target === 'work') {
-                saveWorkVideoUrl(url);
-              } else {
-                setInputVideoUrl(url);
-              }
+              if (target === 'work') saveWorkVideoUrl(url);
             }}
             workId={workId}
           />
@@ -411,7 +409,7 @@ export default function WorkStudioPage() {
 
           {/* Input */}
           <div className="border-t bg-gray-50 p-4">
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-2">
               <input
                 type="text"
                 value={inputMessage}
@@ -423,32 +421,12 @@ export default function WorkStudioPage() {
               />
               <button
                 onClick={sendMessage}
-                disabled={sending || (!inputMessage.trim() && !inputVideoUrl.trim())}
+                disabled={sending || !inputMessage.trim()}
                 className="px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {sending ? '发送中...' : '发送'}
               </button>
             </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setShowCameraModal(true)}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-              >
-                🎥 打开摄像头录制
-              </button>
-              <input
-                type="url"
-                value={inputVideoUrl}
-                onChange={(e) => setInputVideoUrl(e.target.value)}
-                placeholder="或粘贴视频链接（直链、YouTube、B站）"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lobster"
-                disabled={sending}
-              />
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              💡 提示：与 Agent 充分交流，可附带视频链接。满意后点击「发布作品」
-            </p>
           </div>
         </div>
       </div>

@@ -286,6 +286,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
+      const { videoUrl } = req.body || {};
 
       const work = works.get(workId);
       if (!work) {
@@ -298,6 +299,11 @@ export function worksRoutes(io: Server): Router {
 
       if (work.status === 'published') {
         return res.status(400).json({ error: 'Work already published' });
+      }
+
+      // 发布时确保包含视频内容（客户端传入的 videoUrl 优先）
+      if (videoUrl !== undefined && videoUrl !== null && videoUrl !== '') {
+        work.videoUrl = videoUrl;
       }
 
       // Save messages to work
