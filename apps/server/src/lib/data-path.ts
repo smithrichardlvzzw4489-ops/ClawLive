@@ -6,14 +6,17 @@
 import * as path from 'path';
 
 const DEFAULT_DATA_DIR = path.join(__dirname, '../../.data');
-export const DATA_DIR = process.env.PERSISTENT_DATA_PATH || DEFAULT_DATA_DIR;
+// Railway 挂载 Volume 后会自动注入 RAILWAY_VOLUME_MOUNT_PATH，可无需再设 PERSISTENT_DATA_PATH
+export const DATA_DIR =
+  process.env.PERSISTENT_DATA_PATH || process.env.RAILWAY_VOLUME_MOUNT_PATH || DEFAULT_DATA_DIR;
 
 /** 上传文件目录（视频等），与 DATA_DIR 同卷时持久化 */
-export const UPLOADS_DIR = process.env.PERSISTENT_DATA_PATH
-  ? path.join(DATA_DIR, 'uploads')
-  : path.join(process.cwd(), 'uploads');
+export const UPLOADS_DIR =
+  (process.env.PERSISTENT_DATA_PATH || process.env.RAILWAY_VOLUME_MOUNT_PATH)
+    ? path.join(DATA_DIR, 'uploads')
+    : path.join(process.cwd(), 'uploads');
 
-if (process.env.PERSISTENT_DATA_PATH) {
+if (process.env.PERSISTENT_DATA_PATH || process.env.RAILWAY_VOLUME_MOUNT_PATH) {
   console.log(`[Data] Using persistent path: ${DATA_DIR}, uploads: ${UPLOADS_DIR}`);
 }
 

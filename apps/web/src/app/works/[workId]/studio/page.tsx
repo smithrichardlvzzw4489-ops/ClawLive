@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
 import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
-import { CameraRecordModal } from '@/components/CameraRecordModal';
 
 interface Message {
   id: string;
@@ -40,7 +39,6 @@ export default function WorkStudioPage() {
   const [sending, setSending] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showCameraModal, setShowCameraModal] = useState(false);
   const [agentConfigured, setAgentConfigured] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -275,35 +273,6 @@ export default function WorkStudioPage() {
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* 作品视频：摄像头录制 或 链接 */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setShowCameraModal(true)}
-              className="px-3 py-1.5 text-sm bg-lobster text-white rounded-lg hover:bg-lobster-dark font-medium"
-            >
-              🎬 打开摄像头录制
-            </button>
-            <span className="text-gray-400">|</span>
-            <input
-              type="url"
-              value={workVideoUrl}
-              onChange={(e) => setWorkVideoUrl(e.target.value)}
-              onBlur={() => saveWorkVideoUrl()}
-              placeholder="或粘贴视频链接"
-              className="w-40 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-lobster"
-            />
-            {workVideoUrl && (
-              <button
-                type="button"
-                onClick={() => saveWorkVideoUrl()}
-                disabled={savingVideoUrl}
-                className="text-xs px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded"
-              >
-                {savingVideoUrl ? '保存中...' : '保存'}
-              </button>
-            )}
-          </div>
           {/* Agent Status */}
           {agentConfigured ? (
             <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
@@ -351,18 +320,6 @@ export default function WorkStudioPage() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden p-4 flex flex-col">
-        {/* 摄像头录制面板（内联，不遮挡聊天） */}
-        {showCameraModal && (
-          <CameraRecordModal
-            isOpen={true}
-            onClose={() => setShowCameraModal(false)}
-            onVideoReady={(url, target) => {
-              // 两种选择都保存为作品主视频，确保录制的视频不会丢失
-              saveWorkVideoUrl(url);
-            }}
-            workId={workId}
-          />
-        )}
         <div className="flex-1 min-h-0 bg-white rounded-lg shadow overflow-hidden flex flex-col">
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
