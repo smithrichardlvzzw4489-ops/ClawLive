@@ -76,6 +76,7 @@ export async function setupSocketIO(io: Server): Promise<void> {
             lobsterName: room.lobsterName,
             description: room.description,
             isLive: room.isLive,
+            liveMode: room.liveMode ?? 'video',
             startedAt: room.startedAt,
             endedAt: room.endedAt,
             viewerCount,
