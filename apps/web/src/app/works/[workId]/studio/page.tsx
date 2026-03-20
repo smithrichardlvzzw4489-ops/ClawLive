@@ -357,7 +357,8 @@ export default function WorkStudioPage() {
             isOpen={true}
             onClose={() => setShowCameraModal(false)}
             onVideoReady={(url, target) => {
-              if (target === 'work') saveWorkVideoUrl(url);
+              // 两种选择都保存为作品主视频，确保录制的视频不会丢失
+              saveWorkVideoUrl(url);
             }}
             workId={workId}
           />
