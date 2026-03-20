@@ -532,8 +532,13 @@ export function roomSimpleRoutes(io: Server): Router {
       room.endedAt = endedAt;
       roomInfo.set(roomId, room);
 
+      // 结束直播时清除 liveMode，下次开播由用户重新选择
+      room.liveMode = undefined;
+      roomInfo.set(roomId, room);
+
       io.to(roomId).emit('room-status-change', {
         isLive: false,
+        liveMode: undefined,
         endedAt: room.endedAt,
       });
 

@@ -147,7 +147,10 @@ export function LiveStream({ roomId }: LiveStreamProps) {
       const token = localStorage.getItem('token');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/start`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ liveMode }),
       });
 
@@ -269,7 +272,18 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     });
 
     socket.on('room-status-change', ({ isLive, liveMode, startedAt, endedAt }) => {
-      setRoom((prev) => prev ? { ...prev, isLive, ...(liveMode && { liveMode }), startedAt, endedAt } : null);
+      setRoom((prev) =>
+        prev
+          ? {
+              ...prev,
+              isLive,
+              // 结束直播时 liveMode 为 undefined，需清除以便下次重新选择
+              ...(liveMode !== undefined ? { liveMode } : { liveMode: undefined }),
+              ...(startedAt !== undefined && { startedAt }),
+              ...(endedAt !== undefined && { endedAt }),
+            }
+          : null
+      );
     });
 
     return () => {
