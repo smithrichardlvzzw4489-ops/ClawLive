@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Server } from 'socket.io';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { mtprotoService } from '../../services/telegram-mtproto';
+import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
 import { prisma } from '../../lib/prisma';
 
 // In-memory storage
@@ -471,8 +472,17 @@ export function roomSimpleRoutes(io: Server): Router {
         startedAt: room.startedAt,
       });
 
+      // 内存无配置时，尝试从持久化恢复（服务重启后自动恢复连接）
+      let agentConfig = agentConfigs.get(roomId);
+      if (!agentConfig) {
+        const restored = await RoomAgentConfigPersistence.restoreToMemory(roomId, agentConfigs);
+        if (restored) {
+          agentConfig = agentConfigs.get(roomId);
+          console.log(`✅ [RoomAgent] Restored config for room ${roomId} before start`);
+        }
+      }
+
       // Start Telegram bridge if agent is enabled
-      const agentConfig = agentConfigs.get(roomId);
       if (agentConfig && agentConfig.agentEnabled && 
           agentConfig.agentType === 'telegram' &&
           agentConfig.agentBotToken &&

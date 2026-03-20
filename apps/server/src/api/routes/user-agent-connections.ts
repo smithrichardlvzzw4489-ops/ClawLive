@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { mtprotoService } from '../../services/telegram-mtproto';
+import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
 import {
   listByUser,
   getByIdForUser,
   create,
   deleteConnection,
   updateName,
-  UserAgentConnection,
 } from '../../services/user-agent-connections';
 import { roomInfo, agentConfigs } from './rooms-simple';
 import { workAgentConfigs } from './work-agent-config';
@@ -266,6 +266,12 @@ export function userAgentConnectionsRoutes(): Router {
           agentStatus: 'connected' as const,
         };
         agentConfigs.set(roomId, config);
+        RoomAgentConfigPersistence.saveConfig(roomId, {
+          agentType: 'telegram',
+          agentEnabled: true,
+          agentChatId: conn.agentChatId,
+          agentBotToken: conn.botToken,
+        });
       } else {
         // MTProto 模式
         const result = await mtprotoService.restoreSession(roomId, conn.sessionString!);
@@ -281,6 +287,13 @@ export function userAgentConnectionsRoutes(): Router {
           mtprotoPhone: conn.phone,
         };
         agentConfigs.set(roomId, config);
+        RoomAgentConfigPersistence.saveConfig(roomId, {
+          agentType: 'telegram-user',
+          agentEnabled: true,
+          agentChatId: conn.agentChatId,
+          mtprotoSessionString: conn.sessionString,
+          mtprotoPhone: conn.phone,
+        });
       }
 
       res.json({ success: true, message: 'Connection applied to room' });

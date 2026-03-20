@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { TelegramBridgeService, bridgeManager } from '../../services/telegram-bridge';
 import { mtprotoService } from '../../services/telegram-mtproto';
+import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
 import { roomInfo, agentConfigs } from './rooms-simple';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'dev-webhook-secret-change-in-production';
@@ -19,8 +20,17 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       
       console.log(`📥 GET agent-config for room: ${roomId}`);
       
-      // Get config from memory (no auth check for simplicity)
-      const config = agentConfigs.get(roomId) || {
+      // 内存无配置时，尝试从持久化恢复
+      let config = agentConfigs.get(roomId);
+      if (!config) {
+        const restored = await RoomAgentConfigPersistence.restoreToMemory(roomId, agentConfigs);
+        if (restored) {
+          config = agentConfigs.get(roomId);
+          console.log(`✅ [RoomAgent] Restored config for room ${roomId} from persistence`);
+        }
+      }
+      
+      config = config || {
         agentType: 'mock',
         agentEnabled: false,
         agentChatId: '',
@@ -246,7 +256,7 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         return res.status(400).json({ success: false, error: result.error });
       }
       
-      // 登录成功，更新配置
+      // 登录成功，更新配置并持久化
       const existingConfig = agentConfigs.get(roomId) || {};
       const newConfig = {
         ...existingConfig,
@@ -256,6 +266,13 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         agentStatus: 'connected',
       };
       agentConfigs.set(roomId, newConfig);
+      RoomAgentConfigPersistence.saveConfig(roomId, {
+        agentType: 'telegram-user',
+        agentEnabled: true,
+        agentChatId: (existingConfig as any).agentChatId || '',
+        mtprotoSessionString: result.sessionString,
+        mtprotoPhone: (existingConfig as any).mtprotoPhone,
+      });
       
       console.log(`✅ MTProto login successful for room ${roomId}`);
       res.json({ success: true, message: 'Login successful' });
@@ -299,7 +316,7 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         return res.status(400).json({ success: false, error: result.error });
       }
       
-      // 登录成功，更新配置
+      // 登录成功，更新配置并持久化
       const existingConfig = agentConfigs.get(roomId) || {};
       const newConfig = {
         ...existingConfig,
@@ -309,6 +326,13 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         agentStatus: 'connected',
       };
       agentConfigs.set(roomId, newConfig);
+      RoomAgentConfigPersistence.saveConfig(roomId, {
+        agentType: 'telegram-user',
+        agentEnabled: true,
+        agentChatId: (existingConfig as any).agentChatId || '',
+        mtprotoSessionString: result.sessionString,
+        mtprotoPhone: (existingConfig as any).mtprotoPhone,
+      });
       
       console.log(`✅ MTProto 2FA login successful for room ${roomId}`);
       res.json({ success: true, message: 'Login successful' });
@@ -351,8 +375,9 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         }
       }
       
-      // Clear all config from memory
+      // Clear from memory and persistence
       agentConfigs.delete(roomId);
+      RoomAgentConfigPersistence.deleteConfig(roomId);
       
       console.log(`✅ Agent config cleared for room ${roomId}`);
       res.json({ success: true, message: 'Agent configuration cleared' });
