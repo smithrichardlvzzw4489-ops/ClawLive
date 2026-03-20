@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { UPLOADS_DIR } from '../../lib/data-path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { works, workMessages, userProfiles } from './rooms-simple';
@@ -233,7 +234,7 @@ export function worksRoutes(io: Server): Router {
       const buf = Buffer.from(base64Data, 'base64');
       if (buf.length === 0) return res.status(400).json({ error: 'Invalid video data' });
 
-      const uploadDir = join(process.cwd(), 'uploads', 'works', workId);
+      const uploadDir = join(UPLOADS_DIR, 'works', workId);
       if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
       const filename = `${uuidv4()}.${ext}`;
       const filepath = join(uploadDir, filename);

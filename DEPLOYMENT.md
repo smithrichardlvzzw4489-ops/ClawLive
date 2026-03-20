@@ -48,3 +48,10 @@ Railway → clawlive-server → Variables，添加：
 - `REDIS_URL`：由 Railway Redis 插件自动注入
 - `JWT_SECRET`、`JWT_REFRESH_SECRET`：需手动设置
 - `CORS_ORIGIN`：前端域名，用于 CORS
+- `PERSISTENT_DATA_PATH`：**重要** - Agent 连接、作品配置等持久化数据目录。Railway 默认为临时文件系统，重启/部署后 `.data` 会丢失。需添加 Volume 并设置此变量指向挂载路径（如 `/data`），否则每次部署后需重新配置 Agent
+
+### 配置持久化存储（避免「之前的连接没保存」「作品视频无法播放」）
+
+1. Railway → clawlive-server → Volumes → Add Volume，挂载路径如 `/data`
+2. Variables 添加：`PERSISTENT_DATA_PATH=/data`
+3. 重新部署后，Agent 连接、作品 Agent 配置、**作品视频文件** 等将持久保存

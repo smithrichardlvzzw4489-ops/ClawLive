@@ -3,12 +3,11 @@
  * 所有需要配置 Agent 的作品均可保存、复用，退出登录等任何情况下均不删除
  */
 import * as fs from 'fs';
-import * as path from 'path';
+import { DATA_DIR, getDataFilePath } from '../lib/data-path';
 
-const CONFIG_FILE = path.join(__dirname, '../../.data/work-agent-configs.json');
+const CONFIG_FILE = getDataFilePath('work-agent-configs.json');
 
 // Ensure data directory exists
-const DATA_DIR = path.join(__dirname, '../../.data');
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }

@@ -6,11 +6,10 @@
  */
 
 import * as fs from 'fs';
-import * as path from 'path';
 import { mtprotoService } from './telegram-mtproto';
+import { DATA_DIR, getDataFilePath } from '../lib/data-path';
 
-const DATA_DIR = path.join(__dirname, '../../.data');
-const CONFIG_FILE = path.join(DATA_DIR, 'room-agent-configs.json');
+const CONFIG_FILE = getDataFilePath('room-agent-configs.json');
 
 export interface PersistedRoomAgentConfig {
   roomId: string;

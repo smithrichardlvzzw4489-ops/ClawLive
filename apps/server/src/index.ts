@@ -6,8 +6,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { resolve } from 'path';
-import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+import { UPLOADS_DIR } from './lib/data-path';
 import { setupSocketIO } from './socket/index-simple';
 import { setupRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/errorHandler';
@@ -63,9 +63,8 @@ app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(morgan('dev'));
 
-const uploadsDir = join(process.cwd(), 'uploads');
-if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true });
-app.use('/uploads', express.static(uploadsDir));
+if (!existsSync(UPLOADS_DIR)) mkdirSync(UPLOADS_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 const PORT = Number(process.env.PORT || process.env.SERVER_PORT || 3001);
 

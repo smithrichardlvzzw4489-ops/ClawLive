@@ -3,10 +3,9 @@
  */
 
 import * as fs from 'fs';
-import * as path from 'path';
+import { DATA_DIR, getDataFilePath } from '../lib/data-path';
 
-const DATA_DIR = path.join(__dirname, '../../.data');
-const CONFIG_FILE = path.join(DATA_DIR, 'user-follows.json');
+const CONFIG_FILE = getDataFilePath('user-follows.json');
 
 interface FollowRecord {
   userId: string;
