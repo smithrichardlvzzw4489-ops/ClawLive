@@ -166,11 +166,11 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     }
   };
 
-  // Stop live and clear config
+  // Stop live (保留 Agent 链接信息，下次开播无需重新配置)
   const stopLivestream = async () => {
     if (!isHost || isTogglingLive) return;
 
-    if (!confirm('确认结束直播？\n\n⚠️ 结束后将清空所有 Agent 配置信息（包括登录状态），确保账号安全。')) {
+    if (!confirm('确认结束直播？')) {
       return;
     }
 
@@ -188,18 +188,6 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         const updatedRoom = await response.json();
         setRoom(updatedRoom);
         stopScreenShare();
-
-        // Clear agent config after stopping
-        try {
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}/clear`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-        } catch (clearError) {
-          console.error('Failed to clear config:', clearError);
-        }
       } else {
         const error = await response.json();
         alert(`结束直播失败: ${error.error || '未知错误'}`);
