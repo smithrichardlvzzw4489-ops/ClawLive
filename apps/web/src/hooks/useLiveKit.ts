@@ -148,6 +148,8 @@ export function useLiveKit({
         roomRef.current = null;
       }
       setStream(null);
+      // 短暂延迟，确保设备被释放后再请求（避免 NotReadableError: Device in use）
+      await new Promise((r) => setTimeout(r, 300));
       const room = new Room();
       roomRef.current = room;
       await room.connect(url, token, { autoSubscribe: true });
@@ -193,7 +195,11 @@ export function useLiveKit({
       });
       updateStreamFromRoom();
     } catch (err: any) {
-      setError(err.message || '连麦失败');
+      const msg =
+        err?.name === 'NotReadableError' || err?.message?.includes('Device in use')
+          ? '麦克风正在被其他应用使用，请关闭其他标签页或应用后重试'
+          : err.message || '连麦失败';
+      setError(msg);
       console.error('[LiveKit] startSpeaker:', err);
     }
   }, [LIVEKIT_URL, isHost, liveMode, fetchSpeakerToken]);

@@ -516,9 +516,13 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 <>
                   <VideoPlayer stream={videoStream} className="w-full h-full object-contain" muted={videoMuted} />
                   {videoMuted && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-black/60 text-white text-sm pointer-events-none">
-                      点击右上角 🔊 播放声音
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVideoMuted(false)}
+                      className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-black/60 text-white text-sm hover:bg-black/80 cursor-pointer transition-colors"
+                    >
+                      点击播放声音 🔊
+                    </button>
                   )}
                 </>
               ) : screenshots.length > 0 ? (
