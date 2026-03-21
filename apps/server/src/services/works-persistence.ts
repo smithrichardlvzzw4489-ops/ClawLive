@@ -22,6 +22,7 @@ type Work = {
   authorId: string;
   title: string;
   description?: string;
+  resultSummary?: string;
   lobsterName: string;
   status: 'draft' | 'published';
   messages: WorkMessage[];

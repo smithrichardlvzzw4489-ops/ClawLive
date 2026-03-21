@@ -12,6 +12,7 @@ export default async function OgImage({
   let work: {
     title: string;
     description?: string;
+    resultSummary?: string;
     lobsterName: string;
     coverImage?: string;
     author?: { username: string };
@@ -28,7 +29,7 @@ export default async function OgImage({
   }
 
   const title = work?.title || 'ClawLive 作品';
-  const description = work?.description || '';
+  const summary = work?.resultSummary || work?.description || '';
   const lobsterName = work?.lobsterName || '龙虾';
   const authorName = work?.author?.username || '作者';
   const viewCount = work?.viewCount ?? 0;
@@ -57,17 +58,18 @@ export default async function OgImage({
           <div style={{ fontSize: 52, fontWeight: 800, color: 'white', marginBottom: 16, lineHeight: 1.2 }}>
             {title}
           </div>
-          {description && (
+          {summary && (
             <div
               style={{
-                fontSize: 22,
-                color: 'rgba(255,255,255,0.9)',
+                fontSize: 24,
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.95)',
                 marginBottom: 16,
                 lineHeight: 1.4,
                 maxWidth: 900,
               }}
             >
-              {description.length > 80 ? `${description.slice(0, 80)}...` : description}
+              {summary.length > 80 ? `${summary.slice(0, 80)}...` : summary}
             </div>
           )}
           <div style={{ fontSize: 24, color: 'rgba(255,255,255,0.9)', marginBottom: 8 }}>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { ShareButton } from '@/components/ShareButton';
@@ -20,6 +21,7 @@ interface Work {
   id: string;
   title: string;
   description?: string;
+  resultSummary?: string;
   lobsterName: string;
   tags?: string[];
   coverImage?: string;
@@ -39,6 +41,7 @@ export default function WorkDetailPage() {
   const params = useParams();
   const workId = params.workId as string;
   const { t } = useLocale();
+  const { isAuthenticated } = useAuth();
   
   const [work, setWork] = useState<Work | null>(null);
   const [loading, setLoading] = useState(true);
@@ -107,8 +110,12 @@ export default function WorkDetailPage() {
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{work.title}</h1>
-              {work.description && (
-                <p className="text-gray-600 mb-4">{work.description}</p>
+              {(work.resultSummary || work.description) && (
+                <div className={`mb-4 p-4 rounded-xl ${work.resultSummary ? 'bg-lobster/10 border border-lobster/30' : ''}`}>
+                  <p className={`${work.resultSummary ? 'text-lg font-medium text-gray-800' : 'text-gray-600'}`}>
+                    {work.resultSummary || work.description}
+                  </p>
+                </div>
               )}
               <div className="flex items-center gap-6 text-sm text-gray-600 flex-wrap">
                 <Link href={`/host/${work.author.id}`} className="flex items-center gap-2 hover:text-lobster">
@@ -139,9 +146,20 @@ export default function WorkDetailPage() {
             <ShareButton
               url={`/works/${workId}`}
               title={work.title}
-              text={work.description || `${work.lobsterName} 的作品 - ${work.title}`}
+              text={work.resultSummary || work.description || `${work.lobsterName} 的作品 - ${work.title}`}
             />
           </div>
+        </div>
+
+        {/* CTA: 让我的 AI 也试一次 */}
+        <div className="mb-6 flex justify-center">
+          <Link
+            href={isAuthenticated ? '/rooms/create' : '/login?redirect=/rooms/create'}
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-lobster text-white rounded-xl font-semibold hover:bg-lobster-dark transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+          >
+            <span>📹</span>
+            <span>{t('workDetail.tryMyAI')}</span>
+          </Link>
         </div>
 
         {/* Cover Image */}

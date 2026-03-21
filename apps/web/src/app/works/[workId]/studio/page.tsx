@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
 import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
 
@@ -38,7 +39,10 @@ export default function WorkStudioPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [publishResultSummary, setPublishResultSummary] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const { t } = useLocale();
   const [agentConfigured, setAgentConfigured] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -194,14 +198,14 @@ export default function WorkStudioPage() {
     }
   };
 
-  const publishWork = async () => {
-    if (!confirm('确认发布这个作品吗？发布后将无法继续编辑。')) {
-      return;
-    }
+  const openPublishModal = () => {
+    setPublishResultSummary(work?.description?.slice(0, 80) || '');
+    setShowPublishModal(true);
+  };
 
+  const publishWork = async () => {
     setPublishing(true);
     try {
-      // 发布前先保存视频（若有），确保作品包含视频内容
       if (workVideoUrl.trim()) {
         await saveWorkVideoUrl();
       }
@@ -213,10 +217,14 @@ export default function WorkStudioPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ videoUrl: workVideoUrl.trim() || undefined }),
+        body: JSON.stringify({
+          videoUrl: workVideoUrl.trim() || undefined,
+          resultSummary: publishResultSummary.trim() || undefined,
+        }),
       });
 
       if (response.ok) {
+        setShowPublishModal(false);
         alert('✅ 作品已发布！');
         router.push(`/works/${workId}`);
       } else {
@@ -295,7 +303,7 @@ export default function WorkStudioPage() {
             保存草稿
           </Link>
           <button
-            onClick={publishWork}
+            onClick={openPublishModal}
             disabled={publishing || messages.length === 0}
             className="px-6 py-2 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -304,6 +312,42 @@ export default function WorkStudioPage() {
         </div>
       </header>
       
+      {/* Publish Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('workDetail.publishModalTitle')}</h2>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t('workDetail.resultSummaryLabel')}
+            </label>
+            <textarea
+              value={publishResultSummary}
+              onChange={(e) => setPublishResultSummary(e.target.value)}
+              placeholder={t('workDetail.resultSummaryPlaceholder')}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent mb-4"
+              rows={3}
+              maxLength={120}
+            />
+            <p className="text-xs text-gray-500 mb-4">建议 50 字以内，适合转发分享</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowPublishModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={publishWork}
+                disabled={publishing}
+                className="flex-1 px-4 py-2 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark disabled:opacity-50"
+              >
+                {publishing ? '发布中...' : '确认发布'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Agent Settings Modal */}
       {showSettings && (
         <WorkAgentSettings

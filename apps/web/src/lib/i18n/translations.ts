@@ -113,6 +113,11 @@ export const translations = {
       noMessages: '这个作品还没有对话记录',
       loadFailed: '加载失败',
       notFound: '作品不存在',
+      resultSummary: '一句话结果',
+      tryMyAI: '让我的 AI 也试一次',
+      resultSummaryPlaceholder: '如：这个 AI 帮我 10 分钟整理完了一份周报',
+      publishModalTitle: '发布前填写',
+      resultSummaryLabel: '一句话描述 AI 达成的结果（适合转发）',
     },
 
     // 登录/注册
@@ -247,6 +252,11 @@ export const translations = {
       noMessages: 'No messages yet',
       loadFailed: 'Load failed',
       notFound: 'Work not found',
+      resultSummary: 'Result in one sentence',
+      tryMyAI: 'Try with my AI',
+      resultSummaryPlaceholder: 'e.g. This AI helped me finish a weekly report in 10 mins',
+      publishModalTitle: 'Before publishing',
+      resultSummaryLabel: 'One-sentence result (shareable)',
     },
 
     auth: {

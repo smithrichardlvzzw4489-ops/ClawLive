@@ -15,10 +15,12 @@ export function ShareButton({ url, title, text, className = '', variant = 'butto
   const [showTooltip, setShowTooltip] = useState(false);
 
   const handleShare = useCallback(async () => {
-    const shareUrl = url.startsWith('http') ? url : `${typeof window !== 'undefined' ? window.location.origin : ''}${url.startsWith('/') ? url : `/${url}`}`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const shareUrl = url.startsWith('http') ? url : `${origin}${url.startsWith('/') ? url : `/${url}`}`;
+    const toCopy = text && text.trim() ? `「${text.trim()}」\n${shareUrl}` : shareUrl;
 
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(toCopy);
       setCopied(true);
       setShowTooltip(true);
       setTimeout(() => {
@@ -29,7 +31,7 @@ export function ShareButton({ url, title, text, className = '', variant = 'butto
       setShowTooltip(true);
       setTimeout(() => setShowTooltip(false), 3000);
     }
-  }, [url]);
+  }, [url, text]);
 
   const baseClass = variant === 'icon'
     ? 'p-2 rounded-lg text-gray-600 hover:bg-gray-100 hover:text-lobster transition-colors'

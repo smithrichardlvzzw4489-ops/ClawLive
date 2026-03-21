@@ -37,6 +37,7 @@ interface WorkWithScore {
   id: string;
   title: string;
   description?: string;
+  resultSummary?: string;
   lobsterName: string;
   coverImage?: string;
   videoUrl?: string;
@@ -152,6 +153,7 @@ export function getRecommendedWorks(userId?: string): WorkWithScore[] {
         id: work.id,
         title: work.title,
         description: work.description,
+        resultSummary: work.resultSummary,
         lobsterName: work.lobsterName,
         coverImage: work.coverImage,
         videoUrl: work.videoUrl,

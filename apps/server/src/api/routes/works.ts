@@ -29,6 +29,7 @@ export function worksRoutes(io: Server): Router {
             id: work.id,
             title: work.title,
             description: work.description,
+            resultSummary: work.resultSummary,
             lobsterName: work.lobsterName,
             coverImage: work.coverImage,
             videoUrl: work.videoUrl,
@@ -182,6 +183,7 @@ export function worksRoutes(io: Server): Router {
         authorId: userId,
         title,
         description: description || '',
+        resultSummary: undefined as string | undefined,
         lobsterName,
         status: 'draft' as const,
         messages: [],
@@ -259,7 +261,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { title, description, tags, coverImage, videoUrl } = req.body;
+      const { title, description, resultSummary, tags, coverImage, videoUrl } = req.body;
 
       const work = works.get(workId);
       if (!work) {
@@ -272,6 +274,7 @@ export function worksRoutes(io: Server): Router {
 
       if (title) work.title = title;
       if (description !== undefined) work.description = description;
+      if (resultSummary !== undefined) work.resultSummary = resultSummary === '' ? undefined : resultSummary;
       if (tags) work.tags = tags;
       if (coverImage !== undefined) work.coverImage = coverImage;
       if (videoUrl !== undefined) work.videoUrl = videoUrl === '' || videoUrl === null ? undefined : videoUrl;
@@ -291,7 +294,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { videoUrl } = req.body || {};
+      const { videoUrl, resultSummary } = req.body || {};
 
       const work = works.get(workId);
       if (!work) {
@@ -309,6 +312,9 @@ export function worksRoutes(io: Server): Router {
       // 发布时确保包含视频内容（客户端传入的 videoUrl 优先）
       if (videoUrl !== undefined && videoUrl !== null && videoUrl !== '') {
         work.videoUrl = videoUrl;
+      }
+      if (resultSummary !== undefined && resultSummary !== null && resultSummary !== '') {
+        work.resultSummary = resultSummary;
       }
 
       // Save messages to work

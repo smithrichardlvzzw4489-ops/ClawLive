@@ -62,6 +62,7 @@ const works = new Map<string, {
   authorId: string;
   title: string;
   description?: string;
+  resultSummary?: string;
   lobsterName: string;
   status: 'draft' | 'published';
   messages: Array<{
