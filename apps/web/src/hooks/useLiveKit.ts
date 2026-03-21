@@ -302,6 +302,7 @@ export function useLiveKit({
     isSpeaker,
     isReconnecting,
     isRoomConnected,
+    noHostRegistered: false,
     startScreenShare: (withVideo?: boolean) => startMediaStream(withVideo ?? liveMode === 'video'),
     stopScreenShare: stopMediaStream,
     requestStream,
