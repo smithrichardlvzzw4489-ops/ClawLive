@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrivacyFilter } from '@clawlive/privacy-filter';
 import { WebhookMessagePayload, WebhookLogPayload, WebhookScreenshotPayload } from '@clawlive/shared-types';
 import { verifyWebhookSignature } from '../middleware/webhookAuth';
+import { getRoom, appendMessage } from '../lib/rooms-store';
 import sharp from 'sharp';
 
 const prisma = new PrismaClient();
@@ -42,9 +43,9 @@ export function webhookRoutes(io: Server): Router {
         return res.status(201).json({ success: true, messageId: message.id });
       }
 
-      // rooms-simple 内存房间：Agent 回复从 Telegram 经 bridge 推送到此
-      const { roomInfo, messageHistory } = require('./rooms-simple');
-      if (roomInfo.has(roomId)) {
+      // rooms-simple 房间（支持 Redis 多实例）：Agent 回复从 Telegram 经 bridge 推送到此
+      const room = await getRoom(roomId);
+      if (room) {
         const content = payload.content || '';
         const message = {
           id: Date.now().toString(),
@@ -53,13 +54,10 @@ export function webhookRoutes(io: Server): Router {
           content,
           timestamp: new Date(payload.timestamp || Date.now()),
         };
-        const history = messageHistory.get(roomId) || [];
-        history.push(message);
-        if (history.length > 100) history.shift();
-        messageHistory.set(roomId, history);
+        await appendMessage(roomId, message);
 
         io.to(roomId).emit('new-message', message);
-        console.log(`✅ [Webhook] Agent message pushed to room ${roomId} (rooms-simple)`);
+        console.log(`✅ [Webhook] Agent message pushed to room ${roomId}`);
         return res.status(201).json({ success: true, messageId: message.id });
       }
 

@@ -23,7 +23,7 @@ export function recommendationRoutes(): Router {
         } catch (_) {}
       }
 
-      const liveRooms = getRecommendedLiveRooms(userId);
+      const liveRooms = await getRecommendedLiveRooms(userId);
       const recommendedWorks = getRecommendedWorks(userId);
 
       res.json({

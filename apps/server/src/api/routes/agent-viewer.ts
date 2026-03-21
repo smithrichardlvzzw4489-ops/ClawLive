@@ -9,7 +9,7 @@ import {
   unsubscribeFromWork,
   getAgentSubscriptions,
 } from '../../services/agent-viewer';
-import { messageHistory, liveHistory } from './rooms-simple';
+import { liveHistory } from './rooms-simple';
 import { works, workMessages } from './rooms-simple';
 
 export interface AuthAgentRequest extends Request {
@@ -169,7 +169,8 @@ export function agentViewerRoutes(io: Server): Router {
       return res.status(403).json({ error: 'Not subscribed to this room' });
     }
 
-    const messages = messageHistory.get(roomId) || [];
+    const { getMessageHistory } = await import('../lib/rooms-store');
+    const messages = await getMessageHistory(roomId);
     let filtered = messages;
     if (since) {
       filtered = messages.filter(m => new Date(m.timestamp) > since);

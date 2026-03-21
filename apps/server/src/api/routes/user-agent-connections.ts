@@ -9,7 +9,7 @@ import {
   deleteConnection,
   updateName,
 } from '../../services/user-agent-connections';
-import { roomInfo, agentConfigs } from './rooms-simple';
+import { agentConfigs } from './rooms-simple';
 import { workAgentConfigs } from './work-agent-config';
 import { WorkConfigPersistence } from '../../services/work-config-persistence';
 import { works } from './rooms-simple';
@@ -251,7 +251,8 @@ export function userAgentConnectionsRoutes(): Router {
       }
 
       // 不再检查 room 是否存在（创建流程中 room 可能尚未完全就绪）
-      const room = roomInfo.get(roomId);
+      const { getRoom } = await import('../lib/rooms-store');
+      const room = await getRoom(roomId);
       if (room && room.hostId !== userId) {
         return res.status(403).json({ error: 'Not authorized' });
       }

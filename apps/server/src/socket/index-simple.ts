@@ -2,7 +2,8 @@ import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import type { RedisClientType } from 'redis';
-import { messageHistory, roomInfo, getHostInfo } from '../api/routes/rooms-simple';
+import { getHostInfo } from '../api/routes/rooms-simple';
+import { getRoom, getMessageHistory } from '../lib/rooms-store';
 
 // WebRTC types (not in Node lib, define locally)
 interface RTCSessionDescriptionInit {
@@ -130,13 +131,13 @@ export async function setupSocketIO(io: Server): Promise<void> {
 
         io.to(roomId).emit('viewer-count-update', viewerCount);
 
-        // Send message history from memory
-        const history = messageHistory.get(roomId) || [];
+        // Send message history（支持 Redis 多实例）
+        const history = await getMessageHistory(roomId);
         socket.emit('message-history', history);
         console.log(`[MSG] Sent ${history.length} historical messages to ${socket.id}`);
 
-        // 发送完整房间信息（含 isLive），否则观众端会一直显示「直播未开始」
-        const room = roomInfo.get(roomId);
+        // 发送完整房间信息（含 isLive），支持 Redis 多实例
+        const room = await getRoom(roomId);
         let roomData: Record<string, unknown>;
         if (room) {
           const host = await getHostInfo(room.hostId);

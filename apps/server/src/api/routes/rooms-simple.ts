@@ -5,21 +5,21 @@ import { mtprotoService } from '../../services/telegram-mtproto';
 import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
 import { WorksPersistence } from '../../services/works-persistence';
 import { prisma } from '../../lib/prisma';
+import {
+  getRoom,
+  setRoom,
+  hasRoom,
+  getAllRooms,
+  getMessageHistory,
+  appendMessage,
+  setMessageHistory,
+  getMemoryRoomsMap,
+  getMemoryMessagesMap,
+} from '../../lib/rooms-store';
 
-// In-memory storage
-const roomInfo = new Map<string, {
-  id: string;
-  hostId: string;
-  title: string;
-  lobsterName: string;
-  description?: string;
-  isLive: boolean;
-  liveMode?: 'video' | 'audio';
-  startedAt?: Date;
-  endedAt?: Date;
-  viewerCount: number;
-  createdAt: Date;
-}>();
+// 兼容旧代码：导出 store 的 memory（仅单实例时正确，多实例请用 getRoom/getMessageHistory）
+const roomInfo = getMemoryRoomsMap();
+const messageHistory = getMemoryMessagesMap();
 
 const agentConfigs = new Map<string, {
   agentType: string;
@@ -28,15 +28,6 @@ const agentConfigs = new Map<string, {
   agentChatId?: string;
   agentStatus: string;
 }>();
-
-// Message history storage (in-memory)
-const messageHistory = new Map<string, Array<{
-  id: string;
-  roomId: string;
-  sender: 'host' | 'agent';
-  content: string;
-  timestamp: Date;
-}>>();
 
 // History sessions storage - 保存完整的直播历史
 const liveHistory = new Map<string, {
@@ -132,8 +123,8 @@ userProfiles.set('a4393af5-f42f-4ac7-a9a3-23ca18aa9733', {
   avatarUrl: undefined,
 });
 
-// Initialize test room
-roomInfo.set('test', {
+// Initialize test room（异步初始化，不阻塞）
+setRoom('test', {
   id: 'test',
   hostId: 'a4393af5-f42f-4ac7-a9a3-23ca18aa9733',
   title: 'test',
@@ -142,7 +133,7 @@ roomInfo.set('test', {
   isLive: false,
   viewerCount: 0,
   createdAt: new Date(),
-});
+}).catch(() => {});
 
 // Initialize sample history sessions for testing
 const now = new Date();
@@ -350,12 +341,12 @@ export { roomInfo, agentConfigs, messageHistory, liveHistory, userProfiles, work
 export function roomSimpleRoutes(io: Server): Router {
   const router = Router();
 
-  // GET /api/rooms - List all rooms
+  // GET /api/rooms - List all rooms（支持 Redis 多实例）
   router.get('/', async (req: Request, res: Response) => {
     try {
       const { isLive } = req.query;
       
-      const roomList = Array.from(roomInfo.values());
+      const roomList = await getAllRooms();
       const rooms = await Promise.all(roomList.map(async (room) => {
         const host = await getHostInfo(room.hostId);
         return {
@@ -393,7 +384,7 @@ export function roomSimpleRoutes(io: Server): Router {
   router.get('/:roomId', async (req: Request, res: Response) => {
     try {
       const { roomId } = req.params;
-      const room = roomInfo.get(roomId);
+      const room = await getRoom(roomId);
 
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
@@ -422,7 +413,7 @@ export function roomSimpleRoutes(io: Server): Router {
       }
 
       // Check if room ID already exists
-      if (roomInfo.has(id)) {
+      if (await hasRoom(id)) {
         return res.status(409).json({ error: 'Room ID already exists' });
       }
 
@@ -437,7 +428,7 @@ export function roomSimpleRoutes(io: Server): Router {
         createdAt: new Date(),
       };
 
-      roomInfo.set(id, newRoom);
+      await setRoom(id, newRoom);
       console.log(`✅ Room created: ${id} by user ${userId}`);
 
       res.status(201).json({
@@ -461,7 +452,7 @@ export function roomSimpleRoutes(io: Server): Router {
       const userId = req.user!.id;
       const { liveMode = 'video' } = req.body || {};
 
-      const room = roomInfo.get(roomId);
+      const room = await getRoom(roomId);
       
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
@@ -471,15 +462,18 @@ export function roomSimpleRoutes(io: Server): Router {
         return res.status(403).json({ error: 'Not authorized' });
       }
 
-      room.isLive = true;
-      room.liveMode = liveMode === 'audio' ? 'audio' : 'video';
-      room.startedAt = new Date();
-      roomInfo.set(roomId, room);
+      const updated = {
+        ...room,
+        isLive: true,
+        liveMode: (liveMode === 'audio' ? 'audio' : 'video') as 'video' | 'audio',
+        startedAt: new Date(),
+      };
+      await setRoom(roomId, updated);
 
       io.to(roomId).emit('room-status-change', {
         isLive: true,
-        liveMode: room.liveMode,
-        startedAt: room.startedAt,
+        liveMode: updated.liveMode,
+        startedAt: updated.startedAt,
       });
 
       // 内存无配置时，尝试从持久化恢复（服务重启后自动恢复连接）
@@ -515,7 +509,7 @@ export function roomSimpleRoutes(io: Server): Router {
         console.log(`🤖 Telegram Agent bridge started for room ${roomId}`);
       }
 
-      res.json(room);
+      res.json(updated);
     } catch (error) {
       console.error('Error starting room:', error);
       res.status(500).json({ error: 'Failed to start room' });
@@ -527,7 +521,7 @@ export function roomSimpleRoutes(io: Server): Router {
       const { roomId } = req.params;
       const userId = req.user!.id;
 
-      const room = roomInfo.get(roomId);
+      const room = await getRoom(roomId);
 
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
@@ -538,23 +532,18 @@ export function roomSimpleRoutes(io: Server): Router {
       }
 
       const endedAt = new Date();
-      room.isLive = false;
-      room.endedAt = endedAt;
-      roomInfo.set(roomId, room);
-
-      // 结束直播时清除 liveMode，下次开播由用户重新选择
-      room.liveMode = undefined;
-      roomInfo.set(roomId, room);
+      const updated = { ...room, isLive: false, endedAt, liveMode: undefined as undefined };
+      await setRoom(roomId, updated);
 
       io.to(roomId).emit('room-status-change', {
         isLive: false,
         liveMode: undefined,
-        endedAt: room.endedAt,
+        endedAt: updated.endedAt,
       });
 
       // Save to history before clearing
       if (room.startedAt) {
-        const messages = messageHistory.get(roomId) || [];
+        const messages = await getMessageHistory(roomId);
         const historyId = `${roomId}-${Date.now()}`;
         
         liveHistory.set(historyId, {
@@ -572,11 +561,14 @@ export function roomSimpleRoutes(io: Server): Router {
             content: msg.content,
             timestamp: msg.timestamp,
           })),
-          viewerCount: room.viewerCount,
+          viewerCount: updated.viewerCount,
         });
         
         console.log(`📚 Live session saved to history: ${historyId} (${messages.length} messages)`);
       }
+
+      // Clear current message history
+      await setMessageHistory(roomId, []);
 
       // Stop Telegram bridge
       const { bridgeManager } = await import('../../services/telegram-bridge');
@@ -588,13 +580,10 @@ export function roomSimpleRoutes(io: Server): Router {
         agentConfigs.set(roomId, agentConfig);
       }
 
-      // Clear current message history
-      messageHistory.delete(roomId);
       console.log(`🧹 Current message history cleared for room ${roomId}`);
-
       console.log(`🛑 Telegram Agent bridge stopped for room ${roomId}`);
 
-      res.json(room);
+      res.json(updated);
     } catch (error) {
       console.error('Error stopping room:', error);
       res.status(500).json({ error: 'Failed to stop room' });
@@ -611,7 +600,7 @@ export function roomSimpleRoutes(io: Server): Router {
         return res.status(400).json({ error: 'Message content is required' });
       }
 
-      const room = roomInfo.get(roomId);
+      const room = await getRoom(roomId);
       
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
@@ -633,14 +622,7 @@ export function roomSimpleRoutes(io: Server): Router {
         timestamp: new Date(),
       };
 
-      // Save to message history
-      const history = messageHistory.get(roomId) || [];
-      history.push(message);
-      // Keep only last 100 messages to prevent memory issues
-      if (history.length > 100) {
-        history.shift();
-      }
-      messageHistory.set(roomId, history);
+      await appendMessage(roomId, message);
 
       io.to(roomId).emit('new-message', message);
 
@@ -719,8 +701,9 @@ export function roomSimpleRoutes(io: Server): Router {
 
       const host = await getHostInfo(hostId);
 
-      // Get live rooms
-      const liveRooms = Array.from(roomInfo.values())
+      // Get live rooms（支持 Redis 多实例）
+      const allRooms = await getAllRooms();
+      const liveRooms = allRooms
         .filter(room => room.hostId === hostId && room.isLive)
         .map(room => ({
           id: room.id,

@@ -8,7 +8,8 @@
  * 新用户/冷启动用热度算法，有行为后加权个性化
  */
 
-import { roomInfo, userProfiles, works } from '../api/routes/rooms-simple';
+import { userProfiles, works } from '../api/routes/rooms-simple';
+import { getAllRooms } from '../lib/rooms-store';
 import {
   getUserInterestProfile,
   getLiveRoomPersonalizationBoost,
@@ -79,13 +80,14 @@ function scoreWork(work: {
 }
 
 /**
- * 获取首页推荐的正在直播房间（支持用户个性化）
+ * 获取首页推荐的正在直播房间（支持用户个性化，支持 Redis 多实例）
  */
-export function getRecommendedLiveRooms(userId?: string): RoomWithScore[] {
+export async function getRecommendedLiveRooms(userId?: string): Promise<RoomWithScore[]> {
   const profile = userId ? getUserInterestProfile(userId) : null;
   const hasEnoughBehavior = profile && profile.behaviorCount >= 3;
 
-  const liveRooms = Array.from(roomInfo.values())
+  const allRooms = await getAllRooms();
+  const liveRooms = allRooms
     .filter(r => r.isLive)
     .map(room => {
       const host = userProfiles.get(room.hostId);

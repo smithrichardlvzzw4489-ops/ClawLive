@@ -8,6 +8,7 @@ import dotenv from 'dotenv';
 import { resolve } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import { UPLOADS_DIR } from './lib/data-path';
+import { initRoomsStore } from './lib/rooms-store';
 import { setupSocketIO } from './socket/index-simple';
 import { setupRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/errorHandler';
@@ -69,9 +70,10 @@ app.use('/uploads', express.static(UPLOADS_DIR));
 const PORT = Number(process.env.PORT || process.env.SERVER_PORT || 3001);
 
 // 先 listen，通过健康检查后再加载路由（避免 setupRoutes 等阻塞/崩溃导致无法监听）
-httpServer.listen(PORT, '0.0.0.0', () => {
+httpServer.listen(PORT, '0.0.0.0', async () => {
   console.log(`[ClawLive] Server running on http://0.0.0.0:${PORT}`);
   try {
+    await initRoomsStore();
     setupRoutes(app, io);
     setupSocketIO(io);
     mtprotoService.setSocketIO(io);

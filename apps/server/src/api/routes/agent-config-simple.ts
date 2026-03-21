@@ -4,7 +4,8 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { TelegramBridgeService, bridgeManager } from '../../services/telegram-bridge';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
-import { roomInfo, agentConfigs } from './rooms-simple';
+import { agentConfigs } from './rooms-simple';
+import { getRoom } from '../lib/rooms-store';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'dev-webhook-secret-change-in-production';
 
@@ -59,8 +60,8 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       const userId = req.user!.id;
       const { agentType, agentEnabled, agentBotToken, agentChatId } = req.body;
       
-      // Check room from memory
-      const room = roomInfo.get(roomId);
+      // Check room（支持 Redis 多实例）
+      const room = await getRoom(roomId);
       
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
@@ -170,8 +171,8 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       const userId = req.user!.id;
       const { phoneNumber, chatId } = req.body;
       
-      // Check room from memory
-      const room = roomInfo.get(roomId);
+      // Check room（支持 Redis 多实例）
+      const room = await getRoom(roomId);
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
       }
@@ -224,8 +225,8 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       const userId = req.user!.id;
       const { code } = req.body;
       
-      // Check room from memory
-      const room = roomInfo.get(roomId);
+      // Check room（支持 Redis 多实例）
+      const room = await getRoom(roomId);
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
       }
@@ -293,8 +294,8 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       const userId = req.user!.id;
       const { password } = req.body;
       
-      // Check room from memory
-      const room = roomInfo.get(roomId);
+      // Check room（支持 Redis 多实例）
+      const room = await getRoom(roomId);
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
       }
@@ -352,7 +353,7 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       const { roomId } = req.params;
       const userId = req.user!.id;
       
-      const room = roomInfo.get(roomId);
+      const room = await getRoom(roomId);
       if (!room) {
         return res.status(404).json({ error: 'Room not found' });
       }

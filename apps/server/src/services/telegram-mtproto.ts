@@ -499,15 +499,15 @@ export class MTProtoUserService {
             this.ioInstance.to(roomId).emit('work-message', agentMessage);
             console.log(`✅ Agent reply pushed to work ${roomId}`);
           } else {
-            // Save to room message history
-            const { messageHistory } = require('../api/routes/rooms-simple');
-            const history = messageHistory.get(roomId) || [];
-            history.push(agentMessage);
-            // Keep only last 100 messages to prevent memory issues
-            if (history.length > 100) {
-              history.shift();
-            }
-            messageHistory.set(roomId, history);
+            // Save to room message history（支持 Redis 多实例）
+            const { appendMessage } = require('../lib/rooms-store');
+            await appendMessage(roomId, {
+              id: agentMessage.id,
+              roomId,
+              sender: 'agent',
+              content: agentMessage.content,
+              timestamp: agentMessage.timestamp,
+            });
 
             this.ioInstance.to(roomId).emit('new-message', agentMessage);
             console.log(`✅ Agent reply pushed to ClawLive room ${roomId}`);
