@@ -39,6 +39,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stableViewerId = useMemo(() => `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, []);
   const hasAutoStartedCameraRef = useRef(false);
+  const [isAutoStarting, setIsAutoStarting] = useState(false);
 
   const useLiveKitMode = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
@@ -75,18 +76,29 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     if (!room) return;
     if (!room.isLive) {
       hasAutoStartedCameraRef.current = false;
+      setIsAutoStarting(false);
       return;
     }
     if (!isHost || isSharing || isTogglingLive) return;
     const liveMode = room.liveMode ?? 'video';
     if (hasAutoStartedCameraRef.current) return;
 
+    setIsAutoStarting(true);
     const timer = setTimeout(() => {
       hasAutoStartedCameraRef.current = true;
       startScreenShare(liveMode === 'video');
     }, 400);
-    return () => clearTimeout(timer);
+    const fallbackTimer = setTimeout(() => setIsAutoStarting(false), 2500);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(fallbackTimer);
+    };
   }, [room?.isLive, room?.liveMode, isHost, isSharing, isTogglingLive, startScreenShare]);
+
+  // 自动开启成功时立即清除「正在开启」状态
+  useEffect(() => {
+    if (isSharing && isAutoStarting) setIsAutoStarting(false);
+  }, [isSharing, isAutoStarting]);
 
   // Check if current user is host + participant name
   useEffect(() => {
@@ -489,30 +501,6 @@ export function LiveStream({ roomId }: LiveStreamProps) {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-y-auto lg:overflow-hidden min-h-0">
         {/* 观众端移动端：视频区优先显示（order-1），主播端聊天区在前 */}
         <div className={`lg:col-span-2 flex flex-col bg-white rounded-lg shadow overflow-hidden ${!isHost ? 'order-2 lg:order-1' : 'order-1'}`}>
-          {/* 主播未开播时的提示 */}
-          {isHost && !room.isLive && (
-            <div className="p-6 bg-amber-50 border-b border-amber-200">
-              <p className="text-amber-800 font-medium mb-3 text-center">直播尚未开始，选择直播模式：</p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={() => startLivestream('video')}
-                  disabled={isTogglingLive}
-                  className="flex-1 px-6 py-4 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">📷</span>
-                  <span>视频直播（画面+声音）</span>
-                </button>
-                <button
-                  onClick={() => startLivestream('audio')}
-                  disabled={isTogglingLive}
-                  className="flex-1 px-6 py-4 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <span className="text-2xl">🎤</span>
-                  <span>语音直播（仅声音）</span>
-                </button>
-              </div>
-            </div>
-          )}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />
@@ -553,18 +541,28 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         <div className={`flex flex-col gap-4 overflow-hidden min-h-0 ${!isHost ? 'order-1 lg:order-2' : 'order-2'}`}>
           {/* 视频直播区域 - 保证最小高度，避免空白 */}
           <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-[200px] sm:min-h-[260px]">
-            {/* 主播未开摄像头时的醒目提示 */}
+            {/* 主播未开摄像头时的提示：自动开启中 vs 开启失败需手动 */}
             {isHost && room.isLive && !isSharing && (
-              <div className="px-4 py-2 bg-amber-500 text-white text-center text-sm font-medium flex flex-col sm:flex-row items-center justify-center gap-2">
+              <div
+                className={`px-4 py-2 text-center text-sm font-medium flex flex-col sm:flex-row items-center justify-center gap-2 ${
+                  isAutoStarting ? 'bg-blue-100 text-blue-800' : 'bg-amber-500 text-white'
+                }`}
+              >
                 <span>{(room.liveMode ?? 'video') === 'video' ? '📷' : '🎤'}</span>
                 <span>
-                  {(room.liveMode ?? 'video') === 'video'
-                    ? '观众看不到画面！请点击上方「摄像头直播」或下方按钮开启'
-                    : '观众听不到声音！请点击上方「麦克风直播」或下方按钮开启'}
+                  {isAutoStarting
+                    ? (room.liveMode ?? 'video') === 'video'
+                      ? '正在开启摄像头...'
+                      : '正在开启麦克风...'
+                    : (room.liveMode ?? 'video') === 'video'
+                      ? '开启失败，请点击下方按钮重新开启摄像头'
+                      : '开启失败，请点击下方按钮重新开启麦克风'}
                 </span>
-                <span className="text-xs opacity-90">
-                  （需语音直播？请先结束直播，再选择「语音直播」）
-                </span>
+                {!isAutoStarting && (
+                  <span className="text-xs opacity-90">
+                    （需语音直播？请先结束直播，再选择「语音直播」）
+                  </span>
+                )}
               </div>
             )}
             <div className="flex items-center justify-between px-4 py-2 bg-black/5 border-b">
@@ -625,30 +623,41 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                   ) : null}
                   <p>
                     {room.isLive
-                      ? noHostRegistered
-                        ? '主播尚未开启摄像头，请主播点击「摄像头直播」'
-                        : isRoomConnected
+                      ? isHost && !isSharing
+                        ? isAutoStarting
                           ? (room.liveMode ?? 'video') === 'video'
-                            ? '已连接房间，等待主播开启摄像头'
-                            : '已连接房间，等待主播开启麦克风'
+                            ? '正在开启摄像头...'
+                            : '正在开启麦克风...'
                           : (room.liveMode ?? 'video') === 'video'
-                            ? '等待画面...'
-                            : '等待声音...'
+                            ? '开启失败，点击下方按钮重新开启摄像头'
+                            : '开启失败，点击下方按钮重新开启麦克风'
+                        : noHostRegistered
+                          ? '主播尚未开启摄像头'
+                          : isRoomConnected
+                            ? (room.liveMode ?? 'video') === 'video'
+                              ? '已连接房间，等待主播画面'
+                              : '已连接房间，等待主播声音'
+                            : (room.liveMode ?? 'video') === 'video'
+                              ? '等待画面...'
+                              : '等待声音...'
                       : '直播未开始'}
                   </p>
                   {room.isLive && !isHost && (
                     <p className="text-xs text-gray-500 mt-2">
-                      {(room.liveMode ?? 'video') === 'video'
-                        ? '若长时间无画面，请主播点击「摄像头直播」'
-                        : '若长时间无声音，请主播点击「麦克风直播」'}
+                      若长时间无画面，请稍候或刷新页面
                     </p>
                   )}
                   {isHost && room.isLive && !isSharing && (
                     <button
-                      onClick={() => startScreenShare(room.liveMode === 'video')}
-                      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+                      onClick={() => !isAutoStarting && startScreenShare(room.liveMode === 'video')}
+                      disabled={isAutoStarting}
+                      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                      {(room.liveMode ?? 'video') === 'video' ? '打开摄像头开始视频直播' : '打开麦克风开始语音直播'}
+                      {isAutoStarting
+                        ? '连接中...'
+                        : (room.liveMode ?? 'video') === 'video'
+                          ? '重新开启摄像头'
+                          : '重新开启麦克风'}
                     </button>
                   )}
                   {!isHost && room.isLive && requestVideoStream && (
