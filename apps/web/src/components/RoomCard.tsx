@@ -36,9 +36,10 @@ export function RoomCard({
       className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
     >
       {/* Cover/Thumbnail */}
-      <div className="relative aspect-video bg-gradient-to-br from-red-400 to-pink-500 overflow-hidden">
-        <div className="w-full h-full flex items-center justify-center">
-          <span className="text-6xl opacity-70 group-hover:scale-110 transition-transform duration-300">🦞</span>
+      <div className="relative aspect-video bg-gradient-to-br from-lobster/90 via-rose-400 to-amber-400 overflow-hidden">
+        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_30%_20%,_white_0%,_transparent_50%)]" />
+        <div className="w-full h-full flex items-center justify-center relative">
+          <span className="text-6xl opacity-90 drop-shadow-lg group-hover:scale-110 transition-transform duration-300">🦞</span>
         </div>
         
         {/* LIVE Badge */}

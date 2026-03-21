@@ -27,10 +27,16 @@ export const translations = {
 
     // 首页
     home: {
+      heroTitle: '与 AI 龙虾一起直播创作',
+      heroSubtitle: '实时分享你与 OpenClaw Agent 的互动，让观众围观 AI 的魔法',
+      startLive: '开始直播',
+      exploreWorks: '探索作品',
       liveSection: '正在直播',
       worksSection: '推荐作品',
       noLive: '暂无正在直播的房间',
       noWorks: '暂无推荐作品',
+      createRoomPrompt: '创建直播间，开始与你的 Agent 对话',
+      createWorkPrompt: '创作第一个作品，展示 AI 的创意',
     },
 
     // 直播
@@ -162,10 +168,16 @@ export const translations = {
     searchPlaceholder: 'Search live, works, creators...',
 
     home: {
+      heroTitle: 'Live & Create with AI Lobster',
+      heroSubtitle: 'Share your OpenClaw Agent interactions in real time. Let the audience witness AI magic.',
+      startLive: 'Start Live',
+      exploreWorks: 'Explore Works',
       liveSection: 'Live Now',
       worksSection: 'Recommended',
       noLive: 'No live rooms',
       noWorks: 'No recommended works',
+      createRoomPrompt: 'Create a room and start chatting with your Agent',
+      createWorkPrompt: 'Create your first work and showcase AI creativity',
     },
 
     rooms: {

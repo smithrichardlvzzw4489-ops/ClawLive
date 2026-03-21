@@ -72,8 +72,36 @@ export default function HomePage() {
   return (
     <MainLayout>
       <div className="container mx-auto px-6 py-8">
+        {/* Hero Section */}
+        <section className="mb-16 text-center">
+          <div className="animate-fade-in max-w-2xl mx-auto">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              {t('home.heroTitle')}
+            </h1>
+            <p className="text-gray-600 text-lg mb-8">
+              {t('home.heroSubtitle')}
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
+              <Link
+                href="/rooms"
+                className="px-8 py-3.5 bg-lobster text-white rounded-xl font-semibold hover:bg-lobster-dark transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-2"
+              >
+                <span>📹</span>
+                <span>{t('home.startLive')}</span>
+              </Link>
+              <Link
+                href="/works"
+                className="px-8 py-3.5 border-2 border-lobster text-lobster rounded-xl font-semibold hover:bg-lobster/5 transition-all flex items-center gap-2"
+              >
+                <span>📚</span>
+                <span>{t('home.exploreWorks')}</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* Live Rooms Section */}
-        <section className="mb-12">
+        <section className="mb-16">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <span className="w-1 h-8 bg-lobster rounded-full"></span>
@@ -81,7 +109,7 @@ export default function HomePage() {
             </h2>
             <Link
               href="/rooms"
-              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1"
+              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1 transition-colors"
             >
               <span>{t('more')}</span>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -91,17 +119,27 @@ export default function HomePage() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center py-16">
               <div className="animate-spin text-6xl">🦞</div>
             </div>
           ) : liveRooms.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl">
-              <p className="text-gray-500">{t('home.noLive')}</p>
+            <div className="text-center py-16 px-6 bg-white/80 rounded-2xl border-2 border-dashed border-gray-200 animate-fade-in">
+              <span className="text-6xl block mb-4">📡</span>
+              <p className="text-gray-600 text-lg mb-2">{t('home.noLive')}</p>
+              <p className="text-gray-500 text-sm mb-6">{t('home.createRoomPrompt')}</p>
+              <Link
+                href="/rooms/create"
+                className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium hover:bg-lobster-dark transition-colors"
+              >
+                {t('rooms.createRoom')}
+              </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {liveRooms.map((room) => (
-                <RoomCard key={room.id} {...room} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {liveRooms.map((room, i) => (
+                <div key={room.id} className="animate-slide-up" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}>
+                  <RoomCard {...room} />
+                </div>
               ))}
             </div>
           )}
@@ -116,7 +154,7 @@ export default function HomePage() {
             </h2>
             <Link
               href="/works"
-              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1"
+              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1 transition-colors"
             >
               <span>{t('more')}</span>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,17 +164,27 @@ export default function HomePage() {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex justify-center py-16">
               <div className="animate-spin text-6xl">🦞</div>
             </div>
           ) : recommendedWorks.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl">
-              <p className="text-gray-500">{t('home.noWorks')}</p>
+            <div className="text-center py-16 px-6 bg-white/80 rounded-2xl border-2 border-dashed border-gray-200 animate-fade-in">
+              <span className="text-6xl block mb-4">🖼️</span>
+              <p className="text-gray-600 text-lg mb-2">{t('home.noWorks')}</p>
+              <p className="text-gray-500 text-sm mb-6">{t('home.createWorkPrompt')}</p>
+              <Link
+                href="/works/create"
+                className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium hover:bg-lobster-dark transition-colors"
+              >
+                {t('works.createFirst')}
+              </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {recommendedWorks.map((work) => (
-                <WorkCard key={work.id} {...work} />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {recommendedWorks.map((work, i) => (
+                <div key={work.id} className="animate-slide-up" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}>
+                  <WorkCard {...work} />
+                </div>
               ))}
             </div>
           )}

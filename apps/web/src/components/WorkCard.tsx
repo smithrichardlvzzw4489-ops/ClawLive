@@ -39,7 +39,7 @@ export function WorkCard({
       className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
     >
       {/* Cover Image / Video Preview */}
-      <div className="relative aspect-video bg-gradient-to-br from-lobster-light to-purple-200 overflow-hidden">
+      <div className="relative aspect-video overflow-hidden">
         {coverImage ? (
           <img
             src={coverImage}
@@ -47,12 +47,13 @@ export function WorkCard({
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : videoUrl ? (
-          <div className="w-full h-full flex items-center justify-center bg-gray-900">
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900">
             <span className="text-5xl opacity-80">🎬</span>
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-6xl opacity-50">🦞</span>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-400/80 to-indigo-500/80">
+            <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_70%_80%,_white_0%,_transparent_60%)]" />
+            <span className="text-6xl opacity-90 relative drop-shadow-md">🦞</span>
           </div>
         )}
         
