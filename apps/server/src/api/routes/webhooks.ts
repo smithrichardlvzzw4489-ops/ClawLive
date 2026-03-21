@@ -47,10 +47,11 @@ export function webhookRoutes(io: Server): Router {
       const simpleRoom = await getRoom(roomId);
       if (simpleRoom) {
         const content = payload.content || '';
+        const sender = (payload.sender === 'agent' ? 'agent' : 'host') as 'host' | 'agent';
         const message = {
           id: Date.now().toString(),
           roomId,
-          sender: payload.sender === 'agent' ? 'agent' : ('host' as const),
+          sender,
           content,
           timestamp: new Date(payload.timestamp || Date.now()),
         };
