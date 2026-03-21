@@ -227,7 +227,10 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
       const data = await response.json().catch(() => ({}));
       if (response.ok && data.message) {
-        setMessages((prev) => [...prev, data.message]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       } else {
         setHostMessage(content);
