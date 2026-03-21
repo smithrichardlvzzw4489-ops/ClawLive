@@ -265,7 +265,7 @@ export default function MyWorksPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">✅ {t('myWorks.published')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {publishedWorks.map((work) => (
-                <div key={work.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
+                <div key={work.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden relative">
                   <Link href={`/works/${work.id}`} className="block">
                     <div className="relative aspect-video bg-gradient-to-br from-lobster-light to-purple-200">
                       {work.coverImage ? (
@@ -290,6 +290,18 @@ export default function MyWorksPage() {
                       </div>
                     </div>
                   </Link>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      deleteWork(work.id);
+                    }}
+                    className="absolute top-3 right-3 p-2 bg-white/90 hover:bg-red-600 text-gray-600 hover:text-white rounded-lg shadow transition-colors"
+                    title={t('myWorks.delete')}
+                  >
+                    🗑️
+                  </button>
                 </div>
               ))}
             </div>
