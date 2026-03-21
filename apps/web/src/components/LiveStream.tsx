@@ -257,7 +257,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
             privacyFilters: [],
             viewerCount: 0,
             createdAt: new Date(),
-            host: { id: '', username: 'Unknown', avatarUrl: null },
+            host: { id: '', username: 'Unknown', avatarUrl: undefined },
           } as Room);
           return null;
         }
