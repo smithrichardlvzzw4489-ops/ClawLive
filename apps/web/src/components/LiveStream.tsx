@@ -38,6 +38,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const [participantName, setParticipantName] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stableViewerId = useMemo(() => `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, []);
+  const hasAutoStartedCameraRef = useRef(false);
 
   const useLiveKitMode = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
@@ -68,6 +69,24 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     stopScreenShare,
     requestStream: requestVideoStream,
   } = useLiveKitMode ? livekitVideo : p2pVideo;
+
+  // 主播进入直播界面后自动开启摄像头/麦克风，无需手动点击
+  useEffect(() => {
+    if (!room) return;
+    if (!room.isLive) {
+      hasAutoStartedCameraRef.current = false;
+      return;
+    }
+    if (!isHost || isSharing || isTogglingLive) return;
+    const liveMode = room.liveMode ?? 'video';
+    if (hasAutoStartedCameraRef.current) return;
+
+    const timer = setTimeout(() => {
+      hasAutoStartedCameraRef.current = true;
+      startScreenShare(liveMode === 'video');
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [room?.isLive, room?.liveMode, isHost, isSharing, isTogglingLive, startScreenShare]);
 
   // Check if current user is host + participant name
   useEffect(() => {
