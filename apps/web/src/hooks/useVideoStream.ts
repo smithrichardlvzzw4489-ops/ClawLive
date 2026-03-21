@@ -26,6 +26,7 @@ export function useVideoStream({ roomId, socket, isHost, isLive, disabled = fals
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
+  const [noHostRegistered, setNoHostRegistered] = useState(false);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
 
@@ -83,9 +84,16 @@ export function useVideoStream({ roomId, socket, isHost, isLive, disabled = fals
 
   useEffect(() => {
     if (disabled || !socket || isHost) return;
-    socket.on('webrtc-host-ready', requestStream);
+    const onHostReady = () => {
+      setNoHostRegistered(false);
+      requestStream();
+    };
+    const onNoHost = () => setNoHostRegistered(true);
+    socket.on('webrtc-host-ready', onHostReady);
+    socket.on('webrtc-no-host', onNoHost);
     return () => {
-      socket.off('webrtc-host-ready', requestStream);
+      socket.off('webrtc-host-ready', onHostReady);
+      socket.off('webrtc-no-host', onNoHost);
     };
   }, [disabled, socket, isHost, requestStream]);
 
@@ -148,6 +156,7 @@ export function useVideoStream({ roomId, socket, isHost, isLive, disabled = fals
     if (disabled || !socket || isHost) return;
 
     const handleOffer = async ({ sdp, fromHostId }: { sdp: RTCSessionDescriptionInit; fromHostId: string }) => {
+      setNoHostRegistered(false);
       hostIdRef.current = fromHostId;
       pcRef.current?.close();
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -245,6 +254,7 @@ export function useVideoStream({ roomId, socket, isHost, isLive, disabled = fals
     isSpeaker: false,
     isReconnecting: false,
     isRoomConnected: false,
+    noHostRegistered,
     startScreenShare,
     stopScreenShare,
     requestStream: isHost ? undefined : requestStream,

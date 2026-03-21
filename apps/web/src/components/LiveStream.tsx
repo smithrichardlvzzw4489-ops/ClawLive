@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import { useVideoStream } from '@/hooks/useVideoStream';
 import { useLiveKit } from '@/hooks/useLiveKit';
@@ -19,6 +20,8 @@ interface LiveStreamProps {
 }
 
 export function LiveStream({ roomId }: LiveStreamProps) {
+  const searchParams = useSearchParams();
+  const debugMode = searchParams.get('debug') === '1';
   const { socket, isConnected } = useSocket();
   const [room, setRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -60,6 +63,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     isSharing,
     isReconnecting,
     isRoomConnected,
+    noHostRegistered = false,
     startScreenShare,
     stopScreenShare,
     requestStream: requestVideoStream,
@@ -360,6 +364,13 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
+      {debugMode && (
+        <div className="bg-slate-800 text-green-300 text-xs p-2 font-mono overflow-x-auto">
+          [DEBUG] LiveKit={String(useLiveKitMode)} | isHost={String(isHost)} | isLive={String(room.isLive)} |
+          hasStream={String(!!videoStream)} | socket={String(isConnected)} | noHost={String(noHostRegistered)} |
+          error={videoError || '-'}
+        </div>
+      )}
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/rooms" className="text-2xl hover:scale-110 transition-transform">
@@ -590,13 +601,15 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                   ) : null}
                   <p>
                     {room.isLive
-                      ? isRoomConnected
-                        ? (room.liveMode ?? 'video') === 'video'
-                          ? '已连接房间，等待主播开启摄像头'
-                          : '已连接房间，等待主播开启麦克风'
-                        : (room.liveMode ?? 'video') === 'video'
-                          ? '等待画面...'
-                          : '等待声音...'
+                      ? noHostRegistered
+                        ? '主播尚未开启摄像头，请主播点击「摄像头直播」'
+                        : isRoomConnected
+                          ? (room.liveMode ?? 'video') === 'video'
+                            ? '已连接房间，等待主播开启摄像头'
+                            : '已连接房间，等待主播开启麦克风'
+                          : (room.liveMode ?? 'video') === 'video'
+                            ? '等待画面...'
+                            : '等待声音...'
                       : '直播未开始'}
                   </p>
                   {room.isLive && !isHost && (

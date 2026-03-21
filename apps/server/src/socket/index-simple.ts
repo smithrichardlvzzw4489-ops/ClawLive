@@ -232,7 +232,7 @@ export async function setupSocketIO(io: Server): Promise<void> {
       if (roomId) {
         await setVideoHost(roomId, socket.id);
         io.to(roomId).emit('webrtc-host-ready');
-        console.log(`[WebRTC] Host registered for room ${roomId}`);
+        console.log(`[WebRTC] Host ${socket.id} registered for room ${roomId}`);
       }
     });
 
@@ -248,11 +248,16 @@ export async function setupSocketIO(io: Server): Promise<void> {
       const hostId = await getVideoHost(roomId);
       if (hostId) {
         io.to(hostId).emit('webrtc-viewer-request', { viewerId: socket.id });
+        console.log(`[WebRTC] viewer ${socket.id} requested stream for room ${roomId}, forwarding to host ${hostId}`);
+      } else {
+        console.log(`[WebRTC] viewer ${socket.id} requested stream for room ${roomId}, but NO HOST REGISTERED`);
+        io.to(socket.id).emit('webrtc-no-host', { roomId });
       }
     });
 
     socket.on('webrtc-offer', ({ roomId, toViewerId, sdp }: { roomId: string; toViewerId: string; sdp: RTCSessionDescriptionInit }) => {
       io.to(toViewerId).emit('webrtc-offer', { sdp, fromHostId: socket.id });
+      console.log(`[WebRTC] offer sent from host ${socket.id} to viewer ${toViewerId} room ${roomId}`);
     });
 
     socket.on('webrtc-answer', ({ roomId, toHostId, sdp }: { roomId: string; toHostId: string; sdp: RTCSessionDescriptionInit }) => {
