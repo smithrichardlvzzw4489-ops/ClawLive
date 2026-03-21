@@ -44,8 +44,9 @@
 
 | 变量名 | 说明 |
 |--------|------|
-| `WEBHOOK_SECRET` | Webhook 签名密钥，与前端配置一致 | `your-webhook-secret` |
-| `WEBHOOK_BASE_URL` | 可选，Webhook 回调地址，默认 `http://127.0.0.1:PORT` |
+| `WEBHOOK_SECRET` | Webhook 签名密钥，与 OpenClaw/前端配置一致 | `your-webhook-secret` |
+| `WEBHOOK_BASE_URL` | 可选，Bridge 自调 webhook 的地址，默认 `http://127.0.0.1:PORT` |
+| `AGENT_SAME_AS_BOT` | 若 Agent 用同一 Bot 回复，设为 `true` 以接收 | `false` |
 
 **MTProto 模式（agentType: telegram-user）：**
 
@@ -133,9 +134,12 @@
 
 ### 直播端收不到小龙虾（Agent）消息
 
-1. 检查 Telegram Agent 配置（Bot Token、Chat ID）
-2. 检查 `WEBHOOK_SECRET` 是否与配置一致
-3. 多实例时确认 `REDIS_URL` 已配置
+1. **Telegram 配置**：检查 Bot Token、Chat ID 是否正确
+2. **WEBHOOK_SECRET**：需与 OpenClaw clawlive-broadcaster 的 `webhookSecret` 完全一致
+3. **Agent 用同一 Bot 回复**：在 Railway 设置 `AGENT_SAME_AS_BOT=true`
+4. **OpenClaw 直接推 webhook**：确认 `webhookUrl` 为 `https://你的后端/api/webhooks/openclaw`
+5. **多实例**：确认 `REDIS_URL` 已配置
+6. **日志**：查看 Railway 是否有 `Telegram bridge started`、`❌ ClawLive webhook failed` 或 `Invalid webhook signature`
 
 ### 观众看不到视频
 

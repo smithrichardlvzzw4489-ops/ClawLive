@@ -230,11 +230,14 @@ export class TelegramBridgeService {
    * Handle incoming message from Telegram (Agent response)
    */
   private async handleTelegramMessage(message: TelegramMessage): Promise<void> {
-    // CRITICAL: Ignore messages from the Bot itself (only accept messages from Agent/users)
-    const botInfo = await this.getBotInfo();
-    if (botInfo && message.from.id === botInfo.id) {
-      console.log(`⏭️  Skipping message from Bot itself (ID: ${message.from.id})`);
-      return;
+    // 若 Agent 使用同一 Bot 回复，需设置 AGENT_SAME_AS_BOT=true 以接收
+    const agentSameAsBot = process.env.AGENT_SAME_AS_BOT === 'true';
+    if (!agentSameAsBot) {
+      const botInfo = await this.getBotInfo();
+      if (botInfo && message.from.id === botInfo.id) {
+        console.log(`⏭️  Skipping message from Bot itself (ID: ${message.from.id}). Set AGENT_SAME_AS_BOT=true if Agent uses same bot.`);
+        return;
+      }
     }
     
     // Check message age
@@ -336,7 +339,7 @@ export class TelegramBridgeService {
         console.log(`✅ Pushed to ClawLive`);
       } else {
         const error = await response.text();
-        console.error(`❌ ClawLive webhook failed:`, error);
+        console.error(`❌ ClawLive webhook failed (${response.status}):`, error);
       }
     } catch (error) {
       console.error(`❌ Failed to push to ClawLive:`, error);

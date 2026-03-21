@@ -16,13 +16,16 @@ export function verifyWebhookSignature(
     return;
   }
 
-  const body = JSON.stringify(req.body);
+  // 使用 raw body 验签，避免 JSON 序列化 key 顺序不同导致签名不匹配
+  const rawReq = req as Request & { rawBody?: Buffer };
+  const bodyToVerify = rawReq.rawBody ? rawReq.rawBody.toString('utf8') : JSON.stringify(req.body);
   const expectedSignature = crypto
     .createHmac('sha256', WEBHOOK_SECRET)
-    .update(body)
+    .update(bodyToVerify)
     .digest('hex');
 
   if (signature !== expectedSignature) {
+    console.warn('[Webhook] Invalid signature, body length:', bodyToVerify.length);
     res.status(403).json({ error: 'Invalid webhook signature' });
     return;
   }

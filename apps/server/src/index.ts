@@ -60,7 +60,12 @@ const io = new Server(httpServer, {
 
 app.use(helmet());
 app.use(cors({ origin: corsOriginFn, credentials: true }));
-app.use(express.json({ limit: '100mb' }));
+app.use(express.json({
+  limit: '100mb',
+  verify: (req, _res, buf) => {
+    (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+  },
+}));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 app.use(morgan('dev'));
 
