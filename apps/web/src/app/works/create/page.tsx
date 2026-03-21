@@ -1,12 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function CreateWorkPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  // Auth guard: 未登录则跳转登录页，登录成功后返回
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem('token')) {
+      router.replace('/login?redirect=/works/create');
+      return;
+    }
+  }, [router]);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     title: '',

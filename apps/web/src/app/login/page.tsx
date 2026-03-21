@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -9,6 +9,8 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
   const { login } = useAuth();
   const { t } = useLocale();
   const [username, setUsername] = useState('');
@@ -23,7 +25,7 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-      router.push('/');
+      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
     } catch (err: any) {
       setError(err.message || t('auth.loginFailed'));
     } finally {

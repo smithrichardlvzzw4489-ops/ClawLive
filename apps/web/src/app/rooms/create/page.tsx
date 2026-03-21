@@ -48,6 +48,15 @@ export default function CreateRoomPage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [liveMode, setLiveMode] = useState<'video' | 'audio'>('video');
 
+  // Auth guard: 未登录则跳转登录页，登录成功后返回
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem('token')) {
+      router.replace('/login?redirect=/rooms/create');
+      return;
+    }
+  }, [router]);
+
   // Load user connections when entering agent step
   useEffect(() => {
     if (currentStep !== 'agent' || !createdRoomId) return;
