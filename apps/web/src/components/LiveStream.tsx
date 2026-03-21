@@ -282,6 +282,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   useEffect(() => {
     if (!socket || !isConnected) return;
 
+    if (debugMode) console.log('[DIAG] join-room', roomId);
     socket.emit('join-room', { roomId, role: 'viewer' });
     trackBehavior('room_join', roomId);
 
@@ -301,6 +302,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     });
 
     socket.on('new-message', (msg) => {
+      if (debugMode) console.log('[DIAG] new-message received', msg?.id, msg?.sender, msg?.content?.slice(0, 40));
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];

@@ -413,6 +413,9 @@ export function roomSimpleRoutes(io: Server): Router {
       if (isLive === 'true') {
         filtered = rooms.filter(room => room.isLive);
       }
+      if (process.env.DIAG_LIVE === '1') {
+        console.log(`[DIAG] GET /api/rooms isLive=${isLive} total=${rooms.length} filtered=${filtered.length} ids=${filtered.map((r) => r.id).join(',')}`);
+      }
 
       res.json({
         rooms: filtered,

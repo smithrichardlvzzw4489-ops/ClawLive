@@ -510,7 +510,12 @@ export class MTProtoUserService {
             });
 
             this.ioInstance.to(roomId).emit('new-message', agentMessage);
-            console.log(`✅ Agent reply pushed to ClawLive room ${roomId}`);
+            try {
+              const socks = await this.ioInstance.in(roomId).fetchSockets();
+              console.log(`✅ Agent reply pushed to ClawLive room ${roomId} [${socks.length} viewers]`);
+            } catch {
+              console.log(`✅ Agent reply pushed to ClawLive room ${roomId}`);
+            }
           }
         }
 

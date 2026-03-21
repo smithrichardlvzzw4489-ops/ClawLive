@@ -134,7 +134,7 @@ export async function setupSocketIO(io: Server): Promise<void> {
         // Send message history（支持 Redis 多实例）
         const history = await getMessageHistory(roomId);
         socket.emit('message-history', history);
-        console.log(`[MSG] Sent ${history.length} historical messages to ${socket.id}`);
+        console.log(`[MSG] Sent ${history.length} historical messages to ${socket.id} room=${roomId}`);
 
         // 发送完整房间信息（含 isLive），支持 Redis 多实例
         const room = await getRoom(roomId);
