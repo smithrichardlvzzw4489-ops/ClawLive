@@ -98,8 +98,17 @@ loaded.workMessages.forEach((msgs, workId) => {
   workMessages.set(workId, msgs.map((m) => ({ ...m, workId })));
 });
 
+// 校验 hostId 是否为有效的 UUID（避免触发 Prisma 引擎 panic）
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+function isValidHostId(id: string): boolean {
+  return typeof id === 'string' && id.length > 0 && UUID_REGEX.test(id);
+}
+
 // 获取主播信息：优先内存，否则从数据库拉取并缓存
 async function getHostInfo(hostId: string): Promise<{ id: string; username: string; avatarUrl?: string | null }> {
+  if (!isValidHostId(hostId)) {
+    return { id: hostId, username: 'Unknown', avatarUrl: null };
+  }
   let host = userProfiles.get(hostId);
   if (host) return { id: host.id, username: host.username, avatarUrl: host.avatarUrl };
   try {
@@ -113,6 +122,43 @@ async function getHostInfo(hostId: string): Promise<{ id: string; username: stri
     console.warn('[getHostInfo] Prisma lookup failed:', e);
   }
   return { id: hostId, username: 'Unknown', avatarUrl: null };
+}
+
+// 批量获取主播信息（单次 findMany，避免并行 findUnique 触发 Prisma 引擎 panic）
+async function getHostInfoBatch(hostIds: string[]): Promise<Map<string, { id: string; username: string; avatarUrl?: string | null }>> {
+  const result = new Map<string, { id: string; username: string; avatarUrl?: string | null }>();
+  const toFetch = hostIds.filter((id) => isValidHostId(id));
+  const fromCache = toFetch.filter((id) => userProfiles.has(id));
+  for (const id of fromCache) {
+    const h = userProfiles.get(id)!;
+    result.set(id, { id: h.id, username: h.username, avatarUrl: h.avatarUrl });
+  }
+  const needDb = toFetch.filter((id) => !userProfiles.has(id));
+  if (needDb.length === 0) {
+    for (const id of hostIds) {
+      if (!result.has(id)) result.set(id, { id, username: 'Unknown', avatarUrl: null });
+    }
+    return result;
+  }
+  try {
+    const users = await prisma.user.findMany({
+      where: { id: { in: needDb } },
+      select: { id: true, username: true, avatarUrl: true },
+    });
+    for (const u of users) {
+      const profile = { id: u.id, username: u.username, avatarUrl: u.avatarUrl ?? undefined };
+      userProfiles.set(u.id, { ...profile, bio: undefined });
+      result.set(u.id, { ...profile, avatarUrl: u.avatarUrl ?? null });
+    }
+  } catch (e) {
+    console.warn('[getHostInfoBatch] Prisma lookup failed:', e);
+  }
+  for (const id of hostIds) {
+    if (!result.has(id)) {
+      result.set(id, { id, username: 'Unknown', avatarUrl: null });
+    }
+  }
+  return result;
 }
 
 // Initialize test user profile
@@ -347,8 +393,10 @@ export function roomSimpleRoutes(io: Server): Router {
       const { isLive } = req.query;
       
       const roomList = await getAllRooms();
-      const rooms = await Promise.all(roomList.map(async (room) => {
-        const host = await getHostInfo(room.hostId);
+      const hostIds = roomList.map((r) => r.hostId);
+      const hostMap = await getHostInfoBatch(hostIds);
+      const rooms = roomList.map((room) => {
+        const host = hostMap.get(room.hostId) ?? { id: room.hostId, username: 'Unknown', avatarUrl: null };
         return {
           id: room.id,
           title: room.title,
@@ -359,7 +407,7 @@ export function roomSimpleRoutes(io: Server): Router {
           startedAt: room.startedAt,
           host: { id: host.id, username: host.username, avatarUrl: host.avatarUrl ?? null },
         };
-      }));
+      });
 
       let filtered = rooms;
       if (isLive === 'true') {
