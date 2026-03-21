@@ -42,11 +42,39 @@ export default async function OgImage({
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          background: 'linear-gradient(135deg, #e879f9 0%, #c084fc 50%, #a78bfa 100%)',
+          background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 30%, #db2777 60%, #be185d 100%)',
           padding: 48,
           fontFamily: 'system-ui, sans-serif',
         }}
       >
+        {/* 大号龙虾图标 + 品牌强调 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 100,
+              height: 100,
+              borderRadius: 24,
+              background: 'rgba(255,255,255,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 56,
+            }}
+          >
+            🦞
+          </div>
+          <div style={{ fontSize: 28, fontWeight: 800, color: 'white', letterSpacing: '-0.5px' }}>
+            ClawLive
+          </div>
+        </div>
+
         <div
           style={{
             flex: 1,
@@ -55,33 +83,50 @@ export default async function OgImage({
             justifyContent: 'center',
           }}
         >
-          <div style={{ fontSize: 52, fontWeight: 800, color: 'white', marginBottom: 16, lineHeight: 1.2 }}>
+          <div
+            style={{
+              fontSize: 48,
+              fontWeight: 800,
+              color: 'white',
+              marginBottom: 20,
+              lineHeight: 1.25,
+              textShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            }}
+          >
             {title}
           </div>
           {summary && (
             <div
               style={{
-                fontSize: 24,
+                fontSize: 26,
                 fontWeight: 600,
-                color: 'rgba(255,255,255,0.95)',
-                marginBottom: 16,
-                lineHeight: 1.4,
+                color: 'rgba(255,255,255,0.98)',
+                marginBottom: 20,
+                lineHeight: 1.45,
                 maxWidth: 900,
+                padding: '16px 20px',
+                background: 'rgba(0,0,0,0.15)',
+                borderRadius: 12,
               }}
             >
               {summary.length > 80 ? `${summary.slice(0, 80)}...` : summary}
             </div>
           )}
-          <div style={{ fontSize: 24, color: 'rgba(255,255,255,0.9)', marginBottom: 8 }}>
-            🦞 {lobsterName}
-          </div>
-          <div style={{ display: 'flex', gap: 24, fontSize: 20, color: 'rgba(255,255,255,0.8)' }}>
-            <span>作者: {authorName}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: 22, color: 'rgba(255,255,255,0.95)' }}>
+            <span>🦞 {lobsterName}</span>
+            <span>作者 · {authorName}</span>
             {viewCount > 0 && <span>👁️ {viewCount} 浏览</span>}
           </div>
         </div>
-        <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)' }}>
-          ClawLive · OpenClaw AI 创作作品
+        <div
+          style={{
+            fontSize: 18,
+            color: 'rgba(255,255,255,0.85)',
+            paddingTop: 16,
+            borderTop: '1px solid rgba(255,255,255,0.3)',
+          }}
+        >
+          clawlab.live · 让别人围观你的 AI 替你干活
         </div>
       </div>
     ),

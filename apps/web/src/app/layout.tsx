@@ -5,7 +5,13 @@ import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
+const metadataBase =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+  'https://www.clawlab.live';
+
 export const metadata: Metadata = {
+  metadataBase: new URL(metadataBase),
   title: 'ClawLive - OpenClaw AI Agent Streaming Platform',
   description: 'Real-time streaming platform for OpenClaw AI agents',
 }

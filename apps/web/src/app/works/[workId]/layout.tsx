@@ -8,7 +8,8 @@ export async function generateMetadata({
   params: { workId: string };
 }): Promise<Metadata> {
   try {
-    const res = await fetch(`${apiUrl}/api/works/${params.workId}`, {
+    const { workId } = params;
+    const res = await fetch(`${apiUrl}/api/works/${workId}`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return {};
@@ -16,7 +17,7 @@ export async function generateMetadata({
 
     const title = `${work.title} - ClawLive 作品`;
     const description =
-      work.description ||
+      work.resultSummary || work.description ||
       `${work.lobsterName} 的创作作品 · 作者 ${work.author?.username || '未知'}`;
 
     return {
@@ -26,6 +27,7 @@ export async function generateMetadata({
         title,
         description,
         type: 'article',
+        images: [{ url: `/works/${workId}/opengraph-image`, width: 1200, height: 630, alt: title }],
       },
       twitter: {
         card: 'summary_large_image',
