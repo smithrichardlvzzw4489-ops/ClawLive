@@ -106,12 +106,22 @@ export async function setupSocketIO(io: Server): Promise<void> {
       });
   }
 
+  /** 规范化 roomId：客户端可能发 URL 编码，MTProto/Redis 用解码形式，必须统一 */
+  function normalizeRoomId(id: string): string {
+    if (!id || typeof id !== 'string') return id;
+    try {
+      return decodeURIComponent(id);
+    } catch {
+      return id;
+    }
+  }
+
   io.on('connection', (socket: Socket) => {
     console.log(`Client connected: ${socket.id}`);
 
     socket.on('join-room', async (payload) => {
       try {
-        const roomId = typeof payload === 'string' ? payload : payload?.roomId;
+        let roomId = typeof payload === 'string' ? payload : payload?.roomId;
         const role = (typeof payload === 'object' && payload?.role) || 'viewer';
         const agentId = typeof payload === 'object' ? payload?.agentId : undefined;
 
@@ -119,6 +129,7 @@ export async function setupSocketIO(io: Server): Promise<void> {
           socket.emit('error', { message: 'roomId is required' });
           return;
         }
+        roomId = normalizeRoomId(roomId);
 
         await socket.join(roomId);
         socket.data.role = role;
@@ -175,8 +186,9 @@ export async function setupSocketIO(io: Server): Promise<void> {
     });
 
     socket.on('leave-room', async (payload) => {
-      const roomId = typeof payload === 'string' ? payload : payload?.roomId;
+      let roomId = typeof payload === 'string' ? payload : payload?.roomId;
       if (!roomId) return;
+      roomId = normalizeRoomId(roomId);
       await socket.leave(roomId);
       delete socket.data.roomId;
       delete socket.data.role;
@@ -228,7 +240,8 @@ export async function setupSocketIO(io: Server): Promise<void> {
     });
 
     // ========== WebRTC 视频直播信令 ==========
-    socket.on('webrtc-register-host', async ({ roomId }: { roomId: string }) => {
+    socket.on('webrtc-register-host', async (payload: { roomId?: string }) => {
+      const roomId = payload?.roomId ? normalizeRoomId(payload.roomId) : undefined;
       if (roomId) {
         await setVideoHost(roomId, socket.id);
         io.to(roomId).emit('webrtc-host-ready');
@@ -236,7 +249,8 @@ export async function setupSocketIO(io: Server): Promise<void> {
       }
     });
 
-    socket.on('webrtc-unregister-host', async ({ roomId }: { roomId: string }) => {
+    socket.on('webrtc-unregister-host', async (payload: { roomId?: string }) => {
+      const roomId = payload?.roomId ? normalizeRoomId(payload.roomId) : undefined;
       if (roomId) {
         await deleteVideoHost(roomId);
         io.to(roomId).emit('webrtc-stream-ended');
@@ -244,7 +258,9 @@ export async function setupSocketIO(io: Server): Promise<void> {
       }
     });
 
-    socket.on('webrtc-viewer-request', async ({ roomId }: { roomId: string }) => {
+    socket.on('webrtc-viewer-request', async (payload: { roomId?: string }) => {
+      const roomId = payload?.roomId ? normalizeRoomId(payload.roomId) : undefined;
+      if (!roomId) return;
       const hostId = await getVideoHost(roomId);
       if (hostId) {
         io.to(hostId).emit('webrtc-viewer-request', { viewerId: socket.id });
@@ -268,9 +284,11 @@ export async function setupSocketIO(io: Server): Promise<void> {
       io.to(toId).emit('webrtc-ice', { candidate, fromId: socket.id });
     });
 
-    socket.on('send-comment', async ({ roomId, content, nickname }) => {
+    socket.on('send-comment', async (payload: { roomId?: string; content?: string; nickname?: string }) => {
       try {
-        if (!content || content.trim().length === 0) {
+        let roomId = payload?.roomId ? normalizeRoomId(payload.roomId) : undefined;
+        const { content, nickname } = payload || {};
+        if (!roomId || !content || typeof content !== 'string' || content.trim().length === 0) {
           socket.emit('error', { message: 'Comment cannot be empty' });
           return;
         }

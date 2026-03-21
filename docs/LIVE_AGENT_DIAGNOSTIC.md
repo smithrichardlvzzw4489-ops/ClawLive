@@ -33,7 +33,7 @@ Socket.io Redis Adapter → 广播到各实例
 
 ### 可能原因
 
-1. **roomId 不一致**：MTProto 使用 `我的龙虾直播间-837832`，客户端 join 时使用了不同格式（如 URL 编码）→ Socket.io 的 room 名称必须完全一致
+1. **roomId 不一致（已修复）**：客户端发送 URL 编码的 roomId（如 `%E6%88%91...`），MTProto/Redis 使用解码形式（`我的龙虾直播间-837832`），导致 Socket.io room 不匹配。**修复**：服务端在 join-room/leave-room/send-comment/webrtc 等处对 roomId 做 `decodeURIComponent` 归一化。
 2. **多实例 + Redis Adapter**：观众在实例 A，MTProto 在实例 B 触发 emit → Redis adapter 应跨实例广播，需确认 Redis 正常
 3. **Socket 未正确 join**：观众进入页面后 `join-room` 可能失败或 room 名错误
 4. **60 秒过滤**：`L472-474` 只处理 60 秒内的消息，Agent 若延迟回复会被丢弃
