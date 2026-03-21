@@ -20,29 +20,50 @@ export function webhookRoutes(io: Server): Router {
         where: { id: roomId },
       });
 
-      if (!room) {
-        return res.status(404).json({ error: 'Room not found' });
+      if (room) {
+        // Prisma 房间：写入 DB 并推送
+        const privacyFilter = new PrivacyFilter(room.privacyFilters);
+        const { filtered, hadSensitive } = privacyFilter.filter(payload.content);
+
+        const message = await prisma.message.create({
+          data: {
+            roomId,
+            sender: payload.sender,
+            content: filtered,
+            metadata: {
+              ...payload.metadata,
+              filtered: hadSensitive,
+            },
+            timestamp: new Date(payload.timestamp),
+          },
+        });
+
+        io.to(roomId).emit('new-message', message);
+        return res.status(201).json({ success: true, messageId: message.id });
       }
 
-      const privacyFilter = new PrivacyFilter(room.privacyFilters);
-      const { filtered, hadSensitive } = privacyFilter.filter(payload.content);
-
-      const message = await prisma.message.create({
-        data: {
+      // rooms-simple 内存房间：Agent 回复从 Telegram 经 bridge 推送到此
+      const { roomInfo, messageHistory } = require('./rooms-simple');
+      if (roomInfo.has(roomId)) {
+        const content = payload.content || '';
+        const message = {
+          id: Date.now().toString(),
           roomId,
-          sender: payload.sender,
-          content: filtered,
-          metadata: {
-            ...payload.metadata,
-            filtered: hadSensitive,
-          },
-          timestamp: new Date(payload.timestamp),
-        },
-      });
+          sender: payload.sender === 'agent' ? 'agent' : ('host' as const),
+          content,
+          timestamp: new Date(payload.timestamp || Date.now()),
+        };
+        const history = messageHistory.get(roomId) || [];
+        history.push(message);
+        if (history.length > 100) history.shift();
+        messageHistory.set(roomId, history);
 
-      io.to(roomId).emit('new-message', message);
+        io.to(roomId).emit('new-message', message);
+        console.log(`✅ [Webhook] Agent message pushed to room ${roomId} (rooms-simple)`);
+        return res.status(201).json({ success: true, messageId: message.id });
+      }
 
-      res.status(201).json({ success: true, messageId: message.id });
+      return res.status(404).json({ error: 'Room not found' });
     } catch (error) {
       console.error('Error processing webhook message:', error);
       res.status(500).json({ error: 'Failed to process message' });

@@ -311,6 +311,8 @@ export class TelegramBridgeService {
    */
   private async pushToClawLive(messageData: any): Promise<void> {
     try {
+      const port = process.env.PORT || process.env.SERVER_PORT || '3001';
+      const baseUrl = process.env.WEBHOOK_BASE_URL || `http://127.0.0.1:${port}`;
       const payload = messageData;
       const payloadStr = JSON.stringify(payload);
       const signature = crypto
@@ -319,7 +321,7 @@ export class TelegramBridgeService {
         .digest('hex');
       
       const response = await fetch(
-        `http://localhost:3001/api/webhooks/openclaw/${this.roomId}/message`,
+        `${baseUrl}/api/webhooks/openclaw/${this.roomId}/message`,
         {
           method: 'POST',
           headers: {
@@ -353,8 +355,10 @@ export class TelegramBridgeService {
         .update(payloadStr)
         .digest('hex');
       
+      const port = process.env.PORT || process.env.SERVER_PORT || '3001';
+      const baseUrl = process.env.WEBHOOK_BASE_URL || `http://127.0.0.1:${port}`;
       await fetch(
-        `http://localhost:3001/api/webhooks/openclaw/${this.roomId}/screenshot`,
+        `${baseUrl}/api/webhooks/openclaw/${this.roomId}/screenshot`,
         {
           method: 'POST',
           headers: {
