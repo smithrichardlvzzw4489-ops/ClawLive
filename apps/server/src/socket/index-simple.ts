@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
+import type { RedisClientType } from 'redis';
 import { messageHistory, roomInfo, getHostInfo } from '../api/routes/rooms-simple';
 
 // WebRTC types (not in Node lib, define locally)
@@ -16,19 +17,89 @@ interface RTCIceCandidateInit {
 }
 
 // roomId -> host socket id（视频直播推流方）
-const videoStreamHosts = new Map<string, string>();
+// 单实例用内存；多实例（REDIS_URL）用 Redis，否则观众无法获取主播 WebRTC 信令
+const videoStreamHostsMemory = new Map<string, string>();
+let redisClient: RedisClientType | null = null;
+const WEBRTC_HOST_PREFIX = 'webrtc:host:';
+
+async function getVideoHost(roomId: string): Promise<string | undefined> {
+  if (redisClient) {
+    try {
+      const v = await redisClient.get(WEBRTC_HOST_PREFIX + roomId);
+      return v ?? undefined;
+    } catch {
+      return videoStreamHostsMemory.get(roomId);
+    }
+  }
+  return videoStreamHostsMemory.get(roomId);
+}
+
+async function setVideoHost(roomId: string, socketId: string): Promise<void> {
+  if (redisClient) {
+    try {
+      await redisClient.set(WEBRTC_HOST_PREFIX + roomId, socketId, { EX: 3600 });
+    } catch {
+      videoStreamHostsMemory.set(roomId, socketId);
+    }
+  } else {
+    videoStreamHostsMemory.set(roomId, socketId);
+  }
+}
+
+async function deleteVideoHost(roomId: string): Promise<void> {
+  if (redisClient) {
+    try {
+      await redisClient.del(WEBRTC_HOST_PREFIX + roomId);
+    } catch {
+      videoStreamHostsMemory.delete(roomId);
+    }
+  } else {
+    videoStreamHostsMemory.delete(roomId);
+  }
+}
+
+async function findRoomIdByHost(socketId: string): Promise<string | undefined> {
+  if (redisClient) {
+    try {
+      const keys = await redisClient.keys(WEBRTC_HOST_PREFIX + '*');
+      for (const k of keys) {
+        const v = await redisClient.get(k);
+        if (v === socketId) return k.replace(WEBRTC_HOST_PREFIX, '');
+      }
+      return undefined;
+    } catch {
+      for (const [rid, hid] of videoStreamHostsMemory) {
+        if (hid === socketId) return rid;
+      }
+      return undefined;
+    }
+  }
+  for (const [rid, hid] of videoStreamHostsMemory) {
+    if (hid === socketId) return rid;
+  }
+  return undefined;
+}
 
 export async function setupSocketIO(io: Server): Promise<void> {
   // Redis 连接放后台，不阻塞服务启动（健康检查需尽快通过）
   if (process.env.REDIS_URL) {
     const pubClient = createClient({ url: process.env.REDIS_URL });
     const subClient = pubClient.duplicate();
-    Promise.all([pubClient.connect(), subClient.connect()])
+    redisClient = createClient({ url: process.env.REDIS_URL });
+    Promise.all([pubClient.connect(), subClient.connect(), redisClient.connect()])
       .then(() => {
         io.adapter(createAdapter(pubClient, subClient));
-        console.log('[OK] Socket.io Redis adapter configured');
+        console.log('[OK] Socket.io Redis adapter + WebRTC host store configured');
       })
-      .catch((err) => {
+      .catch(async (err) => {
+        if (redisClient) {
+          try {
+            await redisClient.quit();
+          } catch {
+            // ignore
+          }
+          redisClient = null;
+        }
         console.warn('[WARN] Redis connection failed, running without Redis adapter:', err instanceof Error ? err.message : 'Unknown error');
         console.log('[OK] Socket.io running in standalone mode (single server)');
       });
@@ -156,24 +227,24 @@ export async function setupSocketIO(io: Server): Promise<void> {
     });
 
     // ========== WebRTC 视频直播信令 ==========
-    socket.on('webrtc-register-host', ({ roomId }: { roomId: string }) => {
+    socket.on('webrtc-register-host', async ({ roomId }: { roomId: string }) => {
       if (roomId) {
-        videoStreamHosts.set(roomId, socket.id);
+        await setVideoHost(roomId, socket.id);
         io.to(roomId).emit('webrtc-host-ready');
         console.log(`[WebRTC] Host registered for room ${roomId}`);
       }
     });
 
-    socket.on('webrtc-unregister-host', ({ roomId }: { roomId: string }) => {
+    socket.on('webrtc-unregister-host', async ({ roomId }: { roomId: string }) => {
       if (roomId) {
-        videoStreamHosts.delete(roomId);
+        await deleteVideoHost(roomId);
         io.to(roomId).emit('webrtc-stream-ended');
         console.log(`[WebRTC] Host unregistered for room ${roomId}`);
       }
     });
 
-    socket.on('webrtc-viewer-request', ({ roomId }: { roomId: string }) => {
-      const hostId = videoStreamHosts.get(roomId);
+    socket.on('webrtc-viewer-request', async ({ roomId }: { roomId: string }) => {
+      const hostId = await getVideoHost(roomId);
       if (hostId) {
         io.to(hostId).emit('webrtc-viewer-request', { viewerId: socket.id });
       }
@@ -220,11 +291,10 @@ export async function setupSocketIO(io: Server): Promise<void> {
 
     socket.on('disconnect', async () => {
       // 清理视频直播 host 注册
-      for (const [rid, hid] of videoStreamHosts) {
-        if (hid === socket.id) {
-          videoStreamHosts.delete(rid);
-          io.to(rid).emit('webrtc-stream-ended');
-        }
+      const roomId = await findRoomIdByHost(socket.id);
+      if (roomId) {
+        await deleteVideoHost(roomId);
+        io.to(roomId).emit('webrtc-stream-ended');
       }
       console.log(`Client disconnected: ${socket.id}`);
 
