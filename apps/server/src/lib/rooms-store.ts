@@ -73,10 +73,10 @@ export async function getRoom(roomId: string): Promise<RoomData | undefined> {
       const raw = await redis.get(PREFIX + roomId);
       if (raw) {
         const parsed = JSON.parse(raw);
-        r = revivateRoom(parsed);
-        if (r) {
-          memoryRooms.set(roomId, r);
-          return r;
+        const revived = revivateRoom(parsed);
+        if (revived) {
+          memoryRooms.set(roomId, revived);
+          return revived;
         }
       }
     } catch (e) {

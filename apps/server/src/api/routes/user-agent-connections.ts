@@ -251,7 +251,7 @@ export function userAgentConnectionsRoutes(): Router {
       }
 
       // 不再检查 room 是否存在（创建流程中 room 可能尚未完全就绪）
-      const { getRoom } = await import('../lib/rooms-store');
+      const { getRoom } = await import('../../lib/rooms-store');
       const room = await getRoom(roomId);
       if (room && room.hostId !== userId) {
         return res.status(403).json({ error: 'Not authorized' });

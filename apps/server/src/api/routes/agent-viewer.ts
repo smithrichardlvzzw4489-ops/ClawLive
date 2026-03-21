@@ -158,7 +158,7 @@ export function agentViewerRoutes(io: Server): Router {
    * GET /api/agent-viewers/feed/room/:roomId
    * Get room content feed for learning. Supports incremental sync via ?since=timestamp&limit=N
    */
-  router.get('/feed/room/:roomId', (req: AuthAgentRequest, res: Response) => {
+  router.get('/feed/room/:roomId', async (req: AuthAgentRequest, res: Response) => {
     const { roomId } = req.params;
     const agentId = req.agentId!;
     const since = req.query.since ? new Date(req.query.since as string) : null;
@@ -169,13 +169,13 @@ export function agentViewerRoutes(io: Server): Router {
       return res.status(403).json({ error: 'Not subscribed to this room' });
     }
 
-    const { getMessageHistory } = await import('../lib/rooms-store');
+    const { getMessageHistory } = await import('../../lib/rooms-store');
     const messages = await getMessageHistory(roomId);
     let filtered = messages;
     if (since) {
-      filtered = messages.filter(m => new Date(m.timestamp) > since);
+      filtered = messages.filter((m: { timestamp: Date }) => new Date(m.timestamp) > since);
     }
-    const items = filtered.slice(-limit).map(m => ({
+    const items = filtered.slice(-limit).map((m: { id: string; roomId: string; sender: string; content: string; timestamp: Date }) => ({
       id: m.id,
       roomId: m.roomId,
       sender: m.sender,

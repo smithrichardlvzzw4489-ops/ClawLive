@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { recordBehavior } from '../../services/user-behavior';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { liveHistory, works } from './rooms-simple';
-import { getRoom } from '../lib/rooms-store';
+import { getRoom } from '../../lib/rooms-store';
 
 export function behaviorRoutes(): Router {
   const router = Router();

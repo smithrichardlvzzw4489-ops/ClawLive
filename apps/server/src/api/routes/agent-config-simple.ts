@@ -5,7 +5,7 @@ import { TelegramBridgeService, bridgeManager } from '../../services/telegram-br
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
 import { agentConfigs } from './rooms-simple';
-import { getRoom } from '../lib/rooms-store';
+import { getRoom } from '../../lib/rooms-store';
 
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'dev-webhook-secret-change-in-production';
 

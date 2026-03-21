@@ -4,7 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrivacyFilter } from '@clawlive/privacy-filter';
 import { WebhookMessagePayload, WebhookLogPayload, WebhookScreenshotPayload } from '@clawlive/shared-types';
 import { verifyWebhookSignature } from '../middleware/webhookAuth';
-import { getRoom, appendMessage } from '../lib/rooms-store';
+import { getRoom, appendMessage } from '../../lib/rooms-store';
 import sharp from 'sharp';
 
 const prisma = new PrismaClient();
@@ -44,8 +44,8 @@ export function webhookRoutes(io: Server): Router {
       }
 
       // rooms-simple 房间（支持 Redis 多实例）：Agent 回复从 Telegram 经 bridge 推送到此
-      const room = await getRoom(roomId);
-      if (room) {
+      const simpleRoom = await getRoom(roomId);
+      if (simpleRoom) {
         const content = payload.content || '';
         const message = {
           id: Date.now().toString(),
