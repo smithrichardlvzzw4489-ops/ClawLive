@@ -8,7 +8,8 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ message }: ChatBubbleProps) {
-  const isUser = message.sender === 'user';
+  // 后端 host 消息映射为 user 显示（Message 类型为 user | agent | system）
+  const isUser = message.sender === 'user' || message.sender === 'host';
   const isAgent = message.sender === 'agent';
   const isSystem = message.sender === 'system';
 

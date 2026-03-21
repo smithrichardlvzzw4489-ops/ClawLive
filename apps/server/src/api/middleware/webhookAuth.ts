@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'dev-webhook-secret';
+// 与 rooms-simple / telegram-bridge 使用同一默认值，否则 Agent 回复 webhook 验证失败 (403)
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET || 'dev-webhook-secret-change-in-production';
 
 export function verifyWebhookSignature(
   req: Request,

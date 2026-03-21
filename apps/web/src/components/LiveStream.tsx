@@ -238,6 +238,40 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     }
   };
 
+  // API 兜底：Socket 可能在多实例时返回 未知房间，用 API 获取真实房间信息
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!apiUrl) return;
+    let cancelled = false;
+    fetch(`${apiUrl}/api/rooms/${roomId}`)
+      .then((res) => {
+        if (cancelled) return null;
+        if (res.ok) return res.json();
+        if (res.status === 404) {
+          setRoom({
+            id: roomId,
+            hostId: '',
+            title: '房间不存在',
+            lobsterName: '',
+            isLive: false,
+            privacyFilters: [],
+            viewerCount: 0,
+            createdAt: new Date(),
+            host: { id: '', username: 'Unknown', avatarUrl: null },
+          } as Room);
+          return null;
+        }
+        return null;
+      })
+      .then((apiRoom) => {
+        if (cancelled || !apiRoom) return;
+        setRoom(apiRoom);
+        setViewerCount(apiRoom.viewerCount ?? 0);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [roomId]);
+
   useEffect(() => {
     if (!socket || !isConnected) return;
 
@@ -245,8 +279,14 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     trackBehavior('room_join', roomId);
 
     socket.on('room-info', (roomData) => {
-      setRoom(roomData);
-      setViewerCount(roomData.viewerCount);
+      setRoom((prev) => {
+        // 若 Socket 返回 未知房间 但已有 API 数据，仅合并 viewerCount（实时人数），不覆盖 isLive 等
+        if (roomData.title === '未知房间' && prev && prev.title !== '未知房间') {
+          return { ...prev, viewerCount: roomData.viewerCount ?? prev.viewerCount };
+        }
+        return roomData;
+      });
+      setViewerCount(roomData.viewerCount ?? 0);
     });
 
     socket.on('message-history', (history) => {

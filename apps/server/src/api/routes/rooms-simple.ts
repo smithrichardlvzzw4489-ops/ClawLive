@@ -381,6 +381,136 @@ export function roomSimpleRoutes(io: Server): Router {
     }
   });
 
+  // 必须在 GET /:roomId 之前定义，否则 /history/xxx、/host/xxx 会被误匹配为 roomId
+  router.get('/history/:historyId', async (req: Request, res: Response) => {
+    try {
+      const { historyId } = req.params;
+      const history = liveHistory.get(historyId);
+
+      if (!history) {
+        return res.status(404).json({ error: 'History not found' });
+      }
+
+      const host = userProfiles.get(history.hostId);
+
+      res.json({
+        ...history,
+        host: host ? {
+          id: host.id,
+          username: host.username,
+          avatarUrl: host.avatarUrl,
+        } : {
+          id: history.hostId,
+          username: 'Unknown',
+          avatarUrl: null,
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      res.status(500).json({ error: 'Failed to fetch history' });
+    }
+  });
+
+  router.get('/host/:hostId', async (req: Request, res: Response) => {
+    try {
+      const { hostId } = req.params;
+
+      const host = await getHostInfo(hostId);
+
+      const allRooms = await getAllRooms();
+      const liveRooms = allRooms
+        .filter(room => room.hostId === hostId && room.isLive)
+        .map(room => ({
+          id: room.id,
+          title: room.title,
+          lobsterName: room.lobsterName,
+          description: room.description,
+          isLive: true,
+          startedAt: room.startedAt,
+          viewerCount: room.viewerCount,
+        }));
+
+      const historySessions = Array.from(liveHistory.values())
+        .filter(history => history.hostId === hostId)
+        .sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime())
+        .map(history => ({
+          id: history.id,
+          roomId: history.roomId,
+          title: history.title,
+          lobsterName: history.lobsterName,
+          description: history.description,
+          isLive: false,
+          startedAt: history.startedAt,
+          endedAt: history.endedAt,
+          viewerCount: history.viewerCount,
+          messageCount: history.messages.length,
+        }));
+
+      res.json({
+        host: {
+          id: host.id,
+          username: host.username,
+          bio: userProfiles.get(hostId)?.bio,
+          avatarUrl: host.avatarUrl,
+        },
+        liveRooms,
+        historySessions,
+        stats: {
+          totalSessions: historySessions.length,
+          totalMessages: historySessions.reduce((sum, s) => sum + s.messageCount, 0),
+        },
+      });
+    } catch (error) {
+      console.error('Error fetching host rooms:', error);
+      res.status(500).json({ error: 'Failed to fetch host rooms' });
+    }
+  });
+
+  router.get('/user/profile/:userId', async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const user = userProfiles.get(userId);
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      res.status(500).json({ error: 'Failed to fetch user profile' });
+    }
+  });
+
+  router.put('/user/profile', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { username, bio, avatarUrl } = req.body;
+
+      let profile = userProfiles.get(userId);
+
+      if (!profile) {
+        profile = {
+          id: userId,
+          username: username || `user-${userId.slice(0, 8)}`,
+          bio: bio || '',
+          avatarUrl: avatarUrl || null,
+        };
+      } else {
+        if (username) profile.username = username;
+        if (bio !== undefined) profile.bio = bio;
+        if (avatarUrl !== undefined) profile.avatarUrl = avatarUrl;
+      }
+
+      userProfiles.set(userId, profile);
+      res.json(profile);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      res.status(500).json({ error: 'Failed to fetch user profile' });
+    }
+  });
+
+  // GET /api/rooms/:roomId - 必须在 /history、/host、/user/profile 之后
   router.get('/:roomId', async (req: Request, res: Response) => {
     try {
       const { roomId } = req.params;
@@ -470,11 +600,17 @@ export function roomSimpleRoutes(io: Server): Router {
       };
       await setRoom(roomId, updated);
 
+      const host = await getHostInfo(room.hostId);
+      const roomData = {
+        ...updated,
+        host: { id: host.id, username: host.username, avatarUrl: host.avatarUrl ?? null },
+      };
       io.to(roomId).emit('room-status-change', {
         isLive: true,
         liveMode: updated.liveMode,
         startedAt: updated.startedAt,
       });
+      io.to(roomId).emit('room-info', roomData);
 
       // 内存无配置时，尝试从持久化恢复（服务重启后自动恢复连接）
       let agentConfig = agentConfigs.get(roomId);
@@ -660,143 +796,6 @@ export function roomSimpleRoutes(io: Server): Router {
     } catch (error) {
       console.error('Error sending message:', error);
       res.status(500).json({ error: 'Failed to send message' });
-    }
-  });
-
-  // GET /api/rooms/history/:historyId - Get history session details
-  router.get('/history/:historyId', async (req: Request, res: Response) => {
-    try {
-      const { historyId } = req.params;
-      const history = liveHistory.get(historyId);
-
-      if (!history) {
-        return res.status(404).json({ error: 'History not found' });
-      }
-
-      // Get host info
-      const host = userProfiles.get(history.hostId);
-
-      res.json({
-        ...history,
-        host: host ? {
-          id: host.id,
-          username: host.username,
-          avatarUrl: host.avatarUrl,
-        } : {
-          id: history.hostId,
-          username: 'Unknown',
-          avatarUrl: null,
-        },
-      });
-    } catch (error) {
-      console.error('Error fetching history:', error);
-      res.status(500).json({ error: 'Failed to fetch history' });
-    }
-  });
-
-  // GET /api/rooms/host/:hostId - Get all rooms by host (live + history)
-  router.get('/host/:hostId', async (req: Request, res: Response) => {
-    try {
-      const { hostId } = req.params;
-
-      const host = await getHostInfo(hostId);
-
-      // Get live rooms（支持 Redis 多实例）
-      const allRooms = await getAllRooms();
-      const liveRooms = allRooms
-        .filter(room => room.hostId === hostId && room.isLive)
-        .map(room => ({
-          id: room.id,
-          title: room.title,
-          lobsterName: room.lobsterName,
-          description: room.description,
-          isLive: true,
-          startedAt: room.startedAt,
-          viewerCount: room.viewerCount,
-        }));
-
-      // Get history sessions
-      const historySessions = Array.from(liveHistory.values())
-        .filter(history => history.hostId === hostId)
-        .sort((a, b) => b.endedAt.getTime() - a.endedAt.getTime())
-        .map(history => ({
-          id: history.id,
-          roomId: history.roomId,
-          title: history.title,
-          lobsterName: history.lobsterName,
-          description: history.description,
-          isLive: false,
-          startedAt: history.startedAt,
-          endedAt: history.endedAt,
-          viewerCount: history.viewerCount,
-          messageCount: history.messages.length,
-        }));
-
-      res.json({
-        host: {
-          id: host.id,
-          username: host.username,
-          bio: userProfiles.get(hostId)?.bio,
-          avatarUrl: host.avatarUrl,
-        },
-        liveRooms,
-        historySessions,
-        stats: {
-          totalSessions: historySessions.length,
-          totalMessages: historySessions.reduce((sum, s) => sum + s.messageCount, 0),
-        },
-      });
-    } catch (error) {
-      console.error('Error fetching host rooms:', error);
-      res.status(500).json({ error: 'Failed to fetch host rooms' });
-    }
-  });
-
-  // GET /api/user/profile/:userId - Get user profile
-  router.get('/user/profile/:userId', async (req: Request, res: Response) => {
-    try {
-      const { userId } = req.params;
-      const user = userProfiles.get(userId);
-
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      res.json(user);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      res.status(500).json({ error: 'Failed to fetch user profile' });
-    }
-  });
-
-  // PUT /api/user/profile - Update user profile
-  router.put('/user/profile', authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      const userId = req.user!.id;
-      const { username, bio, avatarUrl } = req.body;
-
-      let profile = userProfiles.get(userId);
-      
-      if (!profile) {
-        // Create new profile
-        profile = {
-          id: userId,
-          username: username || `user-${userId.slice(0, 8)}`,
-          bio: bio || '',
-          avatarUrl: avatarUrl || null,
-        };
-      } else {
-        // Update existing profile
-        if (username) profile.username = username;
-        if (bio !== undefined) profile.bio = bio;
-        if (avatarUrl !== undefined) profile.avatarUrl = avatarUrl;
-      }
-
-      userProfiles.set(userId, profile);
-      res.json(profile);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      res.status(500).json({ error: 'Failed to update profile' });
     }
   });
 
