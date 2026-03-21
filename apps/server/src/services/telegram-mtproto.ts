@@ -489,10 +489,12 @@ export class MTProtoUserService {
           // Check if this is a work or a room
           if (roomId.startsWith('work-')) {
             // Save to work messages
-            const { workMessages } = require('../api/routes/rooms-simple');
+            const { works, workMessages } = require('../api/routes/rooms-simple');
+            const { WorksPersistence } = require('./works-persistence');
             const messages = workMessages.get(roomId) || [];
             messages.push(agentMessage);
             workMessages.set(roomId, messages);
+            WorksPersistence.saveAll(works, workMessages);
 
             this.ioInstance.to(roomId).emit('work-message', agentMessage);
             console.log(`✅ Agent reply pushed to work ${roomId}`);

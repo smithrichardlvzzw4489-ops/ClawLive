@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
+import { WorksPersistence } from '../../services/works-persistence';
 import { prisma } from '../../lib/prisma';
 
 // In-memory storage
@@ -98,6 +99,11 @@ const workMessages = new Map<string, Array<{
   videoUrl?: string;
   timestamp: Date;
 }>>();
+
+// 从持久化加载作品（配置 Volume 后重启不丢失）
+const loaded = WorksPersistence.loadAll();
+loaded.works.forEach((w, k) => works.set(k, w));
+loaded.workMessages.forEach((msgs, k) => workMessages.set(k, msgs));
 
 // 获取主播信息：优先内存，否则从数据库拉取并缓存
 async function getHostInfo(hostId: string): Promise<{ id: string; username: string; avatarUrl?: string | null }> {
@@ -250,8 +256,9 @@ liveHistory.set('test-history-3', {
   viewerCount: 3,
 });
 
-// Initialize sample works
-works.set('work-sample-1', {
+// 无持久化数据时使用示例作品
+if (works.size === 0) {
+  works.set('work-sample-1', {
   id: 'work-sample-1',
   authorId: 'a4393af5-f42f-4ac7-a9a3-23ca18aa9733',
   title: '如何使用 AI 提升编程效率',
@@ -291,9 +298,9 @@ works.set('work-sample-1', {
   createdAt: new Date(twoDaysAgo.getTime()),
   publishedAt: new Date(twoDaysAgo.getTime() + 30 * 60 * 1000),
   updatedAt: new Date(twoDaysAgo.getTime() + 30 * 60 * 1000),
-});
+  });
 
-works.set('work-sample-2', {
+  works.set('work-sample-2', {
   id: 'work-sample-2',
   authorId: 'a4393af5-f42f-4ac7-a9a3-23ca18aa9733',
   title: 'AI 时代的学习方法',
@@ -333,7 +340,8 @@ works.set('work-sample-2', {
   createdAt: new Date(threeDaysAgo.getTime()),
   publishedAt: new Date(threeDaysAgo.getTime() + 20 * 60 * 1000),
   updatedAt: new Date(threeDaysAgo.getTime() + 20 * 60 * 1000),
-});
+  });
+}
 
 export { roomInfo, agentConfigs, messageHistory, liveHistory, userProfiles, works, workMessages, getHostInfo };
 

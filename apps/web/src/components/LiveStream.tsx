@@ -207,7 +207,9 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const sendHostMessage = async () => {
     if (!hostMessage.trim() || isSending || !isHost || !room?.isLive) return;
 
+    const content = hostMessage.trim();
     setIsSending(true);
+    setHostMessage('');
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/message`, {
@@ -216,17 +218,20 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ content: hostMessage.trim() }),
+        body: JSON.stringify({ content }),
       });
 
-      if (response.ok) {
-        setHostMessage('');
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.message) {
+        setMessages((prev) => [...prev, data.message]);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       } else {
-        const error = await response.json();
-        alert(`发送失败: ${error.error || '未知错误'}`);
+        setHostMessage(content);
+        alert(`发送失败: ${data?.error || '未知错误'}`);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
+      setHostMessage(content);
       alert('发送失败，请检查网络连接');
     } finally {
       setIsSending(false);
@@ -249,7 +254,10 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     });
 
     socket.on('new-message', (msg) => {
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);

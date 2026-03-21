@@ -7,6 +7,7 @@ import { UPLOADS_DIR } from '../../lib/data-path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { works, workMessages, userProfiles } from './rooms-simple';
+import { WorksPersistence } from '../../services/works-persistence';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';
 import { recordBehavior } from '../../services/user-behavior';
@@ -125,6 +126,7 @@ export function worksRoutes(io: Server): Router {
       // Increment view count
       work.viewCount++;
       works.set(workId, work);
+      // 浏览计数不持久化，避免频繁写盘
 
       // 记录浏览行为（用于个性化推荐），登录用户且非本人作品
       const token = req.headers.authorization?.replace('Bearer ', '');
@@ -195,6 +197,7 @@ export function worksRoutes(io: Server): Router {
 
       works.set(workId, newWork);
       workMessages.set(workId, []);
+      WorksPersistence.saveAll(works, workMessages);
 
       console.log(`✅ Work created: ${workId} by user ${userId}`);
       res.status(201).json(newWork);
@@ -275,6 +278,7 @@ export function worksRoutes(io: Server): Router {
       work.updatedAt = new Date();
 
       works.set(workId, work);
+      WorksPersistence.saveAll(works, workMessages);
       res.json(work);
     } catch (error) {
       console.error('Error updating work:', error);
@@ -315,6 +319,7 @@ export function worksRoutes(io: Server): Router {
       work.updatedAt = new Date();
 
       works.set(workId, work);
+      WorksPersistence.saveAll(works, workMessages);
 
       console.log(`📤 Work published: ${workId}`);
       res.json(work);
@@ -341,6 +346,7 @@ export function worksRoutes(io: Server): Router {
 
       works.delete(workId);
       workMessages.delete(workId);
+      WorksPersistence.saveAll(works, workMessages);
 
       console.log(`🗑️ Work deleted: ${workId}`);
       res.json({ success: true });
@@ -389,6 +395,7 @@ export function worksRoutes(io: Server): Router {
 
       work.updatedAt = new Date();
       works.set(workId, work);
+      WorksPersistence.saveAll(works, workMessages);
 
       // Emit user message to socket
       io.to(workId).emit('work-message', message);

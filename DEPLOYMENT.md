@@ -83,6 +83,7 @@ PERSISTENT_DATA_PATH=/data
 | 直播间 Agent 配置 | `/data/room-agent-configs.json` |
 | 作品 Agent 配置 | `/data/work-agent-configs.json` |
 | 作品视频文件 | `/data/uploads/works/` |
+| **作品数据** | `/data/works.json`、`/data/work-messages.json` |
 | 用户关注关系 | `/data/user-follows.json` |
 
 #### 注意事项
