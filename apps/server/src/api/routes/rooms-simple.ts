@@ -103,7 +103,9 @@ const workMessages = new Map<string, Array<{
 // 从持久化加载作品（配置 Volume 后重启不丢失）
 const loaded = WorksPersistence.loadAll();
 loaded.works.forEach((w, k) => works.set(k, w));
-loaded.workMessages.forEach((msgs, k) => workMessages.set(k, msgs));
+loaded.workMessages.forEach((msgs, workId) => {
+  workMessages.set(workId, msgs.map((m) => ({ ...m, workId })));
+});
 
 // 获取主播信息：优先内存，否则从数据库拉取并缓存
 async function getHostInfo(hostId: string): Promise<{ id: string; username: string; avatarUrl?: string | null }> {
