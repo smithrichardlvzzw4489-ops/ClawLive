@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     try {
       await login(username, password);
-      router.push('/rooms');
+      router.push('/');
     } catch (err: any) {
       setError(err.message || t('auth.loginFailed'));
     } finally {

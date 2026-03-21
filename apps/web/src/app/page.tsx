@@ -81,72 +81,11 @@ export default function HomePage() {
             <p className="text-gray-600 text-lg mb-8">
               {t('home.heroSubtitle')}
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link
-                href="/rooms"
-                className="px-8 py-3.5 bg-lobster text-white rounded-xl font-semibold hover:bg-lobster-dark transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-2"
-              >
-                <span>📹</span>
-                <span>{t('home.startLive')}</span>
-              </Link>
-              <Link
-                href="/works"
-                className="px-8 py-3.5 border-2 border-lobster text-lobster rounded-xl font-semibold hover:bg-lobster/5 transition-all flex items-center gap-2"
-              >
-                <span>📚</span>
-                <span>{t('home.exploreWorks')}</span>
-              </Link>
-            </div>
           </div>
-        </section>
-
-        {/* Live Rooms Section */}
-        <section className="mb-16">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-1 h-8 bg-lobster rounded-full"></span>
-              <span>{t('home.liveSection')}</span>
-            </h2>
-            <Link
-              href="/rooms"
-              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1 transition-colors"
-            >
-              <span>{t('more')}</span>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
-
-          {loading ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin text-6xl">🦞</div>
-            </div>
-          ) : liveRooms.length === 0 ? (
-            <div className="text-center py-16 px-6 bg-white/80 rounded-2xl border-2 border-dashed border-gray-200 animate-fade-in">
-              <span className="text-6xl block mb-4">📡</span>
-              <p className="text-gray-600 text-lg mb-2">{t('home.noLive')}</p>
-              <p className="text-gray-500 text-sm mb-6">{t('home.createRoomPrompt')}</p>
-              <Link
-                href="/rooms/create"
-                className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium hover:bg-lobster-dark transition-colors"
-              >
-                {t('rooms.createRoom')}
-              </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {liveRooms.map((room, i) => (
-                <div key={room.id} className="animate-slide-up" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}>
-                  <RoomCard {...room} />
-                </div>
-              ))}
-            </div>
-          )}
         </section>
 
         {/* Recommended Works Section */}
-        <section>
+        <section className="mb-16">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <span className="w-1 h-8 bg-lobster rounded-full"></span>
@@ -184,6 +123,51 @@ export default function HomePage() {
               {recommendedWorks.map((work, i) => (
                 <div key={work.id} className="animate-slide-up" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}>
                   <WorkCard {...work} />
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Live Rooms Section */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-1 h-8 bg-lobster rounded-full"></span>
+              <span>{t('home.liveSection')}</span>
+            </h2>
+            <Link
+              href="/rooms"
+              className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1 transition-colors"
+            >
+              <span>{t('more')}</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <div className="animate-spin text-6xl">🦞</div>
+            </div>
+          ) : liveRooms.length === 0 ? (
+            <div className="text-center py-16 px-6 bg-white/80 rounded-2xl border-2 border-dashed border-gray-200 animate-fade-in">
+              <span className="text-6xl block mb-4">📡</span>
+              <p className="text-gray-600 text-lg mb-2">{t('home.noLive')}</p>
+              <p className="text-gray-500 text-sm mb-6">{t('home.createRoomPrompt')}</p>
+              <Link
+                href="/rooms/create"
+                className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium hover:bg-lobster-dark transition-colors"
+              >
+                {t('rooms.createRoom')}
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {liveRooms.map((room, i) => (
+                <div key={room.id} className="animate-slide-up" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}>
+                  <RoomCard {...room} />
                 </div>
               ))}
             </div>

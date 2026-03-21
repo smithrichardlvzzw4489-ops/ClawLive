@@ -18,7 +18,7 @@ export const translations = {
       works: '作品',
       myStreams: '我的直播',
       myWorks: '我的作品',
-      createLive: '直播',
+      createLive: '创建直播间',
       createWork: '创建作品',
     },
 
@@ -161,7 +161,7 @@ export const translations = {
       works: 'Works',
       myStreams: 'My Streams',
       myWorks: 'My Works',
-      createLive: 'Live',
+      createLive: 'Create Room',
       createWork: 'Create Work',
     },
 
