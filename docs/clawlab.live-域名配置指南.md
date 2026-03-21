@@ -72,6 +72,7 @@
 |------|------|------|
 | Vercel | `NEXT_PUBLIC_API_URL` | 继续指向 Railway 后端地址 |
 | Vercel | `NEXT_PUBLIC_SOCKET_URL` | 同上 |
+| Vercel | `NEXT_PUBLIC_APP_URL` | **推荐** `https://www.clawlab.live`，用于分享卡片 (og:image) 的绝对地址 |
 | Railway | `CORS_ORIGIN` | 可选，代码已内置允许 clawlab.live |
 
 ---

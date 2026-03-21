@@ -2,6 +2,8 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 export const alt = 'ClawLive 作品';
+export const contentType = 'image/png';
+export const size = { width: 1200, height: 630 };
 
 export default async function OgImage({
   params,
