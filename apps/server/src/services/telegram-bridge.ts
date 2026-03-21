@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { Server } from 'socket.io';
+import { appendMessage } from '../lib/rooms-store';
 
 interface TelegramMessage {
   message_id: number;
@@ -310,37 +311,20 @@ export class TelegramBridgeService {
   }
   
   /**
-   * Push message to ClawLive via webhook
+   * Push message to ClawLive：直接写入 rooms-store 并广播到 Socket，避免 webhook 签名/网络问题
    */
   private async pushToClawLive(messageData: any): Promise<void> {
     try {
-      const port = process.env.PORT || process.env.SERVER_PORT || '3001';
-      const baseUrl = process.env.WEBHOOK_BASE_URL || `http://127.0.0.1:${port}`;
-      const payload = messageData;
-      const payloadStr = JSON.stringify(payload);
-      const signature = crypto
-        .createHmac('sha256', this.webhookSecret)
-        .update(payloadStr)
-        .digest('hex');
-      
-      const response = await fetch(
-        `${baseUrl}/api/webhooks/openclaw/${this.roomId}/message`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Webhook-Signature': signature,
-          },
-          body: payloadStr,
-        }
-      );
-      
-      if (response.ok) {
-        console.log(`✅ Pushed to ClawLive`);
-      } else {
-        const error = await response.text();
-        console.error(`❌ ClawLive webhook failed (${response.status}):`, error);
-      }
+      const msg = {
+        id: Date.now().toString(),
+        roomId: this.roomId,
+        sender: (messageData.sender === 'agent' ? 'agent' : 'host') as 'host' | 'agent',
+        content: messageData.content || '',
+        timestamp: new Date(messageData.timestamp || Date.now()),
+      };
+      await appendMessage(this.roomId, msg);
+      this.io.to(this.roomId).emit('new-message', msg);
+      console.log(`✅ [Bridge] Agent message pushed to room ${this.roomId}`);
     } catch (error) {
       console.error(`❌ Failed to push to ClawLive:`, error);
     }

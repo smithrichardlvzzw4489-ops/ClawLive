@@ -132,14 +132,12 @@
 1. 检查 `REDIS_URL` 是否正确（多实例时）
 2. 检查 `NEXT_PUBLIC_API_URL`、`NEXT_PUBLIC_SOCKET_URL` 是否指向正确后端
 
-### 直播端收不到小龙虾（Agent）消息
+### 直播端/观众端收不到小龙虾（Agent）消息
 
 1. **Telegram 配置**：检查 Bot Token、Chat ID 是否正确
-2. **WEBHOOK_SECRET**：需与 OpenClaw clawlive-broadcaster 的 `webhookSecret` 完全一致
-3. **Agent 用同一 Bot 回复**：在 Railway 设置 `AGENT_SAME_AS_BOT=true`
-4. **OpenClaw 直接推 webhook**：确认 `webhookUrl` 为 `https://你的后端/api/webhooks/openclaw`
-5. **多实例**：确认 `REDIS_URL` 已配置
-6. **日志**：查看 Railway 是否有 `Telegram bridge started`、`❌ ClawLive webhook failed` 或 `Invalid webhook signature`
+2. **Agent 用同一 Bot 回复**：在 Railway 设置 `AGENT_SAME_AS_BOT=true`
+3. **多实例**：确认 `REDIS_URL` 已配置（Socket.io 和 rooms-store 需跨实例同步）
+4. **日志**：查看 Railway 是否有 `[Bridge] Agent message pushed` 或 `Agent reply pushed`（收到 Agent 回复时会打印）
 
 ### 观众看不到视频
 
