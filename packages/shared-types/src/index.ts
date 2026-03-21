@@ -32,7 +32,7 @@ export interface Room {
   };
 }
 
-export type MessageSender = 'user' | 'agent' | 'system' | 'host';
+export type MessageSender = 'user' | 'agent' | 'system';
 
 export interface Message {
   id: string;

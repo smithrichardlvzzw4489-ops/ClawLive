@@ -8,10 +8,11 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ message }: ChatBubbleProps) {
-  // 后端 host 消息映射为 user 显示（Message 类型为 user | agent | system）
-  const isUser = message.sender === 'user' || message.sender === 'host';
-  const isAgent = message.sender === 'agent';
-  const isSystem = message.sender === 'system';
+  // 后端 rooms-simple 使用 sender='host'，需运行时判断（避免与 Prisma MessageSender 冲突）
+  const sender = (message as { sender: string }).sender;
+  const isUser = sender === 'user' || sender === 'host';
+  const isAgent = sender === 'agent';
+  const isSystem = sender === 'system';
 
   return (
     <div
