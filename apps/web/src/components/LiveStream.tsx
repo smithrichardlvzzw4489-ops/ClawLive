@@ -451,8 +451,9 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         </div>
       </header>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-y-auto lg:overflow-hidden">
-        <div className="lg:col-span-2 flex flex-col bg-white rounded-lg shadow overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-y-auto lg:overflow-hidden min-h-0">
+        {/* 观众端移动端：视频区优先显示（order-1），主播端聊天区在前 */}
+        <div className={`lg:col-span-2 flex flex-col bg-white rounded-lg shadow overflow-hidden ${!isHost ? 'order-2 lg:order-1' : 'order-1'}`}>
           {/* 主播未开播时的提示 */}
           {isHost && !room.isLive && (
             <div className="p-6 bg-amber-50 border-b border-amber-200">
@@ -513,10 +514,10 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           )}
         </div>
 
-        {/* 右侧：视频区 + 实时聊天（VibeLab 风格） */}
-        <div className="flex flex-col gap-4 overflow-hidden min-h-0">
-          {/* 视频直播区域 - 手机端保证最小高度 */}
-          <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-[180px]">
+        {/* 右侧：视频区 + 实时聊天（观众端移动端优先显示） */}
+        <div className={`flex flex-col gap-4 overflow-hidden min-h-0 ${!isHost ? 'order-1 lg:order-2' : 'order-2'}`}>
+          {/* 视频直播区域 - 保证最小高度，避免空白 */}
+          <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-[200px] sm:min-h-[260px]">
             {/* 主播未开摄像头时的醒目提示 */}
             {isHost && room.isLive && !isSharing && (
               <div className="px-4 py-2 bg-amber-500 text-white text-center text-sm font-medium flex flex-col sm:flex-row items-center justify-center gap-2">
@@ -560,7 +561,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 </button>
               </div>
             </div>
-            <div className="flex-1 min-h-[160px] sm:min-h-[200px] overflow-hidden bg-black flex items-center justify-center relative">
+            <div className="flex-1 min-h-[180px] sm:min-h-[220px] overflow-hidden bg-black flex items-center justify-center relative">
               {videoStream ? (
                 <>
                   <VideoPlayer stream={videoStream} className="w-full h-full object-contain" muted={videoMuted} />
