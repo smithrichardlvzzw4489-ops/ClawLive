@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'ClawLive 作品';
 
 export async function GET(
   _request: Request,
