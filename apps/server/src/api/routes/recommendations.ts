@@ -24,7 +24,7 @@ export function recommendationRoutes(): Router {
       }
 
       const liveRooms = await getRecommendedLiveRooms(userId);
-      const recommendedWorks = getRecommendedWorks(userId);
+      const recommendedWorks = await getRecommendedWorks(userId);
 
       res.json({
         liveRooms: liveRooms.map(({ score, ...r }) => r),

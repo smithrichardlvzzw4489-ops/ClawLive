@@ -101,7 +101,7 @@ export function WorkCard({
         </h3>
 
         <p className="text-sm text-gray-600">
-          {author.username}{createdTime ? `.${createdTime}` : ''}
+          {author.username === 'Unknown' ? '作者' : author.username}{createdTime ? `.${createdTime}` : ''}
         </p>
       </div>
     </Link>

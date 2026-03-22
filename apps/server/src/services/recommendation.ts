@@ -8,7 +8,7 @@
  * 新用户/冷启动用热度算法，有行为后加权个性化
  */
 
-import { userProfiles, works } from '../api/routes/rooms-simple';
+import { getHostInfoBatch, works } from '../api/routes/rooms-simple';
 import { getAllRooms } from '../lib/rooms-store';
 import {
   getUserInterestProfile,
@@ -123,51 +123,53 @@ export async function getRecommendedLiveRooms(userId?: string): Promise<RoomWith
 /**
  * 获取首页推荐作品（支持用户个性化）
  */
-export function getRecommendedWorks(userId?: string): WorkWithScore[] {
+export async function getRecommendedWorks(userId?: string): Promise<WorkWithScore[]> {
   const profile = userId ? getUserInterestProfile(userId) : null;
   const hasEnoughBehavior = profile && profile.behaviorCount >= 3;
 
-  const publishedWorks = Array.from(works.values())
-    .filter(w => w.status === 'published')
-    .map(work => {
-      const author = userProfiles.get(work.authorId);
-      let baseScore = scoreWork({
-        viewCount: work.viewCount,
-        likeCount: work.likeCount,
-        messageCount: work.messages?.length ?? 0,
-        publishedAt: work.publishedAt,
-      });
+  const publishedList = Array.from(works.values()).filter(w => w.status === 'published');
+  const authorIds = [...new Set(publishedList.map(w => w.authorId))];
+  const authorMap = await getHostInfoBatch(authorIds);
 
-      let personalBoost = 1;
-      if (hasEnoughBehavior && profile) {
-        personalBoost = getWorkPersonalizationBoost(
-          work.authorId,
-          work.tags || [],
-          work.lobsterName,
-          profile
-        );
-      }
-      const finalScore = baseScore * (1 - PERSONALIZATION_WEIGHT + PERSONALIZATION_WEIGHT * personalBoost);
-
-      return {
-        id: work.id,
-        title: work.title,
-        description: work.description,
-        resultSummary: work.resultSummary,
-        lobsterName: work.lobsterName,
-        coverImage: work.coverImage,
-        videoUrl: work.videoUrl,
-        tags: work.tags || [],
-        viewCount: work.viewCount,
-        likeCount: work.likeCount,
-        messageCount: work.messages?.length ?? 0,
-        publishedAt: work.publishedAt,
-        author: author
-          ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
-          : { id: work.authorId, username: 'Unknown', avatarUrl: null },
-        score: finalScore,
-      };
+  const publishedWorks = publishedList.map(work => {
+    const author = authorMap.get(work.authorId);
+    let baseScore = scoreWork({
+      viewCount: work.viewCount,
+      likeCount: work.likeCount,
+      messageCount: work.messages?.length ?? 0,
+      publishedAt: work.publishedAt,
     });
+
+    let personalBoost = 1;
+    if (hasEnoughBehavior && profile) {
+      personalBoost = getWorkPersonalizationBoost(
+        work.authorId,
+        work.tags || [],
+        work.lobsterName,
+        profile
+      );
+    }
+    const finalScore = baseScore * (1 - PERSONALIZATION_WEIGHT + PERSONALIZATION_WEIGHT * personalBoost);
+
+    return {
+      id: work.id,
+      title: work.title,
+      description: work.description,
+      resultSummary: work.resultSummary,
+      lobsterName: work.lobsterName,
+      coverImage: work.coverImage,
+      videoUrl: work.videoUrl,
+      tags: work.tags || [],
+      viewCount: work.viewCount,
+      likeCount: work.likeCount,
+      messageCount: work.messages?.length ?? 0,
+      publishedAt: work.publishedAt,
+      author: author
+        ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
+        : { id: work.authorId, username: 'Unknown', avatarUrl: null },
+      score: finalScore,
+    };
+  });
 
   publishedWorks.sort((a, b) => b.score - a.score);
 

@@ -6,7 +6,7 @@ import { join } from 'path';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { works, workMessages, userProfiles } from './rooms-simple';
+import { works, workMessages, getHostInfo, getHostInfoBatch } from './rooms-simple';
 import { WorksPersistence } from '../../services/works-persistence';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';
@@ -21,34 +21,36 @@ export function worksRoutes(io: Server): Router {
     try {
       const { authorId, tag, search } = req.query;
       
-      let worksList = Array.from(works.values())
-        .filter(work => work.status === 'published')
-        .map(work => {
-          const author = userProfiles.get(work.authorId);
-          return {
-            id: work.id,
-            title: work.title,
-            description: work.description,
-            resultSummary: work.resultSummary,
-            lobsterName: work.lobsterName,
-            coverImage: work.coverImage,
-            videoUrl: work.videoUrl,
-            tags: work.tags || [],
-            viewCount: work.viewCount,
-            likeCount: work.likeCount,
-            messageCount: work.messages.length,
-            publishedAt: work.publishedAt,
-            author: author ? {
-              id: author.id,
-              username: author.username,
-              avatarUrl: author.avatarUrl,
-            } : {
-              id: work.authorId,
-              username: 'Unknown',
-              avatarUrl: null,
-            },
-          };
-        });
+      const publishedWorks = Array.from(works.values()).filter(work => work.status === 'published');
+      const authorIds = [...new Set(publishedWorks.map(w => w.authorId))];
+      const authorMap = await getHostInfoBatch(authorIds);
+
+      let worksList = publishedWorks.map(work => {
+        const author = authorMap.get(work.authorId);
+        return {
+          id: work.id,
+          title: work.title,
+          description: work.description,
+          resultSummary: work.resultSummary,
+          lobsterName: work.lobsterName,
+          coverImage: work.coverImage,
+          videoUrl: work.videoUrl,
+          tags: work.tags || [],
+          viewCount: work.viewCount,
+          likeCount: work.likeCount,
+          messageCount: work.messages.length,
+          publishedAt: work.publishedAt,
+          author: author ? {
+            id: author.id,
+            username: author.username,
+            avatarUrl: author.avatarUrl,
+          } : {
+            id: work.authorId,
+            username: 'Unknown',
+            avatarUrl: null,
+          },
+        };
+      });
 
       // Filter by author
       if (authorId) {
@@ -147,18 +149,14 @@ export function worksRoutes(io: Server): Router {
         } catch (_) {}
       }
 
-      const author = userProfiles.get(work.authorId);
+      const author = await getHostInfo(work.authorId);
 
       res.json({
         ...work,
-        author: author ? {
+        author: {
           id: author.id,
           username: author.username,
           avatarUrl: author.avatarUrl,
-        } : {
-          id: work.authorId,
-          username: 'Unknown',
-          avatarUrl: null,
         },
       });
     } catch (error) {

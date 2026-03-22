@@ -310,7 +310,7 @@ if (removedSamples) {
   WorksPersistence.saveAll(works, workMessages);
 }
 
-export { roomInfo, agentConfigs, messageHistory, liveHistory, userProfiles, works, workMessages, getHostInfo };
+export { roomInfo, agentConfigs, messageHistory, liveHistory, userProfiles, works, workMessages, getHostInfo, getHostInfoBatch };
 
 export function roomSimpleRoutes(io: Server): Router {
   const router = Router();
