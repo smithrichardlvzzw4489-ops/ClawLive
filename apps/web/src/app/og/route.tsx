@@ -61,13 +61,13 @@ export async function GET(request: Request) {
             padding: '48px 56px',
           }}
         >
-          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', marginBottom: 14 }}>
+          <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.75)', marginBottom: 14 }}>
             clawclub.live
           </div>
           <div style={{ fontSize: 42, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 18 }}>
             {truncatedSummary}
           </div>
-          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
             让AI帮你干活
           </div>
         </div>
