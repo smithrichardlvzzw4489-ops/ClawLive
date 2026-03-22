@@ -27,7 +27,6 @@ export async function generateMetadata({
 
     const base = ogBaseUrl.replace(/\/$/, '');
     const ogImageUrl = `${base}/works/${workId}/opengraph-image`;
-    const fallbackImageUrl = `${base}/og-default`;
 
     return {
       title,
@@ -37,16 +36,13 @@ export async function generateMetadata({
         description,
         type: 'article',
         url: `${base}/works/${workId}`,
-        images: [
-          { url: ogImageUrl, width: 1200, height: 630, alt: title, type: 'image/png' },
-          { url: fallbackImageUrl, width: 1200, height: 630, alt: 'ClawLive', type: 'image/png' },
-        ],
+        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: title, type: 'image/png' }],
       },
       twitter: {
         card: 'summary_large_image',
         title,
         description,
-        images: [ogImageUrl, fallbackImageUrl],
+        images: [ogImageUrl],
       },
     };
   } catch {
