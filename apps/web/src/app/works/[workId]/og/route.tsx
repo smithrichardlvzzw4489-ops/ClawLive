@@ -1,7 +1,6 @@
 import { ImageResponse } from 'next/og';
 
-// Edge + fetch + ImageResponse 组合导致 0 字节，改用 Node 运行时
-export const runtime = 'nodejs';
+export const runtime = 'edge';
 
 export async function GET(
   _request: Request,

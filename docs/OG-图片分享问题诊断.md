@@ -4,7 +4,19 @@
 
 在 Twitter/X、微信等平台分享作品链接时，预览显示**通用占位图**（白底、灰色图标），而非自定义的粉红渐变 + 龙虾 Logo 设计。
 
-## 根因定位过程
+## 根因（已定位）
+
+| 路由 | 条件 | 结果 |
+|------|------|------|
+| `/og-default` | Edge，无 fetch，ImageResponse | ✅ 约 130KB |
+| `/works/[id]/og-diagnostic` | Edge，仅 params，ImageResponse | ✅ 约 92KB |
+| `/works/[id]/og-fetch-test` | Edge，fetch API，返回 JSON | ✅ 正常 |
+| `/works/[id]/og` | Edge，fetch + ImageResponse | ❌ 0 字节 |
+| `/works/[id]/og` | Node，fetch + ImageResponse | ❌ 500 |
+
+**结论**：Vercel Edge 中，**fetch 与 ImageResponse 在同一 handler 内组合使用时**，响应体为空。单独使用任一生效。属运行时兼容问题，非配置错误。
+
+## 根因定位过程（历史）
 
 ### 1. 验证 HTML 元数据
 
@@ -41,15 +53,17 @@ Invoke-WebRequest -Uri "https://www.clawlab.live/og-default" -OutFile "og-defaul
 
 **根因**：Next.js 在**动态路由**中使用 `opengraph-image.tsx` 存在已知问题（[Issue #57349](https://github.com/vercel/next.js/issues/57349)），导致生成的图片为空。
 
-## 修复方案
+## 当前方案
 
-将 `opengraph-image.tsx` 文件约定改为 **Route Handler**，并使用**非保留路径**避免冲突：
+使用静态 `/og-default`，metadata 中 og:image 指向该 URL。作品页分享均显示统一品牌图（粉红渐变+龙虾），标题/描述仍为作品级。
 
-1. **删除** `apps/web/src/app/works/[workId]/opengraph-image.tsx` 及 `opengraph-image/route.tsx`
-2. **新建** `apps/web/src/app/works/[workId]/og/route.tsx`（路径 `/og` 无 Next.js 保留语义）
-3. metadata 中 og:image 指向 `/works/{workId}/og`
+## 动态 OG 的替代思路（若需作品级自定义图）
 
-## 修复后验证
+1. **预生成**：发布时调用 API 生成图并存 OSS，metadata 指向静态 URL
+2. **第三方**：Cloudinary、imgix 等生成动态 OG
+3. **升级等待**：关注 Next.js/Vercel 对 Edge+fetch+ImageResponse 的修复
+
+## 验证
 
 部署后执行：
 

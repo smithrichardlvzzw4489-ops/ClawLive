@@ -14,8 +14,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { workId } = params;
   const base = ogBaseUrl.replace(/\/$/, '');
-  // 测试：Node 运行时能否修复 Edge+fetch+ImageResponse 导致的 0 字节
-  const ogImageUrl = `${base}/works/${workId}/og`;
+  // 根因：Edge 中 fetch+ImageResponse 组合返回 0 字节；Node 则 500。使用静态图
+  const ogImageUrl = `${base}/og-default`;
 
   try {
     const res = await fetch(`${apiUrl}/api/works/${workId}`, {
