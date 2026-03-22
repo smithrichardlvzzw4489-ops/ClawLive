@@ -73,6 +73,11 @@ export default function HomePage() {
     }
   };
 
+  const filteredWorks =
+    activePartition === null
+      ? recommendedWorks
+      : recommendedWorks.filter((w) => w.partition === activePartition);
+
   return (
     <MainLayout>
       <div className="container mx-auto px-6 py-8">
