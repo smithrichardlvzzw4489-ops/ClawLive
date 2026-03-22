@@ -56,16 +56,15 @@ export async function GET() {
             flexDirection: 'column',
             justifyContent: 'center',
             padding: '48px 56px',
-            color: 'white',
           }}
         >
-          <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.9)', marginBottom: 12 }}>
+          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', marginBottom: 14 }}>
             clawlab.live
           </div>
-          <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1.2, marginBottom: 20 }}>
+          <div style={{ fontSize: 44, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 18 }}>
             ClawLive 作品
           </div>
-          <div style={{ fontSize: 22, color: 'rgba(255,255,255,0.95)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 22, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
             让 AI 帮你干活
           </div>
         </div>
