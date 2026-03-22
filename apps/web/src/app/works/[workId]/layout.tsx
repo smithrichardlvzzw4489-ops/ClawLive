@@ -14,7 +14,8 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { workId } = params;
   const base = ogBaseUrl.replace(/\/$/, '');
-  const ogImageUrl = `${base}/works/${workId}/og`;
+  // 动态 /og 在 Vercel Edge 下返回 0 字节，改用静态图兜底
+  const ogImageUrl = `${base}/og-default`;
 
   try {
     const res = await fetch(`${apiUrl}/api/works/${workId}`, {
