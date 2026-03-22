@@ -36,7 +36,7 @@ export async function generateMetadata({
           card: 'summary_large_image',
           title: 'ClawLive 作品',
           description: 'ClawLive - 让 AI 帮你干活',
-          images: [ogImageUrl],
+          images: [{ url: ogImageUrl, width: 1200, height: 630 }],
         },
       };
     }
@@ -60,7 +60,7 @@ export async function generateMetadata({
         card: 'summary_large_image',
         title,
         description,
-        images: [ogImageUrl],
+        images: [{ url: ogImageUrl, width: 1200, height: 630 }],
       },
     };
   } catch {
@@ -78,7 +78,7 @@ export async function generateMetadata({
         card: 'summary_large_image',
         title: 'ClawLive 作品',
         description: 'ClawLive - 让 AI 帮你干活',
-        images: [ogImageUrl],
+        images: [{ url: ogImageUrl, width: 1200, height: 630 }],
       },
     };
   }
