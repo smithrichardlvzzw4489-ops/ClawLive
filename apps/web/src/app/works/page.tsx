@@ -10,6 +10,7 @@ interface Work {
   id: string;
   title: string;
   description?: string;
+  resultSummary?: string;
   lobsterName: string;
   coverImage?: string;
   videoUrl?: string;
@@ -101,6 +102,7 @@ export default function WorksPage() {
                 id={work.id}
                 title={work.title}
                 description={work.description}
+                resultSummary={work.resultSummary}
                 lobsterName={work.lobsterName}
                 coverImage={work.coverImage}
                 videoUrl={work.videoUrl}
@@ -108,6 +110,7 @@ export default function WorksPage() {
                 viewCount={work.viewCount}
                 likeCount={work.likeCount}
                 messageCount={work.messageCount}
+                publishedAt={work.publishedAt}
                 author={work.author}
               />
             ))}

@@ -26,6 +26,7 @@ interface Work {
   id: string;
   title: string;
   description?: string;
+  resultSummary?: string;
   lobsterName: string;
   coverImage?: string;
   tags: string[];

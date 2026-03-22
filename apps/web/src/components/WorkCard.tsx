@@ -7,6 +7,7 @@ interface WorkCardProps {
   id: string;
   title: string;
   description?: string;
+  resultSummary?: string;
   lobsterName: string;
   coverImage?: string;
   videoUrl?: string;
@@ -14,6 +15,7 @@ interface WorkCardProps {
   viewCount: number;
   likeCount: number;
   messageCount: number;
+  publishedAt?: Date;
   author: {
     id: string;
     username: string;
@@ -25,42 +27,50 @@ export function WorkCard({
   id, 
   title, 
   description, 
+  resultSummary,
   lobsterName, 
   coverImage,
   videoUrl,
   tags, 
   viewCount, 
   messageCount, 
+  publishedAt,
   author 
 }: WorkCardProps) {
+  const summary = resultSummary || description || `${lobsterName} 的作品 - ${title}`;
+  const createdTime = publishedAt ? new Date(publishedAt).toLocaleDateString('zh-CN') : '';
+
   return (
     <Link
       href={`/works/${id}`}
       className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
     >
-      {/* Cover Image / Video Preview */}
-      <div className="relative aspect-video overflow-hidden">
-        {coverImage ? (
+      {/* Summary Area (原顶部) */}
+      <div className="relative aspect-video overflow-hidden flex items-center justify-center p-6">
+        {coverImage && (
           <img
             src={coverImage}
             alt={title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-        ) : videoUrl ? (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-700 to-slate-900">
+        )}
+        {!coverImage && videoUrl && (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center">
             <span className="text-5xl opacity-80">🎬</span>
           </div>
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-violet-400/80 to-indigo-500/80">
+        )}
+        {!coverImage && !videoUrl && (
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-400/80 to-indigo-500/80">
             <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_70%_80%,_white_0%,_transparent_60%)]" />
-            <span className="text-6xl opacity-90 relative drop-shadow-md">🦞</span>
           </div>
         )}
-        
-        {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300"></div>
+        <div className="absolute inset-0 bg-black/40" />
+        <p className="relative z-10 text-white text-sm font-medium text-center line-clamp-3 drop-shadow-lg">
+          {summary}
+        </p>
 
-        {/* Share */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300" />
+
         <div
           className="absolute top-2 right-2 z-10"
           onClick={(e) => e.stopPropagation()}
@@ -68,14 +78,13 @@ export function WorkCard({
           <ShareButton
             url={`/works/${id}`}
             title={title}
-            text={description || `${lobsterName} 的作品 - ${title}`}
+            text={summary}
             variant="icon"
             className="!p-1.5 !bg-white/90 hover:!bg-white text-gray-600"
           />
         </div>
         
-        {/* Stats Overlay */}
-        <div className="absolute bottom-2 right-2 flex items-center gap-2 text-white text-xs font-semibold">
+        <div className="absolute bottom-2 right-2 flex items-center gap-2 text-white text-xs font-semibold z-10">
           <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">
             👁️ {viewCount}
           </span>
@@ -87,34 +96,13 @@ export function WorkCard({
 
       {/* Content */}
       <div className="p-4">
-        {/* Title */}
         <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900 group-hover:text-lobster transition-colors">
           {title}
         </h3>
 
-        {/* Lobster Name */}
-        <p className="text-sm text-gray-600 mb-3 flex items-center gap-1">
-          <span>🦞</span>
-          <span>{lobsterName}</span>
+        <p className="text-sm text-gray-600">
+          {author.username}{createdTime ? `.${createdTime}` : ''}
         </p>
-
-        {/* Author Info */}
-        <div className="flex items-center justify-between pt-3 border-t">
-          <Link
-            href={`/host/${author.id}`}
-            onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-2 hover:text-lobster transition-colors"
-          >
-            {author.avatarUrl ? (
-              <img src={author.avatarUrl} alt={author.username} className="w-6 h-6 rounded-full" />
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-lobster text-white flex items-center justify-center text-xs font-semibold">
-                {author.username.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <span className="text-sm text-gray-600">{author.username}</span>
-          </Link>
-        </div>
       </div>
     </Link>
   );
