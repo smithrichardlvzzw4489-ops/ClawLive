@@ -296,91 +296,17 @@ liveHistory.set('test-history-3', {
   viewerCount: 3,
 });
 
-// 无持久化数据时使用示例作品
-if (works.size === 0) {
-  works.set('work-sample-1', {
-  id: 'work-sample-1',
-  authorId: 'a4393af5-f42f-4ac7-a9a3-23ca18aa9733',
-  title: '如何使用 AI 提升编程效率',
-  description: '与 AI Agent 深入探讨如何在日常开发中更好地利用 AI 工具',
-  lobsterName: '龙虾',
-  status: 'published',
-  messages: [
-    {
-      id: '1',
-      sender: 'user' as const,
-      content: '我想了解如何用 AI 提升编程效率',
-      timestamp: new Date(twoDaysAgo.getTime()),
-    },
-    {
-      id: '2',
-      sender: 'agent' as const,
-      content: 'AI 可以在很多方面帮助你：代码补全、bug 修复、代码审查、文档生成等。让我们逐一探讨。',
-      timestamp: new Date(twoDaysAgo.getTime() + 1 * 60 * 1000),
-    },
-    {
-      id: '3',
-      sender: 'user' as const,
-      content: '代码补全方面有什么推荐吗？',
-      timestamp: new Date(twoDaysAgo.getTime() + 5 * 60 * 1000),
-    },
-    {
-      id: '4',
-      sender: 'agent' as const,
-      content: 'GitHub Copilot 和 Cursor 都很优秀。它们能根据上下文预测你要写的代码，节省大量时间。',
-      timestamp: new Date(twoDaysAgo.getTime() + 6 * 60 * 1000),
-    },
-  ],
-  tags: ['编程', 'AI', '效率'],
-  coverImage: undefined,
-  viewCount: 45,
-  likeCount: 12,
-  createdAt: new Date(twoDaysAgo.getTime()),
-  publishedAt: new Date(twoDaysAgo.getTime() + 30 * 60 * 1000),
-  updatedAt: new Date(twoDaysAgo.getTime() + 30 * 60 * 1000),
-  });
-
-  works.set('work-sample-2', {
-  id: 'work-sample-2',
-  authorId: 'a4393af5-f42f-4ac7-a9a3-23ca18aa9733',
-  title: 'AI 时代的学习方法',
-  description: '探讨在 AI 时代如何更有效地学习新知识',
-  lobsterName: '龙虾',
-  status: 'published',
-  messages: [
-    {
-      id: '5',
-      sender: 'user' as const,
-      content: 'AI 这么强大，我们还需要深入学习吗？',
-      timestamp: new Date(threeDaysAgo.getTime()),
-    },
-    {
-      id: '6',
-      sender: 'agent' as const,
-      content: '当然需要！AI 是工具，理解基础原理才能更好地使用它。就像有了计算器，数学思维依然重要。',
-      timestamp: new Date(threeDaysAgo.getTime() + 2 * 60 * 1000),
-    },
-    {
-      id: '7',
-      sender: 'user' as const,
-      content: '那应该怎么学习？',
-      timestamp: new Date(threeDaysAgo.getTime() + 8 * 60 * 1000),
-    },
-    {
-      id: '8',
-      sender: 'agent' as const,
-      content: '建议：1) 理解核心概念 2) 使用 AI 快速实践 3) 深入研究感兴趣的方向。AI 能帮你快速验证想法。',
-      timestamp: new Date(threeDaysAgo.getTime() + 9 * 60 * 1000),
-    },
-  ],
-  tags: ['学习', 'AI', '方法论'],
-  coverImage: undefined,
-  viewCount: 78,
-  likeCount: 23,
-  createdAt: new Date(threeDaysAgo.getTime()),
-  publishedAt: new Date(threeDaysAgo.getTime() + 20 * 60 * 1000),
-  updatedAt: new Date(threeDaysAgo.getTime() + 20 * 60 * 1000),
-  });
+// 移除旧的示例作品（如有持久化残留则启动时清理）
+let removedSamples = false;
+['work-sample-1', 'work-sample-2'].forEach((id) => {
+  if (works.has(id)) {
+    works.delete(id);
+    workMessages.delete(id);
+    removedSamples = true;
+  }
+});
+if (removedSamples) {
+  WorksPersistence.saveAll(works, workMessages);
 }
 
 export { roomInfo, agentConfigs, messageHistory, liveHistory, userProfiles, works, workMessages, getHostInfo };

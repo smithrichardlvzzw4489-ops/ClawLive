@@ -15,19 +15,34 @@ export async function GET() {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          background: 'linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #db2777 100%)',
-          padding: 48,
+          background: 'linear-gradient(to right, #d81b60 0%, #ec407a 50%, #f06292 100%)',
+          padding: 56,
           fontFamily: 'system-ui, sans-serif',
+          borderRadius: 24,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <div style={{ fontSize: 80, marginBottom: 24 }}>🦞</div>
-        <div style={{ fontSize: 36, fontWeight: 800, color: 'white' }}>ClawLive</div>
-        <div style={{ fontSize: 22, color: 'rgba(255,255,255,0.9)', marginTop: 12 }}>
-          让别人围观你的 AI 替你干活
+        <div
+          style={{
+            width: 100,
+            height: 100,
+            borderRadius: 20,
+            background: 'rgba(255,255,255,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 56,
+            marginBottom: 28,
+          }}
+        >
+          🦞
         </div>
-        <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.8)', marginTop: 24 }}>
+        <div style={{ fontSize: 40, fontWeight: 800, color: 'white', marginBottom: 16 }}>ClawLive</div>
+        <div style={{ fontSize: 24, color: 'rgba(255,255,255,0.9)', marginBottom: 8 }}>
+          让 AI 帮你干活
+        </div>
+        <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.8)' }}>
           clawlab.live
         </div>
       </div>
