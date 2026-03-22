@@ -39,6 +39,7 @@ export default function WorkStudioPage() {
   const [savingVideoUrl, setSavingVideoUrl] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [waitingForAgent, setWaitingForAgent] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishResultSummary, setPublishResultSummary] = useState('');
@@ -47,6 +48,7 @@ export default function WorkStudioPage() {
   const { t } = useLocale();
   const [agentConfigured, setAgentConfigured] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const agentTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const { socket, isConnected } = useSocket();
 
@@ -71,6 +73,13 @@ export default function WorkStudioPage() {
     // Listen for Agent messages
     const handleWorkMessage = (message: Message) => {
       console.log('📨 Received work message:', message);
+      if (message.sender === 'agent') {
+        setWaitingForAgent(false);
+        if (agentTypingTimeoutRef.current) {
+          clearTimeout(agentTypingTimeoutRef.current);
+          agentTypingTimeoutRef.current = null;
+        }
+      }
       setMessages(prev => [...prev, message]);
     };
 
@@ -79,6 +88,9 @@ export default function WorkStudioPage() {
     return () => {
       socket.off('work-message', handleWorkMessage);
       socket.emit('leave-work', workId);
+      if (agentTypingTimeoutRef.current) {
+        clearTimeout(agentTypingTimeoutRef.current);
+      }
     };
   }, [socket, workId]);
 
@@ -191,6 +203,11 @@ export default function WorkStudioPage() {
 
       if (response.ok) {
         setInputMessage('');
+        if (agentConfigured) {
+          setWaitingForAgent(true);
+          if (agentTypingTimeoutRef.current) clearTimeout(agentTypingTimeoutRef.current);
+          agentTypingTimeoutRef.current = setTimeout(() => setWaitingForAgent(false), 60000);
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -420,6 +437,19 @@ export default function WorkStudioPage() {
                   </div>
                 </div>
               ))
+            )}
+            {waitingForAgent && (
+              <div className="flex justify-start">
+                <div className="bg-purple-100 text-gray-600 rounded-lg px-4 py-3 flex items-center gap-2 animate-pulse">
+                  <span className="text-xs font-semibold">🦞 {work.lobsterName}</span>
+                  <span className="text-sm">{t('workDetail.agentTyping')}</span>
+                  <span className="flex gap-1">
+                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>

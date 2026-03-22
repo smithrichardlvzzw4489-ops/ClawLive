@@ -120,9 +120,10 @@ export const translations = {
       resultSummaryLabel: '一句话描述 AI 达成的结果（适合转发）',
       skillMarkdownLabel: 'Skill 内容（复制即学会，粘贴到其他 Agent 即可掌握）',
       skillMarkdownPlaceholder: '粘贴完整的 SKILL.md（含 YAML 头与正文），留空则从对话中自动提取',
-      copySkillMd: '复制 SKILL.md',
+      copySkillMd: '复制SKILL.md，赋能我的AI',
       copied: '已复制',
       noSkillToCopy: '该作品暂无可复制的 Skill 内容',
+      agentTyping: '正在输入中...',
     },
 
     // 登录/注册
@@ -264,9 +265,10 @@ export const translations = {
       resultSummaryLabel: 'One-sentence result (shareable)',
       skillMarkdownLabel: 'Skill content (copy to learn, paste into another Agent)',
       skillMarkdownPlaceholder: 'Paste full SKILL.md (YAML + body), or leave empty to auto-extract from chat',
-      copySkillMd: 'Copy SKILL.md',
+      copySkillMd: 'Copy SKILL.md, empower my AI',
       copied: 'Copied',
       noSkillToCopy: 'No Skill content available to copy',
+      agentTyping: 'Typing...',
     },
 
     auth: {

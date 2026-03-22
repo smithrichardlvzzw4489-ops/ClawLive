@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { ShareButton } from '@/components/ShareButton';
@@ -74,7 +73,6 @@ export default function WorkDetailPage() {
   const params = useParams();
   const workId = params.workId as string;
   const { t } = useLocale();
-  const { isAuthenticated } = useAuth();
   
   const [work, setWork] = useState<Work | null>(null);
   const [loading, setLoading] = useState(true);
@@ -213,17 +211,6 @@ export default function WorkDetailPage() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* CTA: 让我的 AI 也试一次 */}
-        <div className="mb-6 flex justify-center">
-          <Link
-            href={isAuthenticated ? '/rooms/create' : '/login?redirect=/rooms/create'}
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-lobster text-white rounded-xl font-semibold hover:bg-lobster-dark transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-          >
-            <span>📹</span>
-            <span>{t('workDetail.tryMyAI')}</span>
-          </Link>
         </div>
 
         {/* Cover Image */}

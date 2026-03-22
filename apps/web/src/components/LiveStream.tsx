@@ -13,6 +13,7 @@ import { ScreenshotViewer } from './ScreenshotViewer';
 import { AgentSettings } from './AgentSettings';
 import { ShareButton } from './ShareButton';
 import { VideoPlayer } from './VideoPlayer';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 import Link from 'next/link';
 
 interface LiveStreamProps {
@@ -22,6 +23,7 @@ interface LiveStreamProps {
 export function LiveStream({ roomId }: LiveStreamProps) {
   const searchParams = useSearchParams();
   const debugMode = searchParams.get('debug') === '1';
+  const { t } = useLocale();
   const { socket, isConnected } = useSocket();
   const [room, setRoom] = useState<Room | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,6 +34,8 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const [isHost, setIsHost] = useState(false);
   const [hostMessage, setHostMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [waitingForAgent, setWaitingForAgent] = useState(false);
+  const agentTypingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isTogglingLive, setIsTogglingLive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [isStartingLive, setIsStartingLive] = useState(false);
@@ -263,6 +267,9 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           return [...prev, data.message];
         });
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        setWaitingForAgent(true);
+        if (agentTypingTimeoutRef.current) clearTimeout(agentTypingTimeoutRef.current);
+        agentTypingTimeoutRef.current = setTimeout(() => setWaitingForAgent(false), 60000);
       } else {
         setHostMessage(content);
         alert(`发送失败: ${data?.error || '未知错误'}`);
@@ -334,6 +341,13 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
     socket.on('new-message', (msg) => {
       if (debugMode) console.log('[DIAG] new-message received', msg?.id, msg?.sender, msg?.content?.slice(0, 40));
+      if ((msg as { sender?: string }).sender === 'agent') {
+        setWaitingForAgent(false);
+        if (agentTypingTimeoutRef.current) {
+          clearTimeout(agentTypingTimeoutRef.current);
+          agentTypingTimeoutRef.current = null;
+        }
+      }
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -376,6 +390,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
     return () => {
       socket.emit('leave-room', { roomId });
+      if (agentTypingTimeoutRef.current) clearTimeout(agentTypingTimeoutRef.current);
       socket.off('room-info');
       socket.off('message-history');
       socket.off('new-message');
@@ -505,6 +520,19 @@ export function LiveStream({ roomId }: LiveStreamProps) {
             {messages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />
             ))}
+            {waitingForAgent && (
+              <div className="flex justify-start animate-slide-up">
+                <div className="bg-purple-100 text-purple-900 rounded-lg px-4 py-3 flex items-center gap-2 animate-pulse">
+                  <span className="text-xs font-semibold">🦞 {room.lobsterName}</span>
+                  <span className="text-sm">{t('workDetail.agentTyping')}</span>
+                  <span className="flex gap-1">
+                    <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
           
