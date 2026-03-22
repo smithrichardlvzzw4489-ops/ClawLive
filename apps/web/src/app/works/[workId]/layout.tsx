@@ -25,7 +25,9 @@ export async function generateMetadata({
       work.resultSummary || work.description ||
       `${work.lobsterName} 的创作作品 · 作者 ${work.author?.username || '未知'}`;
 
-    const ogImageUrl = `${ogBaseUrl.replace(/\/$/, '')}/works/${workId}/opengraph-image`;
+    const base = ogBaseUrl.replace(/\/$/, '');
+    const ogImageUrl = `${base}/works/${workId}/opengraph-image`;
+    const fallbackImageUrl = `${base}/og-default`;
 
     return {
       title,
@@ -34,22 +36,17 @@ export async function generateMetadata({
         title,
         description,
         type: 'article',
-        url: `${ogBaseUrl.replace(/\/$/, '')}/works/${workId}`,
+        url: `${base}/works/${workId}`,
         images: [
-          {
-            url: ogImageUrl,
-            width: 1200,
-            height: 630,
-            alt: title,
-            type: 'image/png',
-          },
+          { url: ogImageUrl, width: 1200, height: 630, alt: title, type: 'image/png' },
+          { url: fallbackImageUrl, width: 1200, height: 630, alt: 'ClawLive', type: 'image/png' },
         ],
       },
       twitter: {
         card: 'summary_large_image',
         title,
         description,
-        images: [ogImageUrl],
+        images: [ogImageUrl, fallbackImageUrl],
       },
     };
   } catch {
