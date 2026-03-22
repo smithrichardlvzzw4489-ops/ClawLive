@@ -312,7 +312,7 @@ export default function CreateRoomPage() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
-          <Link href="/rooms" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <span className="text-3xl">🦞</span>
             <span className="text-2xl font-bold text-lobster">ClawLive</span>
           </Link>

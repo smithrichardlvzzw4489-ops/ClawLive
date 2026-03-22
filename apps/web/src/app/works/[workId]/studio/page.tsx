@@ -289,10 +289,17 @@ export default function WorkStudioPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b px-4 py-3">
+          <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity">
+            🦞 ClawLive
+          </Link>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
+            <p className="text-gray-600">加载中...</p>
+          </div>
         </div>
       </div>
     );
@@ -300,12 +307,16 @@ export default function WorkStudioPage() {
 
   if (!work) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">作品不存在</p>
-          <Link href="/" className="text-lobster hover:underline">
-            返回作品列表
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b px-4 py-3">
+          <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity">
+            🦞 ClawLive
           </Link>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">作品不存在</p>
+          </div>
         </div>
       </div>
     );
@@ -321,8 +332,8 @@ export default function WorkStudioPage() {
       {/* Header */}
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/my-works" className="text-2xl hover:scale-110 transition-transform">
-            🦞
+          <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity">
+            🦞 ClawLive
           </Link>
           <div>
             <h1 className="text-xl font-bold">{work.title}</h1>

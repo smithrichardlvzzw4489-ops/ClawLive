@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { getWorkCardGradient } from '@/components/WorkCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Work {
@@ -139,9 +140,6 @@ export default function MyWorksPage() {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || t('workDetail.loadFailed')}</p>
-            <Link href="/my-works" className="text-lobster hover:underline">
-              {t('workDetail.backToList')}
-            </Link>
           </div>
         </div>
       </MainLayout>
@@ -267,7 +265,7 @@ export default function MyWorksPage() {
               {publishedWorks.map((work) => (
                 <div key={work.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden relative">
                   <Link href={`/works/${work.id}`} className="block">
-                    <div className="relative aspect-video bg-gradient-to-br from-lobster-light to-purple-200">
+                    <div className={`relative aspect-video bg-gradient-to-br ${getWorkCardGradient(work.id)}`}>
                       {work.coverImage ? (
                         <img src={work.coverImage} alt={work.title} className="w-full h-full object-cover" />
                       ) : (

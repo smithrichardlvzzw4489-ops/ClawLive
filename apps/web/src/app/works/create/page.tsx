@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MainLayout } from '@/components/MainLayout';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
 
 export default function CreateWorkPage() {
@@ -95,15 +96,13 @@ export default function CreateWorkPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        <div className="text-center mb-8">
-          <Link href="/my-works" className="text-lobster hover:underline inline-block mb-4">
-            ← 返回作品列表
-          </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">创建新作品</h1>
-          <p className="text-gray-600">与你的 Agent 互动，创作独特的内容</p>
-        </div>
+    <MainLayout>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">创建新作品</h1>
+            <p className="text-gray-600">与你的 Agent 互动，创作独特的内容</p>
+          </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-lg p-8 space-y-6">
           {error && (
@@ -186,5 +185,6 @@ export default function CreateWorkPage() {
         </form>
       </div>
     </div>
+    </MainLayout>
   );
 }
