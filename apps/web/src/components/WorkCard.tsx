@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { ShareButton } from './ShareButton';
 
 interface WorkCardProps {
   id: string;
@@ -71,19 +70,6 @@ export function WorkCard({
 
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300" />
 
-        <div
-          className="absolute top-2 right-2 z-10"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ShareButton
-            url={`/works/${id}`}
-            title={title}
-            text={summary}
-            variant="icon"
-            className="!p-1.5 !bg-white/90 hover:!bg-white text-gray-600"
-          />
-        </div>
-        
         <div className="absolute bottom-2 right-2 flex items-center gap-2 text-white text-xs font-semibold z-10">
           <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">
             👁️ {viewCount}

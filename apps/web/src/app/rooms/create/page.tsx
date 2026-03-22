@@ -15,7 +15,6 @@ interface UserConnection {
 
 export default function CreateRoomPage() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState<'basic' | 'agent'>('basic');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [createdRoomId, setCreatedRoomId] = useState('');
@@ -23,7 +22,6 @@ export default function CreateRoomPage() {
   // Basic info
   const [formData, setFormData] = useState({
     title: '',
-    description: '',
     lobsterName: '',
   });
 
@@ -57,9 +55,9 @@ export default function CreateRoomPage() {
     }
   }, [router]);
 
-  // Load user connections when entering agent step
+  // Load user connections when room created
   useEffect(() => {
-    if (currentStep !== 'agent' || !createdRoomId) return;
+    if (!createdRoomId) return;
     const loadConnections = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -75,7 +73,7 @@ export default function CreateRoomPage() {
       }
     };
     loadConnections();
-  }, [currentStep, createdRoomId]);
+  }, [createdRoomId]);
 
   // Step 1: Create room with basic info
   const handleBasicInfoSubmit = async (e: React.FormEvent) => {
@@ -94,13 +92,12 @@ export default function CreateRoomPage() {
       const room = await api.rooms.create({
         id: generatedId,
         title: formData.title,
-        description: formData.description || undefined,
+        description: undefined,
         lobsterName: formData.lobsterName,
       });
 
       setCreatedRoomId(room.id);
-      setCurrentStep('agent');
-      setMessage({ type: 'success', text: '✅ 直播间创建成功！现在配置你的 Agent' });
+      setMessage({ type: 'success', text: '✅ 直播间创建成功！配置 Agent 后即可开始直播' });
     } catch (err: any) {
       setError(err.message || '创建失败');
     } finally {
@@ -327,29 +324,9 @@ export default function CreateRoomPage() {
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-2">创建直播间</h1>
             <p className="text-gray-600">配置你的龙虾直播间并开始直播</p>
-            
-            {/* Progress indicator */}
-            <div className="flex items-center gap-4 mt-6">
-              <div className={`flex items-center gap-2 ${currentStep === 'basic' ? 'text-lobster font-semibold' : currentStep === 'agent' ? 'text-green-600' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'basic' ? 'bg-lobster text-white' : currentStep === 'agent' ? 'bg-green-600 text-white' : 'bg-gray-300 text-white'}`}>
-                  {currentStep === 'agent' ? '✓' : '1'}
-                </div>
-                <span>基本信息</span>
-              </div>
-              <div className="flex-1 h-1 bg-gray-200 rounded">
-                <div className={`h-full bg-lobster rounded transition-all ${currentStep === 'agent' ? 'w-full' : 'w-0'}`}></div>
-              </div>
-              <div className={`flex items-center gap-2 ${currentStep === 'agent' ? 'text-lobster font-semibold' : 'text-gray-400'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'agent' ? 'bg-lobster text-white' : 'bg-gray-300 text-white'}`}>
-                  2
-                </div>
-                <span>Agent 配置</span>
-              </div>
-            </div>
           </div>
 
-          {currentStep === 'basic' && (
-            <form onSubmit={handleBasicInfoSubmit} className="bg-white rounded-xl shadow p-8 space-y-6">
+          <form onSubmit={handleBasicInfoSubmit} className="bg-white rounded-xl shadow p-8 space-y-6">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
                 {error}
@@ -384,44 +361,32 @@ export default function CreateRoomPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                描述
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="分享一下这个直播间的内容..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? '创建中...' : '下一步：配置 Agent →'}
-              </button>
-              <Link
-                href="/rooms"
-                className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors text-center"
-              >
-                取消
-              </Link>
-            </div>
-          </form>
-          )}
-
-          {currentStep === 'agent' && (
-            <div className="bg-white rounded-xl shadow p-8 space-y-6">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                  {error}
+            {!createdRoomId ? (
+              <>
+                <div className="py-6 px-4 rounded-lg bg-gray-50 border border-dashed border-gray-200 text-center text-gray-500 text-sm">
+                  创建直播间后，将在此配置 Agent
                 </div>
-              )}
+                <div className="flex gap-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? '创建中...' : '创建并配置 Agent →'}
+                </button>
+                <Link
+                  href="/rooms"
+                  className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors text-center"
+                >
+                  取消
+                </Link>
+                </div>
+              </>
+            ) : (
+            <>
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Agent 配置</h3>
+              </div>
 
               {/* Live mode selection */}
               <div>
@@ -697,8 +662,9 @@ export default function CreateRoomPage() {
                   )}
                 </div>
               )}
-            </div>
-          )}
+            </>
+            )}
+          </form>
         </div>
       </main>
     </div>

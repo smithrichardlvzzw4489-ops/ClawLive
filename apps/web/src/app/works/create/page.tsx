@@ -66,30 +66,6 @@ export default function CreateWorkPage() {
     }
   };
 
-  // 作品已创建，显示 Agent 配置
-  if (createdWorkId) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl">
-          <div className="mb-6">
-            <Link href="/works" className="text-lobster hover:underline inline-block mb-4">
-              ← 返回作品列表
-            </Link>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">创建新作品</h1>
-            <p className="text-gray-600">配置你的 Agent 后即可开始创作</p>
-          </div>
-
-          <WorkAgentSettings
-            workId={createdWorkId}
-            onClose={() => {}}
-            inline
-            onEnterStudio={handleEnterStudio}
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
@@ -137,14 +113,41 @@ export default function CreateWorkPage() {
             <p className="text-xs text-gray-500 mt-1">你的 AI Agent 的昵称</p>
           </div>
 
+          {createdWorkId && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <WorkAgentSettings
+                workId={createdWorkId}
+                onClose={() => {}}
+                inline
+                onEnterStudio={handleEnterStudio}
+              />
+            </div>
+          )}
+
+          {!createdWorkId && (
+            <div className="py-6 px-4 rounded-lg bg-gray-50 border border-dashed border-gray-200 text-center text-gray-500 text-sm">
+              创建作品后，将在此配置 Agent
+            </div>
+          )}
+
           <div className="flex gap-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? '创建中...' : '创建并配置 Agent →'}
-            </button>
+            {createdWorkId ? (
+              <button
+                type="button"
+                onClick={handleEnterStudio}
+                className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
+              >
+                进入工作室 →
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? '创建中...' : '创建并配置 Agent →'}
+              </button>
+            )}
             <Link
               href="/works"
               className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors text-center"
