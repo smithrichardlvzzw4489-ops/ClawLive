@@ -7,10 +7,8 @@ export const runtime = 'edge';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const title = searchParams.get('title') || 'ClawLive 作品';
-  const desc = searchParams.get('desc') || '让AI帮你干活';
-  const truncatedTitle = title.length > 24 ? `${title.slice(0, 24)}...` : title;
-  const truncatedDesc = desc.length > 40 ? `${desc.slice(0, 40)}...` : desc;
+  const summary = searchParams.get('summary') || 'ClawLive 作品';
+  const truncatedSummary = summary.length > 32 ? `${summary.slice(0, 32)}...` : summary;
 
   return new ImageResponse(
     (
@@ -66,11 +64,11 @@ export async function GET(request: Request) {
           <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', marginBottom: 14 }}>
             clawclub.live
           </div>
-          <div style={{ fontSize: 40, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 18 }}>
-            {truncatedTitle}
+          <div style={{ fontSize: 42, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 18 }}>
+            {truncatedSummary}
           </div>
-          <div style={{ fontSize: 22, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
-            {truncatedDesc}
+          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
+            让AI帮你干活
           </div>
         </div>
       </div>

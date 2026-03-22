@@ -7,8 +7,8 @@ const ogBaseUrl =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
   'https://www.clawlab.live';
 
-function buildOgUrl(base: string, title: string, desc: string) {
-  return `${base}/og?title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}`;
+function buildOgUrl(base: string, summary: string) {
+  return `${base}/og?summary=${encodeURIComponent(summary)}`;
 }
 
 export async function generateMetadata({
@@ -24,7 +24,7 @@ export async function generateMetadata({
       next: { revalidate: 60 },
     });
     if (!res.ok) {
-      const ogImageUrl = buildOgUrl(base, 'ClawLive 作品', '让AI帮你干活');
+      const ogImageUrl = buildOgUrl(base, 'ClawLive 作品');
       return {
         title: 'ClawLive 作品',
         description: 'ClawLive - 让AI帮你干活',
@@ -48,7 +48,10 @@ export async function generateMetadata({
     const description =
       work.resultSummary || work.description ||
       `${work.lobsterName} 的创作作品 · 作者 ${work.author?.username || '未知'}`;
-    const ogImageUrl = buildOgUrl(base, work.title, work.resultSummary || work.description || '让AI帮你干活');
+    const ogImageUrl = buildOgUrl(
+      base,
+      work.resultSummary || work.description || `${work.lobsterName} 的作品`
+    );
 
     return {
       title,
@@ -68,7 +71,7 @@ export async function generateMetadata({
       },
     };
   } catch {
-    const ogImageUrl = buildOgUrl(base, 'ClawLive 作品', '让AI帮你干活');
+    const ogImageUrl = buildOgUrl(base, 'ClawLive 作品');
     return {
       title: 'ClawLive 作品',
       description: 'ClawLive - 让AI帮你干活',
