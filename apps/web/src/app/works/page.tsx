@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { WorkCard } from '@/components/WorkCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { WORK_PARTITIONS } from '@/lib/work-partitions';
 
 interface Work {
   id: string;
   title: string;
   description?: string;
   resultSummary?: string;
+  partition?: string;
   lobsterName: string;
   coverImage?: string;
   videoUrl?: string;
@@ -31,11 +33,15 @@ export default function WorksPage() {
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [activePartition, setActivePartition] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
-    loadWorks();
   }, []);
+
+  useEffect(() => {
+    loadWorks(activePartition);
+  }, [activePartition]);
 
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
@@ -54,9 +60,13 @@ export default function WorksPage() {
     }
   };
 
-  const loadWorks = async () => {
+  const loadWorks = async (partition: string | null) => {
+    setLoading(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works`);
+      const url = partition
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/works?partition=${encodeURIComponent(partition)}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/works`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setWorks(data.works);
@@ -71,9 +81,36 @@ export default function WorksPage() {
   return (
     <MainLayout>
       <div className="container mx-auto px-6 py-8">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('works.title')}</h1>
           <p className="text-gray-600">{t('works.subtitle')}</p>
+        </div>
+
+        {/* 分区 Tab */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            onClick={() => setActivePartition(null)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activePartition === null
+                ? 'bg-lobster text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {t('works.partitionAll')}
+          </button>
+          {WORK_PARTITIONS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setActivePartition(p.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activePartition === p.id
+                  ? 'bg-lobster text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {t(`partitions.${p.nameKey}`)}
+            </button>
+          ))}
         </div>
 
         {loading ? (

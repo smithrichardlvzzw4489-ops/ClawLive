@@ -9,6 +9,7 @@
  */
 
 import { getHostInfoBatch, works } from '../api/routes/rooms-simple';
+import { DEFAULT_PARTITION } from '../lib/work-partitions';
 import { getAllRooms } from '../lib/rooms-store';
 import {
   getUserInterestProfile,
@@ -38,6 +39,7 @@ interface WorkWithScore {
   title: string;
   description?: string;
   resultSummary?: string;
+  partition?: string;
   lobsterName: string;
   coverImage?: string;
   videoUrl?: string;
@@ -158,6 +160,7 @@ export async function getRecommendedWorks(userId?: string): Promise<WorkWithScor
       title: work.title,
       description: work.description,
       resultSummary: work.resultSummary,
+      partition: work.partition || DEFAULT_PARTITION,
       lobsterName: work.lobsterName,
       coverImage: work.coverImage,
       videoUrl: work.videoUrl,

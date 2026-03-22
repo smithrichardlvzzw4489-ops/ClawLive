@@ -4,6 +4,7 @@
  */
 import * as fs from 'fs';
 import { getDataFilePath } from '../lib/data-path';
+import { DEFAULT_PARTITION } from '../lib/work-partitions';
 
 const WORKS_FILE = getDataFilePath('works.json');
 const WORK_MESSAGES_FILE = getDataFilePath('work-messages.json');
@@ -24,6 +25,7 @@ type Work = {
   description?: string;
   resultSummary?: string;
   skillMarkdown?: string;
+  partition?: string;
   lobsterName: string;
   status: 'draft' | 'published';
   messages: WorkMessage[];
@@ -90,7 +92,9 @@ export class WorksPersistence {
         const data = fs.readFileSync(WORKS_FILE, 'utf-8');
         const obj = JSON.parse(data);
         for (const [id, w] of Object.entries(obj)) {
-          works.set(id, reviveDates(w) as Work);
+          const work = reviveDates(w) as Work;
+          if (!work.partition) work.partition = DEFAULT_PARTITION;
+          works.set(id, work);
         }
       }
       if (fs.existsSync(WORK_MESSAGES_FILE)) {

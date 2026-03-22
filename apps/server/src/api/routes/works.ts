@@ -11,6 +11,7 @@ import { WorksPersistence } from '../../services/works-persistence';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';
 import { recordBehavior } from '../../services/user-behavior';
+import { isValidPartition, DEFAULT_PARTITION } from '../../lib/work-partitions';
 
 export function worksRoutes(io: Server): Router {
   const router = Router();
@@ -19,9 +20,14 @@ export function worksRoutes(io: Server): Router {
   // GET /api/works - 获取所有已发布的作品
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { authorId, tag, search } = req.query;
+      const { authorId, tag, search, partition } = req.query;
       
-      const publishedWorks = Array.from(works.values()).filter(work => work.status === 'published');
+      let publishedWorks = Array.from(works.values()).filter(work => work.status === 'published');
+
+      // Filter by partition
+      if (partition && typeof partition === 'string') {
+        publishedWorks = publishedWorks.filter(w => (w.partition || DEFAULT_PARTITION) === partition);
+      }
       const authorIds = [...new Set(publishedWorks.map(w => w.authorId))];
       const authorMap = await getHostInfoBatch(authorIds);
 
@@ -32,6 +38,7 @@ export function worksRoutes(io: Server): Router {
           title: work.title,
           description: work.description,
           resultSummary: work.resultSummary,
+          partition: work.partition || DEFAULT_PARTITION,
           lobsterName: work.lobsterName,
           coverImage: work.coverImage,
           videoUrl: work.videoUrl,
@@ -183,6 +190,7 @@ export function worksRoutes(io: Server): Router {
         description: description || '',
         resultSummary: undefined as string | undefined,
         skillMarkdown: undefined as string | undefined,
+        partition: DEFAULT_PARTITION,
         lobsterName,
         status: 'draft' as const,
         messages: [],
@@ -260,7 +268,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { title, description, resultSummary, skillMarkdown, tags, coverImage, videoUrl } = req.body;
+      const { title, description, resultSummary, skillMarkdown, partition, tags, coverImage, videoUrl } = req.body;
 
       const work = works.get(workId);
       if (!work) {
@@ -275,6 +283,7 @@ export function worksRoutes(io: Server): Router {
       if (description !== undefined) work.description = description;
       if (resultSummary !== undefined) work.resultSummary = resultSummary === '' ? undefined : resultSummary;
       if (skillMarkdown !== undefined) work.skillMarkdown = skillMarkdown === '' ? undefined : skillMarkdown;
+      if (partition !== undefined && isValidPartition(partition)) work.partition = partition;
       if (tags) work.tags = tags;
       if (coverImage !== undefined) work.coverImage = coverImage;
       if (videoUrl !== undefined) work.videoUrl = videoUrl === '' || videoUrl === null ? undefined : videoUrl;
@@ -294,7 +303,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { videoUrl, resultSummary, skillMarkdown } = req.body || {};
+      const { videoUrl, resultSummary, skillMarkdown, partition } = req.body || {};
 
       const work = works.get(workId);
       if (!work) {
@@ -308,6 +317,9 @@ export function worksRoutes(io: Server): Router {
       if (work.status === 'published') {
         return res.status(400).json({ error: 'Work already published' });
       }
+
+      const finalPartition = partition && isValidPartition(partition) ? partition : DEFAULT_PARTITION;
+      work.partition = finalPartition;
 
       // 发布时确保包含视频内容（客户端传入的 videoUrl 优先）
       if (videoUrl !== undefined && videoUrl !== null && videoUrl !== '') {
@@ -536,6 +548,7 @@ export function worksRoutes(io: Server): Router {
           id: work.id,
           title: work.title,
           description: work.description,
+          partition: work.partition || DEFAULT_PARTITION,
           lobsterName: work.lobsterName,
           status: work.status,
           coverImage: work.coverImage,

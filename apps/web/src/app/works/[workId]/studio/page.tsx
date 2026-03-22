@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
+import { WORK_PARTITIONS, DEFAULT_PARTITION } from '@/lib/work-partitions';
 import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
 
 interface Message {
@@ -21,6 +22,7 @@ interface Work {
   title: string;
   description?: string;
   skillMarkdown?: string;
+  partition?: string;
   lobsterName: string;
   status: 'draft' | 'published';
   videoUrl?: string;
@@ -44,6 +46,7 @@ export default function WorkStudioPage() {
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishResultSummary, setPublishResultSummary] = useState('');
   const [publishSkillMarkdown, setPublishSkillMarkdown] = useState('');
+  const [publishPartition, setPublishPartition] = useState<string>(DEFAULT_PARTITION);
   const [showSettings, setShowSettings] = useState(false);
   const { t } = useLocale();
   const [agentConfigured, setAgentConfigured] = useState(false);
@@ -220,6 +223,7 @@ export default function WorkStudioPage() {
   const openPublishModal = () => {
     setPublishResultSummary(work?.description?.slice(0, 80) || '');
     setPublishSkillMarkdown(work?.skillMarkdown || '');
+    setPublishPartition(work?.partition || DEFAULT_PARTITION);
     setShowPublishModal(true);
   };
 
@@ -241,6 +245,7 @@ export default function WorkStudioPage() {
           videoUrl: workVideoUrl.trim() || undefined,
           resultSummary: publishResultSummary.trim() || undefined,
           skillMarkdown: publishSkillMarkdown.trim() || undefined,
+          partition: publishPartition || DEFAULT_PARTITION,
         }),
       });
 
@@ -336,8 +341,23 @@ export default function WorkStudioPage() {
       {/* Publish Modal */}
       {showPublishModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold text-gray-900 mb-4">{t('workDetail.publishModalTitle')}</h2>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t('workDetail.partitionLabel')} <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={publishPartition}
+              onChange={(e) => setPublishPartition(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent mb-4"
+              required
+            >
+              {WORK_PARTITIONS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {t(`partitions.${p.nameKey}`)}
+                </option>
+              ))}
+            </select>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('workDetail.resultSummaryLabel')}
             </label>

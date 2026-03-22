@@ -64,6 +64,7 @@ const works = new Map<string, {
   description?: string;
   resultSummary?: string;
   skillMarkdown?: string;
+  partition?: string;
   lobsterName: string;
   status: 'draft' | 'published';
   messages: Array<{
