@@ -23,6 +23,7 @@ type Work = {
   title: string;
   description?: string;
   resultSummary?: string;
+  skillMarkdown?: string;
   lobsterName: string;
   status: 'draft' | 'published';
   messages: WorkMessage[];

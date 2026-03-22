@@ -184,6 +184,7 @@ export function worksRoutes(io: Server): Router {
         title,
         description: description || '',
         resultSummary: undefined as string | undefined,
+        skillMarkdown: undefined as string | undefined,
         lobsterName,
         status: 'draft' as const,
         messages: [],
@@ -261,7 +262,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { title, description, resultSummary, tags, coverImage, videoUrl } = req.body;
+      const { title, description, resultSummary, skillMarkdown, tags, coverImage, videoUrl } = req.body;
 
       const work = works.get(workId);
       if (!work) {
@@ -275,6 +276,7 @@ export function worksRoutes(io: Server): Router {
       if (title) work.title = title;
       if (description !== undefined) work.description = description;
       if (resultSummary !== undefined) work.resultSummary = resultSummary === '' ? undefined : resultSummary;
+      if (skillMarkdown !== undefined) work.skillMarkdown = skillMarkdown === '' ? undefined : skillMarkdown;
       if (tags) work.tags = tags;
       if (coverImage !== undefined) work.coverImage = coverImage;
       if (videoUrl !== undefined) work.videoUrl = videoUrl === '' || videoUrl === null ? undefined : videoUrl;
@@ -294,7 +296,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { videoUrl, resultSummary } = req.body || {};
+      const { videoUrl, resultSummary, skillMarkdown } = req.body || {};
 
       const work = works.get(workId);
       if (!work) {
@@ -315,6 +317,9 @@ export function worksRoutes(io: Server): Router {
       }
       if (resultSummary !== undefined && resultSummary !== null && resultSummary !== '') {
         work.resultSummary = resultSummary;
+      }
+      if (skillMarkdown !== undefined && skillMarkdown !== null && skillMarkdown !== '') {
+        work.skillMarkdown = skillMarkdown;
       }
 
       // Save messages to work

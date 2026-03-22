@@ -20,6 +20,7 @@ interface Work {
   id: string;
   title: string;
   description?: string;
+  skillMarkdown?: string;
   lobsterName: string;
   status: 'draft' | 'published';
   videoUrl?: string;
@@ -41,6 +42,7 @@ export default function WorkStudioPage() {
   const [publishing, setPublishing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishResultSummary, setPublishResultSummary] = useState('');
+  const [publishSkillMarkdown, setPublishSkillMarkdown] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const { t } = useLocale();
   const [agentConfigured, setAgentConfigured] = useState(false);
@@ -200,6 +202,7 @@ export default function WorkStudioPage() {
 
   const openPublishModal = () => {
     setPublishResultSummary(work?.description?.slice(0, 80) || '');
+    setPublishSkillMarkdown(work?.skillMarkdown || '');
     setShowPublishModal(true);
   };
 
@@ -220,6 +223,7 @@ export default function WorkStudioPage() {
         body: JSON.stringify({
           videoUrl: workVideoUrl.trim() || undefined,
           resultSummary: publishResultSummary.trim() || undefined,
+          skillMarkdown: publishSkillMarkdown.trim() || undefined,
         }),
       });
 
@@ -329,6 +333,17 @@ export default function WorkStudioPage() {
               maxLength={120}
             />
             <p className="text-xs text-gray-500 mb-4">建议 50 字以内，适合转发分享</p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {t('workDetail.skillMarkdownLabel')}
+            </label>
+            <textarea
+              value={publishSkillMarkdown}
+              onChange={(e) => setPublishSkillMarkdown(e.target.value)}
+              placeholder={t('workDetail.skillMarkdownPlaceholder')}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent mb-4 font-mono text-sm"
+              rows={6}
+              spellCheck={false}
+            />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPublishModal(false)}

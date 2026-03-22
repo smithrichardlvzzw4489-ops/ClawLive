@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
@@ -22,6 +22,7 @@ interface Work {
   title: string;
   description?: string;
   resultSummary?: string;
+  skillMarkdown?: string;
   lobsterName: string;
   tags?: string[];
   coverImage?: string;
@@ -37,6 +38,38 @@ interface Work {
   };
 }
 
+/** 从 agent 消息中提取所有 SKILL.md 风格内容（含 YAML 头与正文），支持多个 Skill */
+function extractSkillFromMessages(messages: Message[]): string | null {
+  const blocks: string[] = [];
+  const seen = new Set<string>();
+
+  const addIfSkill = (raw: string) => {
+    if (!raw.startsWith('---') || !raw.includes('name:')) return;
+    const normalized = raw.replace(/\s+/g, ' ').trim();
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    blocks.push(raw.trim());
+  };
+
+  for (const msg of messages) {
+    if (msg.sender !== 'agent' || !msg.content) continue;
+    // 匹配 ``` 或 ```md 或 ```yaml 等 fenced blocks
+    const blockRe = /```(?:md|yaml|skill)?\s*\n([\s\S]*?)```/g;
+    let m;
+    while ((m = blockRe.exec(msg.content)) !== null) {
+      addIfSkill(m[1].trim());
+    }
+    // 无语言标签的 ``` block
+    const bareRe = /```\s*\n([\s\S]*?)```/g;
+    while ((m = bareRe.exec(msg.content)) !== null) {
+      addIfSkill(m[1].trim());
+    }
+  }
+
+  if (blocks.length === 0) return null;
+  return blocks.join('\n\n');
+}
+
 export default function WorkDetailPage() {
   const params = useParams();
   const workId = params.workId as string;
@@ -46,6 +79,25 @@ export default function WorkDetailPage() {
   const [work, setWork] = useState<Work | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [copiedSkill, setCopiedSkill] = useState(false);
+
+  const getSkillContent = useCallback((): string | null => {
+    if (!work) return null;
+    if (work.skillMarkdown?.trim()) return work.skillMarkdown.trim();
+    return extractSkillFromMessages(work.messages);
+  }, [work]);
+
+  const copySkillMd = useCallback(async () => {
+    const content = getSkillContent();
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedSkill(true);
+      setTimeout(() => setCopiedSkill(false), 2000);
+    } catch {
+      // ignore
+    }
+  }, [getSkillContent]);
 
   useEffect(() => {
     loadWork();
@@ -143,11 +195,23 @@ export default function WorkDetailPage() {
                 </div>
               )}
             </div>
-            <ShareButton
-              url={`/works/${workId}`}
-              title={work.title}
-              text={work.resultSummary || work.description || `${work.lobsterName} 的作品 - ${work.title}`}
-            />
+            <div className="flex items-center gap-2 flex-wrap">
+              <ShareButton
+                url={`/works/${workId}`}
+                title={work.title}
+                text={work.resultSummary || work.description || `${work.lobsterName} 的作品 - ${work.title}`}
+              />
+              {getSkillContent() && (
+                <button
+                  type="button"
+                  onClick={copySkillMd}
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span>📋</span>
+                  <span>{copiedSkill ? t('workDetail.copied') : t('workDetail.copySkillMd')}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
