@@ -19,7 +19,7 @@ export function ShareButton({ url, title, text, className = '', variant = 'butto
     let shareUrl = url.startsWith('http') ? url : `${origin}${url.startsWith('/') ? url : `/${url}`}`;
     // 平台缓存强：加版本号强制刷新预览（bump when OG 路径/设计变更）
     const sep = shareUrl.includes('?') ? '&' : '?';
-    shareUrl = `${shareUrl}${sep}og=5`;
+    shareUrl = `${shareUrl}${sep}og=6`;
     const toCopy = text && text.trim() ? `「${text.trim()}」\n${shareUrl}` : shareUrl;
 
     try {

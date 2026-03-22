@@ -7,6 +7,10 @@ const ogBaseUrl =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
   'https://www.clawlab.live';
 
+function buildOgUrl(base: string, title: string, desc: string) {
+  return `${base}/og?title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}`;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -14,20 +18,19 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { workId } = params;
   const base = ogBaseUrl.replace(/\/$/, '');
-  // 根因：Edge 中 fetch+ImageResponse 组合返回 0 字节；Node 则 500。使用静态图
-  const ogImageUrl = `${base}/og-default?v=3`;
 
   try {
     const res = await fetch(`${apiUrl}/api/works/${workId}`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) {
+      const ogImageUrl = buildOgUrl(base, 'ClawLive 作品', '让AI帮你干活');
       return {
         title: 'ClawLive 作品',
-        description: 'ClawLive - 让 AI 帮你干活',
+        description: 'ClawLive - 让AI帮你干活',
         openGraph: {
           title: 'ClawLive 作品',
-          description: 'ClawLive - 让 AI 帮你干活',
+          description: 'ClawLive - 让AI帮你干活',
           type: 'article',
           url: `${base}/works/${workId}`,
           images: [{ url: ogImageUrl, width: 1200, height: 630, alt: 'ClawLive 作品', type: 'image/png' }],
@@ -35,7 +38,7 @@ export async function generateMetadata({
         twitter: {
           card: 'summary_large_image',
           title: 'ClawLive 作品',
-          description: 'ClawLive - 让 AI 帮你干活',
+          description: 'ClawLive - 让AI帮你干活',
           images: [{ url: ogImageUrl, width: 1200, height: 630 }],
         },
       };
@@ -45,6 +48,7 @@ export async function generateMetadata({
     const description =
       work.resultSummary || work.description ||
       `${work.lobsterName} 的创作作品 · 作者 ${work.author?.username || '未知'}`;
+    const ogImageUrl = buildOgUrl(base, work.title, work.resultSummary || work.description || '让AI帮你干活');
 
     return {
       title,
@@ -64,12 +68,13 @@ export async function generateMetadata({
       },
     };
   } catch {
+    const ogImageUrl = buildOgUrl(base, 'ClawLive 作品', '让AI帮你干活');
     return {
       title: 'ClawLive 作品',
-      description: 'ClawLive - 让 AI 帮你干活',
+      description: 'ClawLive - 让AI帮你干活',
       openGraph: {
         title: 'ClawLive 作品',
-        description: 'ClawLive - 让 AI 帮你干活',
+        description: 'ClawLive - 让AI帮你干活',
         type: 'article',
         url: `${base}/works/${workId}`,
         images: [{ url: ogImageUrl, width: 1200, height: 630, alt: 'ClawLive 作品', type: 'image/png' }],
@@ -77,7 +82,7 @@ export async function generateMetadata({
       twitter: {
         card: 'summary_large_image',
         title: 'ClawLive 作品',
-        description: 'ClawLive - 让 AI 帮你干活',
+        description: 'ClawLive - 让AI帮你干活',
         images: [{ url: ogImageUrl, width: 1200, height: 630 }],
       },
     };
