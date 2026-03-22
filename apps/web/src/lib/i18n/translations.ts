@@ -174,6 +174,7 @@ export const translations = {
       passwordMinLength: '密码至少 6 位',
       loginFailed: '登录失败',
       registerFailed: '注册失败',
+      userNotFoundPrompt: '该账号未注册，请先注册再登录',
       networkError: '无法连接服务器，请确认后端服务已启动（默认端口 3001）',
     },
 
@@ -342,6 +343,7 @@ export const translations = {
       passwordMinLength: 'Password must be at least 6 characters',
       loginFailed: 'Login failed',
       registerFailed: 'Registration failed',
+      userNotFoundPrompt: 'Account not registered. Please register first.',
       networkError: 'Cannot connect to server. Please ensure the backend is running (default port 3001).',
     },
 

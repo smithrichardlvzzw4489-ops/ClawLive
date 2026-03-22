@@ -78,16 +78,6 @@ export function Header() {
           >
             {t('nav.live')}
           </Link>
-          <Link
-            href="/works"
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive('/works')
-                ? 'text-lobster bg-lobster/10'
-                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
-            }`}
-          >
-            {t('nav.works')}
-          </Link>
         </nav>
 
         <form onSubmit={handleSearch} className="flex-1 max-w-xl">
@@ -190,20 +180,12 @@ export function Header() {
               </div>
             </>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className="px-5 py-2 text-gray-700 hover:text-lobster font-medium transition-colors"
-              >
-                {t('login')}
-              </Link>
-              <Link
-                href="/register"
-                className="px-5 py-2 bg-lobster text-white rounded-lg font-medium hover:bg-lobster-dark transition-colors"
-              >
-                {t('register')}
-              </Link>
-            </>
+            <Link
+              href="/login"
+              className="px-5 py-2 bg-lobster text-white rounded-lg font-medium hover:bg-lobster-dark transition-colors"
+            >
+              {t('login')}
+            </Link>
           )}
         </div>
       </div>

@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { WorkAgentSettings } from '@/components/WorkAgentSettings';
 
 export default function CreateWorkPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [createdWorkId, setCreatedWorkId] = useState<string | null>(null);
 
   // Auth guard: 未登录则跳转登录页，登录成功后返回
   useEffect(() => {
@@ -16,6 +18,7 @@ export default function CreateWorkPage() {
       return;
     }
   }, [router]);
+
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     title: '',
@@ -49,14 +52,43 @@ export default function CreateWorkPage() {
       }
 
       const work = await response.json();
-      // Redirect to work studio
-      router.push(`/works/${work.id}/studio`);
+      setCreatedWorkId(work.id);
     } catch (err: any) {
       setError(err.message || '创建失败');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleEnterStudio = () => {
+    if (createdWorkId) {
+      router.push(`/works/${createdWorkId}/studio`);
+    }
+  };
+
+  // 作品已创建，显示 Agent 配置
+  if (createdWorkId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl">
+          <div className="mb-6">
+            <Link href="/works" className="text-lobster hover:underline inline-block mb-4">
+              ← 返回作品列表
+            </Link>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">创建新作品</h1>
+            <p className="text-gray-600">配置你的 Agent 后即可开始创作</p>
+          </div>
+
+          <WorkAgentSettings
+            workId={createdWorkId}
+            onClose={() => {}}
+            inline
+            onEnterStudio={handleEnterStudio}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -105,35 +137,13 @@ export default function CreateWorkPage() {
             <p className="text-xs text-gray-500 mt-1">你的 AI Agent 的昵称</p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              作品描述
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="简单介绍一下这个作品..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
-              rows={4}
-            />
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">💡 创作提示</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• 创建后，你将进入工作室与 Agent 互动</li>
-              <li>• 可以随时保存草稿，不用一次完成</li>
-              <li>• 满意后点击「发布」，让大家欣赏你的作品</li>
-            </ul>
-          </div>
-
           <div className="flex gap-4">
             <button
               type="submit"
               disabled={loading}
               className="flex-1 px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? '创建中...' : '开始创作 →'}
+              {loading ? '创建中...' : '创建并配置 Agent →'}
             </button>
             <Link
               href="/works"

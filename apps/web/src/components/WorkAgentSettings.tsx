@@ -13,9 +13,13 @@ interface WorkAgentSettingsProps {
   workId: string;
   onClose: () => void;
   onConfigComplete?: () => void;
+  /** 内联模式：用于创建页，无弹窗遮罩 */
+  inline?: boolean;
+  /** 内联模式下，进入工作室的回调（替代 onClose） */
+  onEnterStudio?: () => void;
 }
 
-export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAgentSettingsProps) {
+export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, onEnterStudio }: WorkAgentSettingsProps) {
   const [connectionChoice, setConnectionChoice] = useState<'choice' | 'existing' | 'new'>('choice');
   const [connections, setConnections] = useState<UserConnection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState('');
@@ -100,7 +104,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
       setLoginStep('done');
       setMessage({ type: 'success', text: '✅ 连接已应用！' });
       onConfigComplete?.();
-      setTimeout(() => onClose(), 1500);
+      if (!inline) setTimeout(() => onClose(), 1500);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || '应用失败' });
     } finally {
@@ -184,11 +188,11 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
           });
           const applyData = await applyRes.json();
           if (!applyData.success) throw new Error(applyData.error || '应用失败');
-          setLoginStep('done');
-          setMessage({ type: 'success', text: '✅ Agent 配置成功！' });
-          onConfigComplete?.();
-          setTimeout(() => onClose(), 1500);
-        }
+        setLoginStep('done');
+        setMessage({ type: 'success', text: '✅ Agent 配置成功！' });
+        onConfigComplete?.();
+        if (!inline) setTimeout(() => onClose(), 1500);
+      }
       } else {
         setMessage({ type: 'error', text: `❌ ${data.error || '验证码错误'}` });
       }
@@ -232,7 +236,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
         setLoginStep('done');
         setMessage({ type: 'success', text: '✅ Agent 配置成功！' });
         onConfigComplete?.();
-        setTimeout(() => onClose(), 1500);
+        if (!inline) setTimeout(() => onClose(), 1500);
       } else {
         setMessage({ type: 'error', text: data.error || '密码错误' });
       }
@@ -243,22 +247,23 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🦞</span>
-            <h2 className="text-xl font-bold">Agent 设置</h2>
-          </div>
+  const content = (
+    <div className={inline ? 'bg-white rounded-lg border border-gray-200 overflow-hidden' : 'bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto'}>
+      {/* Header */}
+      <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🦞</span>
+          <h2 className="text-xl font-bold">{inline ? 'Agent 配置' : 'Agent 设置'}</h2>
+        </div>
+        {!inline && (
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
           >
             ×
           </button>
-        </div>
+        )}
+      </div>
 
         {/* Content */}
         <div className="p-6">
@@ -520,17 +525,45 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete }: WorkAge
         </div>
 
         {/* Footer */}
-        {loginStep !== 'done' && !loading && (
+        {loginStep === 'done' && inline && onEnterStudio && (
           <div className="border-t px-6 py-4 bg-gray-50">
             <button
-              onClick={onClose}
-              className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={onEnterStudio}
+              className="w-full px-4 py-2 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
             >
-              取消
+              进入工作室 →
             </button>
           </div>
         )}
+        {loginStep !== 'done' && !loading && (
+          <div className="border-t px-6 py-4 bg-gray-50">
+            {inline ? (
+              <button
+                onClick={onEnterStudio}
+                className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                跳过，稍后配置 →
+              </button>
+            ) : (
+              <button
+                onClick={onClose}
+                className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+            )}
+          </div>
+        )}
       </div>
+  );
+
+  if (inline) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      {content}
     </div>
   );
 }

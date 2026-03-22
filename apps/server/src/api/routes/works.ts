@@ -12,6 +12,7 @@ import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';
 import { recordBehavior } from '../../services/user-behavior';
 import { isValidPartition, DEFAULT_PARTITION } from '../../lib/work-partitions';
+import { generateResultSummary } from '../../services/llm';
 
 export function worksRoutes(io: Server): Router {
   const router = Router();
@@ -295,6 +296,36 @@ export function worksRoutes(io: Server): Router {
     } catch (error) {
       console.error('Error updating work:', error);
       res.status(500).json({ error: 'Failed to update work' });
+    }
+  });
+
+  // POST /api/works/:workId/generate-result-summary - 调用 LLM 生成一句话结果
+  router.post('/:workId/generate-result-summary', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { workId } = req.params;
+      const userId = req.user!.id;
+
+      const work = works.get(workId);
+      if (!work) {
+        return res.status(404).json({ error: 'Work not found' });
+      }
+
+      if (work.authorId !== userId) {
+        return res.status(403).json({ error: 'Not authorized' });
+      }
+
+      const messages = workMessages.get(workId) || [];
+      const summary = await generateResultSummary({
+        title: work.title,
+        lobsterName: work.lobsterName,
+        messages: messages.map((m) => ({ sender: m.sender, content: m.content })),
+      });
+
+      res.json({ resultSummary: summary });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '生成失败';
+      console.error('Error generating result summary:', error);
+      res.status(500).json({ error: msg });
     }
   });
 

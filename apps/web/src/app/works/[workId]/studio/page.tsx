@@ -43,6 +43,7 @@ export default function WorkStudioPage() {
   const [sending, setSending] = useState(false);
   const [waitingForAgent, setWaitingForAgent] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [generatingSummary, setGeneratingSummary] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [publishResultSummary, setPublishResultSummary] = useState('');
   const [publishSkillMarkdown, setPublishSkillMarkdown] = useState('');
@@ -227,6 +228,28 @@ export default function WorkStudioPage() {
     setShowPublishModal(true);
   };
 
+  const handleGenerateSummary = async () => {
+    setGeneratingSummary(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/generate-result-summary`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.resultSummary) {
+        setPublishResultSummary(data.resultSummary);
+      } else {
+        alert(data.error || '生成失败');
+      }
+    } catch (error) {
+      console.error('Generate summary failed:', error);
+      alert('生成失败，请重试');
+    } finally {
+      setGeneratingSummary(false);
+    }
+  };
+
   const publishWork = async () => {
     setPublishing(true);
     try {
@@ -307,21 +330,6 @@ export default function WorkStudioPage() {
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Agent Status */}
-          {agentConfigured ? (
-            <div className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              Agent 已连接
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowSettings(true)}
-              className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm hover:bg-yellow-200 transition"
-            >
-              ⚠️ 配置 Agent
-            </button>
-          )}
-          
           <Link
             href="/my-works"
             className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
@@ -361,14 +369,29 @@ export default function WorkStudioPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('workDetail.resultSummaryLabel')}
             </label>
-            <textarea
-              value={publishResultSummary}
-              onChange={(e) => setPublishResultSummary(e.target.value)}
-              placeholder={t('workDetail.resultSummaryPlaceholder')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent mb-4"
-              rows={3}
-              maxLength={120}
-            />
+            <div className="flex gap-2 mb-1">
+              <textarea
+                value={publishResultSummary}
+                onChange={(e) => setPublishResultSummary(e.target.value)}
+                placeholder={t('workDetail.resultSummaryPlaceholder')}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                rows={3}
+                maxLength={120}
+              />
+              <button
+                type="button"
+                onClick={handleGenerateSummary}
+                disabled={generatingSummary}
+                className="self-start px-4 py-2 bg-lobster/10 text-lobster rounded-lg font-medium hover:bg-lobster/20 transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+              >
+                {generatingSummary ? (
+                  <span className="animate-spin">⟳</span>
+                ) : (
+                  <span>✨</span>
+                )}
+                {generatingSummary ? '生成中...' : 'AI 生成'}
+              </button>
+            </div>
             <p className="text-xs text-gray-500 mb-4">建议 50 字以内，适合转发分享</p>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('workDetail.skillMarkdownLabel')}
