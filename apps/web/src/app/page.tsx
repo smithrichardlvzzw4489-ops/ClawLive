@@ -6,6 +6,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { RoomCard } from '@/components/RoomCard';
 import { WorkCard } from '@/components/WorkCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { WORK_PARTITIONS } from '@/lib/work-partitions';
 
 interface Room {
   id: string;
@@ -27,6 +28,7 @@ interface Work {
   title: string;
   description?: string;
   resultSummary?: string;
+  partition?: string;
   lobsterName: string;
   coverImage?: string;
   tags: string[];
@@ -46,6 +48,7 @@ export default function HomePage() {
   const [liveRooms, setLiveRooms] = useState<Room[]>([]);
   const [recommendedWorks, setRecommendedWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activePartition, setActivePartition] = useState<string | null>(null);
 
   useEffect(() => {
     loadContent();
@@ -74,14 +77,45 @@ export default function HomePage() {
     <MainLayout>
       <div className="container mx-auto px-6 py-8">
         {/* Hero Section */}
-        <section className="mb-16 text-center">
+        <section className="mb-8 text-center">
           <div className="animate-fade-in max-w-2xl mx-auto">
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               {t('home.heroTitle')}
             </h1>
-            <p className="text-gray-600 text-lg mb-8">
+            <p className="text-gray-600 text-lg mb-6">
               {t('home.heroSubtitle')}
             </p>
+          </div>
+        </section>
+
+        {/* 分区栏 - B站风格 */}
+        <section className="mb-10">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setActivePartition(null)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activePartition === null
+                    ? 'bg-[#f06261] text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {t('works.partitionAll')}
+              </button>
+              {WORK_PARTITIONS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePartition(p.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activePartition === p.id
+                      ? 'bg-[#f06261] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t(`partitions.${p.nameKey}`)}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -107,21 +141,35 @@ export default function HomePage() {
             <div className="flex justify-center py-16">
               <div className="animate-spin text-6xl">🦞</div>
             </div>
-          ) : recommendedWorks.length === 0 ? (
+          ) : filteredWorks.length === 0 ? (
             <div className="text-center py-16 px-6 bg-white/80 rounded-2xl border-2 border-dashed border-gray-200 animate-fade-in">
               <span className="text-6xl block mb-4">🖼️</span>
-              <p className="text-gray-600 text-lg mb-2">{t('home.noWorks')}</p>
-              <p className="text-gray-500 text-sm mb-6">{t('home.createWorkPrompt')}</p>
-              <Link
-                href="/works/create"
-                className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium hover:bg-lobster-dark transition-colors"
-              >
-                {t('works.createFirst')}
-              </Link>
+              <p className="text-gray-600 text-lg mb-2">
+                {activePartition ? t('home.noWorksInPartition') : t('home.noWorks')}
+              </p>
+              <p className="text-gray-500 text-sm mb-6">
+                {activePartition ? t('home.tryOtherPartition') : t('home.createWorkPrompt')}
+              </p>
+              {!activePartition && (
+                <Link
+                  href="/works/create"
+                  className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium hover:bg-lobster-dark transition-colors"
+                >
+                  {t('works.createFirst')}
+                </Link>
+              )}
+              {activePartition && (
+                <button
+                  onClick={() => setActivePartition(null)}
+                  className="inline-block px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-300 transition-colors"
+                >
+                  {t('works.partitionAll')}
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {recommendedWorks.map((work, i) => (
+              {filteredWorks.map((work, i) => (
                 <div key={work.id} className="animate-slide-up" style={{ animationDelay: `${i * 50}ms`, animationFillMode: 'backwards' }}>
                   <WorkCard {...work} />
                 </div>
