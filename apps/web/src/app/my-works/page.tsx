@@ -139,7 +139,7 @@ export default function MyWorksPage() {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || t('workDetail.loadFailed')}</p>
-            <Link href="/works" className="text-lobster hover:underline">
+            <Link href="/my-works" className="text-lobster hover:underline">
               {t('workDetail.backToList')}
             </Link>
           </div>

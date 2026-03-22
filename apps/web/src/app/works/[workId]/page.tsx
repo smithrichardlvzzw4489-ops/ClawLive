@@ -140,7 +140,7 @@ export default function WorkDetailPage() {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || t('workDetail.notFound')}</p>
-            <Link href="/works" className="text-lobster hover:underline">
+            <Link href="/" className="text-lobster hover:underline">
               {t('workDetail.backToList')}
             </Link>
           </div>
@@ -154,7 +154,7 @@ export default function WorkDetailPage() {
       <div className="container mx-auto px-6 py-8 max-w-5xl">
         {/* Header Card */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <Link href="/works" className="text-lobster hover:underline mb-4 inline-block text-sm">
+          <Link href="/" className="text-lobster hover:underline mb-4 inline-block text-sm">
             ← {t('workDetail.backToList')}
           </Link>
           <div className="flex items-start justify-between gap-4">

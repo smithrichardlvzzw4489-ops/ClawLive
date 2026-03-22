@@ -303,7 +303,7 @@ export default function WorkStudioPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-red-600 mb-4">作品不存在</p>
-          <Link href="/works" className="text-lobster hover:underline">
+          <Link href="/" className="text-lobster hover:underline">
             返回作品列表
           </Link>
         </div>

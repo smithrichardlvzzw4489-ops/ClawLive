@@ -10,47 +10,65 @@ export default function CreateWorkPage() {
   const [loading, setLoading] = useState(false);
   const [createdWorkId, setCreatedWorkId] = useState<string | null>(null);
 
-  // Auth guard: 未登录则跳转登录页，登录成功后返回
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!localStorage.getItem('token')) {
-      router.replace('/login?redirect=/works/create');
-      return;
-    }
-  }, [router]);
-
   const [error, setError] = useState('');
+  const [initDone, setInitDone] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     lobsterName: '',
   });
 
+  // Auth guard + 预创建作品以直接展示 Agent 配置
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem('token')) {
+      router.replace('/login?redirect=/works/create');
+      return;
+    }
+    if (createdWorkId) return;
+    const initWork = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ title: '新作品', description: '', lobsterName: '小龙' }),
+        });
+        if (res.ok) {
+          const work = await res.json();
+          setCreatedWorkId(work.id);
+          setFormData({ title: '新作品', description: '', lobsterName: '小龙' });
+        }
+      } catch {
+        // 预创建失败，用户可手动点击创建
+      } finally {
+        setInitDone(true);
+      }
+    };
+    initWork();
+  }, [router, createdWorkId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (createdWorkId) {
+      handleEnterStudio();
+      return;
+    }
     setError('');
     setLoading(true);
-
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         router.push('/login');
         return;
       }
-
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create work');
-      }
-
+      if (!response.ok) throw new Error('Failed to create work');
       const work = await response.json();
       setCreatedWorkId(work.id);
     } catch (err: any) {
@@ -60,8 +78,18 @@ export default function CreateWorkPage() {
     }
   };
 
-  const handleEnterStudio = () => {
-    if (createdWorkId) {
+  const handleEnterStudio = async () => {
+    if (!createdWorkId) return;
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${createdWorkId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ title: formData.title, lobsterName: formData.lobsterName }),
+        });
+      }
+    } finally {
       router.push(`/works/${createdWorkId}/studio`);
     }
   };
@@ -70,7 +98,7 @@ export default function CreateWorkPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <Link href="/works" className="text-lobster hover:underline inline-block mb-4">
+          <Link href="/my-works" className="text-lobster hover:underline inline-block mb-4">
             ← 返回作品列表
           </Link>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">创建新作品</h1>
@@ -126,7 +154,7 @@ export default function CreateWorkPage() {
 
           {!createdWorkId && (
             <div className="py-6 px-4 rounded-lg bg-gray-50 border border-dashed border-gray-200 text-center text-gray-500 text-sm">
-              创建作品后，将在此配置 Agent
+              {initDone ? '请填写上方信息并点击「创建并配置 Agent」' : '加载中...'}
             </div>
           )}
 
@@ -149,7 +177,7 @@ export default function CreateWorkPage() {
               </button>
             )}
             <Link
-              href="/works"
+              href="/my-works"
               className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors text-center"
             >
               取消

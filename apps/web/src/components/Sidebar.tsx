@@ -11,7 +11,7 @@ export function Sidebar() {
   const navItems = [
     { icon: '🏠', label: t('nav.home'), path: '/' },
     { icon: '🎬', label: t('nav.live'), path: '/rooms' },
-    { icon: '📚', label: t('nav.works'), path: '/works' },
+    { icon: '📚', label: t('nav.works'), path: '/my-works' },
     { icon: '📺', label: t('nav.myStreams'), path: '/my-streams' },
     { icon: '📖', label: t('nav.myWorks'), path: '/my-works' },
   ];

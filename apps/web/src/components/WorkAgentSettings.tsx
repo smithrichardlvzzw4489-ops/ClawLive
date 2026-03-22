@@ -535,23 +535,14 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
             </button>
           </div>
         )}
-        {loginStep !== 'done' && !loading && (
+        {loginStep !== 'done' && !loading && !inline && (
           <div className="border-t px-6 py-4 bg-gray-50">
-            {inline ? (
-              <button
-                onClick={onEnterStudio}
-                className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                跳过，稍后配置 →
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                取消
-              </button>
-            )}
+            <button
+              onClick={onClose}
+              className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              取消
+            </button>
           </div>
         )}
       </div>

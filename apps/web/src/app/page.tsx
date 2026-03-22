@@ -102,7 +102,7 @@ export default function HomePage() {
               <span>{t('home.worksSection')}</span>
             </h2>
             <Link
-              href="/works"
+              href="/my-works"
               className="text-lobster hover:text-lobster-dark font-medium flex items-center gap-1 transition-colors"
             >
               <span>{t('more')}</span>
