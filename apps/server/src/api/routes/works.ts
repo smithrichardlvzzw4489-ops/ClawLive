@@ -6,7 +6,7 @@ import { join } from 'path';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { works, workMessages, getHostInfo, getHostInfoBatch } from './rooms-simple';
+import { works, workMessages, userProfiles, getHostInfo, getHostInfoBatch } from './rooms-simple';
 import { WorksPersistence } from '../../services/works-persistence';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';

@@ -88,33 +88,35 @@ export async function getRecommendedLiveRooms(userId?: string): Promise<RoomWith
   const hasEnoughBehavior = profile && profile.behaviorCount >= 3;
 
   const allRooms = await getAllRooms();
-  const liveRooms = allRooms
-    .filter(r => r.isLive)
-    .map(room => {
-      const host = userProfiles.get(room.hostId);
-      let baseScore = scoreLiveRoom(room);
+  const liveList = allRooms.filter(r => r.isLive);
+  const hostIds = [...new Set(liveList.map(r => r.hostId))];
+  const hostMap = await getHostInfoBatch(hostIds);
 
-      let personalBoost = 1;
-      if (hasEnoughBehavior && profile) {
-        personalBoost = getLiveRoomPersonalizationBoost(room.hostId, profile);
-      }
-      // 混合：60% 热度 + 40% 个性化加成（避免过度个性化）
-      const finalScore = baseScore * (1 - PERSONALIZATION_WEIGHT + PERSONALIZATION_WEIGHT * personalBoost);
+  const liveRooms = liveList.map(room => {
+    const host = hostMap.get(room.hostId);
+    let baseScore = scoreLiveRoom(room);
 
-      return {
-        id: room.id,
-        title: room.title,
-        lobsterName: room.lobsterName,
-        description: room.description,
-        viewerCount: room.viewerCount,
-        isLive: room.isLive,
-        startedAt: room.startedAt,
-        host: host
-          ? { id: host.id, username: host.username, avatarUrl: host.avatarUrl }
-          : { id: room.hostId, username: 'Unknown', avatarUrl: null },
-        score: finalScore,
-      };
-    });
+    let personalBoost = 1;
+    if (hasEnoughBehavior && profile) {
+      personalBoost = getLiveRoomPersonalizationBoost(room.hostId, profile);
+    }
+    // 混合：60% 热度 + 40% 个性化加成（避免过度个性化）
+    const finalScore = baseScore * (1 - PERSONALIZATION_WEIGHT + PERSONALIZATION_WEIGHT * personalBoost);
+
+    return {
+      id: room.id,
+      title: room.title,
+      lobsterName: room.lobsterName,
+      description: room.description,
+      viewerCount: room.viewerCount,
+      isLive: room.isLive,
+      startedAt: room.startedAt,
+      host: host
+        ? { id: host.id, username: host.username, avatarUrl: host.avatarUrl }
+        : { id: room.hostId, username: 'Unknown', avatarUrl: null },
+      score: finalScore,
+    };
+  });
 
   liveRooms.sort((a, b) => b.score - a.score);
   return liveRooms.slice(0, LIVE_TOP_N).map(({ score, ...rest }) => ({ ...rest, score }));
