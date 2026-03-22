@@ -19,7 +19,7 @@ import {
 
 const LIVE_TOP_N = 8;
 const WORKS_TOP_N = 12;
-const MAX_WORKS_PER_AUTHOR = 2;
+const MAX_WORKS_PER_AUTHOR = 999; // 暂不限制，单作者可生产大量内容
 const PERSONALIZATION_WEIGHT = 0.4; // 个性化占总分的 40%，避免信息茧房
 
 interface RoomWithScore {
