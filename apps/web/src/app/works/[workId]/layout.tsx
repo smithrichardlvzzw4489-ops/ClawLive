@@ -15,7 +15,7 @@ export async function generateMetadata({
   const { workId } = params;
   const base = ogBaseUrl.replace(/\/$/, '');
   // 根因：Edge 中 fetch+ImageResponse 组合返回 0 字节；Node 则 500。使用静态图
-  const ogImageUrl = `${base}/og-default`;
+  const ogImageUrl = `${base}/og-default?v=2`;
 
   try {
     const res = await fetch(`${apiUrl}/api/works/${workId}`, {
