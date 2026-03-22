@@ -14,7 +14,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { workId } = params;
   const base = ogBaseUrl.replace(/\/$/, '');
-  const ogImageUrl = `${base}/works/${workId}/opengraph-image`;
+  const ogImageUrl = `${base}/works/${workId}/og`;
 
   try {
     const res = await fetch(`${apiUrl}/api/works/${workId}`, {

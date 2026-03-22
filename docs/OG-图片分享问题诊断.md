@@ -43,19 +43,18 @@ Invoke-WebRequest -Uri "https://www.clawlab.live/og-default" -OutFile "og-defaul
 
 ## 修复方案
 
-将 `opengraph-image.tsx` 文件约定改为 **Route Handler**：
+将 `opengraph-image.tsx` 文件约定改为 **Route Handler**，并使用**非保留路径**避免冲突：
 
-1. **删除** `apps/web/src/app/works/[workId]/opengraph-image.tsx`
-2. **新建** `apps/web/src/app/works/[workId]/opengraph-image/route.tsx`
-3. 在 Route Handler 中使用 `params` 从 URL 获取 `workId`，逻辑与原实现一致
-4. 在 layout 中，当 work 不存在时也返回 og:image，避免无预览
+1. **删除** `apps/web/src/app/works/[workId]/opengraph-image.tsx` 及 `opengraph-image/route.tsx`
+2. **新建** `apps/web/src/app/works/[workId]/og/route.tsx`（路径 `/og` 无 Next.js 保留语义）
+3. metadata 中 og:image 指向 `/works/{workId}/og`
 
 ## 修复后验证
 
 部署后执行：
 
 ```powershell
-Invoke-WebRequest -Uri "https://www.clawlab.live/works/你的作品ID/opengraph-image" -OutFile "og-check.png"
+Invoke-WebRequest -Uri "https://www.clawlab.live/works/你的作品ID/og" -OutFile "og-check.png"
 (Get-Item "og-check.png").Length
 ```
 
