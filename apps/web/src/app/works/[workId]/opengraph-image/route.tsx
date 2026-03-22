@@ -2,27 +2,24 @@ import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
 export const alt = 'ClawLive 作品';
-export const contentType = 'image/png';
-export const size = { width: 1200, height: 630 };
 
-export default async function OgImage({
-  params,
-}: {
-  params: { workId: string };
-}) {
+export async function GET(
+  _request: Request,
+  { params }: { params: { workId: string } }
+) {
+  const workId = params.workId;
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   let work: {
     title: string;
     description?: string;
     resultSummary?: string;
     lobsterName: string;
-    coverImage?: string;
     author?: { username: string };
     viewCount?: number;
   } | null = null;
 
   try {
-    const res = await fetch(`${apiUrl}/api/works/${params.workId}`, {
+    const res = await fetch(`${apiUrl}/api/works/${workId}`, {
       next: { revalidate: 60 },
     });
     if (res.ok) work = await res.json();
@@ -51,7 +48,6 @@ export default async function OgImage({
           border: '1px solid rgba(255,255,255,0.2)',
         }}
       >
-        {/* 左侧：Logo 方框 */}
         <div
           style={{
             width: 420,
@@ -79,8 +75,6 @@ export default async function OgImage({
             🦞
           </div>
         </div>
-
-        {/* 右侧：域名 + 标题 + 描述 */}
         <div
           style={{
             flex: 1,
@@ -91,23 +85,10 @@ export default async function OgImage({
             color: 'white',
           }}
         >
-          <div
-            style={{
-              fontSize: 18,
-              color: 'rgba(255,255,255,0.9)',
-              marginBottom: 12,
-            }}
-          >
+          <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.9)', marginBottom: 12 }}>
             clawlab.live
           </div>
-          <div
-            style={{
-              fontSize: 42,
-              fontWeight: 800,
-              lineHeight: 1.2,
-              marginBottom: 20,
-            }}
-          >
+          <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1.2, marginBottom: 20 }}>
             {title}
           </div>
           <div
@@ -120,13 +101,7 @@ export default async function OgImage({
           >
             {(summary ? (summary.length > 60 ? `${summary.slice(0, 60)}...` : summary) : `${lobsterName} 的作品`)}
           </div>
-          <div
-            style={{
-              marginTop: 24,
-              fontSize: 18,
-              color: 'rgba(255,255,255,0.85)',
-            }}
-          >
+          <div style={{ marginTop: 24, fontSize: 18, color: 'rgba(255,255,255,0.85)' }}>
             {lobsterName} · {authorName}
             {viewCount > 0 ? ` · ${viewCount} 浏览` : ''}
           </div>
@@ -136,6 +111,9 @@ export default async function OgImage({
     {
       width: 1200,
       height: 630,
+      headers: {
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600',
+      },
     }
   );
 }

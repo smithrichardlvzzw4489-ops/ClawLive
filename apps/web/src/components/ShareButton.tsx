@@ -16,7 +16,10 @@ export function ShareButton({ url, title, text, className = '', variant = 'butto
 
   const handleShare = useCallback(async () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const shareUrl = url.startsWith('http') ? url : `${origin}${url.startsWith('/') ? url : `/${url}`}`;
+    let shareUrl = url.startsWith('http') ? url : `${origin}${url.startsWith('/') ? url : `/${url}`}`;
+    // 微信缓存强：加版本号强制刷新预览（bump when OG 设计变更）
+    const sep = shareUrl.includes('?') ? '&' : '?';
+    shareUrl = `${shareUrl}${sep}og=2`;
     const toCopy = text && text.trim() ? `「${text.trim()}」\n${shareUrl}` : shareUrl;
 
     try {
