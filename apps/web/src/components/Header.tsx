@@ -132,14 +132,7 @@ export function Header() {
             )}
           </div>
 
-          {/* 创建直播间、创建作品：登录和未登录都显示，未登录时点击先跳转登录 */}
-          <Link
-            href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
-            className="px-5 py-2 bg-lobster text-white rounded-lg font-medium hover:bg-lobster-dark transition-colors flex items-center gap-2"
-          >
-            <span>📹</span>
-            <span>{t('nav.createLive')}</span>
-          </Link>
+          {/* 创建作品：登录和未登录都显示，未登录时点击先跳转登录 */}
           <Link
             href={user ? '/works/create' : '/login?redirect=/works/create'}
             className="px-5 py-2 border border-lobster text-lobster rounded-lg font-medium hover:bg-lobster/5 transition-colors flex items-center gap-2"
