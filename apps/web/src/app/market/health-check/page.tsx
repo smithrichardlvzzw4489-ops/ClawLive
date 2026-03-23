@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
@@ -28,7 +28,7 @@ interface HealthCheckResult {
   checkedAt: string;
 }
 
-export default function SkillHealthCheckPage() {
+function HealthCheckContent() {
   const { t } = useLocale();
   const searchParams = useSearchParams();
   const querySkillId = searchParams.get('skillId');
@@ -276,5 +276,21 @@ export default function SkillHealthCheckPage() {
         )}
       </div>
     </MainLayout>
+  );
+}
+
+export default function SkillHealthCheckPage() {
+  return (
+    <Suspense
+      fallback={
+        <MainLayout>
+          <div className="container mx-auto px-6 py-16 flex justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster" />
+          </div>
+        </MainLayout>
+      }
+    >
+      <HealthCheckContent />
+    </Suspense>
   );
 }
