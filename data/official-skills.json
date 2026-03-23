@@ -1,0 +1,11 @@
+[
+  {
+    "id": "weather",
+    "title": "天气查询",
+    "description": "免 API Key 的天气查询 Skill，支持穿衣建议。开源示例，复制即用。",
+    "skillMarkdown": "# 天气查询 Skill\n\n## 描述\n提供简单天气查询，无需 API Key。\n\n## 能力\n- 查询指定城市天气\n- 提供穿衣建议\n\n## 示例\n用户：北京天气怎么样？\nAgent：根据您的位置，建议……",
+    "partition": "other",
+    "tags": ["天气", "开源", "示例"],
+    "sortOrder": 0
+  }
+]
