@@ -15,6 +15,7 @@ import { ShareButton } from './ShareButton';
 import { VideoPlayer } from './VideoPlayer';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import Link from 'next/link';
+import { sendMessageToGateway } from '@/hooks/useGateway';
 
 interface LiveStreamProps {
   roomId: string;
@@ -44,6 +45,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const stableViewerId = useMemo(() => `viewer-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`, []);
   const hasAutoStartedCameraRef = useRef(false);
   const [isAutoStarting, setIsAutoStarting] = useState(false);
+  const [openclawDirectConfig, setOpenclawDirectConfig] = useState<{ gatewayUrl: string; token: string } | null>(null);
 
   const useLiveKitMode = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
@@ -137,6 +139,31 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
     checkHost();
   }, [roomId]);
+
+  // 主播 + 直播中 + OpenClaw 直连：拉取 Gateway 连接信息供浏览器直连
+  useEffect(() => {
+    if (!isHost || !room?.isLive) {
+      setOpenclawDirectConfig(null);
+      return;
+    }
+    let cancelled = false;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}/browser-gateway`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        if (data.agentType === 'openclaw-direct' && data.openclawGatewayUrl && data.openclawToken) {
+          setOpenclawDirectConfig({ gatewayUrl: data.openclawGatewayUrl, token: data.openclawToken });
+        } else {
+          setOpenclawDirectConfig(null);
+        }
+      })
+      .catch(() => setOpenclawDirectConfig(null));
+    return () => { cancelled = true; };
+  }, [roomId, isHost, room?.isLive]);
 
   const [pendingLiveMode, setPendingLiveMode] = useState<'video' | 'audio'>('video');
   const [videoMuted, setVideoMuted] = useState(true);
@@ -270,6 +297,43 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         setWaitingForAgent(true);
         if (agentTypingTimeoutRef.current) clearTimeout(agentTypingTimeoutRef.current);
         agentTypingTimeoutRef.current = setTimeout(() => setWaitingForAgent(false), 60000);
+
+        // OpenClaw 直连：主播浏览器直连 Gateway，收到回复后同步到服务器
+        if (openclawDirectConfig?.gatewayUrl && openclawDirectConfig?.token) {
+          sendMessageToGateway(openclawDirectConfig.gatewayUrl, openclawDirectConfig.token, content)
+            .then((result) => {
+              setWaitingForAgent(false);
+              if (agentTypingTimeoutRef.current) {
+                clearTimeout(agentTypingTimeoutRef.current);
+                agentTypingTimeoutRef.current = null;
+              }
+              const agentContent = result.error ? `❌ Agent 回复失败：${result.error}` : (result.response || '');
+              if (!agentContent.trim()) return;
+              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/agent-message`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ content: agentContent }),
+              }).catch((err) => console.error('Failed to post agent message:', err));
+            })
+            .catch((err) => {
+              setWaitingForAgent(false);
+              if (agentTypingTimeoutRef.current) {
+                clearTimeout(agentTypingTimeoutRef.current);
+                agentTypingTimeoutRef.current = null;
+              }
+              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/agent-message`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({ content: `❌ Agent 连接失败：${err?.message || String(err)}` }),
+              }).catch(() => {});
+            });
+        }
       } else {
         setHostMessage(content);
         alert(`发送失败: ${data?.error || '未知错误'}`);

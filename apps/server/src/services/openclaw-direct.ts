@@ -41,19 +41,37 @@ function runAgent(
     const urlWithToken = token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl;
     const msgId = `clawlive-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+    /** 1008 = Policy Violation：通常为「需要设备配对」或 token 无效，见 openclawdirectory.co.uk/blog/openclaw-1008-websocket-error-explained */
+    const formatCloseError = (code: number, reasonBuf?: Buffer) => {
+      const reason = reasonBuf && reasonBuf.length > 0 ? reasonBuf.toString('utf8').trim() : '';
+      if (code === 1008) {
+        const hint =
+          reason && (reason.toLowerCase().includes('pair') || reason.toLowerCase().includes('device') || reason.toLowerCase().includes('identity'))
+            ? 'Gateway 要求设备身份配对，脚本/服务器无法完成。'
+            : reason && reason.toLowerCase().includes('token')
+              ? 'Token 可能未正确传递（穿透工具有时会剥离 query 参数）。'
+              : '可能是认证或配对策略被拒绝。';
+        return `连接被关闭 (code 1008)${reason ? `: ${reason}` : ''}。${hint} 若通过 ngrok/远程访问，请在 OpenClaw 配置中加入：\n  gateway.controlUi: { allowInsecureAuth: true, dangerouslyDisableDeviceAuth: true }`;
+      }
+      return reason ? `连接已关闭 (code ${code}): ${reason}` : `连接已关闭 (code ${code})`;
+    };
+
+    const wsOpts: { headers?: Record<string, string> } = {};
+    if (token) wsOpts.headers = { Authorization: `Bearer ${token}` };
+
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(urlWithToken, wsOpts);
+    } catch (err) {
+      doResolve({ error: err instanceof Error ? err.message : String(err) });
+      return;
+    }
+
     const timeout = setTimeout(() => {
       ws.removeAllListeners();
       ws.close();
       doResolve({ error: 'Gateway 响应超时（90 秒）。请确认本机 OpenClaw 网关与穿透工具都在运行。' });
     }, 90000);
-
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(urlWithToken);
-    } catch (err) {
-      doResolve({ error: err instanceof Error ? err.message : String(err) });
-      return;
-    }
 
     ws.on('error', (err: unknown) => {
       ws.removeAllListeners();
@@ -62,9 +80,9 @@ function runAgent(
       doResolve({ error: msg || 'WebSocket 连接错误' });
     });
 
-    ws.on('close', (code: number) => {
+    ws.on('close', (code: number, reason?: Buffer) => {
       ws.removeAllListeners();
-      if (!resolved) doResolve({ error: `连接已关闭 (code ${code})` });
+      if (!resolved) doResolve({ error: formatCloseError(code, reason) });
     });
 
     ws.on('open', () => {

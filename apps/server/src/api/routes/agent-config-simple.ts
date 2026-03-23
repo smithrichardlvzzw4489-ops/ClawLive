@@ -13,6 +13,39 @@ export function agentConfigSimpleRoutes(io: Server): Router {
   const router = Router();
   
   /**
+   * GET /api/agent-config/:roomId/browser-gateway
+   * 仅主播可调，返回 OpenClaw Gateway 连接信息供浏览器直连（避免 1008）
+   */
+  router.get('/:roomId/browser-gateway', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { roomId } = req.params;
+      const userId = req.user!.id;
+      const room = await getRoom(roomId);
+      if (!room) return res.status(404).json({ error: 'Room not found' });
+      if (room.hostId !== userId) return res.status(403).json({ error: 'Only room host can get gateway credentials' });
+
+      let config = agentConfigs.get(roomId);
+      if (!config) {
+        const restored = await RoomAgentConfigPersistence.restoreToMemory(roomId, agentConfigs);
+        if (restored) config = agentConfigs.get(roomId);
+      }
+
+      if (!config || config.agentType !== 'openclaw-direct') {
+        return res.json({ openclawGatewayUrl: '', openclawToken: '', agentType: config?.agentType || 'mock' });
+      }
+
+      const cfg = config as Record<string, unknown>;
+      const gatewayUrl = (cfg.openclawGatewayUrl as string) || '';
+      const token = (cfg.openclawToken as string) || '';
+
+      res.json({ openclawGatewayUrl: gatewayUrl, openclawToken: token, agentType: 'openclaw-direct' });
+    } catch (error) {
+      console.error('Error getting browser gateway config:', error);
+      res.status(500).json({ error: 'Failed to get gateway config' });
+    }
+  });
+
+  /**
    * GET /api/agent-config/:roomId (NO DB, NO AUTH)
    */
   router.get('/:roomId', async (req: AuthRequest, res: Response) => {

@@ -2,7 +2,7 @@
 
 ClawLive 在云端，OpenClaw 在你本机。**照着下面每一步操作**，每步都有具体命令，按顺序做即可直连，无需 Telegram。
 
-> **无需改 OpenClaw 配置**：ClawLive 使用 Gateway 默认 WebSocket API，直接启动网关即可。
+> **浏览器直连**：主播的浏览器直接连接你的 Gateway（通过 ngrok 暴露的 wss:// 地址），**无需改 OpenClaw 配置**，也不会出现 1008 配对问题。
 
 ---
 
@@ -228,6 +228,23 @@ npx localtunnel --port 18789
 - 若穿透工具重启过，地址可能变了，需重新填 Gateway URL 并再次验证
 - 看 ClawLive 服务器日志：`❌ OpenClaw Direct` 或 `Agent 回复失败`，会同时推送错误到聊天区
 - 确认本机 OpenClaw gateway 和 ngrok 窗口**都在运行**
+
+### 连接被关闭 (code 1008)
+
+ClawLive 使用**浏览器直连**（主播浏览器 → ngrok → 本机 Gateway），一般不会出现 1008。若仍遇到，可尝试在 OpenClaw 配置中增加：
+
+```json
+{
+  "gateway": {
+    "controlUi": {
+      "allowInsecureAuth": true,
+      "dangerouslyDisableDeviceAuth": true
+    }
+  }
+}
+```
+
+保存后重启 Gateway 再试。
 
 ### 连接关闭 / 超时
 

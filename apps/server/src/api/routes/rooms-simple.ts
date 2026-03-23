@@ -787,35 +787,10 @@ export function roomSimpleRoutes(io: Server): Router {
             }
           }
         } else if (agentConfig.agentType === 'openclaw-direct') {
-          // OpenClaw 直连：HTTP API，无需 Telegram
-          const gatewayUrl = agentConfig.openclawGatewayUrl;
-          const token = agentConfig.openclawToken;
-          if (!gatewayUrl || !token) {
-            console.log('⚠️ OpenClaw Direct: gatewayUrl or token not configured');
-            await appendMessage(roomId, {
-              id: Date.now().toString(),
-              roomId,
-              sender: 'agent',
-              content: '❌ Agent 未配置：请到直播间设置中填写 Gateway URL 和 Token',
-              timestamp: new Date(),
-            });
-            io.to(roomId).emit('new-message', { id: Date.now().toString(), roomId, sender: 'agent', content: '❌ Agent 未配置：请到直播间设置中填写 Gateway URL 和 Token', timestamp: new Date() });
-          } else {
-            console.log(`📤 [OpenClaw Direct] Sending to Gateway: "${content.substring(0, 40)}..."`);
-            const { sendToOpenClawDirect } = await import('../../services/openclaw-direct');
-            const result = await sendToOpenClawDirect(
-              roomId,
-              content,
-              { gatewayUrl, token },
-              io
-            );
-            if (!result.success) {
-              console.error('❌ OpenClaw Direct failed:', result.error);
-              const errMsg = { id: Date.now().toString(), roomId, sender: 'agent' as const, content: `❌ Agent 回复失败：${result.error}`, timestamp: new Date() };
-              await appendMessage(roomId, errMsg);
-              io.to(roomId).emit('new-message', errMsg);
-            }
-          }
+          // OpenClaw 直连：改为浏览器端 WebSocket 直连（避免 1008 配对问题）
+          // 主播浏览器直接连 Gateway，收到回复后通过 POST /agent-message 同步
+          // 此处仅记录：不再由服务器转发
+          console.log(`📤 [OpenClaw Direct] 用户消息已广播，Agent 回复由主播浏览器直连 Gateway 获取`);
         }
       }
 
@@ -823,6 +798,44 @@ export function roomSimpleRoutes(io: Server): Router {
     } catch (error) {
       console.error('Error sending message:', error);
       res.status(500).json({ error: 'Failed to send message' });
+    }
+  });
+
+  /**
+   * POST /api/rooms/:roomId/agent-message
+   * 供主播浏览器直连 OpenClaw 时，将 Agent 回复同步到服务器并广播给观众
+   * 仅主播可调用
+   */
+  router.post('/:roomId/agent-message', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { roomId } = req.params;
+      const { content } = req.body;
+      const userId = req.user!.id;
+
+      if (!content || typeof content !== 'string') {
+        return res.status(400).json({ error: 'Agent message content is required' });
+      }
+
+      const room = await getRoom(roomId);
+      if (!room) return res.status(404).json({ error: 'Room not found' });
+      if (room.hostId !== userId) return res.status(403).json({ error: 'Only room host can post agent messages' });
+      if (!room.isLive) return res.status(400).json({ error: 'Room is not live' });
+
+      const agentMessage = {
+        id: Date.now().toString(),
+        roomId,
+        sender: 'agent' as const,
+        content,
+        timestamp: new Date(),
+      };
+
+      await appendMessage(roomId, agentMessage);
+      io.to(roomId).emit('new-message', agentMessage);
+
+      res.json({ message: agentMessage });
+    } catch (error) {
+      console.error('Error posting agent message:', error);
+      res.status(500).json({ error: 'Failed to post agent message' });
     }
   });
 
