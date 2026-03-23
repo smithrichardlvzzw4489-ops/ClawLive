@@ -75,13 +75,17 @@ openclaw config get gateway.token
 npx localtunnel --port 18789
 ```
 
-**你会看到**：终端输出类似：
+**你会看到**：终端输出类似（可能是 `.localtunnel.me` 或 `.loca.lt`）：
 
 ```
 your url is: https://xyz-abcd-1234.localtunnel.me
 ```
+或
+```
+your url is: https://eight-coins-love.loca.lt
+```
 
-**立刻做**：把 `https://` 开头、到 `.localtunnel.me` 结尾的那一串**完整复制**（例如 `https://xyz-abcd-1234.localtunnel.me`），后面第 7 步要粘贴到 ClawLive。
+**立刻做**：把 `https://` 开头、到 `.localtunnel.me` 或 `.loca.lt` 结尾的那一串**完整复制**，后面第 7 步要粘贴到 ClawLive。
 
 → **这个终端窗口也不要关**，保持运行。
 
@@ -113,7 +117,7 @@ your url is: https://xyz-abcd-1234.localtunnel.me
 
 **操作**：在 **Gateway URL** 输入框里，粘贴第 4 步复制的地址。
 
-- 正确示例：`https://xyz-abcd-1234.localtunnel.me`
+- 正确示例：`https://xyz-abcd-1234.localtunnel.me` 或 `https://eight-coins-love.loca.lt`
 - 错误：末尾不要加 `/`，不能填 `localhost` 或 `127.0.0.1`
 
 ---
@@ -198,11 +202,15 @@ your url is: https://xyz-abcd-1234.localtunnel.me
 
 ## 五、排查
 
-### 验证连接失败
+### 验证连接失败 / HTTP 408 超时
 
 - 确认第 2 步、第 4 步的终端**都没关**
 - 确认 Gateway URL 是穿透工具**当前输出的地址**（localtunnel / ngrok 每次重启会换）
 - 确认 Token 与 `openclaw config get gateway.token` 输出一致
+- **HTTP 408**：多为云端到本机穿透超时，可尝试：
+  - 换 ngrok（通常更稳定）
+  - 检查本机防火墙是否拦截 18789
+  - 确认 localtunnel 窗口无报错、地址未变
 
 ### 发消息无反应
 
