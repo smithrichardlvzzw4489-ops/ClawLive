@@ -7,7 +7,7 @@ import { UPLOADS_DIR } from '../../lib/data-path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { works, workMessages, userProfiles, getHostInfo, getHostInfoBatch } from './rooms-simple';
-import { getAllRooms } from '../../lib/rooms-store';
+import { getAllRooms, getRoom, getMessageHistory } from '../../lib/rooms-store';
 import { WorksPersistence } from '../../services/works-persistence';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';
@@ -181,6 +181,88 @@ export function worksRoutes(io: Server): Router {
     } catch (error) {
       console.error('Error fetching work:', error);
       res.status(500).json({ error: 'Failed to fetch work' });
+    }
+  });
+
+  // POST /api/works/convert-from-chat - 直播/Inbox 对话一键转作品
+  router.post('/convert-from-chat', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { sourceType, roomId } = req.body as { sourceType?: 'live' | 'inbox'; roomId?: string };
+
+      const chatRoomId = sourceType === 'inbox' ? `inbox-${userId}` : roomId;
+      if (!chatRoomId) {
+        return res.status(400).json({ error: 'roomId required for live, sourceType=inbox for inbox' });
+      }
+
+      if (sourceType === 'live') {
+        const room = await getRoom(roomId!);
+        if (!room) return res.status(404).json({ error: 'Room not found' });
+        if (room.hostId !== userId) return res.status(403).json({ error: 'Only room host can convert' });
+      } else if (sourceType === 'inbox') {
+        if (chatRoomId !== `inbox-${userId}`) return res.status(403).json({ error: 'Invalid inbox' });
+      } else {
+        return res.status(400).json({ error: 'sourceType must be live or inbox' });
+      }
+
+      const rawMessages = await getMessageHistory(chatRoomId);
+      if (rawMessages.length === 0) {
+        return res.status(400).json({ error: 'No messages to convert' });
+      }
+
+      const workMessagesList = rawMessages.map((m) => ({
+        id: m.id,
+        workId: '' as string,
+        sender: (m.sender === 'host' ? 'user' : 'agent') as 'user' | 'agent',
+        content: m.content,
+        timestamp: m.timestamp,
+      }));
+
+      let title: string;
+      let lobsterName: string;
+
+      if (sourceType === 'live') {
+        const room = await getRoom(roomId!);
+        title = room?.title || '直播对话';
+        lobsterName = room?.lobsterName || '小龙';
+      } else {
+        title = 'Inbox 对话';
+        lobsterName = '小龙';
+      }
+
+      const workId = `work-${Date.now()}`;
+      workMessagesList.forEach((m) => { m.workId = workId; });
+
+      const newWork = {
+        id: workId,
+        authorId: userId,
+        title,
+        description: '',
+        resultSummary: undefined as string | undefined,
+        skillMarkdown: undefined as string | undefined,
+        partition: DEFAULT_PARTITION,
+        lobsterName,
+        status: 'draft' as const,
+        messages: workMessagesList,
+        tags: [],
+        coverImage: undefined,
+        videoUrl: undefined,
+        viewCount: 0,
+        likeCount: 0,
+        createdAt: new Date(),
+        publishedAt: undefined,
+        updatedAt: new Date(),
+      };
+
+      works.set(workId, newWork);
+      workMessages.set(workId, workMessagesList);
+      WorksPersistence.saveAll(works, workMessages);
+
+      console.log(`✅ Work converted from ${sourceType}: ${workId} (${workMessagesList.length} messages)`);
+      res.status(201).json({ workId });
+    } catch (error) {
+      console.error('Error converting to work:', error);
+      res.status(500).json({ error: 'Failed to convert' });
     }
   });
 

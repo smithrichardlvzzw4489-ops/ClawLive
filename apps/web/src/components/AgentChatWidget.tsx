@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import { format } from 'date-fns';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -26,7 +27,9 @@ export function AgentChatWidget() {
   const [sending, setSending] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
   const [recommendedSkills, setRecommendedSkills] = useState<Array<{ id: string; title: string }>>([]);
+  const [converting, setConverting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     checkAuth();
@@ -174,12 +177,47 @@ export function AgentChatWidget() {
         <div className="fixed bottom-24 right-6 z-40 w-[360px] max-h-[480px] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
             <span className="font-semibold text-gray-900">🦞 Agent</span>
-            <button
-              onClick={() => setExpanded(false)}
-              className="text-gray-500 hover:text-gray-700 text-xl leading-none"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-2">
+              {messages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (converting || !user) return;
+                    const token = localStorage.getItem('token');
+                    if (!token) return;
+                    setConverting(true);
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/convert-from-chat`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ sourceType: 'inbox' }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && data.workId) {
+                        setExpanded(false);
+                        router.push(`/works/${data.workId}/studio`);
+                      } else {
+                        alert(data.error || t('convertToWork.error'));
+                      }
+                    } catch {
+                      alert(t('convertToWork.error'));
+                    } finally {
+                      setConverting(false);
+                    }
+                  }}
+                  disabled={converting}
+                  className="text-xs text-lobster hover:text-lobster-dark font-medium disabled:opacity-50"
+                >
+                  📄 {t('convertToWork.action')}
+                </button>
+              )}
+              <button
+                onClick={() => setExpanded(false)}
+                className="text-gray-500 hover:text-gray-700 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           {showConnect ? (

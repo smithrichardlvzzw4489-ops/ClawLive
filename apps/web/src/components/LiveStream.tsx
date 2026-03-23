@@ -15,6 +15,7 @@ import { ShareButton } from './ShareButton';
 import { VideoPlayer } from './VideoPlayer';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { sendMessageToGateway } from '@/hooks/useGateway';
 
 interface LiveStreamProps {
@@ -46,6 +47,8 @@ export function LiveStream({ roomId }: LiveStreamProps) {
   const hasAutoStartedCameraRef = useRef(false);
   const [isAutoStarting, setIsAutoStarting] = useState(false);
   const [openclawDirectConfig, setOpenclawDirectConfig] = useState<{ gatewayUrl: string; token: string } | null>(null);
+  const [converting, setConverting] = useState(false);
+  const router = useRouter();
 
   const useLiveKitMode = !!process.env.NEXT_PUBLIC_LIVEKIT_URL;
 
@@ -603,6 +606,40 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           {/* Host message input */}
           {isHost && room.isLive && (
             <div className="border-t bg-blue-50 p-4">
+              {messages.length > 0 && (
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (converting) return;
+                      const token = localStorage.getItem('token');
+                      if (!token) { router.push('/login'); return; }
+                      setConverting(true);
+                      try {
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/convert-from-chat`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ sourceType: 'live', roomId }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (res.ok && data.workId) {
+                          router.push(`/works/${data.workId}/studio`);
+                        } else {
+                          alert(data.error || t('convertToWork.error'));
+                        }
+                      } catch {
+                        alert(t('convertToWork.error'));
+                      } finally {
+                        setConverting(false);
+                      }
+                    }}
+                    disabled={converting}
+                    className="text-sm text-lobster hover:text-lobster-dark font-medium disabled:opacity-50"
+                  >
+                    📄 {t('convertToWork.action')}
+                  </button>
+                </div>
+              )}
               <div className="flex gap-2">
                 <input
                   type="text"

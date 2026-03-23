@@ -46,6 +46,11 @@ export const translations = {
       send: '发送',
     },
 
+    convertToWork: {
+      action: '转作品',
+      error: '转作品失败',
+    },
+
     // 首页
     home: {
       heroTitle: '与 AI 龙虾一起直播创作',
@@ -313,6 +318,11 @@ export const translations = {
       trySkills: 'Try these Skills',
       placeholder: 'Type a message...',
       send: 'Send',
+    },
+
+    convertToWork: {
+      action: 'Convert to Work',
+      error: 'Failed to convert',
     },
 
     home: {
