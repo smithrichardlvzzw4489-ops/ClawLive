@@ -229,9 +229,11 @@ npx localtunnel --port 18789
 - 看 ClawLive 服务器日志：`❌ OpenClaw Direct` 或 `Agent 回复失败`，会同时推送错误到聊天区
 - 确认本机 OpenClaw gateway 和 ngrok 窗口**都在运行**
 
-### 连接被关闭 (code 1008)
+### invalid request frame / 连接被关闭 (code 1008)
 
-ClawLive 使用**浏览器直连**（主播浏览器 → ngrok → 本机 Gateway），一般不会出现 1008。若仍遇到，可尝试在 OpenClaw 配置中增加：
+ClawLive 已支持 **JSON-RPC 2.0** 协议（connect → agent），适配新版 OpenClaw Gateway。若出现 `invalid request frame`，通常是旧版 ClawLive；请更新到最新代码后重试。
+
+若为普通 1008：ClawLive 使用**浏览器直连**（主播浏览器 → ngrok → 本机 Gateway），一般不会出现。若仍遇到，可尝试在 OpenClaw 配置中增加：
 
 ```json
 {
