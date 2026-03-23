@@ -33,6 +33,14 @@ export const translations = {
       tabWorks: '作品',
       tabHosts: 'UP主',
     },
+    inbox: {
+      toggle: '与 Agent 聊天',
+      notConnected: '尚未连接 Agent，连接后即可随时对话',
+      connect: '连接 Agent',
+      sayHi: '打个招呼吧～',
+      placeholder: '输入消息...',
+      send: '发送',
+    },
 
     // 首页
     home: {
@@ -220,6 +228,14 @@ export const translations = {
       tabLive: 'Live',
       tabWorks: 'Works',
       tabHosts: 'Creators',
+    },
+    inbox: {
+      toggle: 'Chat with Agent',
+      notConnected: 'Connect your Agent to start chatting',
+      connect: 'Connect Agent',
+      sayHi: 'Say hi!',
+      placeholder: 'Type a message...',
+      send: 'Send',
     },
 
     home: {

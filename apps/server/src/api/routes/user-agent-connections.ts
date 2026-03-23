@@ -11,6 +11,7 @@ import {
 } from '../../services/user-agent-connections';
 import { agentConfigs } from './rooms-simple';
 import { workAgentConfigs } from './work-agent-config';
+import { applyConnectionToInbox } from './inbox';
 import { WorkConfigPersistence } from '../../services/work-config-persistence';
 import { works } from './rooms-simple';
 
@@ -350,6 +351,31 @@ export function userAgentConnectionsRoutes(): Router {
       res.json({ success: true, message: 'Connection applied to work' });
     } catch (error) {
       console.error('apply-to-work:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  /**
+   * POST /api/user-agent-connections/apply-to-inbox
+   * 将连接应用到 Inbox（首页通用聊天）
+   */
+  router.post('/apply-to-inbox', async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { connectionId } = req.body;
+
+      if (!connectionId) {
+        return res.status(400).json({ error: 'connectionId is required' });
+      }
+
+      const result = await applyConnectionToInbox(userId, connectionId, null);
+      if (!result.success) {
+        return res.status(400).json({ error: result.error || 'Failed to apply' });
+      }
+
+      res.json({ success: true, message: 'Connection applied to inbox' });
+    } catch (error) {
+      console.error('apply-to-inbox:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

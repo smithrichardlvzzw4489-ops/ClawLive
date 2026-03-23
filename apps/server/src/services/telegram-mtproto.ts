@@ -399,18 +399,21 @@ export class MTProtoUserService {
   private async startListeningForMessages(roomId: string, client: TelegramClient) {
     console.log(`👂 Starting to listen for messages in room ${roomId}`);
 
-    // 获取当前房间/作品的 Agent Chat ID
+    // 获取当前房间/作品/Inbox 的 Agent Chat ID
     const getAgentChatId = () => {
-      // Check if this is a work or a room
       if (roomId.startsWith('work-')) {
         const { workAgentConfigs } = require('../api/routes/work-agent-config');
         const config = workAgentConfigs.get(roomId);
         return config?.agentChatId;
-      } else {
-        const { agentConfigs } = require('../api/routes/rooms-simple');
-        const config = agentConfigs.get(roomId);
+      }
+      if (roomId.startsWith('inbox-')) {
+        const { getInboxConfig } = require('../api/routes/inbox');
+        const config = getInboxConfig(roomId);
         return config?.agentChatId;
       }
+      const { agentConfigs } = require('../api/routes/rooms-simple');
+      const config = agentConfigs.get(roomId);
+      return config?.agentChatId;
     };
 
     // 从 peerId 获取可比较的 ID（避免 getChat() 触发 users.GetUsers，减少 flood wait）

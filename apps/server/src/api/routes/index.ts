@@ -13,11 +13,13 @@ import { agentViewerRoutes } from './agent-viewer';
 import { userAgentConnectionsRoutes } from './user-agent-connections';
 import { userFollowsRoutes } from './user-follows';
 import { livekitRoutes } from './livekit';
+import { inboxRoutes } from './inbox';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
   app.use('/api/agent-viewers', agentViewerRoutes(io));
   app.use('/api/user-agent-connections', userAgentConnectionsRoutes());
+  app.use('/api/inbox', inboxRoutes(io));
   app.use('/api/user-follows', userFollowsRoutes()); // Before works to avoid :id param conflicts
   app.use('/api/recommendations', recommendationRoutes());
   app.use('/api/search', searchRoutes());

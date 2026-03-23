@@ -2,6 +2,7 @@
 
 import { ReactNode } from 'react';
 import { Header } from './Header';
+import { AgentChatWidget } from './AgentChatWidget';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -12,12 +13,14 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50">
       <Header />
-      
+
       <div className="pt-16">
         <main>
           {children}
         </main>
       </div>
+
+      <AgentChatWidget />
     </div>
   );
 }
