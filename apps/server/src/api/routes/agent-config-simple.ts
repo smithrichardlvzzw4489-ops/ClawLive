@@ -80,18 +80,18 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       const existing = existingConfig || {};
       
       // Update configuration in memory (preserve MTProto + OpenClaw Direct fields)
-      const newConfig: Record<string, unknown> = {
+      const newConfig = {
         agentType: agentType || (existing.agentType as string) || 'mock',
         agentEnabled: agentEnabled !== undefined ? agentEnabled : (existing.agentEnabled as boolean) || false,
         agentBotToken: agentBotToken ?? (existing.agentBotToken as string),
         agentChatId: agentChatId ?? (existing.agentChatId as string),
         agentStatus: (existing.agentStatus as string) || 'disconnected',
-        mtprotoSessionString: (existing as Record<string, unknown>).mtprotoSessionString,
-        mtprotoPhone: (existing as Record<string, unknown>).mtprotoPhone,
-        openclawGatewayUrl: openclawGatewayUrl ?? (existing as Record<string, unknown>).openclawGatewayUrl,
-        openclawToken: openclawToken ?? (existing as Record<string, unknown>).openclawToken,
+        mtprotoSessionString: (existing as Record<string, unknown>).mtprotoSessionString as string | undefined,
+        mtprotoPhone: (existing as Record<string, unknown>).mtprotoPhone as string | undefined,
+        openclawGatewayUrl: openclawGatewayUrl ?? ((existing as Record<string, unknown>).openclawGatewayUrl as string | undefined),
+        openclawToken: openclawToken ?? ((existing as Record<string, unknown>).openclawToken as string | undefined),
       };
-      
+
       agentConfigs.set(roomId, newConfig);
 
       if ((newConfig.agentType as string) === 'openclaw-direct' && newConfig.openclawGatewayUrl && newConfig.openclawToken) {

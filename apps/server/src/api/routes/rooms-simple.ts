@@ -27,6 +27,10 @@ const agentConfigs = new Map<string, {
   agentBotToken?: string;
   agentChatId?: string;
   agentStatus: string;
+  mtprotoSessionString?: string;
+  mtprotoPhone?: string;
+  openclawGatewayUrl?: string;
+  openclawToken?: string;
 }>();
 
 // History sessions storage - 保存完整的直播历史
@@ -627,8 +631,7 @@ export function roomSimpleRoutes(io: Server): Router {
       // OpenClaw Direct：无需 bridge，开播即就绪
       else if (agentConfig && agentConfig.agentEnabled && 
           agentConfig.agentType === 'openclaw-direct') {
-        const cfg = agentConfig as Record<string, unknown>;
-        if (cfg.openclawGatewayUrl && cfg.openclawToken) {
+        if (agentConfig.openclawGatewayUrl && agentConfig.openclawToken) {
           agentConfig.agentStatus = 'connected';
           agentConfigs.set(roomId, agentConfig);
           console.log(`🤖 OpenClaw Direct ready for room ${roomId}`);
@@ -781,8 +784,8 @@ export function roomSimpleRoutes(io: Server): Router {
           }
         } else if (agentConfig.agentType === 'openclaw-direct') {
           // OpenClaw 直连：HTTP API，无需 Telegram
-          const gatewayUrl = (agentConfig as Record<string, unknown>).openclawGatewayUrl as string | undefined;
-          const token = (agentConfig as Record<string, unknown>).openclawToken as string | undefined;
+          const gatewayUrl = agentConfig.openclawGatewayUrl;
+          const token = agentConfig.openclawToken;
           if (!gatewayUrl || !token) {
             console.log('⚠️ OpenClaw Direct: gatewayUrl or token not configured');
           } else {
