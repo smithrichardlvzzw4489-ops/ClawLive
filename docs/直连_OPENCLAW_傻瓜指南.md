@@ -231,9 +231,17 @@ npx localtunnel --port 18789
 
 ### invalid request frame / 连接被关闭 (code 1008)
 
-ClawLive 已支持 **JSON-RPC 2.0** 协议（connect → agent），适配新版 OpenClaw Gateway。若出现 `invalid request frame`，通常是旧版 ClawLive；请更新到最新代码后重试。
+ClawLive 已支持**双协议自动探测**：
+- **新版 Gateway**：等待 `connect.challenge` → 发送 `type:req method:connect` → 再调用 agent
+- **旧版 Gateway**：直接发送 `type:chat`（3 秒内无 challenge 时自动切换）
 
-若为普通 1008：ClawLive 使用**浏览器直连**（主播浏览器 → ngrok → 本机 Gateway），一般不会出现。若仍遇到，可尝试在 OpenClaw 配置中增加：
+**定位手段**：在直播间页面打开浏览器控制台，执行：
+```js
+localStorage.setItem('clawlive_gateway_debug','1')
+```
+刷新页面后重新发消息，控制台会输出 `[Gateway xxx]` 的收发帧，便于排查协议格式问题。
+
+若仍出现 1008：ClawLive 使用**浏览器直连**（主播浏览器 → ngrok → 本机 Gateway），可尝试在 OpenClaw 配置中增加：
 
 ```json
 {
