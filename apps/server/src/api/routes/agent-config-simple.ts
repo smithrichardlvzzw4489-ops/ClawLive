@@ -132,7 +132,7 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         return res.status(400).json({ success: false, error: 'Gateway URL 和 Token 必填' });
       }
       const base = String(gatewayUrl).replace(/\/$/, '');
-      const url = `${base}/status`;
+      const url = `${base}/health`;
       const headers: Record<string, string> = {
         Authorization: `Bearer ${token}`,
         'User-Agent': 'Mozilla/5.0 (compatible; ClawLive/1.0)',

@@ -70,7 +70,7 @@ importers:
         version: 1.10.1
       openai:
         specifier: ^6.32.0
-        version: 6.32.0
+        version: 6.32.0(ws@8.18.3)
       redis:
         specifier: ^4.6.12
         version: 4.7.1
@@ -86,6 +86,9 @@ importers:
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
+      ws:
+        specifier: ^8.18.0
+        version: 8.18.3
     devDependencies:
       '@types/bcryptjs':
         specifier: ^2.4.6
@@ -4388,7 +4391,7 @@ packages:
     engines: {node: '>=0.10.0'}
     dev: false
 
-  /openai@6.32.0:
+  /openai@6.32.0(ws@8.18.3):
     resolution: {integrity: sha512-j3k+BjydAf8yQlcOI7WUQMQTbbF5GEIMAE2iZYCOzwwB3S2pCheaWYp+XZRNAch4jWVc52PMDGRRjutao3lLCg==}
     hasBin: true
     peerDependencies:
@@ -4399,6 +4402,8 @@ packages:
         optional: true
       zod:
         optional: true
+    dependencies:
+      ws: 8.18.3
     dev: false
 
   /optionator@0.9.4:
