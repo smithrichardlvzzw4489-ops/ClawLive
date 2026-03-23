@@ -9,6 +9,13 @@ export function Header() {
   const { locale, setLocale, t } = useLocale();
   const [user, setUser] = useState<{ id: string; username: string; avatarUrl?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  useEffect(() => {
+    if (pathname === '/search') {
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const q = params.get('q');
+      if (q) setSearchTerm(q);
+    }
+  }, [pathname]);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -86,7 +93,7 @@ export function Header() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className="w-full px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-lobster focus:ring-2 focus:ring-lobster/20 transition-all"
+            className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-full text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-lobster focus:ring-2 focus:ring-lobster/20 transition-all"
           />
         </form>
 

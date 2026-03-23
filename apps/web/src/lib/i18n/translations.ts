@@ -24,6 +24,15 @@ export const translations = {
 
     // 搜索
     searchPlaceholder: '搜索直播、作品、UP主...',
+    search: {
+      title: '搜索',
+      empty: '请输入关键词搜索',
+      noResults: '未找到相关结果',
+      resultsCount: '个结果',
+      tabLive: '直播',
+      tabWorks: '作品',
+      tabHosts: 'UP主',
+    },
 
     // 首页
     home: {
@@ -203,6 +212,15 @@ export const translations = {
     },
 
     searchPlaceholder: 'Search live, works, creators...',
+    search: {
+      title: 'Search',
+      empty: 'Enter keywords to search',
+      noResults: 'No results found',
+      resultsCount: 'results',
+      tabLive: 'Live',
+      tabWorks: 'Works',
+      tabHosts: 'Creators',
+    },
 
     home: {
       heroTitle: 'Live & Create with AI Lobster',

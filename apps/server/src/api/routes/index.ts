@@ -7,6 +7,7 @@ import { agentConfigSimpleRoutes } from './agent-config-simple';
 import { worksRoutes } from './works';
 import { workAgentConfigRoutes } from './work-agent-config';
 import { recommendationRoutes } from './recommendations';
+import { searchRoutes } from './search';
 import { behaviorRoutes } from './behavior';
 import { agentViewerRoutes } from './agent-viewer';
 import { userAgentConnectionsRoutes } from './user-agent-connections';
@@ -19,6 +20,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/user-agent-connections', userAgentConnectionsRoutes());
   app.use('/api/user-follows', userFollowsRoutes()); // Before works to avoid :id param conflicts
   app.use('/api/recommendations', recommendationRoutes());
+  app.use('/api/search', searchRoutes());
   app.use('/api/behavior', behaviorRoutes());
   app.use('/api/rooms', roomSimpleRoutes(io));
   app.use('/api/webhooks', webhookRoutes(io));

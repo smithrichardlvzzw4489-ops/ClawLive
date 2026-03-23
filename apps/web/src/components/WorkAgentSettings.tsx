@@ -496,15 +496,9 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
                 <div className="text-center py-8">
                   <div className="text-6xl mb-4">✅</div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-2">配置完成！</h3>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-600">
                     Agent 已成功连接，现在可以开始对话了
                   </p>
-                  <button
-                    onClick={onClose}
-                    className="px-8 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
-                  >
-                    开始创作
-                  </button>
                 </div>
               )}
 
@@ -525,13 +519,13 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
         </div>
 
         {/* Footer */}
-        {loginStep === 'done' && inline && onEnterStudio && (
-          <div className="border-t px-6 py-4 bg-gray-50">
+        {loginStep === 'done' && !inline && (
+          <div className="border-t px-6 py-4 bg-gray-50 flex justify-end">
             <button
-              onClick={onEnterStudio}
-              className="w-full px-4 py-2 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
+              onClick={onClose}
+              className="px-6 py-2 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors"
             >
-              进入工作室 →
+              完成
             </button>
           </div>
         )}
