@@ -36,9 +36,10 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
   const [submittingPassword, setSubmittingPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [agentMode, setAgentMode] = useState<'telegram' | 'direct'>('telegram');
-  const [openclawGatewayUrl, setOpenclawGatewayUrl] = useState('http://localhost:18789');
+  const [openclawGatewayUrl, setOpenclawGatewayUrl] = useState('');
   const [openclawToken, setOpenclawToken] = useState('');
   const [applyingDirect, setApplyingDirect] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -75,7 +76,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
       if (response.ok) {
         const data = await response.json();
         setChatId(data.agentChatId || '');
-        setOpenclawGatewayUrl(data.openclawGatewayUrl || 'http://localhost:18789');
+        setOpenclawGatewayUrl(data.openclawGatewayUrl || '');
         if (data.agentType === 'openclaw-direct') {
           setAgentMode('direct');
           if (data.agentStatus === 'connected') setLoginStep('done');
@@ -87,6 +88,36 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
       console.error('Failed to load config:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const testOpenClawConnection = async () => {
+    if (!openclawGatewayUrl.trim() || !openclawToken.trim()) {
+      setMessage({ type: 'error', text: '请先填写 Gateway URL 和 Token' });
+      return;
+    }
+    setTestingConnection(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/test-openclaw-direct`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          gatewayUrl: openclawGatewayUrl.trim(),
+          token: openclawToken.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMessage({ type: 'success', text: '✅ 连接成功' });
+      } else {
+        setMessage({ type: 'error', text: data.error || '连接失败，请检查 URL 和 ngrok' });
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '网络错误' });
+    } finally {
+      setTestingConnection(false);
     }
   };
 
@@ -343,18 +374,19 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
           {/* OpenClaw Direct Config */}
           {agentMode === 'direct' && (
             <div className="space-y-4 p-4 border border-teal-200 rounded-lg bg-teal-50">
-              <p className="text-sm text-gray-700">
-                直连 OpenClaw Gateway，无需 Telegram，低延迟。
-              </p>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                <strong>云端部署：</strong> Gateway URL 必须是<strong>公网可访问</strong>地址，不能用 localhost。本机 OpenClaw 用 ngrok 暴露：<code className="bg-amber-100 px-1 rounded">ngrok http 18789</code>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Gateway URL</label>
                 <input
                   type="url"
                   value={openclawGatewayUrl}
                   onChange={(e) => setOpenclawGatewayUrl(e.target.value)}
-                  placeholder="http://localhost:18789"
+                  placeholder="https://xxx.ngrok-free.app"
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">填 ngrok 生成的 https 地址</p>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Token</label>
@@ -362,18 +394,29 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
                   type="password"
                   value={openclawToken}
                   onChange={(e) => setOpenclawToken(e.target.value)}
-                  placeholder="gateway token"
+                  placeholder="gateway.token"
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
                 />
+                <p className="text-xs text-gray-500 mt-1">openclaw config set gateway.token 你的密码</p>
               </div>
-              <button
-                type="button"
-                onClick={applyDirectOpenClaw}
-                disabled={applyingDirect || !openclawGatewayUrl.trim() || !openclawToken.trim()}
-                className="w-full px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 font-semibold"
-              >
-                {applyingDirect ? '应用中...' : '应用'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={testOpenClawConnection}
+                  disabled={testingConnection || !openclawGatewayUrl.trim() || !openclawToken.trim()}
+                  className="px-4 py-2 border border-teal-600 text-teal-600 rounded-lg hover:bg-teal-50 disabled:opacity-50"
+                >
+                  {testingConnection ? '验证中...' : '验证连接'}
+                </button>
+                <button
+                  type="button"
+                  onClick={applyDirectOpenClaw}
+                  disabled={applyingDirect || !openclawGatewayUrl.trim() || !openclawToken.trim()}
+                  className="flex-1 px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 font-semibold"
+                >
+                  {applyingDirect ? '应用中...' : '应用'}
+                </button>
+              </div>
               {loginStep === 'done' && agentMode === 'direct' && (
                 <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
                   ✅ 直连 OpenClaw 已配置

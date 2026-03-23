@@ -122,6 +122,36 @@ export function agentConfigSimpleRoutes(io: Server): Router {
   });
   
   /**
+   * POST /api/agent-config/test-openclaw-direct
+   * 验证 OpenClaw Gateway 是否可连接（云端部署时必测）
+   */
+  router.post('/test-openclaw-direct', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { gatewayUrl, token } = req.body;
+      if (!gatewayUrl?.trim() || !token?.trim()) {
+        return res.status(400).json({ success: false, error: 'Gateway URL 和 Token 必填' });
+      }
+      const base = String(gatewayUrl).replace(/\/$/, '');
+      const url = `${base}/status`;
+      const res2 = await fetch(url, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res2.ok) {
+        return res.json({ success: true, message: '连接成功' });
+      }
+      const text = await res2.text();
+      return res.status(400).json({
+        success: false,
+        error: text || `HTTP ${res2.status}`,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return res.status(400).json({ success: false, error: msg });
+    }
+  });
+
+  /**
    * POST /api/agent-config/test-connection
    */
   router.post('/test-connection', authenticateToken, async (req: AuthRequest, res: Response) => {
