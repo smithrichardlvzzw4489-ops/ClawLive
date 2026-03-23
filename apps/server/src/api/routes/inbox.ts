@@ -71,7 +71,7 @@ export function inboxRoutes(io: any): Router {
       const userMessage = {
         id: Date.now().toString(),
         roomId: inboxId,
-        sender: 'user' as const,
+        sender: 'host' as const,
         content: content.trim(),
         timestamp: new Date(),
       };
