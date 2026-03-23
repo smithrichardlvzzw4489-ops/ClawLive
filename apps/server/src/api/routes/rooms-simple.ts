@@ -720,8 +720,9 @@ export function roomSimpleRoutes(io: Server): Router {
   });
 
   router.post('/:roomId/message', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const { roomId } = req.params;
+    console.log(`📨 [rooms/message] 收到消息请求 roomId=${roomId}`);
     try {
-      const { roomId } = req.params;
       const { content } = req.body;
       const userId = req.user!.id;
 

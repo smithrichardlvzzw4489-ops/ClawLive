@@ -423,8 +423,9 @@ export function worksRoutes(io: Server): Router {
 
   // POST /api/works/:workId/message - 发送消息（创作过程中）
   router.post('/:workId/message', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const { workId } = req.params;
+    console.log(`📨 [works/message] 收到消息请求 workId=${workId}`);
     try {
-      const { workId } = req.params;
       const userId = req.user!.id;
       const { content, videoUrl } = req.body;
 
@@ -474,7 +475,7 @@ export function worksRoutes(io: Server): Router {
       console.log(`  - Agent status: ${agentConfig?.agentStatus}`);
       console.log(`  - Agent chat ID: ${agentConfig?.agentChatId}`);
       
-      if (agentConfig?.agentEnabled && agentConfig.agentStatus === 'active') {
+      if (agentConfig?.agentEnabled && (agentConfig.agentStatus === 'active' || agentConfig.agentStatus === 'connected')) {
         console.log(`🤖 Forwarding message to Telegram Agent for work ${workId}`);
         
         try {

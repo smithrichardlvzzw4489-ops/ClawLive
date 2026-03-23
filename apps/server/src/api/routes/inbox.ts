@@ -51,6 +51,7 @@ export function inboxRoutes(io: any): Router {
    * 发送消息到 Agent
    */
   router.post('/message', async (req: AuthRequest, res: Response) => {
+    console.log(`📨 [inbox/message] 收到消息请求`);
     try {
       const userId = req.user!.id;
       const { content } = req.body;
