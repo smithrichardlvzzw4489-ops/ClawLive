@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -27,6 +27,16 @@ interface SkillListItem {
   };
 }
 
+function getSourceType(sourceType: SourceType, userSubType: UserSubType): string {
+  if (sourceType === 'official') return 'official';
+  if (sourceType === 'user') {
+    if (userSubType === 'from-work') return 'user-work';
+    if (userSubType === 'direct') return 'user-direct';
+    return 'user';
+  }
+  return 'all';
+}
+
 export default function MarketPage() {
   const { t } = useLocale();
   const [skills, setSkills] = useState<SkillListItem[]>([]);
@@ -49,42 +59,31 @@ export default function MarketPage() {
       .catch(() => setAvailableTags([]));
   }, []);
 
-  const apiSourceType = (): string => {
-    if (sourceType === 'official') return 'official';
-    if (sourceType === 'user') {
-      if (userSubType === 'from-work') return 'user-work';
-      if (userSubType === 'direct') return 'user-direct';
-      return 'user';
-    }
-    return 'all';
-  };
-
-  const loadSkills = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (activePartition) params.set('partition', activePartition);
-      if (search.trim()) params.set('search', search.trim());
-      if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
-      const st = apiSourceType();
-      if (st !== 'all') params.set('sourceType', st);
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/skills${params.toString() ? `?${params}` : ''}`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setSkills(data.skills || []);
-      }
-    } catch (error) {
-      console.error('Error loading skills:', error);
-      setSkills([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [activePartition, search, sourceType, userSubType, selectedTags]);
-
   useEffect(() => {
-    loadSkills();
-  }, [loadSkills]);
+    let cancelled = false;
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (activePartition) params.set('partition', activePartition);
+    if (search.trim()) params.set('search', search.trim());
+    if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
+    const st = getSourceType(sourceType, userSubType);
+    if (st !== 'all') params.set('sourceType', st);
+    const qs = params.toString();
+    const base = process.env.NEXT_PUBLIC_API_URL || '';
+    const url = base + '/api/skills' + (qs ? '?' + qs : '');
+    fetch(url)
+      .then((res) => (res.ok ? res.json() : { skills: [] }))
+      .then((data) => {
+        if (!cancelled) setSkills(data.skills || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSkills([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [activePartition, search, sourceType, userSubType, selectedTags]);
 
   return (
     <MainLayout>
