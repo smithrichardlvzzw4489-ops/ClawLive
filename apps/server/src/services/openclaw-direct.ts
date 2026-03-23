@@ -95,9 +95,8 @@ async function runAgent(
 
   if (!res.ok) {
     const errObj = data && typeof data === 'object' && (data as Record<string, unknown>).error;
-    const errMsg =
-      (errObj && typeof errObj === 'object' && (errObj as { message?: string }).message) ||
-      `HTTP ${res.status}`;
+    const raw = errObj && typeof errObj === 'object' ? (errObj as { message?: unknown }).message : undefined;
+    const errMsg = typeof raw === 'string' ? raw : `HTTP ${res.status}`;
     return { error: errMsg };
   }
 
