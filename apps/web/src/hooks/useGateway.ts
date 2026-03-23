@@ -66,30 +66,21 @@ function runNewProtocol(
   const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   let accumulatedText = '';
 
-  const nonce = (challengePayload.nonce as string) || '';
-  const ts = (challengePayload.ts as number) || Date.now();
   const params: Record<string, unknown> = {
     minProtocol: 3,
     maxProtocol: 3,
-    client: { id: 'clawlive', version: '1.0.0', platform: 'web', mode: 'operator' },
+    client: { id: 'openclaw-control-ui', version: '1.0.0', platform: 'web', mode: 'webchat' },
     role: 'operator',
     scopes: ['operator.read', 'operator.write'],
-    caps: [],
+    caps: ['tool-events'],
     commands: [],
     permissions: {},
     auth: token ? { token } : {},
     locale: 'en-US',
     userAgent: 'ClawLive/1.0.0',
   };
-  if (nonce) {
-    params.device = {
-      id: `clawlive-${sessionKey}`,
-      nonce,
-      signedAt: ts,
-      publicKey: '',
-      signature: '',
-    };
-  }
+  // 浏览器端无法生成 device 密钥对签名。启用 allowInsecureAuth/dangerouslyDisableDeviceAuth 时，Gateway 允许省略 device。
+  // 若包含 device 但 publicKey/signature 为空会触发 schema 校验失败，故不添加 device 块。
   const connectReq = { type: 'req', id: reqId(), method: 'connect', params };
   debugLog('SEND connect (after challenge)', connectReq);
   ws.send(JSON.stringify(connectReq));
@@ -271,7 +262,10 @@ export async function sendMessageToGateway(
     ws.onerror = () => {
       ws.onclose = null;
       ws.onmessage = null;
-      doResolve({ error: 'WebSocket 连接错误' });
+      doResolve({
+        error:
+          'WebSocket 连接错误。请检查：1) Gateway 是否已启动 2) 若用 ngrok 等穿透，隧道是否在运行 3) Gateway 地址是否正确。F12 → Network → WS 可查看连接详情。',
+      });
     };
 
     ws.onclose = (ev) => {
@@ -282,6 +276,10 @@ export async function sendMessageToGateway(
         const reason = ev.reason || '';
         if (ev.code === 1008) {
           doResolve({ error: format1008Error(reason) });
+        } else if (ev.code === 1006) {
+          doResolve({
+            error: `连接失败 (code 1006)：无法连接到 Gateway。请确认 Gateway 已启动、地址正确，且若使用 ngrok 等穿透工具，隧道正在运行。`,
+          });
         } else {
           doResolve({
             error: reason ? `连接已关闭 (code ${ev.code}): ${reason}` : `连接已关闭 (code ${ev.code})`,
