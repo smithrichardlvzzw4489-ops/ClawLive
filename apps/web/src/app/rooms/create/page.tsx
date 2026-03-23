@@ -551,7 +551,7 @@ export default function CreateRoomPage() {
                       type="url"
                       value={openclawGatewayUrl}
                       onChange={(e) => setOpenclawGatewayUrl(e.target.value)}
-                      placeholder="https://xxx.localtunnel.me 或 https://xxx.ngrok-free.app"
+                      placeholder="https://xxx.localtunnel.me 或 https://xxx.loca.lt 或 https://xxx.ngrok-free.app"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">不能用 localhost，填 localtunnel/ngrok 等生成的公网地址</p>
@@ -784,6 +784,9 @@ export default function CreateRoomPage() {
                   }`}
                 >
                   <p>{message.text}</p>
+                  {message.type === 'error' && (message.text.includes('408') || message.text.includes('超时')) && (
+                    <p className="mt-2 text-sm opacity-90">多为云端到本机穿透超时。建议：① 确认本机 <code>openclaw gateway start</code> 和 localtunnel 窗口都在运行 ② 换 ngrok 试 ③ 查看《直连 OpenClaw 傻瓜指南》</p>
+                  )}
                   {message.type === 'error' && createdRoomId && (
                     <Link
                       href={`/rooms/${createdRoomId}`}

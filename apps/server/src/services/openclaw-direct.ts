@@ -21,18 +21,25 @@ async function runAgent(
   const base = gatewayUrl.replace(/\/$/, '');
   const url = `${base}/v1/agent/run`;
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    'User-Agent': 'Mozilla/5.0 (compatible; ClawLive/1.0)',
+    'Bypass-Tunnel-Reminder': '1',
+  };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
   const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
     body: JSON.stringify({
       message,
       sessionKey,
       options: { thinking: 'medium' },
     }),
+    signal: controller.signal,
   });
+  clearTimeout(timeoutId);
 
   const data = (await res.json()) as {
     response?: string;

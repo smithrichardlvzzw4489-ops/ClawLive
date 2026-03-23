@@ -67,7 +67,9 @@ openclaw config get gateway.token
 
 ---
 
-### 第 4 步：启动内网穿透（localtunnel）
+### 第 4 步：启动内网穿透
+
+> **若遇 HTTP 408**：localtunnel 有已知缺陷易超时，建议改用 ngrok（见「四、其他穿透方案」）。
 
 **操作**：**再开一个终端**（第 2 步的网关窗口还在运行），输入或粘贴下面命令，按 **Enter** 执行。
 
@@ -204,13 +206,15 @@ your url is: https://eight-coins-love.loca.lt
 
 ### 验证连接失败 / HTTP 408 超时
 
+**HTTP 408 根本原因**：localtunnel 存在已知缺陷（[GitHub #673](https://github.com/localtunnel/localtunnel/issues/673)）：约 60 秒后，客户端与服务端 socket 会不同步，服务端无法与本地隧道通信，返回 408。首次请求也可能因云端→本机路径延迟而超时。
+
 - 确认第 2 步、第 4 步的终端**都没关**
 - 确认 Gateway URL 是穿透工具**当前输出的地址**（localtunnel / ngrok 每次重启会换）
 - 确认 Token 与 `openclaw config get gateway.token` 输出一致
-- **HTTP 408**：多为云端到本机穿透超时，可尝试：
-  - 换 ngrok（通常更稳定）
-  - 检查本机防火墙是否拦截 18789
-  - 确认 localtunnel 窗口无报错、地址未变
+- **HTTP 408 时**：建议**改用 ngrok**（localtunnel 问题无官方修复）：
+  - 本机执行 `ngrok http 18789`，复制输出的 https 地址
+  - 填到 Gateway URL，重新验证
+  - 若本机无 ngrok：`choco install ngrok`（Windows）或 `brew install ngrok`（Mac）
 
 ### 发消息无反应
 

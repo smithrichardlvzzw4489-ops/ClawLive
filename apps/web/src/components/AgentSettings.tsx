@@ -375,7 +375,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
           {agentMode === 'direct' && (
             <div className="space-y-4 p-4 border border-teal-200 rounded-lg bg-teal-50">
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                <strong>云端部署：</strong> Gateway URL 必须公网可访问。零安装方案：本机运行 <code className="bg-amber-100 px-1 rounded">npx localtunnel --port 18789</code>
+                <strong>云端部署：</strong> Gateway URL 必须公网可访问。零安装：本机运行 <code className="bg-amber-100 px-1 rounded">npx localtunnel --port 18789</code> 或 ngrok，详见文档。
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Gateway URL</label>
@@ -383,7 +383,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
                   type="url"
                   value={openclawGatewayUrl}
                   onChange={(e) => setOpenclawGatewayUrl(e.target.value)}
-                  placeholder="https://xxx.localtunnel.me"
+                  placeholder="https://xxx.localtunnel.me 或 https://xxx.loca.lt"
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">localtunnel / ngrok 等生成的公网地址</p>
@@ -646,6 +646,9 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
               }`}
             >
               {message.text}
+              {message.type === 'error' && (message.text.includes('408') || message.text.includes('超时')) && (
+                <p className="mt-2 text-sm opacity-90">多为穿透超时。确认 gateway 和 localtunnel 窗口都在运行，或换 ngrok 试。详见《直连 OpenClaw 傻瓜指南》</p>
+              )}
             </div>
           )}
         </div>

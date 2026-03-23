@@ -133,21 +133,38 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       }
       const base = String(gatewayUrl).replace(/\/$/, '');
       const url = `${base}/status`;
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        'User-Agent': 'Mozilla/5.0 (compatible; ClawLive/1.0)',
+        'Bypass-Tunnel-Reminder': '1',
+      };
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
       const res2 = await fetch(url, {
         method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (res2.ok) {
         return res.json({ success: true, message: '连接成功' });
       }
       const text = await res2.text();
+      let errMsg = text || `HTTP ${res2.status}`;
+      if (res2.status === 408) {
+        errMsg = `HTTP 408（localtunnel 已知问题：隧道约 60s 后易超时）。建议改用 ngrok：本机执行 ngrok http 18789，复制输出的 https 地址填到 Gateway URL。`;
+      }
       return res.status(400).json({
         success: false,
-        error: text || `HTTP ${res2.status}`,
+        error: errMsg,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return res.status(400).json({ success: false, error: msg });
+      const isTimeout = msg.includes('abort') || msg.includes('timeout');
+      const errMsg = isTimeout
+        ? '连接超时（云端到本机穿透较慢）。建议：① 换 ngrok 试 ② 确认 gateway 和 localtunnel 窗口都在运行'
+        : msg;
+      return res.status(400).json({ success: false, error: errMsg });
     }
   });
 
