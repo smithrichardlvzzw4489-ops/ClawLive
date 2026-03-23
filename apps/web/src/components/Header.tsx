@@ -7,8 +7,12 @@ import { useLocale } from '@/lib/i18n/LocaleContext';
 
 export function Header() {
   const { locale, setLocale, t } = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<{ id: string; username: string; avatarUrl?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showLangMenu, setShowLangMenu] = useState(false);
+
   useEffect(() => {
     if (pathname === '/search') {
       const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
@@ -16,9 +20,6 @@ export function Header() {
       if (q) setSearchTerm(q);
     }
   }, [pathname]);
-  const [showLangMenu, setShowLangMenu] = useState(false);
-  const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     checkAuth();
