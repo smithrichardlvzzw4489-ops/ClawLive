@@ -50,6 +50,8 @@ export default function WorkStudioPage() {
   const [publishPartition, setPublishPartition] = useState<string>(DEFAULT_PARTITION);
   const [listToMarket, setListToMarket] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [healthCheckResult, setHealthCheckResult] = useState<{ riskLevel: string; score: number; summary: string } | null>(null);
+  const [healthChecking, setHealthChecking] = useState(false);
   const { t } = useLocale();
   const [agentConfigured, setAgentConfigured] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -409,14 +411,48 @@ export default function WorkStudioPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               {t('workDetail.skillMarkdownLabel')}
             </label>
-            <textarea
-              value={publishSkillMarkdown}
-              onChange={(e) => setPublishSkillMarkdown(e.target.value)}
-              placeholder={t('workDetail.skillMarkdownPlaceholder')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent mb-3 font-mono text-sm"
-              rows={6}
-              spellCheck={false}
-            />
+            <div className="flex gap-2 mb-2">
+              <textarea
+                value={publishSkillMarkdown}
+                onChange={(e) => { setPublishSkillMarkdown(e.target.value); setHealthCheckResult(null); }}
+                placeholder={t('workDetail.skillMarkdownPlaceholder')}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent font-mono text-sm"
+                rows={6}
+                spellCheck={false}
+              />
+              {publishSkillMarkdown.trim() && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setHealthChecking(true);
+                    setHealthCheckResult(null);
+                    try {
+                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills/health-check`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: publishSkillMarkdown.trim() }),
+                      });
+                      const data = await res.json();
+                      if (res.ok) setHealthCheckResult({ riskLevel: data.riskLevel, score: data.score, summary: data.summary });
+                    } catch { setHealthCheckResult({ riskLevel: 'unknown', score: 0, summary: '检测失败' }); }
+                    finally { setHealthChecking(false); }
+                  }}
+                  disabled={healthChecking}
+                  className="self-start px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {healthChecking ? '…' : '🩺 ' + t('healthCheck.runCheck')}
+                </button>
+              )}
+            </div>
+            {healthCheckResult && (
+              <div className={`mb-4 p-3 rounded-lg text-sm ${
+                healthCheckResult.riskLevel === 'high' ? 'bg-red-50 text-red-800' :
+                healthCheckResult.riskLevel === 'medium' ? 'bg-amber-50 text-amber-800' :
+                healthCheckResult.riskLevel === 'low' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-800'
+              }`}>
+                {healthCheckResult.riskLevel === 'safe' ? '✓' : '⚠'} {healthCheckResult.summary}（{healthCheckResult.score}/100）
+              </div>
+            )}
             <label className="flex items-center gap-2 mb-4 cursor-pointer">
               <input
                 type="checkbox"

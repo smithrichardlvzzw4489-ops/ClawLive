@@ -26,10 +26,33 @@ interface Room {
   messageCount?: number;
 }
 
+interface HostWork {
+  id: string;
+  title: string;
+  resultSummary?: string;
+  partition?: string;
+  coverImage?: string;
+  videoUrl?: string;
+  viewCount: number;
+  likeCount: number;
+  publishedAt?: Date;
+}
+
+interface HostSkill {
+  id: string;
+  title: string;
+  description?: string;
+  viewCount: number;
+  useCount: number;
+  sourceWorkId?: string;
+}
+
 interface HostData {
   host: Host;
   liveRooms: Room[];
   historySessions: Room[];
+  hostWorks: HostWork[];
+  hostSkills: HostSkill[];
   stats: {
     totalSessions: number;
     totalMessages: number;
@@ -151,7 +174,7 @@ export default function HostPage() {
     );
   }
 
-  const { host, liveRooms, historySessions, stats } = data;
+  const { host, liveRooms, historySessions, hostWorks = [], hostSkills = [], stats } = data;
 
   return (
     <MainLayout>
@@ -218,6 +241,73 @@ export default function HostPage() {
             </div>
           </div>
         </div>
+
+        {/* Works */}
+        {hostWorks.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <span className="w-1 h-8 bg-lobster rounded-full"></span>
+              <span>{t('host.works')}</span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {hostWorks.map((work) => (
+                <Link
+                  key={work.id}
+                  href={`/works/${work.id}`}
+                  className="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden"
+                >
+                  <div className="aspect-video bg-gray-100 flex items-center justify-center">
+                    {work.videoUrl ? (
+                      <video src={work.videoUrl} className="w-full h-full object-cover" muted playsInline />
+                    ) : work.coverImage ? (
+                      <img src={work.coverImage} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-5xl opacity-40">🖼️</span>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold line-clamp-2 text-gray-900">{work.title}</h3>
+                    {work.resultSummary && (
+                      <p className="text-sm text-gray-500 line-clamp-2 mt-1">{work.resultSummary}</p>
+                    )}
+                    <div className="text-xs text-gray-400 mt-2 flex gap-3">
+                      <span>{work.viewCount} 浏览</span>
+                      <span>{work.likeCount} 点赞</span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Skills */}
+        {hostSkills.length > 0 && (
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <span className="w-1 h-8 bg-emerald-500 rounded-full"></span>
+              <span>{t('host.skills')}</span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {hostSkills.map((skill) => (
+                <Link
+                  key={skill.id}
+                  href={`/market/${skill.id}`}
+                  className="block bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:border-lobster/30 transition-all"
+                >
+                  <h3 className="font-semibold text-gray-900 line-clamp-2">{skill.title}</h3>
+                  {skill.description && (
+                    <p className="text-sm text-gray-500 line-clamp-2 mt-1">{skill.description}</p>
+                  )}
+                  <div className="text-xs text-gray-400 mt-2 flex gap-3">
+                    <span>{skill.viewCount} 浏览</span>
+                    <span>{skill.useCount} 使用</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Live Rooms */}
         {liveRooms.length > 0 && (

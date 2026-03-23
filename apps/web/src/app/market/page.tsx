@@ -35,14 +35,23 @@ export default function MarketPage() {
   const [search, setSearch] = useState('');
   const [sourceType, setSourceType] = useState<SourceType>('all');
   const [userSubType, setUserSubType] = useState<UserSubType>('all');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (sourceType !== 'user') setUserSubType('all');
   }, [sourceType]);
 
   useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills/tags`)
+      .then((r) => r.json())
+      .then((d) => setAvailableTags(d.tags || []))
+      .catch(() => setAvailableTags([]));
+  }, []);
+
+  useEffect(() => {
     loadSkills();
-  }, [activePartition, search, sourceType, userSubType]);
+  }, [activePartition, search, sourceType, userSubType, selectedTags]);
 
   const apiSourceType = (): string => {
     if (sourceType === 'official') return 'official';
@@ -60,6 +69,7 @@ export default function MarketPage() {
       const params = new URLSearchParams();
       if (activePartition) params.set('partition', activePartition);
       if (search.trim()) params.set('search', search.trim());
+      if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
       const st = apiSourceType();
       if (st !== 'all') params.set('sourceType', st);
       const url = `${process.env.NEXT_PUBLIC_API_URL}/api/skills${params.toString() ? `?${params}` : ''}`;
@@ -132,7 +142,36 @@ export default function MarketPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
               />
-              <div className="flex flex-wrap gap-2">
+              {availableTags.length > 0 && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-sm text-gray-500 shrink-0">{t('market.filterByTag')}:</span>
+                  {availableTags.slice(0, 12).map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() =>
+                        setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
+                      }
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        selectedTags.includes(tag)
+                          ? 'bg-lobster text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                  {selectedTags.length > 0 && (
+                    <button
+                      onClick={() => setSelectedTags([])}
+                      className="text-xs text-gray-500 hover:text-gray-700 underline"
+                    >
+                      {t('market.clearTags')}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
                 <button
                   onClick={() => setActivePartition(null)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

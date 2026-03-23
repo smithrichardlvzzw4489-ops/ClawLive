@@ -62,14 +62,24 @@ export function createSkillFromWork(params: {
 export function skillsRoutes(): Router {
   const router = Router();
 
-  // GET /api/skills - 列表，支持 sourceType、partition、search
+  // GET /api/skills - 列表，支持 sourceType、partition、search、tags
   // sourceType: official | user | user-work | user-direct | all
+  // tags: 逗号分隔，筛选包含任一标签的 Skill
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { partition, search, sourceType } = req.query;
+      const { partition, search, sourceType, tags: tagsParam } = req.query;
       const wantOfficial = !['user', 'user-work', 'user-direct'].includes(String(sourceType || ''));
       const wantUser = !['official'].includes(String(sourceType || ''));
       const userFilter = sourceType === 'user-work' ? 'user-work' : sourceType === 'user-direct' ? 'user-direct' : null;
+      const filterTags: string[] =
+        typeof tagsParam === 'string' && tagsParam.trim()
+          ? tagsParam.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
+          : [];
+      const matchesTags = (skillTags: string[]) => {
+        if (filterTags.length === 0) return true;
+        const lower = skillTags.map((t) => t.toLowerCase());
+        return filterTags.some((ft) => lower.includes(ft));
+      };
 
       const result: Array<{
         id: string;
@@ -97,6 +107,7 @@ export function skillsRoutes(): Router {
               !(s.tags || []).some((t) => t.toLowerCase().includes(q))
             ) continue;
           }
+          if (!matchesTags(s.tags || [])) continue;
           result.push({
             id: s.id,
             title: s.title,
@@ -129,6 +140,9 @@ export function skillsRoutes(): Router {
         if (userFilter) {
           userList = userList.filter((s) => getSourceType(s) === userFilter);
         }
+        if (filterTags.length > 0) {
+          userList = userList.filter((s) => matchesTags(s.tags));
+        }
         userList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
         const authorIds = [...new Set(userList.map((s) => s.authorId))];
@@ -158,6 +172,24 @@ export function skillsRoutes(): Router {
     } catch (error) {
       console.error('Error fetching skills:', error);
       res.status(500).json({ error: 'Failed to fetch skills' });
+    }
+  });
+
+  // GET /api/skills/tags - 返回所有 Skill 使用的标签（去重）
+  router.get('/tags', async (_req: Request, res: Response) => {
+    try {
+      const officialList = loadOfficialSkills();
+      const tags = new Set<string>();
+      for (const s of officialList) {
+        (s.tags || []).forEach((t) => t.trim() && tags.add(t));
+      }
+      for (const s of skills.values()) {
+        s.tags.forEach((t) => t.trim() && tags.add(t));
+      }
+      res.json({ tags: Array.from(tags).sort() });
+    } catch (error) {
+      console.error('Error fetching skill tags:', error);
+      res.status(500).json({ error: 'Failed to fetch tags' });
     }
   });
 

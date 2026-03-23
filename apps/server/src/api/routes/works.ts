@@ -7,6 +7,7 @@ import { UPLOADS_DIR } from '../../lib/data-path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { works, workMessages, userProfiles, getHostInfo, getHostInfoBatch } from './rooms-simple';
+import { getAllRooms } from '../../lib/rooms-store';
 import { WorksPersistence } from '../../services/works-persistence';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { workAgentConfigs } from './work-agent-config';
@@ -160,6 +161,9 @@ export function worksRoutes(io: Server): Router {
 
       const author = await getHostInfo(work.authorId);
 
+      const allRooms = await getAllRooms();
+      const authorLiveRoom = allRooms.find(r => r.hostId === work.authorId && r.isLive);
+
       res.json({
         ...work,
         author: {
@@ -167,6 +171,12 @@ export function worksRoutes(io: Server): Router {
           username: author.username,
           avatarUrl: author.avatarUrl,
         },
+        authorLiveRoom: authorLiveRoom ? {
+          id: authorLiveRoom.id,
+          title: authorLiveRoom.title,
+          lobsterName: authorLiveRoom.lobsterName,
+          viewerCount: authorLiveRoom.viewerCount,
+        } : null,
       });
     } catch (error) {
       console.error('Error fetching work:', error);

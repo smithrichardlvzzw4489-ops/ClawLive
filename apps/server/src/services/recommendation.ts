@@ -11,6 +11,8 @@
 import { getHostInfoBatch, works } from '../api/routes/rooms-simple';
 import { DEFAULT_PARTITION } from '../lib/work-partitions';
 import { getAllRooms } from '../lib/rooms-store';
+import { loadOfficialSkills } from './official-skills-loader';
+import { SkillsPersistence } from './skills-persistence';
 import {
   getUserInterestProfile,
   getLiveRoomPersonalizationBoost,
@@ -190,4 +192,77 @@ export async function getRecommendedWorks(userId?: string): Promise<WorkWithScor
   }
 
   return result.map(({ score, ...rest }) => ({ ...rest, score }));
+}
+
+const SKILLS_TOP_N = 6;
+
+/**
+ * 获取首页推荐的 Skill（官方 + 热门用户 Skill）
+ */
+export async function getRecommendedSkills(): Promise<
+  Array<{
+    id: string;
+    title: string;
+    description?: string;
+    partition: string;
+    sourceType: 'official' | 'user-work' | 'user-direct';
+    tags: string[];
+    viewCount: number;
+    useCount: number;
+    author: { id: string; username: string; avatarUrl?: string | null };
+  }>
+> {
+  const skillsMap = SkillsPersistence.loadAll();
+  const officialList = loadOfficialSkills();
+  const result: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    partition: string;
+    sourceType: 'official' | 'user-work' | 'user-direct';
+    tags: string[];
+    viewCount: number;
+    useCount: number;
+    author: { id: string; username: string; avatarUrl?: string | null };
+  }> = [];
+
+  for (const s of officialList.slice(0, 3)) {
+    result.push({
+      id: s.id,
+      title: s.title,
+      description: s.description,
+      partition: s.partition || DEFAULT_PARTITION,
+      sourceType: 'official',
+      tags: s.tags || [],
+      viewCount: 0,
+      useCount: 0,
+      author: { id: 'official', username: '官方', avatarUrl: null },
+    });
+  }
+
+  const userSkills = Array.from(skillsMap.values())
+    .sort((a, b) => b.viewCount + b.useCount * 2 - (a.viewCount + a.useCount * 2))
+    .slice(0, SKILLS_TOP_N - result.length);
+
+  const authorIds = [...new Set(userSkills.map((s) => s.authorId))];
+  const authorMap = await getHostInfoBatch(authorIds);
+
+  for (const s of userSkills) {
+    const author = authorMap.get(s.authorId);
+    result.push({
+      id: s.id,
+      title: s.title,
+      description: s.description,
+      partition: s.partition || DEFAULT_PARTITION,
+      sourceType: s.sourceWorkId ? 'user-work' : 'user-direct',
+      tags: s.tags || [],
+      viewCount: s.viewCount,
+      useCount: s.useCount,
+      author: author
+        ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl ?? null }
+        : { id: s.authorId, username: 'Unknown', avatarUrl: null },
+    });
+  }
+
+  return result.slice(0, SKILLS_TOP_N);
 }

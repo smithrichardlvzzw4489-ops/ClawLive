@@ -35,6 +35,12 @@ interface Work {
     username: string;
     avatarUrl?: string;
   };
+  authorLiveRoom?: {
+    id: string;
+    title: string;
+    lobsterName: string;
+    viewerCount: number;
+  } | null;
 }
 
 /** 从 agent 消息中提取所有 SKILL.md 风格内容（含 YAML 头与正文），支持多个 Skill */
@@ -172,6 +178,15 @@ export default function WorkDetailPage() {
                   )}
                   <span>{work.author.username}</span>
                 </Link>
+                {work.authorLiveRoom && (
+                  <Link
+                    href={`/rooms/${work.authorLiveRoom.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-600 rounded-lg font-medium hover:bg-red-500/25 transition-colors"
+                  >
+                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    {t('workDetail.authorLive')}
+                  </Link>
+                )}
                 <span>🦞 {work.lobsterName}</span>
                 <span>👁️ {work.viewCount}</span>
                 <span>💬 {work.messages.length}</span>

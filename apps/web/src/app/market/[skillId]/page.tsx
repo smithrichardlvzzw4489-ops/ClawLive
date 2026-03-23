@@ -130,6 +130,12 @@ export default function SkillDetailPage() {
                 {copied ? '✓ ' + t('workDetail.copied') : t('market.copySkill')}
               </button>
               <Link
+                href={`/works/create?skillId=${skillId}`}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors flex items-center gap-2"
+              >
+                ✏️ {t('market.createWithSkill')}
+              </Link>
+              <Link
                 href={`/market/health-check?skillId=${skillId}`}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
               >

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useSocket } from '@/hooks/useSocket';
 import { format } from 'date-fns';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -24,6 +25,7 @@ export function AgentChatWidget() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [showConnect, setShowConnect] = useState(false);
+  const [recommendedSkills, setRecommendedSkills] = useState<Array<{ id: string; title: string }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,6 +47,13 @@ export function AgentChatWidget() {
       setUser(null);
     }
   };
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/recommendations/home`)
+      .then((r) => r.json())
+      .then((d) => setRecommendedSkills((d.recommendedSkills || []).slice(0, 3).map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))))
+      .catch(() => setRecommendedSkills([]));
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -189,7 +198,25 @@ export function AgentChatWidget() {
             <>
               <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[200px]">
                 {messages.length === 0 && (
-                  <p className="text-gray-400 text-sm text-center py-8">{t('inbox.sayHi')}</p>
+                  <>
+                    <p className="text-gray-400 text-sm text-center py-4">{t('inbox.sayHi')}</p>
+                    {recommendedSkills.length > 0 && (
+                      <div className="border-t pt-3">
+                        <p className="text-xs text-gray-500 mb-2">{t('inbox.trySkills')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {recommendedSkills.map((s) => (
+                            <Link
+                              key={s.id}
+                              href={`/market/${s.id}`}
+                              className="inline-block px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-lobster/15 text-gray-700 hover:text-lobster rounded-lg truncate max-w-[140px]"
+                            >
+                              {s.title}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
                 {messages.map((msg) => {
                   const isUser = msg.sender === 'user' || msg.sender === 'host';

@@ -17,6 +17,7 @@ export const translations = {
       live: '直播',
       works: '作品',
       market: 'Skill 市场',
+      myAgent: '我的 Agent',
       myStreams: '我的直播',
       myWorks: '我的作品',
       createLive: '创建直播间',
@@ -32,6 +33,7 @@ export const translations = {
       resultsCount: '个结果',
       tabLive: '直播',
       tabWorks: '作品',
+      tabSkills: 'Skill',
       tabHosts: 'UP主',
     },
     inbox: {
@@ -39,6 +41,7 @@ export const translations = {
       notConnected: '尚未连接 Agent，连接后即可随时对话',
       connect: '连接 Agent',
       sayHi: '打个招呼吧～',
+      trySkills: '试试这些 Skill',
       placeholder: '输入消息...',
       send: '发送',
     },
@@ -51,6 +54,7 @@ export const translations = {
       exploreWorks: '探索作品',
       liveSection: '正在直播',
       worksSection: '推荐作品',
+      skillsSection: '热门 Skill',
       noLive: '暂无正在直播的房间',
       noWorks: '暂无推荐作品',
       noWorksInPartition: '该分区暂无作品',
@@ -129,10 +133,25 @@ export const translations = {
       deleteFailed: '删除失败',
     },
 
+    myAgent: {
+      title: '我的 Agent 连接',
+      subtitle: '管理你的 Telegram Agent 连接，应用到 Inbox、房间或作品',
+      connections: '连接列表',
+      addConnection: '添加连接',
+      noConnections: '暂无 Agent 连接',
+      noConnectionsHint: '添加连接后，可在 Inbox、直播间、作品中复用',
+      applyToInbox: '应用到 Inbox',
+      applied: '已应用',
+      usageTitle: '使用说明',
+      usageDesc: '连接可同时应用到首页 Inbox 聊天、直播间、作品创作。在对应场景的「连接 Agent」中选择已保存的连接即可。',
+    },
+
     // 主播主页
     host: {
       liveNow: '正在直播',
       history: '历史直播',
+      works: '作品',
+      skills: '上架 Skill',
       noHistory: '暂无历史直播记录',
     },
 
@@ -151,6 +170,7 @@ export const translations = {
       backToList: '返回作品列表',
       creativeProcess: '创作过程',
       processDesc: '作者与 {name} 的对话记录',
+      authorLive: '该作者正在直播',
       noMessages: '这个作品还没有对话记录',
       loadFailed: '加载失败',
       notFound: '作品不存在',
@@ -217,7 +237,10 @@ export const translations = {
       badgeFromWork: '来自作品',
       badgeDirect: '直接添加',
       copySkill: '复制 SKILL.md',
+      createWithSkill: '用此 Skill 创作',
       sourceWork: '来源作品',
+      filterByTag: '按标签',
+      clearTags: '清除标签',
     },
 
     healthCheck: {
@@ -264,6 +287,7 @@ export const translations = {
       live: 'Live',
       works: 'Works',
       market: 'Skill Market',
+      myAgent: 'My Agent',
       myStreams: 'My Streams',
       myWorks: 'My Works',
       createLive: 'Create Room',
@@ -278,6 +302,7 @@ export const translations = {
       resultsCount: 'results',
       tabLive: 'Live',
       tabWorks: 'Works',
+      tabSkills: 'Skills',
       tabHosts: 'Creators',
     },
     inbox: {
@@ -285,6 +310,7 @@ export const translations = {
       notConnected: 'Connect your Agent to start chatting',
       connect: 'Connect Agent',
       sayHi: 'Say hi!',
+      trySkills: 'Try these Skills',
       placeholder: 'Type a message...',
       send: 'Send',
     },
@@ -296,6 +322,7 @@ export const translations = {
       exploreWorks: 'Explore Works',
       liveSection: 'Live Now',
       worksSection: 'Recommended',
+      skillsSection: 'Popular Skills',
       noLive: 'No live rooms',
       noWorks: 'No recommended works',
       noWorksInPartition: 'No works in this partition',
@@ -369,9 +396,24 @@ export const translations = {
       deleteFailed: 'Delete failed',
     },
 
+    myAgent: {
+      title: 'My Agent Connections',
+      subtitle: 'Manage your Telegram Agent connections for Inbox, rooms, and works',
+      connections: 'Connections',
+      addConnection: 'Add Connection',
+      noConnections: 'No connections yet',
+      noConnectionsHint: 'Add a connection to reuse in Inbox, live rooms, or works',
+      applyToInbox: 'Apply to Inbox',
+      applied: 'Applied',
+      usageTitle: 'Usage',
+      usageDesc: 'Connections can be applied to Inbox chat, live rooms, and work creation. Select a saved connection when connecting Agent in each context.',
+    },
+
     host: {
       liveNow: 'Live Now',
       history: 'History',
+      works: 'Works',
+      skills: 'Skills',
       noHistory: 'No history',
     },
 
@@ -388,6 +430,7 @@ export const translations = {
       backToList: 'Back to works',
       creativeProcess: 'Creative process',
       processDesc: 'Conversation with {name}',
+      authorLive: 'Author is live now',
       noMessages: 'No messages yet',
       loadFailed: 'Load failed',
       notFound: 'Work not found',
@@ -452,7 +495,10 @@ export const translations = {
       badgeFromWork: 'From Work',
       badgeDirect: 'Direct',
       copySkill: 'Copy SKILL.md',
+      createWithSkill: 'Create with this Skill',
       sourceWork: 'Source Work',
+      filterByTag: 'By tag',
+      clearTags: 'Clear tags',
     },
 
     healthCheck: {

@@ -2,11 +2,13 @@ import { Router, Request, Response } from 'express';
 import { getAllRooms } from '../../lib/rooms-store';
 import { works, workMessages, getHostInfoBatch } from './rooms-simple';
 import { prisma } from '../../lib/prisma';
+import { loadOfficialSkills } from '../../services/official-skills-loader';
+import { SkillsPersistence } from '../../services/skills-persistence';
 
 const DEFAULT_PARTITION = 'general';
 
 /**
- * 统一搜索 API：搜索直播、作品、UP主
+ * 统一搜索 API：搜索直播、作品、UP主、Skill
  * GET /api/search?q=关键词
  */
 export function searchRoutes(): Router {
@@ -20,6 +22,7 @@ export function searchRoutes(): Router {
           rooms: [],
           works: [],
           hosts: [],
+          skills: [],
         });
       }
 
@@ -123,10 +126,77 @@ export function searchRoutes(): Router {
         console.warn('[search] User search failed:', e);
       }
 
+      // 4. 搜索 Skill（官方 + 用户）
+      const skillsMap = SkillsPersistence.loadAll();
+      const officialList = loadOfficialSkills();
+      const allSkillsForSearch: Array<{
+        id: string;
+        title: string;
+        description?: string;
+        partition: string;
+        sourceType: 'official' | 'user-work' | 'user-direct';
+        tags: string[];
+        viewCount: number;
+        useCount: number;
+        author: { id: string; username: string; avatarUrl?: string | null };
+      }> = [];
+
+      for (const s of officialList) {
+        const match =
+          s.title.toLowerCase().includes(searchLower) ||
+          (s.description?.toLowerCase().includes(searchLower) ?? false) ||
+          (s.tags || []).some((t) => t.toLowerCase().includes(searchLower));
+        if (match) {
+          allSkillsForSearch.push({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            partition: s.partition || DEFAULT_PARTITION,
+            sourceType: 'official',
+            tags: s.tags || [],
+            viewCount: 0,
+            useCount: 0,
+            author: { id: 'official', username: '官方', avatarUrl: null },
+          });
+        }
+      }
+
+      const userSkills = Array.from(skillsMap.values());
+      const skillAuthorIds = [...new Set(userSkills.map((s) => s.authorId))];
+      const skillAuthorMap = await getHostInfoBatch(skillAuthorIds);
+
+      for (const s of userSkills) {
+        const author = skillAuthorMap.get(s.authorId);
+        const authorUsername = author?.username?.toLowerCase() ?? '';
+        const match =
+          s.title.toLowerCase().includes(searchLower) ||
+          (s.description?.toLowerCase().includes(searchLower) ?? false) ||
+          (s.tags || []).some((t) => t.toLowerCase().includes(searchLower)) ||
+          authorUsername.includes(searchLower);
+        if (match) {
+          allSkillsForSearch.push({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            partition: s.partition || DEFAULT_PARTITION,
+            sourceType: s.sourceWorkId ? 'user-work' : 'user-direct',
+            tags: s.tags || [],
+            viewCount: s.viewCount,
+            useCount: s.useCount,
+            author: author
+              ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl ?? null }
+              : { id: s.authorId, username: 'Unknown', avatarUrl: null },
+          });
+        }
+      }
+
+      allSkillsForSearch.sort((a, b) => (b.viewCount + b.useCount * 2) - (a.viewCount + a.useCount * 2));
+
       res.json({
         rooms,
         works: worksList,
         hosts: users,
+        skills: allSkillsForSearch,
       });
     } catch (error) {
       console.error('[search] Error:', error);

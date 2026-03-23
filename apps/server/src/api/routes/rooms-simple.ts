@@ -4,6 +4,7 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { mtprotoService } from '../../services/telegram-mtproto';
 import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
 import { WorksPersistence } from '../../services/works-persistence';
+import { SkillsPersistence } from '../../services/skills-persistence';
 import { prisma } from '../../lib/prisma';
 import {
   getRoom,
@@ -430,6 +431,36 @@ export function roomSimpleRoutes(io: Server): Router {
           messageCount: history.messages.length,
         }));
 
+      const hostWorks = Array.from(works.values())
+        .filter(w => w.authorId === hostId && w.status === 'published')
+        .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
+        .slice(0, 12)
+        .map(w => ({
+          id: w.id,
+          title: w.title,
+          resultSummary: w.resultSummary,
+          partition: w.partition,
+          coverImage: w.coverImage,
+          videoUrl: w.videoUrl,
+          viewCount: w.viewCount,
+          likeCount: w.likeCount,
+          publishedAt: w.publishedAt,
+        }));
+
+      const skillsMap = SkillsPersistence.loadAll();
+      const hostSkills = Array.from(skillsMap.values())
+        .filter(s => s.authorId === hostId)
+        .sort((a, b) => (b.viewCount + b.useCount * 2) - (a.viewCount + a.useCount * 2))
+        .slice(0, 8)
+        .map(s => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          viewCount: s.viewCount,
+          useCount: s.useCount,
+          sourceWorkId: s.sourceWorkId,
+        }));
+
       res.json({
         host: {
           id: host.id,
@@ -439,6 +470,8 @@ export function roomSimpleRoutes(io: Server): Router {
         },
         liveRooms,
         historySessions,
+        hostWorks,
+        hostSkills,
         stats: {
           totalSessions: historySessions.length,
           totalMessages: historySessions.reduce((sum, s) => sum + s.messageCount, 0),

@@ -35,9 +35,20 @@ interface SearchResult {
     author: { id: string; username: string; avatarUrl?: string | null };
   }>;
   hosts: Array<{ id: string; username: string; avatarUrl?: string | null }>;
+  skills: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    partition: string;
+    sourceType: string;
+    tags: string[];
+    viewCount: number;
+    useCount: number;
+    author: { id: string; username: string; avatarUrl?: string | null };
+  }>;
 }
 
-type TabType = 'live' | 'works' | 'hosts';
+type TabType = 'live' | 'works' | 'hosts' | 'skills';
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -60,15 +71,17 @@ function SearchContent() {
           rooms: data.rooms || [],
           works: data.works || [],
           hosts: data.hosts || [],
+          skills: data.skills || [],
         });
       })
-      .catch(() => setResult({ rooms: [], works: [], hosts: [] }))
+      .catch(() => setResult({ rooms: [], works: [], hosts: [], skills: [] }))
       .finally(() => setLoading(false));
   }, [q]);
 
   const tabs: { key: TabType; label: string; count: number }[] = [
     { key: 'live', label: t('search.tabLive'), count: result?.rooms?.length ?? 0 },
     { key: 'works', label: t('search.tabWorks'), count: result?.works?.length ?? 0 },
+    { key: 'skills', label: t('search.tabSkills'), count: result?.skills?.length ?? 0 },
     { key: 'hosts', label: t('search.tabHosts'), count: result?.hosts?.length ?? 0 },
   ];
 
@@ -80,7 +93,7 @@ function SearchContent() {
           <p className="text-gray-500">{t('search.empty')}</p>
         ) : (
           <p className="text-gray-600">
-            「{q}」 — {(result?.rooms?.length ?? 0) + (result?.works?.length ?? 0) + (result?.hosts?.length ?? 0)} {t('search.resultsCount')}
+            「{q}」 — {(result?.rooms?.length ?? 0) + (result?.works?.length ?? 0) + (result?.hosts?.length ?? 0) + (result?.skills?.length ?? 0)} {t('search.resultsCount')}
           </p>
         )}
       </div>
@@ -142,6 +155,40 @@ function SearchContent() {
                         avatarUrl: work.author.avatarUrl ?? undefined,
                       }}
                     />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === 'skills' && (
+            <section>
+              {!result?.skills?.length ? (
+                <p className="text-gray-500 py-8 text-center">{t('search.noResults')}</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {result.skills.map((skill) => (
+                    <Link
+                      key={skill.id}
+                      href={`/market/${skill.id}`}
+                      className="block bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-lobster/30 transition-all"
+                    >
+                      <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">{skill.title}</h3>
+                      {skill.description && (
+                        <p className="text-sm text-gray-500 line-clamp-2 mb-3">{skill.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {skill.sourceType === 'official' && (
+                          <span className="px-1.5 py-0.5 text-xs font-medium bg-lobster/15 text-lobster rounded">官方</span>
+                        )}
+                        {skill.tags?.slice(0, 3).map((tag) => (
+                          <span key={tag} className="px-1.5 py-0.5 text-xs bg-gray-100 text-gray-600 rounded">{tag}</span>
+                        ))}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {skill.author.username} · {skill.viewCount} 浏览 · {skill.useCount} 使用
+                      </div>
+                    </Link>
                   ))}
                 </div>
               )}

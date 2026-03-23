@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { getRecommendedLiveRooms, getRecommendedWorks } from '../../services/recommendation';
+import { getRecommendedLiveRooms, getRecommendedWorks, getRecommendedSkills } from '../../services/recommendation';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
@@ -23,12 +23,16 @@ export function recommendationRoutes(): Router {
         } catch (_) {}
       }
 
-      const liveRooms = await getRecommendedLiveRooms(userId);
-      const recommendedWorks = await getRecommendedWorks(userId);
+      const [liveRooms, recommendedWorks, recommendedSkills] = await Promise.all([
+        getRecommendedLiveRooms(userId),
+        getRecommendedWorks(userId),
+        getRecommendedSkills(),
+      ]);
 
       res.json({
         liveRooms: liveRooms.map(({ score, ...r }) => r),
         recommendedWorks: recommendedWorks.map(({ score, ...w }) => w),
+        recommendedSkills,
       });
     } catch (error) {
       console.error('Error fetching recommendations:', error);
