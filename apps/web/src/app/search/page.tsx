@@ -133,7 +133,15 @@ function SearchContent() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {result.works.map((work) => (
-                    <WorkCard key={work.id} {...work} publishedAt={work.publishedAt} />
+                    <WorkCard
+                      key={work.id}
+                      {...work}
+                      publishedAt={work.publishedAt}
+                      author={{
+                        ...work.author,
+                        avatarUrl: work.author.avatarUrl ?? undefined,
+                      }}
+                    />
                   ))}
                 </div>
               )}
