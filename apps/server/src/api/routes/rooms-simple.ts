@@ -602,7 +602,7 @@ export function roomSimpleRoutes(io: Server): Router {
         }
       }
 
-      // Start Telegram bridge if agent is enabled
+      // Start Telegram bridge if agent is enabled (telegram 类型)
       if (agentConfig && agentConfig.agentEnabled && 
           agentConfig.agentType === 'telegram' &&
           agentConfig.agentBotToken &&
@@ -623,6 +623,16 @@ export function roomSimpleRoutes(io: Server): Router {
         agentConfigs.set(roomId, agentConfig);
         
         console.log(`🤖 Telegram Agent bridge started for room ${roomId}`);
+      }
+      // OpenClaw Direct：无需 bridge，开播即就绪
+      else if (agentConfig && agentConfig.agentEnabled && 
+          agentConfig.agentType === 'openclaw-direct') {
+        const cfg = agentConfig as Record<string, unknown>;
+        if (cfg.openclawGatewayUrl && cfg.openclawToken) {
+          agentConfig.agentStatus = 'connected';
+          agentConfigs.set(roomId, agentConfig);
+          console.log(`🤖 OpenClaw Direct ready for room ${roomId}`);
+        }
       }
 
       res.json(updated);
@@ -742,11 +752,11 @@ export function roomSimpleRoutes(io: Server): Router {
 
       io.to(roomId).emit('new-message', message);
 
-      // Forward to Telegram Agent if enabled
+      // Forward to Agent if enabled (Telegram or OpenClaw Direct)
       const agentConfig = agentConfigs.get(roomId);
       if (agentConfig && agentConfig.agentEnabled) {
         if (agentConfig.agentType === 'telegram') {
-          // Use Telegram Bot API
+          // Use Telegram Bot API (保留原有实现)
           const { bridgeManager } = await import('../../services/telegram-bridge');
           const bridge = bridgeManager.getBridge(roomId);
           if (bridge) {
@@ -756,7 +766,7 @@ export function roomSimpleRoutes(io: Server): Router {
             console.log('⚠️ Telegram bridge not active');
           }
         } else if (agentConfig.agentType === 'telegram-user') {
-          // Use MTProto (User API)
+          // Use MTProto (User API) (保留原有实现)
           const chatId = agentConfig.agentChatId;
           if (!chatId) {
             console.log('⚠️ No Chat ID configured for MTProto');
@@ -767,6 +777,25 @@ export function roomSimpleRoutes(io: Server): Router {
               console.error('❌ MTProto send failed:', result.error);
             } else {
               console.log('✅ Message sent as user successfully');
+            }
+          }
+        } else if (agentConfig.agentType === 'openclaw-direct') {
+          // OpenClaw 直连：HTTP API，无需 Telegram
+          const gatewayUrl = (agentConfig as Record<string, unknown>).openclawGatewayUrl as string | undefined;
+          const token = (agentConfig as Record<string, unknown>).openclawToken as string | undefined;
+          if (!gatewayUrl || !token) {
+            console.log('⚠️ OpenClaw Direct: gatewayUrl or token not configured');
+          } else {
+            console.log(`📤 [OpenClaw Direct] Sending to Gateway: "${content.substring(0, 40)}..."`);
+            const { sendToOpenClawDirect } = await import('../../services/openclaw-direct');
+            const result = await sendToOpenClawDirect(
+              roomId,
+              content,
+              { gatewayUrl, token },
+              io
+            );
+            if (!result.success) {
+              console.error('❌ OpenClaw Direct failed:', result.error);
             }
           }
         }

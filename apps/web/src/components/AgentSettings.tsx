@@ -35,6 +35,10 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
   const [submittingCode, setSubmittingCode] = useState(false);
   const [submittingPassword, setSubmittingPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [agentMode, setAgentMode] = useState<'telegram' | 'direct'>('telegram');
+  const [openclawGatewayUrl, setOpenclawGatewayUrl] = useState('http://localhost:18789');
+  const [openclawToken, setOpenclawToken] = useState('');
+  const [applyingDirect, setApplyingDirect] = useState(false);
 
   useEffect(() => {
     loadConfig();
@@ -71,7 +75,11 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
       if (response.ok) {
         const data = await response.json();
         setChatId(data.agentChatId || '');
-        if (data.agentStatus === 'active' || data.agentStatus === 'connected') {
+        setOpenclawGatewayUrl(data.openclawGatewayUrl || 'http://localhost:18789');
+        if (data.agentType === 'openclaw-direct') {
+          setAgentMode('direct');
+          if (data.agentStatus === 'connected') setLoginStep('done');
+        } else if (data.agentStatus === 'active' || data.agentStatus === 'connected') {
           setLoginStep('done');
         }
       }
@@ -79,6 +87,38 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
       console.error('Failed to load config:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyDirectOpenClaw = async () => {
+    if (!openclawGatewayUrl.trim() || !openclawToken.trim()) {
+      setMessage({ type: 'error', text: '请填写 Gateway URL 和 Token' });
+      return;
+    }
+    setApplyingDirect(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          agentType: 'openclaw-direct',
+          agentEnabled: true,
+          openclawGatewayUrl: openclawGatewayUrl.trim(),
+          openclawToken: openclawToken.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '配置失败');
+      setLoginStep('done');
+      setMessage({ type: 'success', text: '✅ 直连 OpenClaw 已配置！' });
+      onConfigComplete?.();
+      if (isPreLiveConfig) setTimeout(() => onClose(), 1500);
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '配置失败' });
+    } finally {
+      setApplyingDirect(false);
     }
   };
 
@@ -282,7 +322,68 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {/* 连接方式选择 */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setAgentMode('telegram'); setConnectionChoice('choice'); setMessage(null); }}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium ${agentMode === 'telegram' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              Telegram 用户
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAgentMode('direct'); setMessage(null); }}
+              className={`flex-1 px-4 py-2 rounded-lg font-medium ${agentMode === 'direct' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              直连 OpenClaw
+            </button>
+          </div>
+
+          {/* OpenClaw Direct Config */}
+          {agentMode === 'direct' && (
+            <div className="space-y-4 p-4 border border-teal-200 rounded-lg bg-teal-50">
+              <p className="text-sm text-gray-700">
+                直连 OpenClaw Gateway，无需 Telegram，低延迟。
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-2">Gateway URL</label>
+                <input
+                  type="url"
+                  value={openclawGatewayUrl}
+                  onChange={(e) => setOpenclawGatewayUrl(e.target.value)}
+                  placeholder="http://localhost:18789"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Token</label>
+                <input
+                  type="password"
+                  value={openclawToken}
+                  onChange={(e) => setOpenclawToken(e.target.value)}
+                  placeholder="gateway token"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={applyDirectOpenClaw}
+                disabled={applyingDirect || !openclawGatewayUrl.trim() || !openclawToken.trim()}
+                className="w-full px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 font-semibold"
+              >
+                {applyingDirect ? '应用中...' : '应用'}
+              </button>
+              {loginStep === 'done' && agentMode === 'direct' && (
+                <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
+                  ✅ 直连 OpenClaw 已配置
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Telegram User Config */}
+          {agentMode === 'telegram' && (
           <div className="space-y-4 p-4 border border-purple-200 rounded-lg bg-purple-50">
             <div className="bg-white border border-purple-200 rounded p-3 text-sm">
               <p className="text-gray-700">
@@ -490,6 +591,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
               </div>
             )}
           </div>
+          )}
 
           {/* Message */}
           {message && (

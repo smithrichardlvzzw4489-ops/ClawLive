@@ -38,12 +38,15 @@ export function agentConfigSimpleRoutes(io: Server): Router {
         agentStatus: 'disconnected',
       };
       
+      const cfg = config as Record<string, unknown>;
       res.json({
         agentType: config.agentType,
         agentEnabled: config.agentEnabled,
         agentChatId: config.agentChatId || '',
         agentStatus: config.agentStatus,
         hasBotToken: !!config.agentBotToken,
+        openclawGatewayUrl: (cfg.openclawGatewayUrl as string) || '',
+        hasOpenclawToken: !!(cfg.openclawToken as string),
       });
     } catch (error) {
       console.error('Error getting agent config:', error);
@@ -58,7 +61,7 @@ export function agentConfigSimpleRoutes(io: Server): Router {
     try {
       const { roomId } = req.params;
       const userId = req.user!.id;
-      const { agentType, agentEnabled, agentBotToken, agentChatId } = req.body;
+      const { agentType, agentEnabled, agentBotToken, agentChatId, openclawGatewayUrl, openclawToken } = req.body;
       
       // Check room（支持 Redis 多实例）
       const room = await getRoom(roomId);
@@ -76,25 +79,36 @@ export function agentConfigSimpleRoutes(io: Server): Router {
       const existingConfig = agentConfigs.get(roomId) as Record<string, unknown> | undefined;
       const existing = existingConfig || {};
       
-      // Update configuration in memory (preserve MTProto fields)
-      const newConfig = {
+      // Update configuration in memory (preserve MTProto + OpenClaw Direct fields)
+      const newConfig: Record<string, unknown> = {
         agentType: agentType || (existing.agentType as string) || 'mock',
         agentEnabled: agentEnabled !== undefined ? agentEnabled : (existing.agentEnabled as boolean) || false,
-        agentBotToken: agentBotToken || (existing.agentBotToken as string),
-        agentChatId: agentChatId || (existing.agentChatId as string),
+        agentBotToken: agentBotToken ?? (existing.agentBotToken as string),
+        agentChatId: agentChatId ?? (existing.agentChatId as string),
         agentStatus: (existing.agentStatus as string) || 'disconnected',
-        // Preserve MTProto session fields
         mtprotoSessionString: (existing as Record<string, unknown>).mtprotoSessionString,
         mtprotoPhone: (existing as Record<string, unknown>).mtprotoPhone,
+        openclawGatewayUrl: openclawGatewayUrl ?? (existing as Record<string, unknown>).openclawGatewayUrl,
+        openclawToken: openclawToken ?? (existing as Record<string, unknown>).openclawToken,
       };
       
       agentConfigs.set(roomId, newConfig);
+
+      if ((newConfig.agentType as string) === 'openclaw-direct' && newConfig.openclawGatewayUrl && newConfig.openclawToken) {
+        RoomAgentConfigPersistence.saveConfig(roomId, {
+          agentType: 'openclaw-direct',
+          agentEnabled: !!newConfig.agentEnabled,
+          openclawGatewayUrl: newConfig.openclawGatewayUrl as string,
+          openclawToken: newConfig.openclawToken as string,
+        });
+      }
       
       console.log(`✅ Agent config saved for room ${roomId}:`, {
         type: newConfig.agentType,
         enabled: newConfig.agentEnabled,
         hasToken: !!newConfig.agentBotToken,
         hasChatId: !!newConfig.agentChatId,
+        hasOpenclaw: (newConfig.agentType as string) === 'openclaw-direct',
       });
       
       res.json({

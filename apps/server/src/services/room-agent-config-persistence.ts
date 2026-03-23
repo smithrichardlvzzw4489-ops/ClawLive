@@ -13,12 +13,14 @@ const CONFIG_FILE = getDataFilePath('room-agent-configs.json');
 
 export interface PersistedRoomAgentConfig {
   roomId: string;
-  agentType: 'telegram' | 'telegram-user';
+  agentType: 'telegram' | 'telegram-user' | 'openclaw-direct';
   agentEnabled: boolean;
-  agentChatId: string;
+  agentChatId?: string;
   agentBotToken?: string;
   mtprotoSessionString?: string;
   mtprotoPhone?: string;
+  openclawGatewayUrl?: string;
+  openclawToken?: string;
   savedAt: string;
 }
 
@@ -105,6 +107,16 @@ export class RoomAgentConfigPersistence {
         agentStatus: 'connected',
         mtprotoSessionString: persisted.mtprotoSessionString,
         mtprotoPhone: persisted.mtprotoPhone,
+      });
+      return true;
+    }
+    if (persisted.agentType === 'openclaw-direct' && persisted.openclawGatewayUrl && persisted.openclawToken) {
+      agentConfigsRef.set(roomId, {
+        agentType: 'openclaw-direct',
+        agentEnabled: true,
+        openclawGatewayUrl: persisted.openclawGatewayUrl,
+        openclawToken: persisted.openclawToken,
+        agentStatus: 'connected',
       });
       return true;
     }

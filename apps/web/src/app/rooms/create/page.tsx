@@ -25,8 +25,8 @@ export default function CreateRoomPage() {
     lobsterName: '',
   });
 
-  // Connection choice: use existing or create new
-  const [connectionChoice, setConnectionChoice] = useState<'choice' | 'existing' | 'new'>('choice');
+  // Connection choice: use existing, create new, or direct OpenClaw
+  const [connectionChoice, setConnectionChoice] = useState<'choice' | 'existing' | 'new' | 'direct'>('choice');
   const [connections, setConnections] = useState<UserConnection[]>([]);
   const [selectedConnectionId, setSelectedConnectionId] = useState('');
   const [applyingConnection, setApplyingConnection] = useState(false);
@@ -45,6 +45,11 @@ export default function CreateRoomPage() {
   const [submittingPassword, setSubmittingPassword] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [liveMode, setLiveMode] = useState<'video' | 'audio'>('video');
+
+  // OpenClaw Direct
+  const [openclawGatewayUrl, setOpenclawGatewayUrl] = useState('http://localhost:18789');
+  const [openclawToken, setOpenclawToken] = useState('');
+  const [applyingDirect, setApplyingDirect] = useState(false);
 
   // Auth guard: 未登录则跳转登录页，登录成功后返回
   useEffect(() => {
@@ -283,6 +288,37 @@ export default function CreateRoomPage() {
     }
   };
 
+  // Apply OpenClaw Direct and start livestream
+  const applyDirectOpenClaw = async () => {
+    if (!openclawGatewayUrl.trim() || !openclawToken.trim()) {
+      setMessage({ type: 'error', text: '请填写 Gateway URL 和 Token' });
+      return;
+    }
+    setApplyingDirect(true);
+    setMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          agentType: 'openclaw-direct',
+          agentEnabled: true,
+          openclawGatewayUrl: openclawGatewayUrl.trim(),
+          openclawToken: openclawToken.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '配置失败');
+      setMessage({ type: 'success', text: '✅ 直连 OpenClaw 已配置！正在开始直播...' });
+      await startLivestream();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || '配置失败' });
+    } finally {
+      setApplyingDirect(false);
+    }
+  };
+
   // Step 3: Start livestream and redirect
   const startLivestream = async () => {
     try {
@@ -460,6 +496,61 @@ export default function CreateRoomPage() {
                   >
                     + 新建连接（手机号 + Agent Chat ID）
                   </button>
+                  <div className="text-center text-gray-500">或</div>
+                  <button
+                    type="button"
+                    onClick={() => { setConnectionChoice('direct'); setMessage(null); }}
+                    className="w-full px-6 py-3 border-2 border-dashed border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 font-semibold"
+                  >
+                    🔌 直连 OpenClaw（无需 Telegram）
+                  </button>
+                </div>
+              )}
+
+              {/* OpenClaw Direct 配置 */}
+              {connectionChoice === 'direct' && (
+                <div className="space-y-4 p-4 border border-teal-200 rounded-lg bg-teal-50">
+                  <p className="text-sm text-gray-700">
+                    直连 OpenClaw Gateway，跳过 Telegram、飞书等，低延迟。
+                  </p>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Gateway URL</label>
+                    <input
+                      type="url"
+                      value={openclawGatewayUrl}
+                      onChange={(e) => setOpenclawGatewayUrl(e.target.value)}
+                      placeholder="http://localhost:18789"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Token</label>
+                    <input
+                      type="password"
+                      value={openclawToken}
+                      onChange={(e) => setOpenclawToken(e.target.value)}
+                      placeholder="openclaw config set gateway.token 设置的 token"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">通过 openclaw config set gateway.token 获取</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={applyDirectOpenClaw}
+                      disabled={applyingDirect || !openclawGatewayUrl.trim() || !openclawToken.trim()}
+                      className="flex-1 px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 font-semibold"
+                    >
+                      {applyingDirect ? '应用中...' : '应用并开始直播'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setConnectionChoice('choice'); setMessage(null); }}
+                      className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                      返回
+                    </button>
+                  </div>
                 </div>
               )}
 
