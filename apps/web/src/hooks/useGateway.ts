@@ -102,7 +102,7 @@ function runNewProtocol(
           type: 'req',
           id: reqId(),
           method: 'agent',
-          params: { message: text, sessionKey, runId, thinking: 'medium' },
+          params: { message: text, sessionKey, idempotencyKey: runId, thinking: 'medium' },
         };
         debugLog('SEND agent', agentReq);
         ws.send(JSON.stringify(agentReq));
