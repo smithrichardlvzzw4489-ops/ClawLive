@@ -256,7 +256,20 @@ localStorage.setItem('clawlive_gateway_debug','1')
 
 保存后重启 Gateway 再试。
 
+### ngrok 免费版浏览器拦截页导致 WebSocket 失败
+
+ngrok 免费版会显示「Visit Site」拦截页，可能阻塞浏览器发起的 WebSocket 连接（浏览器的 WebSocket API 无法添加自定义 header 绕过）。
+
+**建议**：改用 **Cloudflare Tunnel (cloudflared)**，免费且无拦截页：
+
+```bash
+# 安装后执行（18789 为 Gateway 默认端口）
+cloudflared tunnel --url http://localhost:18789
+```
+
+会输出 `https://xxx.trycloudflare.com`，用 `wss://xxx.trycloudflare.com` 配置到直播间 Agent 即可。
+
 ### 连接关闭 / 超时
 
-- 检查穿透工具（ngrok/localtunnel）是否支持 WebSocket（ngrok 支持；localtunnel 可能不稳定）
-- 若 localtunnel 易 408，建议改用 ngrok
+- 检查穿透工具（ngrok/cloudflared/localtunnel）是否支持 WebSocket
+- ngrok 支持；cloudflared 无拦截页；localtunnel 可能不稳定

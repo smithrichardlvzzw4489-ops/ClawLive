@@ -225,7 +225,13 @@ export async function sendMessageToGateway(
   text: string
 ): Promise<{ response?: string; error?: string }> {
   const wsUrl = toWebSocketUrl(gatewayUrl);
-  const urlWithToken = token ? `${wsUrl}?token=${encodeURIComponent(token)}` : wsUrl;
+  const params = new URLSearchParams();
+  if (token) params.set('token', token);
+  if (wsUrl.includes('ngrok-free.dev') || wsUrl.includes('ngrok.io')) {
+    params.set('ngrok-skip-browser-warning', '1');
+  }
+  const qs = params.toString();
+  const urlWithToken = qs ? `${wsUrl}${wsUrl.includes('?') ? '&' : '?'}${qs}` : wsUrl;
   const debug = isDebugEnabled();
   if (debug) {
     debugLog('CONNECT', { url: wsUrl, hasToken: !!token, textLen: text.length });
@@ -262,9 +268,13 @@ export async function sendMessageToGateway(
     ws.onerror = () => {
       ws.onclose = null;
       ws.onmessage = null;
+      const ngrokHint = wsUrl.includes('ngrok')
+        ? ' ngrok 免费版会显示浏览器拦截页，可能阻塞 WebSocket，建议改用 cloudflared 穿透。'
+        : '';
       doResolve({
         error:
-          'WebSocket 连接错误。请检查：1) Gateway 是否已启动 2) 若用 ngrok 等穿透，隧道是否在运行 3) Gateway 地址是否正确。F12 → Network → WS 可查看连接详情。',
+          'WebSocket 连接错误。请检查：1) Gateway 是否已启动 2) 穿透隧道是否在运行 3) Gateway 地址是否正确。' +
+          ngrokHint,
       });
     };
 
@@ -277,8 +287,11 @@ export async function sendMessageToGateway(
         if (ev.code === 1008) {
           doResolve({ error: format1008Error(reason) });
         } else if (ev.code === 1006) {
+          const ngrokHint = wsUrl.includes('ngrok')
+            ? ' ngrok 免费版会显示浏览器拦截页，可能阻塞 WebSocket。建议改用 cloudflared（Cloudflare Tunnel）穿透。'
+            : '';
           doResolve({
-            error: `连接失败 (code 1006)：无法连接到 Gateway。请确认 Gateway 已启动、地址正确，且若使用 ngrok 等穿透工具，隧道正在运行。`,
+            error: `连接失败 (code 1006)：无法连接到 Gateway。请确认 Gateway 已启动、地址正确，且若使用 ngrok 等穿透工具，隧道正在运行。${ngrokHint}`,
           });
         } else {
           doResolve({
