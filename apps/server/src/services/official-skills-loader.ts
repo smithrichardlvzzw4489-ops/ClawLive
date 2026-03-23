@@ -49,7 +49,7 @@ export function loadOfficialSkills(): OfficialSkillItem[] {
             description: item.description ? String(item.description).trim() : undefined,
             skillMarkdown: String(item.skillMarkdown).trim(),
             partition: isValidPartition(item.partition) ? item.partition : DEFAULT_PARTITION,
-            tags: Array.isArray(item.tags) ? item.tags.filter((t) => typeof t === 'string') : [],
+            tags: Array.isArray(item.tags) ? item.tags.filter((t: unknown) => typeof t === 'string') : [],
             sortOrder: typeof item.sortOrder === 'number' ? item.sortOrder : i,
           });
         }

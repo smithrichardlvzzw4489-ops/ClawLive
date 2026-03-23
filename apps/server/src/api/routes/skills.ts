@@ -147,7 +147,7 @@ export function skillsRoutes(): Router {
             useCount: skill.useCount,
             createdAt: skill.createdAt.toISOString(),
             author: author
-              ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
+              ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl ?? undefined }
               : { id: skill.authorId, username: 'Unknown', avatarUrl: undefined },
           });
         }
@@ -191,7 +191,7 @@ export function skillsRoutes(): Router {
         author: {
           id: author.id,
           username: author.username,
-          avatarUrl: author.avatarUrl,
+          avatarUrl: author.avatarUrl ?? undefined,
         },
       });
     } catch (error) {
