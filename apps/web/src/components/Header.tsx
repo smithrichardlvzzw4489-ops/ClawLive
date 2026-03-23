@@ -86,6 +86,16 @@ export function Header() {
           >
             {t('nav.live')}
           </Link>
+          <Link
+            href="/market"
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              isActive('/market')
+                ? 'text-lobster bg-lobster/10'
+                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
+            }`}
+          >
+            {t('nav.market')}
+          </Link>
         </nav>
 
         <form onSubmit={handleSearch} className="flex-1 max-w-xl">

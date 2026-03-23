@@ -16,6 +16,7 @@ export const translations = {
       home: '首页',
       live: '直播',
       works: '作品',
+      market: 'Skill 市场',
       myStreams: '我的直播',
       myWorks: '我的作品',
       createLive: '创建直播间',
@@ -165,6 +166,7 @@ export const translations = {
       copySkillMd: '复制SKILL.md，赋能我的AI',
       copied: '已复制',
       noSkillToCopy: '该作品暂无可复制的 Skill 内容',
+      listToMarketLabel: '同时上架 Skill 到市场（其他用户可直接复制使用）',
       agentTyping: '正在输入中...',
     },
 
@@ -195,6 +197,17 @@ export const translations = {
       networkError: '无法连接服务器，请确认后端服务已启动（默认端口 3001）',
     },
 
+    // Skill 市场
+    market: {
+      title: 'Skill 市场',
+      subtitle: '复制即学会，粘贴到你的 Agent 即可掌握',
+      empty: '暂无上架的 Skill，快去发布作品并勾选「上架 Skill 到市场」吧',
+      views: '浏览',
+      uses: '使用',
+      copySkill: '复制 SKILL.md',
+      sourceWork: '来源作品',
+    },
+
     // 语言切换
     language: '语言',
     langZh: '简体中文',
@@ -213,6 +226,7 @@ export const translations = {
       home: 'Home',
       live: 'Live',
       works: 'Works',
+      market: 'Skill Market',
       myStreams: 'My Streams',
       myWorks: 'My Works',
       createLive: 'Create Room',
@@ -352,6 +366,7 @@ export const translations = {
       copySkillMd: 'Copy SKILL.md, empower my AI',
       copied: 'Copied',
       noSkillToCopy: 'No Skill content available to copy',
+      listToMarketLabel: 'Also list Skill on marketplace (others can copy and use)',
       agentTyping: 'Typing...',
     },
 
@@ -379,6 +394,16 @@ export const translations = {
       registerFailed: 'Registration failed',
       userNotFoundPrompt: 'Account not registered. Please register first.',
       networkError: 'Cannot connect to server. Please ensure the backend is running (default port 3001).',
+    },
+
+    market: {
+      title: 'Skill Market',
+      subtitle: 'Copy to learn, paste into your Agent to master',
+      empty: 'No skills listed yet. Publish a work and check "List Skill on marketplace"',
+      views: 'Views',
+      uses: 'Uses',
+      copySkill: 'Copy SKILL.md',
+      sourceWork: 'Source Work',
     },
 
     language: 'Language',

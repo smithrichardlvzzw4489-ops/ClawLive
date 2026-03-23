@@ -48,6 +48,7 @@ export default function WorkStudioPage() {
   const [publishResultSummary, setPublishResultSummary] = useState('');
   const [publishSkillMarkdown, setPublishSkillMarkdown] = useState('');
   const [publishPartition, setPublishPartition] = useState<string>(DEFAULT_PARTITION);
+  const [listToMarket, setListToMarket] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const { t } = useLocale();
   const [agentConfigured, setAgentConfigured] = useState(false);
@@ -269,6 +270,7 @@ export default function WorkStudioPage() {
           resultSummary: publishResultSummary.trim() || undefined,
           skillMarkdown: publishSkillMarkdown.trim() || undefined,
           partition: publishPartition || DEFAULT_PARTITION,
+          listToMarket: !!listToMarket,
         }),
       });
 
@@ -411,10 +413,19 @@ export default function WorkStudioPage() {
               value={publishSkillMarkdown}
               onChange={(e) => setPublishSkillMarkdown(e.target.value)}
               placeholder={t('workDetail.skillMarkdownPlaceholder')}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent mb-4 font-mono text-sm"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent mb-3 font-mono text-sm"
               rows={6}
               spellCheck={false}
             />
+            <label className="flex items-center gap-2 mb-4 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={listToMarket}
+                onChange={(e) => setListToMarket(e.target.checked)}
+                className="rounded border-gray-300 text-lobster focus:ring-lobster"
+              />
+              <span className="text-sm text-gray-700">{t('workDetail.listToMarketLabel')}</span>
+            </label>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPublishModal(false)}

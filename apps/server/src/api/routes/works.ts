@@ -13,6 +13,7 @@ import { workAgentConfigs } from './work-agent-config';
 import { recordBehavior } from '../../services/user-behavior';
 import { isValidPartition, DEFAULT_PARTITION } from '../../lib/work-partitions';
 import { generateResultSummary } from '../../services/llm';
+import { createSkillFromWork } from './skills';
 
 export function worksRoutes(io: Server): Router {
   const router = Router();
@@ -334,7 +335,7 @@ export function worksRoutes(io: Server): Router {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { videoUrl, resultSummary, skillMarkdown, partition } = req.body || {};
+      const { videoUrl, resultSummary, skillMarkdown, partition, listToMarket } = req.body || {};
 
       const work = works.get(workId);
       if (!work) {
@@ -372,6 +373,18 @@ export function worksRoutes(io: Server): Router {
 
       works.set(workId, work);
       WorksPersistence.saveAll(works, workMessages);
+
+      if (listToMarket && work.skillMarkdown?.trim()) {
+        createSkillFromWork({
+          authorId: userId,
+          title: work.title,
+          description: work.resultSummary,
+          skillMarkdown: work.skillMarkdown,
+          partition: finalPartition,
+          sourceWorkId: workId,
+          tags: work.tags || [],
+        });
+      }
 
       console.log(`📤 Work published: ${workId}`);
       res.json(work);

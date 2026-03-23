@@ -5,6 +5,7 @@ import { authRoutes } from './auth';
 import { webhookRoutes } from './webhooks';
 import { agentConfigSimpleRoutes } from './agent-config-simple';
 import { worksRoutes } from './works';
+import { skillsRoutes } from './skills';
 import { workAgentConfigRoutes } from './work-agent-config';
 import { recommendationRoutes } from './recommendations';
 import { searchRoutes } from './search';
@@ -28,6 +29,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/webhooks', webhookRoutes(io));
   app.use('/api/agent-config', agentConfigSimpleRoutes(io));
   app.use('/api/work-agent-config', workAgentConfigRoutes(io));
+  app.use('/api/skills', skillsRoutes());
   app.use('/api/works', worksRoutes(io));
   app.use('/api/livekit', livekitRoutes());
 
