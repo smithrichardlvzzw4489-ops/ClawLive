@@ -756,7 +756,11 @@ export function roomSimpleRoutes(io: Server): Router {
       io.to(roomId).emit('new-message', message);
 
       // Forward to Agent if enabled (Telegram or OpenClaw Direct)
-      const agentConfig = agentConfigs.get(roomId);
+      let agentConfig = agentConfigs.get(roomId);
+      if (!agentConfig) {
+        const restored = await RoomAgentConfigPersistence.restoreToMemory(roomId, agentConfigs as unknown as Map<string, Record<string, unknown>>);
+        if (restored) agentConfig = agentConfigs.get(roomId);
+      }
       if (agentConfig && agentConfig.agentEnabled) {
         if (agentConfig.agentType === 'telegram') {
           // Use Telegram Bot API (保留原有实现)
@@ -788,6 +792,14 @@ export function roomSimpleRoutes(io: Server): Router {
           const token = agentConfig.openclawToken;
           if (!gatewayUrl || !token) {
             console.log('⚠️ OpenClaw Direct: gatewayUrl or token not configured');
+            await appendMessage(roomId, {
+              id: Date.now().toString(),
+              roomId,
+              sender: 'agent',
+              content: '❌ Agent 未配置：请到直播间设置中填写 Gateway URL 和 Token',
+              timestamp: new Date(),
+            });
+            io.to(roomId).emit('new-message', { id: Date.now().toString(), roomId, sender: 'agent', content: '❌ Agent 未配置：请到直播间设置中填写 Gateway URL 和 Token', timestamp: new Date() });
           } else {
             console.log(`📤 [OpenClaw Direct] Sending to Gateway: "${content.substring(0, 40)}..."`);
             const { sendToOpenClawDirect } = await import('../../services/openclaw-direct');
@@ -799,6 +811,9 @@ export function roomSimpleRoutes(io: Server): Router {
             );
             if (!result.success) {
               console.error('❌ OpenClaw Direct failed:', result.error);
+              const errMsg = { id: Date.now().toString(), roomId, sender: 'agent' as const, content: `❌ Agent 回复失败：${result.error}`, timestamp: new Date() };
+              await appendMessage(roomId, errMsg);
+              io.to(roomId).emit('new-message', errMsg);
             }
           }
         }
