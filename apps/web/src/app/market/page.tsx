@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -49,10 +49,6 @@ export default function MarketPage() {
       .catch(() => setAvailableTags([]));
   }, []);
 
-  useEffect(() => {
-    loadSkills();
-  }, [activePartition, search, sourceType, userSubType, selectedTags]);
-
   const apiSourceType = (): string => {
     if (sourceType === 'official') return 'official';
     if (sourceType === 'user') {
@@ -63,7 +59,7 @@ export default function MarketPage() {
     return 'all';
   };
 
-  const loadSkills = async () => {
+  const loadSkills = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -84,7 +80,11 @@ export default function MarketPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activePartition, search, sourceType, userSubType, selectedTags]);
+
+  useEffect(() => {
+    loadSkills();
+  }, [loadSkills]);
 
   return (
     <MainLayout>
@@ -149,7 +149,7 @@ export default function MarketPage() {
                     <button
                       key={tag}
                       onClick={() =>
-                        setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
+                        setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]))
                       }
                       className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                         selectedTags.includes(tag)
