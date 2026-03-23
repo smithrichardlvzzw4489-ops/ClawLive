@@ -1,6 +1,6 @@
 /**
  * Skill 市场 API
- * 支持：官方推荐（配置文件）、用户添加（作品/直接）
+ * 支持：官方推荐（配置文件）、用户添加（作品/直接）、Skill AI 健康检测
  */
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,6 +9,7 @@ import { getHostInfo, getHostInfoBatch } from './rooms-simple';
 import { SkillsPersistence, type Skill } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { isValidPartition, DEFAULT_PARTITION } from '../../lib/work-partitions';
+import { checkSkillHealth } from '../../services/skill-health-check';
 
 export type SkillSourceType = 'official' | 'user-work' | 'user-direct';
 
@@ -157,6 +158,65 @@ export function skillsRoutes(): Router {
     } catch (error) {
       console.error('Error fetching skills:', error);
       res.status(500).json({ error: 'Failed to fetch skills' });
+    }
+  });
+
+  // POST /api/skills/health-check - Skill AI 健康检测（平台 Skill / 外部链接 / 直接文本）
+  router.post('/health-check', async (req: Request, res: Response) => {
+    try {
+      const { content, url, skillId } = req.body || {};
+      let text = '';
+
+      if (content && typeof content === 'string') {
+        text = content.trim();
+      } else if (url && typeof url === 'string') {
+        const targetUrl = url.trim();
+        if (!/^https?:\/\//i.test(targetUrl)) {
+          return res.status(400).json({ error: 'URL must start with http:// or https://' });
+        }
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 10000);
+          const resp = await fetch(targetUrl, {
+            signal: controller.signal,
+            headers: { 'User-Agent': 'ClawLive-SkillHealthCheck/1.0' },
+          });
+          clearTimeout(timeout);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const body = await resp.text();
+          if (body.length > 500000) {
+            return res.status(400).json({ error: 'Content too large (max 500KB)' });
+          }
+          text = body;
+        } catch (err) {
+          console.warn('[SkillHealthCheck] Fetch URL failed:', targetUrl, err);
+          return res.status(400).json({ error: 'Failed to fetch URL' });
+        }
+      } else if (skillId && typeof skillId === 'string') {
+        const id = skillId.trim();
+        if (id.startsWith('official-')) {
+          const officialList = loadOfficialSkills();
+          const o = officialList.find((s) => s.id === id);
+          if (!o) return res.status(404).json({ error: 'Skill not found' });
+          text = o.skillMarkdown || '';
+        } else {
+          const skill = skills.get(id);
+          if (!skill) return res.status(404).json({ error: 'Skill not found' });
+          text = skill.skillMarkdown || '';
+        }
+      } else {
+        return res.status(400).json({ error: 'Provide content, url, or skillId' });
+      }
+
+      if (!text) {
+        return res.status(400).json({ error: 'No content to check' });
+      }
+
+      const result = checkSkillHealth(text);
+      res.json(result);
+    } catch (error) {
+      console.error('Skill health check error:', error);
+      res.status(500).json({ error: 'Health check failed' });
     }
   });
 

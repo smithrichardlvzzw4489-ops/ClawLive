@@ -79,9 +79,17 @@ export default function MarketPage() {
   return (
     <MainLayout>
       <div className="container mx-auto px-6 py-8">
-        <section className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('market.title')}</h1>
-          <p className="text-gray-600">{t('market.subtitle')}</p>
+        <section className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('market.title')}</h1>
+            <p className="text-gray-600">{t('market.subtitle')}</p>
+          </div>
+          <Link
+            href="/market/health-check"
+            className="px-4 py-2 border border-lobster text-lobster rounded-lg font-medium hover:bg-lobster/5 transition-colors flex items-center gap-2 shrink-0"
+          >
+            🩺 {t('healthCheck.title')}
+          </Link>
         </section>
 
         <section className="mb-6">

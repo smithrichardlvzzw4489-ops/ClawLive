@@ -122,12 +122,20 @@ export default function SkillDetailPage() {
                 </Link>
               )}
             </div>
-            <button
-              onClick={copySkill}
-              className="mt-4 px-6 py-2 bg-lobster text-white rounded-lg font-medium hover:bg-lobster-dark transition-colors flex items-center gap-2"
-            >
-              {copied ? '✓ ' + t('workDetail.copied') : t('market.copySkill')}
-            </button>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={copySkill}
+                className="px-6 py-2 bg-lobster text-white rounded-lg font-medium hover:bg-lobster-dark transition-colors flex items-center gap-2"
+              >
+                {copied ? '✓ ' + t('workDetail.copied') : t('market.copySkill')}
+              </button>
+              <Link
+                href={`/market/health-check?skillId=${skillId}`}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors flex items-center gap-2"
+              >
+                🩺 {t('healthCheck.title')}
+              </Link>
+            </div>
           </div>
 
           <div className="p-6">
