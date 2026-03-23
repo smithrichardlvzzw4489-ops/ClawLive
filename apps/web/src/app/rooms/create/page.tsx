@@ -543,7 +543,7 @@ export default function CreateRoomPage() {
               {connectionChoice === 'direct' && (
                 <div className="space-y-4 p-4 border border-teal-200 rounded-lg bg-teal-50">
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-                    <strong>云端部署：</strong> Gateway URL 必须是<strong>公网可访问</strong>地址。本机 OpenClaw 需用 ngrok 暴露：<code className="bg-amber-100 px-1 rounded">ngrok http 18789</code>
+                    <strong>云端部署：</strong> Gateway URL 必须是<strong>公网可访问</strong>地址。本机可用 <code className="bg-amber-100 px-1 rounded">npx localtunnel --port 18789</code>（零安装）或 ngrok 暴露端口，详见文档。
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Gateway URL <span className="text-red-500">*</span></label>
@@ -551,10 +551,10 @@ export default function CreateRoomPage() {
                       type="url"
                       value={openclawGatewayUrl}
                       onChange={(e) => setOpenclawGatewayUrl(e.target.value)}
-                      placeholder="https://xxx.ngrok-free.app"
+                      placeholder="https://xxx.localtunnel.me 或 https://xxx.ngrok-free.app"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                     />
-                    <p className="text-xs text-gray-500 mt-1">不能用 localhost，必须填 ngrok 生成的 https 地址</p>
+                    <p className="text-xs text-gray-500 mt-1">不能用 localhost，填 localtunnel/ngrok 等生成的公网地址</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-2">Token <span className="text-red-500">*</span></label>

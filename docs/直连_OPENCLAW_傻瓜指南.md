@@ -1,140 +1,211 @@
 # 直连 OpenClaw 傻瓜指南（云端部署版）
 
-ClawLive 在云端运行，OpenClaw 在你本机。按下面步骤做，让两者直连，跳过 Telegram。
+ClawLive 在云端，OpenClaw 在你本机。**照着下面每一步操作**，每步都有具体命令，按顺序做即可直连，无需 Telegram。
 
 ---
 
-## 前提
+## 一、你需要有的东西
 
-- ClawLive 已部署在云端（Railway、Google Cloud 等），能正常访问
-- 你本机已安装 **OpenClaw** 和 **ngrok**
+- [ ] ClawLive 已部署在云端，能打开网页
+- [ ] 本机已安装 **OpenClaw**
+- [ ] 本机有 **Node.js**（用 localtunnel 必须；若没有，见文末「其他穿透方案」）
 
 ---
 
-## 第一步：本机启动 OpenClaw 网关
+## 二、全流程傻瓜操作（一步步做）
 
-### 1.1 打开终端
+> **执行命令**：在终端输入或粘贴命令后，按 **Enter（回车）** 才会执行。
 
-Windows：`Win + R` → 输入 `cmd` 回车  
-Mac / Linux：打开「终端」
+> **注意**：第 2 步、第 4 步执行后的窗口要**一直开着**，不要关。
 
-### 1.2 启动网关
+---
 
-```bash
+### 第 1 步：打开终端
+
+- **Windows**：按 `Win + R` → 输入 `cmd` → 按回车
+- **Mac / Linux**：打开「终端」应用
+
+---
+
+### 第 2 步：启动 OpenClaw 网关
+
+**操作**：在终端里输入或粘贴下面命令，按 **Enter** 执行。
+
+```
 openclaw gateway start
 ```
 
-看到 `Gateway started on port 18789` 之类的提示即成功。**这个窗口不要关**。
+**你会看到**：类似 `Gateway started on port 18789` 的提示 → 说明成功。
 
-### 1.3 设置 Token
+→ **这个终端窗口不要关**，保持运行。接下来**再开一个新的终端窗口**做第 3 步。
 
-在新开一个终端，执行（把 `你的密码` 换成任意字符串）：
-
-```bash
-openclaw config set gateway.token 你的密码
-```
-
-例如：`openclaw config set gateway.token abc123xyz`  
-**记下这个 Token**，后面要在 ClawLive 里填。
+**若失败**：提示找不到命令 → OpenClaw 未安装或未加入 PATH。
 
 ---
 
-## 第二步：用 ngrok 暴露本机 18789 端口
+### 第 3 步：设置 Token
 
-ClawLive 在云端，必须通过公网才能访问你本机的 OpenClaw。
+**操作**：在**新开的终端**里输入或粘贴下面命令，按 **Enter** 执行。
 
-### 2.1 安装 ngrok（如未安装）
-
-- 官网：https://ngrok.com
-- 下载后解压，或 `choco install ngrok`（Windows）、`brew install ngrok`（Mac）
-
-### 2.2 启动 ngrok
-
-在终端执行：
-
-```bash
-ngrok http 18789
-```
-
-会看到类似：
+> 把 `abc123` 换成你自定义的密码，自己记住，后面要在 ClawLive 里填。
 
 ```
-Forwarding  https://xxxx-xx-xx-xx-xx.ngrok-free.app -> http://localhost:18789
+openclaw config set gateway.token abc123
 ```
 
-**复制这个 https 地址**（例如 `https://xxxx.ngrok-free.app`），这就是 Gateway URL。  
-**ngrok 这个窗口也不要关**，关掉后地址会变。
+**你会看到**：没有报错即成功。记下你设的 `abc123`（或你换成的密码），第 8 步要用。
 
 ---
 
-## 第三步：在 ClawLive 里配置
+**若你之前已经设置过 Token**（例如 Telegram 在用），不要执行上面命令，改用下面命令**读取**：
 
-### 3.1 打开 ClawLive 并登录
+```
+openclaw config get gateway.token
+```
 
-在浏览器打开你的 ClawLive 地址（云端部署的域名）。
+输入后按 **Enter** 执行，把终端**输出的那串字符**记下来或复制，第 8 步要用。
 
-### 3.2 创建直播间
+---
+
+### 第 4 步：启动内网穿透（localtunnel）
+
+**操作**：**再开一个终端**（第 2 步的网关窗口还在运行），输入或粘贴下面命令，按 **Enter** 执行。
+
+```
+npx localtunnel --port 18789
+```
+
+**你会看到**：终端输出类似：
+
+```
+your url is: https://xyz-abcd-1234.localtunnel.me
+```
+
+**立刻做**：把 `https://` 开头、到 `.localtunnel.me` 结尾的那一串**完整复制**（例如 `https://xyz-abcd-1234.localtunnel.me`），后面第 7 步要粘贴到 ClawLive。
+
+→ **这个终端窗口也不要关**，保持运行。
+
+**若 npx 报错**：说明没有 Node.js，改用文末「其他穿透方案」（ngrok 等）。
+
+---
+
+### 第 5 步：打开 ClawLive 并创建直播间
+
+**操作**：用浏览器打开你的 ClawLive 地址（云端部署的网址），然后：
 
 1. 点击「直播」→「创建直播间」
-2. 填「直播间标题」「龙虾昵称」
+2. 填写「直播间标题」「龙虾昵称」
 3. 点击「创建并配置 Agent →」
 
-### 3.3 选择「直连 OpenClaw」
+---
 
-在 Agent 配置区域，点击：
+### 第 6 步：选择直连 OpenClaw
+
+**操作**：在 Agent 配置页面，找到并点击：
 
 ```
 🔌 直连 OpenClaw（无需 Telegram）
 ```
 
-### 3.4 填写并验证
+---
 
-| 输入项 | 填什么 |
-|--------|--------|
-| **Gateway URL** | 第二步 ngrok 生成的 https 地址，如 `https://xxxx.ngrok-free.app` |
-| **Token** | 第一步设置的 token，如 `abc123xyz` |
+### 第 7 步：填写 Gateway URL
 
-- **不能用** `localhost`、`127.0.0.1`，云端服务器访问不到
-- 填好后先点 **「验证连接」**：成功后再点「应用并开始直播」
+**操作**：在 **Gateway URL** 输入框里，粘贴第 4 步复制的地址。
 
-### 3.5 开始直播
-
-验证通过后，点击「应用并开始直播」，等待跳转到直播间。
+- 正确示例：`https://xyz-abcd-1234.localtunnel.me`
+- 错误：末尾不要加 `/`，不能填 `localhost` 或 `127.0.0.1`
 
 ---
 
-## 第四步：发消息测试
+### 第 8 步：填写 Token
 
-在直播间输入框输入「你好」或任意内容，按 Enter 发送。
+**操作**：在 **Token** 输入框里，粘贴第 3 步设置或读取的 token（例如 `abc123`）。
+
+---
+
+### 第 9 步：验证连接
+
+**操作**：点击 **「验证连接」** 按钮。
+
+- **成功**：出现「连接成功」→ 继续第 10 步
+- **失败**：检查第 2 步、第 4 步的终端窗口是否还在运行；Gateway URL、Token 是否填对
+
+---
+
+### 第 10 步：开始直播
+
+**操作**：点击 **「应用并开始直播」**，等待页面跳转到直播间。
+
+---
+
+### 第 11 步：发消息测试
+
+**操作**：在直播间输入框输入「你好」，按 **Enter** 发送。
 
 - **正常**：几秒内会看到 Agent 回复
 - **无回复**：看下方「排查」
 
 ---
 
-## 排查：验证连接失败 / 发消息无反应
+## 三、开播前快速检查
 
-### 验证连接失败
+在点「验证连接」之前，确认：
 
-- 确认本机已执行 `openclaw gateway start`，窗口未关
-- 确认 ngrok 在跑，窗口未关，地址没变
-- Gateway URL 必须是 **https** 开头的 ngrok 地址
-- Token 与 `openclaw config set gateway.token` 设置的一致
-
-### 发消息无反应
-
-- 先点「验证连接」确认能打通
-- 若 ngrok 免费版会换地址，需重新填 Gateway URL 并再次验证
-- 查看 ClawLive 服务器日志，有无 `❌ OpenClaw Direct` 报错
+| 序号 | 检查项 |
+|------|--------|
+| ① | 第 2 步的 `openclaw gateway start` 终端**还在运行** |
+| ② | 第 4 步的 localtunnel 终端**还在运行** |
+| ③ | Gateway URL 填的是 localtunnel 输出的**完整 https 地址** |
+| ④ | Token 与第 3 步设置或读取的**完全一致** |
 
 ---
 
-## 快速检查清单
+## 四、其他穿透方案（若 localtunnel 不可用）
 
-开播前确认：
+### ngrok
 
-- [ ] 本机 `openclaw gateway start` 已运行
-- [ ] 本机已设置 `gateway.token`
-- [ ] 本机 `ngrok http 18789` 已运行
-- [ ] ClawLive 里 Gateway URL 填的是 ngrok 的 **https** 地址
-- [ ] 「验证连接」已通过
+1. 安装：https://ngrok.com 或 `choco install ngrok` / `brew install ngrok`
+2. 终端输入 `ngrok http 18789`，按 Enter 执行
+3. 在输出的 **Forwarding** 行复制 `https://xxx.ngrok-free.app` 地址
+4. 在第 7 步填到 Gateway URL
+
+---
+
+### Cloudflare Tunnel
+
+1. 安装：https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+2. 终端输入 `cloudflared tunnel --url http://localhost:18789`，按 Enter 执行
+3. 在输出里找 `https://xxx.trycloudflare.com` 地址，第 7 步填到 Gateway URL
+
+---
+
+### Tailscale（本机和云端都装了 Tailscale 时）
+
+1. 本机和 ClawLive 所在机器加入同一 Tailscale 网络
+2. 终端输入 `openclaw config set gateway.bind 0.0.0.0`，按 Enter 执行
+3. 本机 Tailscale IP 类似 `100.x.x.x`，第 7 步 Gateway URL 填：`http://100.x.x.x:18789`
+
+---
+
+### bore（单文件，无 Node 依赖）
+
+1. 下载：https://github.com/ekzhang/bore
+2. 终端输入 `bore local 18789 --to bore.pub`，按 Enter 执行
+3. 把输出的公网 URL 在第 7 步填到 Gateway URL
+
+---
+
+## 五、排查
+
+### 验证连接失败
+
+- 确认第 2 步、第 4 步的终端**都没关**
+- 确认 Gateway URL 是穿透工具**当前输出的地址**（localtunnel / ngrok 每次重启会换）
+- 确认 Token 与 `openclaw config get gateway.token` 输出一致
+
+### 发消息无反应
+
+- 先点「验证连接」，确认能通过
+- 若穿透工具重启过，地址可能变了，需重新填 Gateway URL 并再次验证
+- 看 ClawLive 服务器日志是否有 `❌ OpenClaw Direct` 报错
