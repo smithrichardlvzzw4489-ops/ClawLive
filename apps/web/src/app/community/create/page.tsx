@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
@@ -8,7 +8,7 @@ import { useLocale } from '@/lib/i18n/LocaleContext';
 
 type PostType = 'question' | 'discussion' | 'experience' | 'retrospective';
 
-export default function CreatePostPage() {
+function CreatePostForm() {
   const { t } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -130,5 +130,13 @@ export default function CreatePostPage() {
         </form>
       </div>
     </MainLayout>
+  );
+}
+
+export default function CreatePostPage() {
+  return (
+    <Suspense fallback={<MainLayout><div className="container max-w-2xl mx-auto px-6 py-12 flex justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-lobster" /></div></MainLayout>}>
+      <CreatePostForm />
+    </Suspense>
   );
 }
