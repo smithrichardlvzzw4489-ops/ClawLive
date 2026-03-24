@@ -133,7 +133,7 @@ export function feedPostsRoutes(): Router {
       };
       feedPostsMap.set(id, record);
       saveFeedPosts();
-      res.status(201).json({ id, ...record });
+      res.status(201).json(record);
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: '发布失败' });
