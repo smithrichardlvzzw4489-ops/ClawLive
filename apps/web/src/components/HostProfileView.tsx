@@ -48,35 +48,12 @@ interface HostSkill {
   sourceWorkId?: string;
 }
 
-interface CreatorAnswer {
-  postId: string;
-  postTitle?: string;
-  id: string;
-  content: string;
-  likeCount: number;
-  createdAt: Date;
-}
-
-interface CreatorPost {
-  id: string;
-  type: string;
-  title: string;
-  content: string;
-  tags: string[];
-  likeCount: number;
-  commentCount: number;
-  viewCount: number;
-  createdAt: Date;
-}
-
 interface HostData {
   host: Host;
   liveRooms: Room[];
   historySessions: Room[];
   hostWorks: HostWork[];
   hostSkills: HostSkill[];
-  creatorAnswers?: CreatorAnswer[];
-  creatorPosts?: CreatorPost[];
   stats: {
     followerCount: number;
     workCount: number;
@@ -87,7 +64,7 @@ interface HostData {
   };
 }
 
-type TabKey = 'overview' | 'works' | 'skills' | 'answers' | 'experience';
+type TabKey = 'overview' | 'works' | 'skills';
 
 export type HostProfileVariant = 'public' | 'self';
 
@@ -220,13 +197,11 @@ export function HostProfileView({
     );
   }
 
-  const { host, liveRooms, historySessions, hostWorks = [], hostSkills = [], creatorAnswers = [], creatorPosts = [], stats } = data;
+  const { host, liveRooms, hostWorks = [], hostSkills = [], stats } = data;
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'overview', label: t('host.tabOverview') },
     { key: 'works', label: t('host.tabWorks') },
     { key: 'skills', label: t('host.tabSkills') },
-    { key: 'answers', label: t('host.tabAnswers') },
-    { key: 'experience', label: t('host.tabExperience') },
   ];
 
   const WorkCard = ({ work }: { work: HostWork }) => (
@@ -367,18 +342,12 @@ export function HostProfileView({
             <span className="text-gray-600">{t('host.skills')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-gray-900">{stats.answerCount ?? 0}</span>
-            <span className="text-gray-600">{t('host.answers')}</span>
-          </div>
-          <div className="flex items-center gap-2">
             <span className="text-2xl font-bold text-gray-900">{stats.totalSessions ?? 0}</span>
             <span className="text-gray-600">{t('host.sessions')}</span>
           </div>
         </div>
 
-        {/* Main content + Sidebar */}
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="flex-1 min-w-0">
+        <div className="min-w-0">
             {/* Tabs */}
             <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-6 overflow-x-auto">
               {tabs.map(({ key, label }) => (
@@ -435,31 +404,7 @@ export function HostProfileView({
                     </div>
                   </section>
                 )}
-                {creatorAnswers.length > 0 && (
-                  <section>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                      <span className="w-1 h-6 bg-emerald-500 rounded-full"></span>
-                      {t('host.representativeAnswers')}
-                    </h2>
-                    <div className="space-y-3">
-                      {creatorAnswers.slice(0, 5).map((a) => (
-                        <div
-                          key={a.id}
-                          className="block p-4 bg-white rounded-xl border border-gray-100"
-                        >
-                          {a.postTitle && (
-                            <p className="text-sm text-gray-500 line-clamp-1">{a.postTitle}</p>
-                          )}
-                          <p className="text-gray-900 line-clamp-2 mt-1">{a.content}</p>
-                          <div className="text-xs text-gray-400 mt-2">
-                            {a.likeCount} 点赞 · {new Date(a.createdAt).toLocaleDateString('zh-CN')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-                {hostWorks.length === 0 && creatorAnswers.length === 0 && liveRooms.length === 0 && (
+                {hostWorks.length === 0 && liveRooms.length === 0 && (
                   <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
                     {t('host.noContent')}
                   </div>
@@ -499,150 +444,7 @@ export function HostProfileView({
               </section>
             )}
 
-            {activeTab === 'answers' && (
-              <section>
-                {creatorAnswers.length === 0 ? (
-                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
-                    {t('host.noContent')}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {creatorAnswers.map((a) => (
-                      <div
-                        key={a.id}
-                        className="block p-4 bg-white rounded-xl border border-gray-100"
-                      >
-                        {a.postTitle && (
-                          <p className="text-sm text-gray-500 line-clamp-1">{a.postTitle}</p>
-                        )}
-                        <p className="text-gray-900 line-clamp-3 mt-1">{a.content}</p>
-                        <div className="text-xs text-gray-400 mt-2">
-                          {a.likeCount} 点赞 · {new Date(a.createdAt).toLocaleDateString('zh-CN')}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {activeTab === 'experience' && (
-              <section>
-                {creatorPosts.length === 0 ? (
-                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
-                    {t('host.noContent')}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {creatorPosts.map((post) => (
-                      <div
-                        key={post.id}
-                        className="block p-4 bg-white rounded-xl border border-gray-100"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded ${
-                              post.type === 'experience'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-amber-100 text-amber-700'
-                            }`}
-                          >
-                            {post.type === 'experience' ? '经验' : '复盘'}
-                          </span>
-                          {post.tags.length > 0 && (
-                            <span className="text-xs text-gray-400">
-                              {post.tags.slice(0, 3).join(' · ')}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="font-semibold text-gray-900 mt-2 line-clamp-2">{post.title}</h3>
-                        <p className="text-sm text-gray-600 line-clamp-2 mt-1">{post.content}</p>
-                        <div className="text-xs text-gray-400 mt-2 flex gap-4">
-                          <span>{post.likeCount} 点赞</span>
-                          <span>{post.commentCount} 评论</span>
-                          <span>{post.viewCount} 浏览</span>
-                          <span>{new Date(post.createdAt).toLocaleDateString('zh-CN')}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
           </div>
-
-          {/* Right Sidebar */}
-          <aside className="w-full lg:w-72 flex-shrink-0 space-y-6">
-            <div className="bg-white rounded-xl border border-gray-100 p-4">
-              <h3 className="font-semibold text-gray-900 mb-3">{t('host.trustCard')}</h3>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>
-                  <span className="font-medium text-gray-900">{stats.totalSessions}</span> 场直播
-                </p>
-                <p>
-                  <span className="font-medium text-gray-900">{stats.totalMessages}</span> 条消息
-                </p>
-                <p>
-                  <span className="font-medium text-gray-900">{stats.workCount}</span> 个作品
-                </p>
-                <p>
-                  <span className="font-medium text-gray-900">{stats.answerCount}</span> 个社区回答
-                </p>
-              </div>
-            </div>
-
-            {hostSkills.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">{t('host.featuredSkills')}</h3>
-                <div className="space-y-2">
-                  {hostSkills.slice(0, 4).map((skill) => (
-                    <div
-                      key={skill.id}
-                      className="block p-2 rounded-lg text-sm text-gray-700 truncate"
-                    >
-                      {skill.title}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {liveRooms.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">{t('host.quickConsult')}</h3>
-                <p className="text-sm text-gray-600 mb-3">正在直播，可直接进入咨询</p>
-                <div className="space-y-2">
-                  {liveRooms.slice(0, 2).map((room) => (
-                    <Link
-                      key={room.id}
-                      href={`/rooms/${room.id}`}
-                      className="block p-2 rounded-lg bg-lobster/5 hover:bg-lobster/10 text-lobster font-medium text-sm truncate"
-                    >
-                      {room.title}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {historySessions.length > 0 && (
-              <div className="bg-white rounded-xl border border-gray-100 p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">{t('host.history')}</h3>
-                <div className="space-y-2">
-                  {historySessions.slice(0, 4).map((session) => (
-                    <Link
-                      key={session.id}
-                      href={`/history/${session.id}`}
-                      className="block p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700 line-clamp-2"
-                    >
-                      {session.title}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </aside>
-        </div>
       </div>
     </MainLayout>
   );
