@@ -6,12 +6,11 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 export function Header() {
-  const { locale, setLocale, t } = useLocale();
+  const { t } = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<{ id: string; username: string; avatarUrl?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showLangMenu, setShowLangMenu] = useState(false);
   const [showPublishMenu, setShowPublishMenu] = useState(false);
 
   useEffect(() => {
@@ -100,39 +99,6 @@ export function Header() {
         </form>
 
         <div className="flex items-center gap-3 flex-shrink-0">
-          {/* 语言切换 */}
-          <div className="relative">
-            <button
-              onClick={() => setShowLangMenu(!showLangMenu)}
-              className="px-3 py-2 rounded-lg hover:bg-gray-50 text-gray-600 hover:text-lobster transition-colors flex items-center gap-1"
-              title={t('language')}
-            >
-              <span className="text-sm font-medium">{locale === 'zh' ? '中文' : 'EN'}</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {showLangMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowLangMenu(false)} />
-                <div className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-lg border py-1 z-50">
-                  <button
-                    onClick={() => { setLocale('zh'); setShowLangMenu(false); }}
-                    className={`block w-full text-left px-4 py-2 hover:bg-gray-50 ${locale === 'zh' ? 'text-lobster font-medium' : 'text-gray-700'}`}
-                  >
-                    {t('langZh')}
-                  </button>
-                  <button
-                    onClick={() => { setLocale('en'); setShowLangMenu(false); }}
-                    className={`block w-full text-left px-4 py-2 hover:bg-gray-50 ${locale === 'en' ? 'text-lobster font-medium' : 'text-gray-700'}`}
-                  >
-                    {t('langEn')}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
           {/* 发布入口：下拉多类型 */}
           <div className="relative">
             <button

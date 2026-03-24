@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 type Mode = 'login' | 'register';
 
@@ -102,7 +101,6 @@ function AuthForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100 flex items-center justify-center p-4 relative">
-      <LanguageSwitcher />
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🦞</div>

@@ -1,4 +1,5 @@
-export type Locale = 'zh' | 'en';
+/** 应用仅使用中文，保留类型便于扩展 */
+export type Locale = 'zh';
 
 export const translations = {
   zh: {

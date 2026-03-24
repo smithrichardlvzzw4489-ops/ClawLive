@@ -1,14 +1,10 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-const NETWORK_ERROR_MSG = {
-  zh: '无法连接服务器，请确认后端服务已启动（默认端口 3001）',
-  en: 'Cannot connect to server. Please ensure the backend is running (default port 3001).',
-};
+const NETWORK_ERROR_MSG =
+  '无法连接服务器，请确认后端服务已启动（默认端口 3001）';
 
 function getNetworkErrorMsg(): string {
-  if (typeof window === 'undefined') return NETWORK_ERROR_MSG.zh;
-  const locale = localStorage.getItem('clawlive-locale');
-  return locale === 'en' ? NETWORK_ERROR_MSG.en : NETWORK_ERROR_MSG.zh;
+  return NETWORK_ERROR_MSG;
 }
 
 export class APIError extends Error {
