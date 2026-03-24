@@ -496,15 +496,17 @@ export default function WorkStudioPage() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-hidden p-4 flex flex-col">
+      <div className="flex-1 overflow-hidden p-1.5 sm:p-2 flex flex-col">
         <div className="flex-1 min-h-0 bg-white rounded-lg shadow overflow-hidden flex flex-col">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto px-1.5 py-1 sm:px-2 space-y-1">
             {messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-12">
-                <div className="text-6xl mb-4">💬</div>
-                <p className="text-lg mb-2">开始与你的 Agent 对话吧！</p>
-                <p className="text-sm">输入你的想法，让 {work.lobsterName} 来帮助你创作</p>
+              <div className="text-center text-gray-500 py-6">
+                <div className="text-2xl mb-1">💬</div>
+                <p className="text-sm mb-0.5">开始与你的 Agent 对话吧！</p>
+                <p className="text-[11px] text-gray-500 leading-tight px-2">
+                  输入你的想法，让 {work.lobsterName} 来帮助你创作
+                </p>
               </div>
             ) : (
               messages.map((msg) => (
@@ -513,27 +515,30 @@ export default function WorkStudioPage() {
                   className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-lg p-4 ${
+                    className={`max-w-[min(98%,40rem)] rounded px-2 py-1 ${
                       msg.sender === 'user'
                         ? 'bg-blue-500 text-white'
                         : 'bg-purple-100 text-gray-900'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold opacity-90">
-                        {msg.sender === 'user' ? '👤 你' : `🦞 ${work.lobsterName}`}
+                    <div className="flex items-baseline gap-1 mb-px flex-wrap leading-none">
+                      <span className="text-[10px] font-semibold opacity-90">
+                        {msg.sender === 'user' ? '你' : work.lobsterName}
                       </span>
-                      <span className="text-xs opacity-75">
-                        {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
+                      <span className="text-[10px] opacity-70 tabular-nums">
+                        {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
                     </div>
                     {msg.videoUrl && (
-                      <div className="mb-2 rounded overflow-hidden max-w-sm">
+                      <div className="mb-1 rounded overflow-hidden max-w-sm">
                         <VideoUrlPlayer url={msg.videoUrl} />
                       </div>
                     )}
                     {msg.content ? (
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                      <p className="whitespace-pre-wrap break-words text-xs leading-tight">{msg.content}</p>
                     ) : null}
                   </div>
                 </div>
@@ -541,13 +546,13 @@ export default function WorkStudioPage() {
             )}
             {waitingForAgent && (
               <div className="flex justify-start">
-                <div className="bg-purple-100 text-gray-600 rounded-lg px-4 py-3 flex items-center gap-2 animate-pulse">
-                  <span className="text-xs font-semibold">🦞 {work.lobsterName}</span>
-                  <span className="text-sm">{t('workDetail.agentTyping')}</span>
-                  <span className="flex gap-1">
-                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="bg-purple-100 text-gray-600 rounded px-2 py-0.5 flex items-center gap-1 animate-pulse">
+                  <span className="text-[10px] font-semibold truncate max-w-[8rem]">{work.lobsterName}</span>
+                  <span className="text-[10px]">{t('workDetail.agentTyping')}</span>
+                  <span className="flex gap-0.5">
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </span>
                 </div>
               </div>
@@ -556,21 +561,21 @@ export default function WorkStudioPage() {
           </div>
 
           {/* Input */}
-          <div className="border-t bg-gray-50 p-4">
-            <div className="flex gap-2">
+          <div className="border-t bg-gray-50 p-1.5 sm:p-2">
+            <div className="flex gap-1.5">
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                 placeholder="输入你的想法..."
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-lobster"
+                className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-lobster"
                 disabled={sending}
               />
               <button
                 onClick={sendMessage}
                 disabled={sending || !inputMessage.trim()}
-                className="px-6 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-3 py-1 text-xs bg-lobster text-white rounded font-medium hover:bg-lobster-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
               >
                 {sending ? '发送中...' : '发送'}
               </button>

@@ -19,7 +19,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
       className={`flex ${isUser ? 'justify-end' : 'justify-start'} animate-slide-up`}
     >
       <div
-        className={`max-w-[80%] rounded-lg px-4 py-3 ${
+        className={`max-w-[min(98%,40rem)] rounded px-2 py-1 ${
           isUser
             ? 'bg-lobster text-white'
             : isAgent
@@ -27,19 +27,19 @@ export function ChatBubble({ message }: ChatBubbleProps) {
             : 'bg-gray-100 text-gray-700'
         }`}
       >
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-semibold">
-            {isUser ? '👤 用户' : isAgent ? '🦞 龙虾' : '📢 系统'}
+        <div className="flex items-baseline gap-1 mb-px flex-wrap leading-none">
+          <span className="text-[10px] font-semibold opacity-95">
+            {isUser ? '用户' : isAgent ? '龙虾' : '系统'}
           </span>
-          <span className="text-xs opacity-70">
-            {format(new Date(message.timestamp), 'HH:mm:ss')}
+          <span className="text-[10px] opacity-60 tabular-nums">
+            {format(new Date(message.timestamp), 'HH:mm')}
           </span>
         </div>
-        
-        <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        
+
+        <p className="whitespace-pre-wrap break-words text-xs leading-tight">{message.content}</p>
+
         {message.metadata && (
-          <div className="mt-2 pt-2 border-t border-current/20 text-xs opacity-70">
+          <div className="mt-0.5 pt-0.5 border-t border-current/15 text-[10px] opacity-70 leading-tight">
             {message.metadata.model && <span>Model: {message.metadata.model}</span>}
             {message.metadata.tokens && <span className="ml-3">Tokens: {message.metadata.tokens}</span>}
             {message.metadata.filtered && <span className="ml-3">⚠️ 已过滤</span>}

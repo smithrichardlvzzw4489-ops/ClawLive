@@ -580,22 +580,22 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         </div>
       </header>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-y-auto lg:overflow-hidden min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-1.5 sm:gap-2 p-1.5 sm:p-2 overflow-y-auto lg:overflow-hidden min-h-0">
         {/* 观众端移动端：视频区优先显示（order-1），主播端聊天区在前 */}
         <div className={`lg:col-span-2 flex flex-col bg-white rounded-lg shadow overflow-hidden ${!isHost ? 'order-2 lg:order-1' : 'order-1'}`}>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto px-1.5 py-1 sm:px-2 space-y-1">
             {messages.map((msg) => (
               <ChatBubble key={msg.id} message={msg} />
             ))}
             {waitingForAgent && (
               <div className="flex justify-start animate-slide-up">
-                <div className="bg-purple-100 text-purple-900 rounded-lg px-4 py-3 flex items-center gap-2 animate-pulse">
-                  <span className="text-xs font-semibold">🦞 {room.lobsterName}</span>
-                  <span className="text-sm">{t('workDetail.agentTyping')}</span>
-                  <span className="flex gap-1">
-                    <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="bg-purple-100 text-purple-900 rounded px-2 py-0.5 flex items-center gap-1 animate-pulse">
+                  <span className="text-[10px] font-semibold truncate max-w-[8rem]">{room.lobsterName}</span>
+                  <span className="text-[10px]">{t('workDetail.agentTyping')}</span>
+                  <span className="flex gap-0.5">
+                    <span className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </span>
                 </div>
               </div>
@@ -605,9 +605,9 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           
           {/* Host message input */}
           {isHost && room.isLive && (
-            <div className="border-t bg-blue-50 p-4">
+            <div className="border-t bg-blue-50 p-1.5 sm:p-2">
               {messages.length > 0 && (
-                <div className="mb-3">
+                <div className="mb-1.5">
                   <button
                     type="button"
                     onClick={async () => {
@@ -647,18 +647,18 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                   onChange={(e) => setHostMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendHostMessage()}
                   placeholder="输入消息与你的 Agent 对话..."
-                  className="flex-1 px-4 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-2 py-1 text-xs border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   disabled={isSending}
                 />
                 <button
                   onClick={sendHostMessage}
                   disabled={isSending || !hostMessage.trim()}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
                 >
                   {isSending ? '发送中...' : '发送'}
                 </button>
               </div>
-              <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+              <p className="text-[10px] text-blue-600 mt-1 flex items-center gap-1 leading-tight">
                 <span>🎤</span>
                 <span>主播专用 - 你的消息会显示在聊天区，你的 Agent 可以看到并响应</span>
               </p>
@@ -667,7 +667,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         </div>
 
         {/* 右侧：视频区 + 实时聊天（观众端移动端优先显示） */}
-        <div className={`flex flex-col gap-4 overflow-hidden min-h-0 ${!isHost ? 'order-1 lg:order-2' : 'order-2'}`}>
+        <div className={`flex flex-col gap-2 overflow-hidden min-h-0 ${!isHost ? 'order-1 lg:order-2' : 'order-2'}`}>
           {/* 视频直播区域 - 保证最小高度，避免空白 */}
           <div className="bg-white rounded-lg shadow overflow-hidden flex flex-col flex-1 min-h-[200px] sm:min-h-[260px]">
             {/* 主播未开摄像头时的提示：自动开启中 vs 开启失败需手动 */}

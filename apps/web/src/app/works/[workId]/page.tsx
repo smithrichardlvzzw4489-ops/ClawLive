@@ -249,16 +249,16 @@ export default function WorkDetailPage() {
 
         {/* Chat Content */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="border-b p-4 bg-gray-50">
-            <h2 className="text-xl font-semibold text-gray-900">{t('workDetail.creativeProcess')}</h2>
-            <p className="text-sm text-gray-600 mt-1">
+          <div className="border-b px-3 py-2 bg-gray-50">
+            <h2 className="text-base font-semibold text-gray-900">{t('workDetail.creativeProcess')}</h2>
+            <p className="text-xs text-gray-600 mt-0.5 leading-snug">
               {t('workDetail.processDesc', { name: work.lobsterName })}
             </p>
           </div>
           
-          <div className="p-6 space-y-4">
+          <div className="px-2 py-2 space-y-1">
             {work.messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-12">
+              <div className="text-center text-gray-500 py-6 text-sm">
                 {t('workDetail.noMessages')}
               </div>
             ) : (
@@ -268,27 +268,30 @@ export default function WorkDetailPage() {
                   className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-lg p-4 ${
+                    className={`max-w-[min(98%,40rem)] rounded px-2 py-1 ${
                       msg.sender === 'user'
                         ? 'bg-blue-500 text-white'
                         : 'bg-purple-100 text-gray-900'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-semibold opacity-90">
-                        {msg.sender === 'user' ? `👤 ${work.author.username}` : `🦞 ${work.lobsterName}`}
+                    <div className="flex items-baseline gap-1 mb-px flex-wrap leading-none">
+                      <span className="text-[10px] font-semibold opacity-90 truncate max-w-[10rem]">
+                        {msg.sender === 'user' ? work.author.username : work.lobsterName}
                       </span>
-                      <span className="text-xs opacity-75">
-                        {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}
+                      <span className="text-[10px] opacity-70 tabular-nums shrink-0">
+                        {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </span>
                     </div>
                     {msg.videoUrl && (
-                      <div className="mb-2 rounded overflow-hidden max-w-sm">
+                      <div className="mb-1 rounded overflow-hidden max-w-sm">
                         <VideoUrlPlayer url={msg.videoUrl} />
                       </div>
                     )}
                     {msg.content ? (
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                      <p className="whitespace-pre-wrap break-words text-xs leading-tight">{msg.content}</p>
                     ) : null}
                   </div>
                 </div>
