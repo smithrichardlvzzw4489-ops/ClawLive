@@ -12,6 +12,7 @@ export function Header() {
   const [user, setUser] = useState<{ id: string; username: string; avatarUrl?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showPublishMenu, setShowPublishMenu] = useState(false);
 
   useEffect(() => {
     if (pathname === '/search') {
@@ -94,7 +95,7 @@ export function Header() {
                 : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
             }`}
           >
-            {t('nav.market')}
+            {t('nav.skillsFlow')}
           </Link>
           <Link
             href="/creators"
@@ -162,14 +163,44 @@ export function Header() {
             )}
           </div>
 
-          {/* 创建作品：登录和未登录都显示，未登录时点击先跳转登录 */}
-          <Link
-            href={user ? '/works/create' : '/login?redirect=/works/create'}
-            className="px-5 py-2 border border-lobster text-lobster rounded-lg font-medium hover:bg-lobster/5 transition-colors flex items-center gap-2"
-          >
-            <span>📚</span>
-            <span>{t('nav.createWork')}</span>
-          </Link>
+          {/* 发布入口：下拉多类型 */}
+          <div className="relative">
+            <button
+              onClick={() => setShowPublishMenu(!showPublishMenu)}
+              className="px-5 py-2 border border-lobster text-lobster rounded-lg font-medium hover:bg-lobster/5 transition-colors flex items-center gap-2"
+            >
+              <span>✏️</span>
+              <span>{t('nav.publish')}</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showPublishMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowPublishMenu(false)} />
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
+                  <Link href={user ? '/community/create?type=question' : '/login?redirect=/community/create?type=question'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
+                    ❓ {t('nav.publishQuestion')}
+                  </Link>
+                  <Link href={user ? '/community/create?type=experience' : '/login?redirect=/community/create?type=experience'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
+                    💡 {t('nav.publishExperience')}
+                  </Link>
+                  <Link href={user ? '/works/create' : '/login?redirect=/works/create'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
+                    📚 {t('nav.publishWork')}
+                  </Link>
+                  <Link href={user ? '/community/create?type=retrospective' : '/login?redirect=/community/create?type=retrospective'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
+                    📋 {t('nav.publishRetro')}
+                  </Link>
+                  <Link href={user ? '/market' : '/login?redirect=/market'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
+                    📦 {t('nav.publishSkill')}
+                  </Link>
+                  <Link href={user ? '/rooms/create' : '/login?redirect=/rooms/create'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t" onClick={() => setShowPublishMenu(false)}>
+                    📹 {t('nav.publishLive')}
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
           {user ? (
             <>
               <div className="relative group">
