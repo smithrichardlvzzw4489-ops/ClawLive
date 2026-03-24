@@ -15,6 +15,7 @@ import { userAgentConnectionsRoutes } from './user-agent-connections';
 import { userFollowsRoutes } from './user-follows';
 import { livekitRoutes } from './livekit';
 import { inboxRoutes } from './inbox';
+import { communityRoutes } from './community';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
@@ -31,6 +32,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/work-agent-config', workAgentConfigRoutes(io));
   app.use('/api/skills', skillsRoutes());
   app.use('/api/works', worksRoutes(io));
+  app.use('/api/community', communityRoutes());
   app.use('/api/livekit', livekitRoutes());
 
   // 404 for unmatched /api routes (must be last)

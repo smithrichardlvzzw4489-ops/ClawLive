@@ -96,6 +96,16 @@ export function Header() {
           >
             {t('nav.market')}
           </Link>
+          <Link
+            href="/community"
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              isActive('/community')
+                ? 'text-lobster bg-lobster/10'
+                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
+            }`}
+          >
+            {t('nav.community')}
+          </Link>
         </nav>
 
         <form onSubmit={handleSearch} className="flex-1 max-w-xl">
