@@ -6,6 +6,7 @@ import { getHostInfoBatch } from './rooms-simple';
 import { getFollowerCount } from '../../services/user-follows';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { works } from './rooms-simple';
+import { getFeedPostsSortedNewest } from '../../services/feed-posts-store';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
@@ -98,6 +99,24 @@ export function recommendationRoutes(): Router {
         };
       });
 
+      const feedSlice = getFeedPostsSortedNewest().slice(0, 12);
+      const feedAuthorIds = [...new Set(feedSlice.map((p) => p.authorId))];
+      const feedAuthorMap = await getHostInfoBatch(feedAuthorIds);
+      const feedPosts = feedSlice.map((p) => {
+        const a = feedAuthorMap.get(p.authorId);
+        return {
+          id: p.id,
+          title: p.title,
+          content: p.content,
+          imageUrls: p.imageUrls,
+          viewCount: p.viewCount,
+          likeCount: p.likeCount,
+          commentCount: p.commentCount,
+          createdAt: p.createdAt,
+          author: a ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl } : { id: p.authorId, username: 'Unknown', avatarUrl: null },
+        };
+      });
+
       res.json({
         liveRooms: liveRooms.map(({ score, ...r }) => r),
         recommendedWorks: recommendedWorks.map(({ score, ...w }) => w),
@@ -106,6 +125,7 @@ export function recommendationRoutes(): Router {
         news: news.slice(0, 5),
         hotCreators,
         hotDiscussions: discussionsWithAuthor,
+        feedPosts,
       });
     } catch (error) {
       console.error('Error fetching recommendations:', error);

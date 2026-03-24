@@ -17,6 +17,7 @@ import { livekitRoutes } from './livekit';
 import { inboxRoutes } from './inbox';
 import { communityRoutes } from './community';
 import { creatorsRoutes } from './creators';
+import { feedPostsRoutes } from './feed-posts';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
@@ -25,6 +26,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/inbox', inboxRoutes(io));
   app.use('/api/user-follows', userFollowsRoutes()); // Before works to avoid :id param conflicts
   app.use('/api/recommendations', recommendationRoutes());
+  app.use('/api/feed-posts', feedPostsRoutes());
   app.use('/api/search', searchRoutes());
   app.use('/api/behavior', behaviorRoutes());
   app.use('/api/rooms', roomSimpleRoutes(io));

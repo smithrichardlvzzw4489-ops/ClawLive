@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { RoomCard } from '@/components/RoomCard';
+import { HomeFeedSections } from '@/components/HomeFeedSections';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Host {
@@ -625,6 +626,12 @@ export default function HostPage() {
               </div>
             )}
           </aside>
+        </div>
+
+        {/* 首页同款推荐区：置于创作者主页底部 */}
+        <div className="mt-12 pt-10 border-t border-gray-200">
+          <p className="text-sm text-gray-500 mb-6">{t('host.discoverMore')}</p>
+          <HomeFeedSections />
         </div>
       </div>
     </MainLayout>

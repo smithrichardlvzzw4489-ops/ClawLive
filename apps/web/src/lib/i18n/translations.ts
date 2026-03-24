@@ -24,7 +24,8 @@ export const translations = {
       publish: '发布',
       publishQuestion: '发问题',
       publishExperience: '写经验',
-      publishWork: '发作品',
+      publishCoCreate: '与龙虾共创',
+      publishPost: '发作品',
       publishRetro: '写复盘',
       publishSkill: '创建能力流',
       publishLive: '创建直播',
@@ -125,6 +126,8 @@ export const translations = {
       questionsDesc: '每天都有新问题被抛出，也是新能力诞生的起点',
       worksSection: '推荐作品',
       worksDesc: '不是只看结果，更看创作者如何把结果沉淀成可复用能力',
+      feedPostsSection: '图文动态',
+      feedPostsDesc: '文字与图片，分享你的见闻与想法',
       creatorsSection: '热门创作者',
       creatorsDesc: '通过作品、回答、经验和复盘持续证明自己的人',
       liveSection: '正在直播',
@@ -139,6 +142,18 @@ export const translations = {
       tryOtherPartition: '换一个分区看看吧',
       createRoomPrompt: '创建直播间，开始与你的 Agent 对话',
       createWorkPrompt: '创作第一个作品，展示 AI 的创意',
+    },
+
+    feedPost: {
+      createTitle: '发作品',
+      titleLabel: '标题',
+      contentLabel: '正文',
+      imagesLabel: '图片',
+      imagesHint: '最多 9 张，单张不超过 5MB',
+      submit: '发布',
+      submitting: '发布中…',
+      needLogin: '请先登录',
+      emptyFeed: '暂无图文动态',
     },
 
     // 直播
@@ -247,6 +262,7 @@ export const translations = {
       representativeWorks: '代表作品',
       representativeAnswers: '代表回答',
       noContent: '暂无内容',
+      discoverMore: '发现更多',
     },
 
     // 历史记录
@@ -422,7 +438,8 @@ export const translations = {
       publish: 'Publish',
       publishQuestion: 'Ask Question',
       publishExperience: 'Share Experience',
-      publishWork: 'Publish Work',
+      publishCoCreate: 'Co-create with Lobster',
+      publishPost: 'Post',
       publishRetro: 'Write Retro',
       publishSkill: 'Create Skill',
       publishLive: 'Create Live',
@@ -521,6 +538,8 @@ export const translations = {
       questionsDesc: 'New questions every day, the birth of new capabilities',
       worksSection: 'Recommended',
       worksDesc: "Not just results - see how creators turn them into reusable capabilities",
+      feedPostsSection: 'Photo posts',
+      feedPostsDesc: 'Share text and images',
       creatorsSection: 'Hot Creators',
       creatorsDesc: 'People who prove themselves through works, answers, experience and retros',
       liveSection: 'Live Now',
@@ -535,6 +554,18 @@ export const translations = {
       tryOtherPartition: 'Try another partition',
       createRoomPrompt: 'Create a room and start chatting with your Agent',
       createWorkPrompt: 'Create your first work and showcase AI creativity',
+    },
+
+    feedPost: {
+      createTitle: 'New post',
+      titleLabel: 'Title',
+      contentLabel: 'Content',
+      imagesLabel: 'Images',
+      imagesHint: 'Up to 9 images, 5MB each',
+      submit: 'Publish',
+      submitting: 'Publishing…',
+      needLogin: 'Please sign in',
+      emptyFeed: 'No posts yet',
     },
 
     rooms: {
@@ -637,6 +668,7 @@ export const translations = {
       representativeWorks: 'Representative Works',
       representativeAnswers: 'Representative Answers',
       noContent: 'No content yet',
+      discoverMore: 'Discover more',
     },
 
     history: {
