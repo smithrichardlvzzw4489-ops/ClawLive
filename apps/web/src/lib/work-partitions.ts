@@ -23,3 +23,15 @@ export const WORK_PARTITIONS = [
 export type WorkPartitionId = (typeof WORK_PARTITIONS)[number]['id'];
 
 export const DEFAULT_PARTITION: WorkPartitionId = 'other';
+
+/** 首页分区筛选仅展示少数入口；完整列表仍在创作/编辑等场景使用 */
+export const HOME_FEED_PARTITION_IDS: readonly WorkPartitionId[] = [
+  'productivity',
+  'coding',
+  'ai',
+  'writing',
+] as const;
+
+export const HOME_FEED_PARTITIONS = HOME_FEED_PARTITION_IDS.map(
+  (id) => WORK_PARTITIONS.find((p) => p.id === id)!,
+);

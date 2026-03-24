@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { WorkCard } from '@/components/WorkCard';
 import { FeedPostCard, type FeedPostCardItem } from '@/components/FeedPostCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
-import { WORK_PARTITIONS } from '@/lib/work-partitions';
+import { HOME_FEED_PARTITIONS } from '@/lib/work-partitions';
 
 interface Work {
   id: string;
@@ -80,7 +80,7 @@ export function HomeFeedSections() {
           >
             {t('works.partitionAll')}
           </button>
-          {WORK_PARTITIONS.map((p) => (
+          {HOME_FEED_PARTITIONS.map((p) => (
             <button
               key={p.id}
               type="button"
