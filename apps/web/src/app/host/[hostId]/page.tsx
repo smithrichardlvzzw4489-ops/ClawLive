@@ -253,10 +253,7 @@ export default function HostPage() {
   );
 
   const SkillCard = ({ skill }: { skill: HostSkill }) => (
-    <Link
-      href={`/market/${skill.id}`}
-      className="block bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:border-lobster/30 transition-all"
-    >
+    <div className="block bg-white rounded-xl border border-gray-100 p-4">
       <h3 className="font-semibold text-gray-900 line-clamp-2">{skill.title}</h3>
       {skill.description && (
         <p className="text-sm text-gray-500 line-clamp-2 mt-1">{skill.description}</p>
@@ -265,7 +262,7 @@ export default function HostPage() {
         <span>{skill.viewCount} 浏览</span>
         <span>{skill.useCount} 使用</span>
       </div>
-    </Link>
+    </div>
   );
 
   return (
@@ -332,14 +329,6 @@ export default function HostPage() {
                       </Link>
                     )}
                   </>
-                )}
-                {hostSkills.length > 0 && (
-                  <Link
-                    href={`/market?creator=${hostId}`}
-                    className="inline-block px-5 py-2 rounded-lg font-semibold text-sm bg-emerald-500/90 hover:bg-emerald-500 text-white transition-colors"
-                  >
-                    {t('host.subscribeSkills')}
-                  </Link>
                 )}
               </div>
             </div>
@@ -437,10 +426,9 @@ export default function HostPage() {
                     </h2>
                     <div className="space-y-3">
                       {creatorAnswers.slice(0, 5).map((a) => (
-                        <Link
+                        <div
                           key={a.id}
-                          href={`/community/${a.postId}`}
-                          className="block p-4 bg-white rounded-xl border border-gray-100 hover:border-lobster/30 hover:shadow-sm transition-all"
+                          className="block p-4 bg-white rounded-xl border border-gray-100"
                         >
                           {a.postTitle && (
                             <p className="text-sm text-gray-500 line-clamp-1">{a.postTitle}</p>
@@ -449,7 +437,7 @@ export default function HostPage() {
                           <div className="text-xs text-gray-400 mt-2">
                             {a.likeCount} 点赞 · {new Date(a.createdAt).toLocaleDateString('zh-CN')}
                           </div>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                   </section>
@@ -503,10 +491,9 @@ export default function HostPage() {
                 ) : (
                   <div className="space-y-3">
                     {creatorAnswers.map((a) => (
-                      <Link
+                      <div
                         key={a.id}
-                        href={`/community/${a.postId}`}
-                        className="block p-4 bg-white rounded-xl border border-gray-100 hover:border-lobster/30 hover:shadow-sm transition-all"
+                        className="block p-4 bg-white rounded-xl border border-gray-100"
                       >
                         {a.postTitle && (
                           <p className="text-sm text-gray-500 line-clamp-1">{a.postTitle}</p>
@@ -515,7 +502,7 @@ export default function HostPage() {
                         <div className="text-xs text-gray-400 mt-2">
                           {a.likeCount} 点赞 · {new Date(a.createdAt).toLocaleDateString('zh-CN')}
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -531,10 +518,9 @@ export default function HostPage() {
                 ) : (
                   <div className="space-y-4">
                     {creatorPosts.map((post) => (
-                      <Link
+                      <div
                         key={post.id}
-                        href={`/community/${post.id}`}
-                        className="block p-4 bg-white rounded-xl border border-gray-100 hover:border-lobster/30 hover:shadow-sm transition-all"
+                        className="block p-4 bg-white rounded-xl border border-gray-100"
                       >
                         <div className="flex items-center gap-2">
                           <span
@@ -560,7 +546,7 @@ export default function HostPage() {
                           <span>{post.viewCount} 浏览</span>
                           <span>{new Date(post.createdAt).toLocaleDateString('zh-CN')}</span>
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -593,13 +579,12 @@ export default function HostPage() {
                 <h3 className="font-semibold text-gray-900 mb-3">{t('host.featuredSkills')}</h3>
                 <div className="space-y-2">
                   {hostSkills.slice(0, 4).map((skill) => (
-                    <Link
+                    <div
                       key={skill.id}
-                      href={`/market/${skill.id}`}
-                      className="block p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700 truncate"
+                      className="block p-2 rounded-lg text-sm text-gray-700 truncate"
                     >
                       {skill.title}
-                    </Link>
+                    </div>
                   ))}
                 </div>
               </div>

@@ -210,15 +210,6 @@ export default function WorkDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              {linkedSkillId && (
-                <Link
-                  href={`/market/${linkedSkillId}`}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-lobster text-white rounded-lg text-sm font-medium hover:bg-lobster-dark transition-colors"
-                >
-                  <span>📦</span>
-                  {t('workDetail.viewSkill')}
-                </Link>
-              )}
               <ShareButton
                 url={`/works/${workId}`}
                 title={work.title}

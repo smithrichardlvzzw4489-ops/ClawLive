@@ -243,13 +243,12 @@ export function AgentChatWidget() {
                         <p className="text-xs text-gray-500 mb-2">{t('inbox.trySkills')}</p>
                         <div className="flex flex-wrap gap-1.5">
                           {recommendedSkills.map((s) => (
-                            <Link
+                            <span
                               key={s.id}
-                              href={`/market/${s.id}`}
-                              className="inline-block px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-lobster/15 text-gray-700 hover:text-lobster rounded-lg truncate max-w-[140px]"
+                              className="inline-block px-2.5 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg truncate max-w-[140px]"
                             >
                               {s.title}
-                            </Link>
+                            </span>
                           ))}
                         </div>
                       </div>

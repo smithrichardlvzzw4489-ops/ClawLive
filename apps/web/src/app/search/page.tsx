@@ -168,10 +168,9 @@ function SearchContent() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {result.skills.map((skill) => (
-                    <Link
+                    <div
                       key={skill.id}
-                      href={`/market/${skill.id}`}
-                      className="block bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md hover:border-lobster/30 transition-all"
+                      className="block bg-white rounded-xl border border-gray-100 p-5"
                     >
                       <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2">{skill.title}</h3>
                       {skill.description && (
@@ -188,7 +187,7 @@ function SearchContent() {
                       <div className="text-xs text-gray-400">
                         {skill.author.username} · {skill.viewCount} 浏览 · {skill.useCount} 使用
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               )}

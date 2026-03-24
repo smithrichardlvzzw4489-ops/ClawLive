@@ -87,36 +87,6 @@ export function Header() {
           >
             {t('nav.live')}
           </Link>
-          <Link
-            href="/market"
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive('/market')
-                ? 'text-lobster bg-lobster/10'
-                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
-            }`}
-          >
-            {t('nav.skillsFlow')}
-          </Link>
-          <Link
-            href="/creators"
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive('/creators')
-                ? 'text-lobster bg-lobster/10'
-                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
-            }`}
-          >
-            {t('nav.creators')}
-          </Link>
-          <Link
-            href="/community"
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive('/community')
-                ? 'text-lobster bg-lobster/10'
-                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
-            }`}
-          >
-            {t('nav.community')}
-          </Link>
         </nav>
 
         <form onSubmit={handleSearch} className="flex-1 max-w-xl">
@@ -179,20 +149,8 @@ export function Header() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowPublishMenu(false)} />
                 <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border py-1 z-50">
-                  <Link href={user ? '/community/create?type=question' : '/login?redirect=/community/create?type=question'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
-                    ❓ {t('nav.publishQuestion')}
-                  </Link>
-                  <Link href={user ? '/community/create?type=experience' : '/login?redirect=/community/create?type=experience'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
-                    💡 {t('nav.publishExperience')}
-                  </Link>
                   <Link href={user ? '/works/create' : '/login?redirect=/works/create'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
                     📚 {t('nav.publishWork')}
-                  </Link>
-                  <Link href={user ? '/community/create?type=retrospective' : '/login?redirect=/community/create?type=retrospective'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
-                    📋 {t('nav.publishRetro')}
-                  </Link>
-                  <Link href={user ? '/market' : '/login?redirect=/market'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700" onClick={() => setShowPublishMenu(false)}>
-                    📦 {t('nav.publishSkill')}
                   </Link>
                   <Link href={user ? '/rooms/create' : '/login?redirect=/rooms/create'} className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t" onClick={() => setShowPublishMenu(false)}>
                     📹 {t('nav.publishLive')}
