@@ -24,7 +24,8 @@ interface Work {
 }
 
 /**
- * 首页：分区筛选 + 推荐作品与图文动态（瀑布流 + 小红书式卡片）
+ * 首页：分区筛选 + 推荐作品与图文动态。
+ * 大屏（lg+）：5 列 × 行高约半屏，一屏约见 2 行共 10 个卡片；继续向下滚动见更多行。
  */
 export function HomeFeedSections() {
   const { t } = useLocale();
@@ -131,7 +132,7 @@ export function HomeFeedSections() {
             )}
           </div>
         ) : (
-          <div className="w-full columns-2 gap-3 [column-fill:balance] sm:columns-3 sm:gap-3 md:columns-4 md:gap-3 lg:columns-4">
+          <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:auto-rows-[minmax(0,calc((100vh-16rem)/2))] lg:gap-3">
             {filteredWorks.map((work) => (
               <WorkCard
                 key={`w-${work.id}`}
