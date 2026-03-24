@@ -20,14 +20,66 @@ function absUrl(path: string): string {
   return `${base}${path}`;
 }
 
-export function FeedPostCard({ post }: { post: FeedPostCardItem }) {
+export function FeedPostCard({
+  post,
+  variant = 'default',
+}: {
+  post: FeedPostCardItem;
+  variant?: 'default' | 'xhs';
+}) {
   const summary =
-    post.content.replace(/\s+/g, ' ').trim().slice(0, 120) ||
-    post.title;
-  const createdTime = post.createdAt
-    ? new Date(post.createdAt).toLocaleDateString('zh-CN')
-    : '';
+    post.content.replace(/\s+/g, ' ').trim().slice(0, 120) || post.title;
   const cover = post.imageUrls?.[0];
+  const displayName = post.author.username === 'Unknown' ? '作者' : post.author.username;
+
+  if (variant === 'xhs') {
+    return (
+      <Link
+        href={`/posts/${post.id}`}
+        className="group block break-inside-avoid mb-3 rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+      >
+        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
+          {cover && (
+            <img
+              src={absUrl(cover)}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            />
+          )}
+          {!cover && (
+            <div className={`absolute inset-0 bg-gradient-to-br ${getWorkCardGradient(post.id)} flex items-center justify-center p-4`}>
+              <p className="text-white text-xs font-medium text-center line-clamp-6">{summary}</p>
+            </div>
+          )}
+          <div className="absolute bottom-2 right-2 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] text-white font-medium backdrop-blur-sm">
+            👁 {post.viewCount}
+          </div>
+        </div>
+        <div className="p-2.5">
+          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-lobster transition-colors">
+            {post.title}
+          </h3>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-1.5">
+              {post.author.avatarUrl ? (
+                <img
+                  src={absUrl(post.author.avatarUrl)}
+                  alt=""
+                  className="h-6 w-6 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600">
+                  {displayName.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="truncate text-xs text-gray-600">{displayName}</span>
+            </div>
+            <span className="shrink-0 text-xs text-gray-500 tabular-nums">💬 {post.commentCount}</span>
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   return (
     <Link
@@ -48,16 +100,10 @@ export function FeedPostCard({ post }: { post: FeedPostCardItem }) {
           </div>
         )}
         <div className="absolute inset-0 bg-black/40" />
-        <p className="relative z-10 text-white text-sm font-medium text-center line-clamp-3 drop-shadow-lg px-2">
-          {summary}
-        </p>
+        <p className="relative z-10 text-white text-sm font-medium text-center line-clamp-3 drop-shadow-lg px-2">{summary}</p>
         <div className="absolute bottom-2 right-2 flex items-center gap-2 text-white text-xs font-semibold z-10">
-          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">
-            👁️ {post.viewCount}
-          </span>
-          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">
-            💬 {post.commentCount}
-          </span>
+          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">👁️ {post.viewCount}</span>
+          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">💬 {post.commentCount}</span>
         </div>
       </div>
       <div className="p-4">
@@ -65,8 +111,8 @@ export function FeedPostCard({ post }: { post: FeedPostCardItem }) {
           {post.title}
         </h3>
         <p className="text-sm text-gray-600">
-          {post.author.username === 'Unknown' ? '作者' : post.author.username}
-          {createdTime ? `.${createdTime}` : ''}
+          {displayName}
+          {post.createdAt ? `.${new Date(post.createdAt).toLocaleDateString('zh-CN')}` : ''}
         </p>
       </div>
     </Link>

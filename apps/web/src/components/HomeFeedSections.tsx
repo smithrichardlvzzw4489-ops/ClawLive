@@ -24,7 +24,7 @@ interface Work {
 }
 
 /**
- * 首页同款：分区筛选 + 推荐作品与图文动态（同一区块、同一网格）
+ * 首页：分区筛选 + 推荐作品与图文动态（瀑布流 + 小红书式卡片）
  */
 export function HomeFeedSections() {
   const { t } = useLocale();
@@ -67,60 +67,63 @@ export function HomeFeedSections() {
 
   return (
     <>
-      <section className="mb-10">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="flex flex-wrap gap-2">
+      <section className="mb-4">
+        <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            onClick={() => setActivePartition(null)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              activePartition === null
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {t('works.partitionAll')}
+          </button>
+          {WORK_PARTITIONS.map((p) => (
             <button
+              key={p.id}
               type="button"
-              onClick={() => setActivePartition(null)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium ${activePartition === null ? 'bg-lobster text-white' : 'bg-gray-100 text-gray-700'}`}
+              onClick={() => setActivePartition(p.id)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                activePartition === p.id
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
             >
-              {t('works.partitionAll')}
+              {t(`partitions.${p.nameKey}`)}
             </button>
-            {WORK_PARTITIONS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setActivePartition(p.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${activePartition === p.id ? 'bg-lobster text-white' : 'bg-gray-100 text-gray-700'}`}
-              >
-                {t(`partitions.${p.nameKey}`)}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
       </section>
 
-      <section className="mb-16">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <span className="w-1 h-6 bg-lobster rounded-full" />
-            {t('home.worksSection')}
-          </h2>
-          <Link href="/works" className="text-lobster hover:underline text-sm">
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900">{t('home.worksSection')}</h2>
+          <Link href="/works" className="text-xs font-medium text-gray-500 hover:text-lobster">
             {t('more')} →
           </Link>
         </div>
         {loading ? (
           <div className="flex justify-center py-16">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-lobster" />
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-gray-200 border-t-lobster" />
           </div>
         ) : !hasAny ? (
-          <div className="text-center py-16 bg-white/80 rounded-2xl border-2 border-dashed border-gray-200">
-            <p className="text-gray-600 mb-4">
+          <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white/80 py-14 text-center">
+            <p className="mb-4 text-gray-600">
               {activePartition ? t('home.noWorksInPartition') : t('home.noWorks')}
             </p>
             {!activePartition && (
               <div className="flex flex-wrap justify-center gap-3">
                 <Link
                   href="/works/create"
-                  className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium"
+                  className="inline-block rounded-xl bg-lobster px-6 py-3 font-medium text-white"
                 >
                   {t('works.createFirst')}
                 </Link>
                 <Link
                   href="/posts/create"
-                  className="inline-block px-6 py-3 border border-lobster text-lobster rounded-xl font-medium hover:bg-lobster/5"
+                  className="inline-block rounded-xl border border-lobster px-6 py-3 font-medium text-lobster hover:bg-lobster/5"
                 >
                   {t('feedPost.createTitle')}
                 </Link>
@@ -128,10 +131,11 @@ export function HomeFeedSections() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="columns-2 gap-3 sm:columns-3 sm:gap-3 md:columns-4 lg:columns-5 lg:gap-3">
             {filteredWorks.map((work) => (
               <WorkCard
                 key={`w-${work.id}`}
+                variant="xhs"
                 {...work}
                 publishedAt={work.publishedAt}
                 author={{
@@ -141,7 +145,7 @@ export function HomeFeedSections() {
               />
             ))}
             {showFeedInGrid &&
-              feedPosts.map((p) => <FeedPostCard key={`p-${p.id}`} post={p} />)}
+              feedPosts.map((p) => <FeedPostCard key={`p-${p.id}`} post={p} variant="xhs" />)}
           </div>
         )}
       </section>

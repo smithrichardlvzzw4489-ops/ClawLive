@@ -56,16 +56,17 @@ export function Header() {
   };
 
   const isActive = (path: string) => pathname.startsWith(path);
+  const isHome = pathname === '/';
 
   return (
     <header className="fixed top-0 left-0 right-0 bg-white border-b z-50 shadow-sm">
-      <div className="h-16 px-6 flex items-center gap-8">
+      <div className="h-16 px-4 sm:px-6 flex items-center gap-4 lg:gap-8">
         <Link href="/" className="flex items-center gap-2 flex-shrink-0">
           <span className="text-3xl">🦞</span>
           <span className="text-2xl font-bold text-lobster">ClawLive</span>
         </Link>
 
-        <nav className="flex items-center gap-1">
+        <nav className={`flex items-center gap-1 ${isHome ? 'lg:hidden' : ''}`}>
           <Link
             href="/"
             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -88,15 +89,19 @@ export function Header() {
           </Link>
         </nav>
 
-        <form onSubmit={handleSearch} className="flex-1 max-w-xl">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t('searchPlaceholder')}
-            className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-full text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-lobster focus:ring-2 focus:ring-lobster/20 transition-all"
-          />
-        </form>
+        {isHome ? (
+          <div className="flex-1 min-w-0" aria-hidden />
+        ) : (
+          <form onSubmit={handleSearch} className="flex-1 max-w-xl min-w-0">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-full text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-lobster focus:ring-2 focus:ring-lobster/20 transition-all"
+            />
+          </form>
+        )}
 
         <div className="flex items-center gap-3 flex-shrink-0">
           {/* 发布入口：下拉多类型 */}
