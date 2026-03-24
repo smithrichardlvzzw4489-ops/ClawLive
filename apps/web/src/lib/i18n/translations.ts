@@ -15,6 +15,7 @@ export const translations = {
     nav: {
       home: '首页',
       live: '直播',
+      creators: '创作者',
       community: '社区',
       works: '作品',
       market: 'Skill 市场',
@@ -26,6 +27,11 @@ export const translations = {
     },
 
     // 搜索
+    creators: {
+      title: '创作者',
+      subtitle: '发现优质创作者与能力',
+      empty: '暂无创作者',
+    },
     searchPlaceholder: '搜索直播、作品、UP主...',
     search: {
       title: '搜索',
@@ -86,6 +92,8 @@ export const translations = {
       emptyPosts: '暂无内容，来发第一条吧',
       emptyNews: '暂无资讯',
       insightLabel: '一句话看懂',
+      viewRelatedSkill: '查看相关能力流',
+      relatedDiscussions: '相关讨论',
     },
 
     // 首页
@@ -243,6 +251,7 @@ export const translations = {
       skillMarkdownPlaceholder: '粘贴完整的 SKILL.md（含 YAML 头与正文），留空则从对话中自动提取',
       copySkillMd: '复制SKILL.md，赋能我的AI',
       copied: '已复制',
+      viewSkill: '查看能力流',
       noSkillToCopy: '该作品暂无可复制的 Skill 内容',
       listToMarketLabel: '同时上架 Skill 到市场（其他用户可直接复制使用）',
       agentTyping: '正在输入中...',
@@ -377,6 +386,7 @@ export const translations = {
     nav: {
       home: 'Home',
       live: 'Live',
+      creators: 'Creators',
       community: 'Community',
       works: 'Works',
       market: 'Skill Market',
@@ -387,6 +397,11 @@ export const translations = {
       createWork: 'Create Work',
     },
 
+    creators: {
+      title: 'Creators',
+      subtitle: 'Discover creators and skills',
+      empty: 'No creators yet',
+    },
     searchPlaceholder: 'Search live, works, creators...',
     search: {
       title: 'Search',
@@ -447,6 +462,8 @@ export const translations = {
       emptyPosts: 'No posts yet. Be the first!',
       emptyNews: 'No news yet',
       insightLabel: 'Quick take',
+      viewRelatedSkill: 'View related Skill',
+      relatedDiscussions: 'Related discussions',
     },
 
     home: {
@@ -595,6 +612,7 @@ export const translations = {
       skillMarkdownPlaceholder: 'Paste full SKILL.md (YAML + body), or leave empty to auto-extract from chat',
       copySkillMd: 'Copy SKILL.md, empower my AI',
       copied: 'Copied',
+      viewSkill: 'View Skill',
       noSkillToCopy: 'No Skill content available to copy',
       listToMarketLabel: 'Also list Skill on marketplace (others can copy and use)',
       agentTyping: 'Typing...',

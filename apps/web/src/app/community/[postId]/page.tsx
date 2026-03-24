@@ -17,6 +17,20 @@ interface Post {
   commentCount: number;
   viewCount: number;
   solved?: boolean;
+  skillId?: string;
+  createdAt: string;
+  author: { id: string; username: string; avatarUrl?: string | null };
+}
+
+interface RelatedPost {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  tags: string[];
+  likeCount: number;
+  commentCount: number;
+  viewCount: number;
   createdAt: string;
   author: { id: string; username: string; avatarUrl?: string | null };
 }
@@ -36,12 +50,21 @@ export default function PostDetailPage() {
   const postId = params.postId as string;
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([]);
   const [reply, setReply] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (postId) loadPost();
+  }, [postId]);
+
+  useEffect(() => {
+    if (!postId) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/community/posts/${postId}/related`)
+      .then((r) => (r.ok ? r.json() : { posts: [] }))
+      .then((d) => setRelatedPosts(d.posts || []))
+      .catch(() => setRelatedPosts([]));
   }, [postId]);
 
   const loadPost = async () => {
@@ -167,6 +190,18 @@ export default function PostDetailPage() {
             </div>
           )}
 
+          {post.skillId && (
+            <div className="mb-4">
+              <Link
+                href={`/market/${post.skillId}`}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-lobster/10 text-lobster font-medium hover:bg-lobster/20 transition-colors"
+              >
+                <span>📦</span>
+                {t('community.viewRelatedSkill')}
+              </Link>
+            </div>
+          )}
+
           <div className="flex gap-4 text-sm text-gray-500">
             <span>{post.likeCount} {t('community.likeCount')}</span>
             <span>{post.commentCount} {t('community.commentCount')}</span>
@@ -222,6 +257,26 @@ export default function PostDetailPage() {
             )}
           </div>
         </section>
+
+        {relatedPosts.length > 0 && (
+          <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+            <h2 className="font-semibold text-gray-900 mb-4">{t('community.relatedDiscussions')}</h2>
+            <div className="space-y-3">
+              {relatedPosts.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/community/${p.id}`}
+                  className="block p-3 rounded-lg border border-gray-100 hover:border-lobster/30 hover:bg-gray-50 transition-all"
+                >
+                  <span className="font-medium text-gray-900 line-clamp-1">{p.title}</span>
+                  <span className="text-sm text-gray-500">
+                    {p.author.username} · {format(new Date(p.createdAt), 'yyyy-MM-dd')}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </MainLayout>
   );

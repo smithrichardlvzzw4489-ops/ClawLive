@@ -130,6 +130,49 @@ export function communityRoutes(): Router {
     }
   });
 
+  // GET /api/community/posts/:postId/related - 相关帖子（同标签或同类型）
+  router.get('/posts/:postId/related', async (req: Request, res: Response) => {
+    try {
+      const { postId } = req.params;
+      const post = posts.get(postId);
+      if (!post) return res.status(404).json({ error: 'Post not found' });
+      const limit = Math.min(10, parseInt(String(req.query.limit || 5), 10) || 5);
+      const allPosts = Array.from(posts.values()).filter((p) => p.id !== postId);
+      const postTags = post.tags.map((t) => t.toLowerCase());
+      const scored = allPosts.map((p) => {
+        let score = 0;
+        if (p.type === post.type) score += 3;
+        const sharedTags = (p.tags || []).filter((t) => postTags.includes(t.toLowerCase())).length;
+        score += sharedTags * 2;
+        return { post: p, score };
+      });
+      scored.sort((a, b) => b.score - a.score);
+      const top = scored.filter((x) => x.score > 0).slice(0, limit).map((x) => x.post);
+      if (top.length === 0) {
+        const byType = allPosts.filter((p) => p.type === post.type).slice(0, limit);
+        const byDate = allPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, limit);
+        const result = byType.length >= byDate.length ? byType : byDate;
+        const authorIds = [...new Set(result.map((p) => p.authorId))];
+        const authorMap = await getHostInfoBatch(authorIds);
+        const withAuthor = result.map((p) => {
+          const a = authorMap.get(p.authorId);
+          return { ...p, author: a ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl } : { id: p.authorId, username: 'Unknown', avatarUrl: null } };
+        });
+        return res.json({ posts: withAuthor });
+      }
+      const authorIds = [...new Set(top.map((p) => p.authorId))];
+      const authorMap = await getHostInfoBatch(authorIds);
+      const withAuthor = top.map((p) => {
+        const a = authorMap.get(p.authorId);
+        return { ...p, author: a ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl } : { id: p.authorId, username: 'Unknown', avatarUrl: null } };
+      });
+      res.json({ posts: withAuthor });
+    } catch (error) {
+      console.error('Community related posts error:', error);
+      res.status(500).json({ error: 'Failed to fetch related posts' });
+    }
+  });
+
   // GET /api/community/posts/:postId - 详情（含评论）
   router.get('/posts/:postId', async (req: Request, res: Response) => {
     try {

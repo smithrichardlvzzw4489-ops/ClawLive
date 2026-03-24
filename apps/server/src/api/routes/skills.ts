@@ -69,10 +69,11 @@ export function skillsRoutes(): Router {
   // tags: 逗号分隔，筛选包含任一标签的 Skill
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { partition, search, sourceType, tags: tagsParam, authorId: authorIdParam } = req.query;
+      const { partition, search, sourceType, tags: tagsParam, authorId: authorIdParam, sourceWorkId: sourceWorkIdParam } = req.query;
       const filterByAuthor = authorIdParam && typeof authorIdParam === 'string' && authorIdParam.trim();
-      const wantOfficial = !filterByAuthor && !['user', 'user-work', 'user-direct'].includes(String(sourceType || ''));
-      const wantUser = !['official'].includes(String(sourceType || '')) || filterByAuthor;
+      const filterBySourceWork = sourceWorkIdParam && typeof sourceWorkIdParam === 'string' && sourceWorkIdParam.trim();
+      const wantOfficial = !filterByAuthor && !filterBySourceWork && !['user', 'user-work', 'user-direct'].includes(String(sourceType || ''));
+      const wantUser = !['official'].includes(String(sourceType || '')) || filterByAuthor || filterBySourceWork;
       const userFilter = sourceType === 'user-work' ? 'user-work' : sourceType === 'user-direct' ? 'user-direct' : null;
       const filterTags: string[] =
         typeof tagsParam === 'string' && tagsParam.trim()
@@ -148,6 +149,9 @@ export function skillsRoutes(): Router {
         }
         if (authorIdParam && typeof authorIdParam === 'string' && authorIdParam.trim()) {
           userList = userList.filter((s) => s.authorId === authorIdParam.trim());
+        }
+        if (filterBySourceWork) {
+          userList = userList.filter((s) => s.sourceWorkId === sourceWorkIdParam!.trim());
         }
         userList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 

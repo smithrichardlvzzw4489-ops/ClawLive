@@ -81,6 +81,7 @@ export default function WorkDetailPage() {
   const { t } = useLocale();
   
   const [work, setWork] = useState<Work | null>(null);
+  const [linkedSkillId, setLinkedSkillId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copiedSkill, setCopiedSkill] = useState(false);
@@ -120,6 +121,12 @@ export default function WorkDetailPage() {
 
       const workData = await response.json();
       setWork(workData);
+      const skillRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills?sourceWorkId=${workId}`);
+      if (skillRes.ok) {
+        const skillData = await skillRes.json();
+        const skills = skillData.skills || [];
+        if (skills.length > 0) setLinkedSkillId(skills[0].id);
+      }
     } catch (err: any) {
       setError(err.message || '加载失败');
     } finally {
@@ -203,6 +210,15 @@ export default function WorkDetailPage() {
               )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              {linkedSkillId && (
+                <Link
+                  href={`/market/${linkedSkillId}`}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-lobster text-white rounded-lg text-sm font-medium hover:bg-lobster-dark transition-colors"
+                >
+                  <span>📦</span>
+                  {t('workDetail.viewSkill')}
+                </Link>
+              )}
               <ShareButton
                 url={`/works/${workId}`}
                 title={work.title}
