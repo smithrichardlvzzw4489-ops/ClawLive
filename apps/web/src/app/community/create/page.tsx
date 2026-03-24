@@ -73,16 +73,16 @@ export default function CreatePostPage() {
         </h1>
 
         <div className="mb-4 flex gap-2">
-          {(['question', 'discussion', 'experience', 'retrospective'] as PostType[]).map((t) => (
+          {(['question', 'discussion', 'experience', 'retrospective'] as PostType[]).map((tab) => (
             <button
-              key={t}
-              onClick={() => setType(t)}
-              className={`px-3 py-1.5 rounded-lg text-sm ${type === t ? 'bg-lobster text-white' : 'bg-gray-100'}`}
+              key={tab}
+              onClick={() => setType(tab)}
+              className={`px-3 py-1.5 rounded-lg text-sm ${type === tab ? 'bg-lobster text-white' : 'bg-gray-100'}`}
             >
-              {t === 'question' && t('community.tabQuestion')}
-              {t === 'discussion' && t('community.tabDiscussion')}
-              {t === 'experience' && t('community.tabExperience')}
-              {t === 'retrospective' && t('community.tabRetrospective')}
+              {tab === 'question' && t('community.tabQuestion')}
+              {tab === 'discussion' && t('community.tabDiscussion')}
+              {tab === 'experience' && t('community.tabExperience')}
+              {tab === 'retrospective' && t('community.tabRetrospective')}
             </button>
           ))}
         </div>
