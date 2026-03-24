@@ -59,3 +59,8 @@ export function unfollow(userId: string, hostId: string): boolean {
   saveAll(records);
   return true;
 }
+
+export function getFollowerCount(hostId: string): number {
+  const records = loadAll();
+  return records.filter((r) => r.hostId === hostId).length;
+}

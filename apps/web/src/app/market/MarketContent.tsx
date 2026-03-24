@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { WORK_PARTITIONS } from '@/lib/work-partitions';
@@ -38,6 +39,8 @@ function getSourceType(sourceType: SourceType, userSubType: UserSubType): string
 
 export function MarketContent() {
   const { t } = useLocale();
+  const searchParams = useSearchParams();
+  const creatorId = searchParams.get('creator');
   const [skills, setSkills] = useState<SkillListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activePartition, setActivePartition] = useState<string | null>(null);
@@ -65,6 +68,7 @@ export function MarketContent() {
     if (activePartition) params.set('partition', activePartition);
     if (search.trim()) params.set('search', search.trim());
     if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
+    if (creatorId) params.set('authorId', creatorId);
     const st = getSourceType(sourceType, userSubType);
     if (st !== 'all') params.set('sourceType', st);
     const qs = params.toString();
@@ -82,7 +86,7 @@ export function MarketContent() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [activePartition, search, sourceType, userSubType, selectedTags]);
+  }, [activePartition, search, sourceType, userSubType, selectedTags, creatorId]);
 
   return (
     <div className="container mx-auto px-6 py-8">

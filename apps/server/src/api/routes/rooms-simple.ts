@@ -5,6 +5,8 @@ import { mtprotoService } from '../../services/telegram-mtproto';
 import { RoomAgentConfigPersistence } from '../../services/room-agent-config-persistence';
 import { WorksPersistence } from '../../services/works-persistence';
 import { SkillsPersistence } from '../../services/skills-persistence';
+import { getFollowerCount } from '../../services/user-follows';
+import { CommunityPersistence } from '../../services/community-persistence';
 import { prisma } from '../../lib/prisma';
 import {
   getRoom,
@@ -461,18 +463,74 @@ export function roomSimpleRoutes(io: Server): Router {
           sourceWorkId: s.sourceWorkId,
         }));
 
+      // 粉丝数、社区数据（回答、经验/复盘）
+      const followerCount = getFollowerCount(hostId);
+      const allPosts = CommunityPersistence.loadPosts();
+      const allCommentsMap = CommunityPersistence.loadComments();
+      let answerCount = 0;
+      const creatorComments: Array<{ postId: string; postTitle?: string; id: string; content: string; likeCount: number; createdAt: Date }> = [];
+      for (const [, arr] of allCommentsMap) {
+        for (const c of arr) {
+          if (c.authorId === hostId) {
+            answerCount++;
+            const post = allPosts.get(c.postId);
+            creatorComments.push({
+              postId: c.postId,
+              postTitle: post?.title,
+              id: c.id,
+              content: c.content,
+              likeCount: c.likeCount,
+              createdAt: c.createdAt,
+            });
+          }
+        }
+      }
+      creatorComments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      const creatorPosts = Array.from(allPosts.values())
+        .filter(p => p.authorId === hostId && (p.type === 'experience' || p.type === 'retrospective'))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 20)
+        .map(p => ({
+          id: p.id,
+          type: p.type,
+          title: p.title,
+          content: p.content,
+          tags: p.tags,
+          likeCount: p.likeCount,
+          commentCount: p.commentCount,
+          viewCount: p.viewCount,
+          createdAt: p.createdAt,
+        }));
+
+      const bio = userProfiles.get(hostId)?.bio;
+      const tagline = bio ? (bio.includes('\n') ? bio.split('\n')[0].trim() : bio.trim()).slice(0, 80) : undefined;
+      const tagsSet = new Set<string>();
+      for (const w of hostWorks) {
+        if (w.partition && w.partition.trim()) tagsSet.add(w.partition.trim());
+      }
+      const tags = Array.from(tagsSet).slice(0, 8);
+
       res.json({
         host: {
           id: host.id,
           username: host.username,
-          bio: userProfiles.get(hostId)?.bio,
+          bio,
+          tagline,
+          tags,
           avatarUrl: host.avatarUrl,
         },
         liveRooms,
         historySessions,
         hostWorks,
         hostSkills,
+        creatorAnswers: creatorComments.slice(0, 12),
+        creatorPosts,
         stats: {
+          followerCount,
+          workCount: Array.from(works.values()).filter(w => w.authorId === hostId && w.status === 'published').length,
+          skillCount: Array.from(skillsMap.values()).filter(s => s.authorId === hostId).length,
+          answerCount,
           totalSessions: historySessions.length,
           totalMessages: historySessions.reduce((sum, s) => sum + s.messageCount, 0),
         },

@@ -5,7 +5,9 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { getHostInfo, getHostInfoBatch } from './rooms-simple';
+import { getHostInfo, getHostInfoBatch, userProfiles } from './rooms-simple';
+import { getFollowerCount } from '../../services/user-follows';
+import { CommunityPersistence } from '../../services/community-persistence';
 import { SkillsPersistence, type Skill } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { isValidPartition, DEFAULT_PARTITION } from '../../lib/work-partitions';
@@ -67,9 +69,10 @@ export function skillsRoutes(): Router {
   // tags: 逗号分隔，筛选包含任一标签的 Skill
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { partition, search, sourceType, tags: tagsParam } = req.query;
-      const wantOfficial = !['user', 'user-work', 'user-direct'].includes(String(sourceType || ''));
-      const wantUser = !['official'].includes(String(sourceType || ''));
+      const { partition, search, sourceType, tags: tagsParam, authorId: authorIdParam } = req.query;
+      const filterByAuthor = authorIdParam && typeof authorIdParam === 'string' && authorIdParam.trim();
+      const wantOfficial = !filterByAuthor && !['user', 'user-work', 'user-direct'].includes(String(sourceType || ''));
+      const wantUser = !['official'].includes(String(sourceType || '')) || filterByAuthor;
       const userFilter = sourceType === 'user-work' ? 'user-work' : sourceType === 'user-direct' ? 'user-direct' : null;
       const filterTags: string[] =
         typeof tagsParam === 'string' && tagsParam.trim()
@@ -142,6 +145,9 @@ export function skillsRoutes(): Router {
         }
         if (filterTags.length > 0) {
           userList = userList.filter((s) => matchesTags(s.tags));
+        }
+        if (authorIdParam && typeof authorIdParam === 'string' && authorIdParam.trim()) {
+          userList = userList.filter((s) => s.authorId === authorIdParam.trim());
         }
         userList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
@@ -252,6 +258,112 @@ export function skillsRoutes(): Router {
     }
   });
 
+  // GET /api/skills/:skillId/discussions - 与该能力流关联的社区帖子
+  router.get('/:skillId/discussions', async (req: Request, res: Response) => {
+    try {
+      const { skillId } = req.params;
+      const allPosts = CommunityPersistence.loadPosts();
+      const filtered = Array.from(allPosts.values())
+        .filter((p) => p.skillId === skillId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 20);
+      const authorIds = [...new Set(filtered.map((p) => p.authorId))];
+      const authorMap = await getHostInfoBatch(authorIds);
+      const result = filtered.map((p) => ({
+        id: p.id,
+        type: p.type,
+        title: p.title,
+        content: p.content,
+        tags: p.tags,
+        likeCount: p.likeCount,
+        commentCount: p.commentCount,
+        viewCount: p.viewCount,
+        createdAt: p.createdAt,
+        author: (() => {
+          const a = authorMap.get(p.authorId);
+          return a ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl ?? undefined } : { id: p.authorId, username: 'Unknown', avatarUrl: undefined };
+        })(),
+      }));
+      res.json({ posts: result });
+    } catch (error) {
+      console.error('Error fetching skill discussions:', error);
+      res.status(500).json({ error: 'Failed to fetch discussions' });
+    }
+  });
+
+  // GET /api/skills/:skillId/related - 同类能力流 + 创作者其它能力
+  router.get('/:skillId/related', async (req: Request, res: Response) => {
+    try {
+      const { skillId } = req.params;
+      const limit = Math.min(12, parseInt(String(req.query.limit || 6), 10) || 6);
+      const isOfficial = skillId.startsWith('official-');
+      const targetSkill = isOfficial ? null : skills.get(skillId);
+      const targetOfficial = isOfficial ? loadOfficialSkills().find((s) => s.id === skillId) : null;
+      const target = targetSkill || targetOfficial;
+      if (!target) return res.status(404).json({ error: 'Skill not found' });
+      const partition = target.partition;
+      const targetTags = target.tags || [];
+      const authorId = targetSkill ? targetSkill.authorId : undefined;
+
+      const similar: Array<{ id: string; title: string; description?: string; partition: string; viewCount: number; useCount: number; author: { id: string; username: string; avatarUrl?: string } }> = [];
+      const officialList = loadOfficialSkills().filter((s) => s.id !== skillId);
+      const userList = Array.from(skills.values()).filter((s) => s.id !== skillId);
+      const byPartitionOrTags = (s: { partition: string; tags?: string[] }) =>
+        s.partition === partition || (s.tags || []).some((t) => targetTags.some((tt) => tt.toLowerCase() === t.toLowerCase()));
+      for (const s of officialList) {
+        if (similar.length >= limit) break;
+        if (byPartitionOrTags(s)) {
+          similar.push({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            partition: s.partition,
+            viewCount: 0,
+            useCount: 0,
+            author: OFFICIAL_AUTHOR,
+          });
+        }
+      }
+      for (const s of userList) {
+        if (similar.length >= limit) break;
+        if (byPartitionOrTags(s)) {
+          const author = await getHostInfo(s.authorId);
+          similar.push({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            partition: s.partition,
+            viewCount: s.viewCount,
+            useCount: s.useCount,
+            author: { id: author.id, username: author.username, avatarUrl: author.avatarUrl ?? undefined },
+          });
+        }
+      }
+
+      let authorOtherSkills: typeof similar = [];
+      if (authorId) {
+        const others = Array.from(skills.values())
+          .filter((s) => s.authorId === authorId && s.id !== skillId)
+          .sort((a, b) => (b.viewCount + b.useCount * 2) - (a.viewCount + a.useCount * 2))
+          .slice(0, 6);
+        const authorInfo = await getHostInfo(authorId);
+        authorOtherSkills = others.map((s) => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          partition: s.partition,
+          viewCount: s.viewCount,
+          useCount: s.useCount,
+          author: { id: authorInfo.id, username: authorInfo.username, avatarUrl: authorInfo.avatarUrl ?? undefined },
+        }));
+      }
+      res.json({ similarSkills: similar.slice(0, limit), authorOtherSkills });
+    } catch (error) {
+      console.error('Error fetching related skills:', error);
+      res.status(500).json({ error: 'Failed to fetch related skills' });
+    }
+  });
+
   // GET /api/skills/:skillId - 详情；用户 Skill 增加 viewCount，官方 Skill 不统计
   router.get('/:skillId', async (req: Request, res: Response) => {
     try {
@@ -265,7 +377,11 @@ export function skillsRoutes(): Router {
           ...o,
           viewCount: 0,
           useCount: 0,
+          updatedAt: new Date(),
           author: OFFICIAL_AUTHOR,
+          authorTagline: undefined,
+          authorFollowerCount: 0,
+          discussionCount: 0,
         });
       }
 
@@ -277,6 +393,12 @@ export function skillsRoutes(): Router {
       saveSkills();
 
       const author = await getHostInfo(skill.authorId);
+      const bio = userProfiles.get(skill.authorId)?.bio;
+      const tagline = bio ? (bio.includes('\n') ? bio.split('\n')[0].trim() : bio.trim()).slice(0, 80) : undefined;
+      const followerCount = getFollowerCount(skill.authorId);
+      const allPosts = CommunityPersistence.loadPosts();
+      const discussionCount = Array.from(allPosts.values()).filter((p) => p.skillId === skillId).length;
+
       res.json({
         ...skill,
         sourceType: getSourceType(skill),
@@ -285,6 +407,9 @@ export function skillsRoutes(): Router {
           username: author.username,
           avatarUrl: author.avatarUrl ?? undefined,
         },
+        authorTagline: tagline,
+        authorFollowerCount: followerCount,
+        discussionCount,
       });
     } catch (error) {
       console.error('Error fetching skill:', error);

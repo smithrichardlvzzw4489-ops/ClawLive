@@ -11,6 +11,8 @@ interface Host {
   id: string;
   username: string;
   bio?: string;
+  tagline?: string;
+  tags?: string[];
   avatarUrl?: string;
 }
 
@@ -47,22 +49,51 @@ interface HostSkill {
   sourceWorkId?: string;
 }
 
+interface CreatorAnswer {
+  postId: string;
+  postTitle?: string;
+  id: string;
+  content: string;
+  likeCount: number;
+  createdAt: Date;
+}
+
+interface CreatorPost {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  tags: string[];
+  likeCount: number;
+  commentCount: number;
+  viewCount: number;
+  createdAt: Date;
+}
+
 interface HostData {
   host: Host;
   liveRooms: Room[];
   historySessions: Room[];
   hostWorks: HostWork[];
   hostSkills: HostSkill[];
+  creatorAnswers?: CreatorAnswer[];
+  creatorPosts?: CreatorPost[];
   stats: {
+    followerCount: number;
+    workCount: number;
+    skillCount: number;
+    answerCount: number;
     totalSessions: number;
     totalMessages: number;
   };
 }
 
+type TabKey = 'overview' | 'works' | 'skills' | 'answers' | 'experience';
+
 export default function HostPage() {
   const params = useParams();
   const hostId = params.hostId as string;
-  
+
   const { t } = useLocale();
   const [data, setData] = useState<HostData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,12 +102,13 @@ export default function HostPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [following, setFollowing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
   useEffect(() => {
     const fetchHostData = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/host/${hostId}`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch host data');
         }
@@ -93,7 +125,6 @@ export default function HostPage() {
     fetchHostData();
   }, [hostId]);
 
-  // 检查登录状态和关注状态
   useEffect(() => {
     const checkAuthAndFollow = async () => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -112,7 +143,7 @@ export default function HostPage() {
         const me = await meRes.json();
         setIsLoggedIn(true);
         setCurrentUserId(me.id);
-        if (me.id === hostId) return; // 自己的主页不检查关注
+        if (me.id === hostId) return;
         const followRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/check/${hostId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -140,6 +171,17 @@ export default function HostPage() {
       });
       if (res.ok) {
         setFollowing(!following);
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                stats: {
+                  ...prev.stats,
+                  followerCount: prev.stats.followerCount + (following ? -1 : 1),
+                },
+              }
+            : null
+        );
       }
     } finally {
       setIsToggling(false);
@@ -174,52 +216,106 @@ export default function HostPage() {
     );
   }
 
-  const { host, liveRooms, historySessions, hostWorks = [], hostSkills = [], stats } = data;
+  const { host, liveRooms, historySessions, hostWorks = [], hostSkills = [], creatorAnswers = [], creatorPosts = [], stats } = data;
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: 'overview', label: t('host.tabOverview') },
+    { key: 'works', label: t('host.tabWorks') },
+    { key: 'skills', label: t('host.tabSkills') },
+    { key: 'answers', label: t('host.tabAnswers') },
+    { key: 'experience', label: t('host.tabExperience') },
+  ];
+
+  const WorkCard = ({ work }: { work: HostWork }) => (
+    <Link
+      href={`/works/${work.id}`}
+      className="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden"
+    >
+      <div className="aspect-video bg-gray-100 flex items-center justify-center">
+        {work.videoUrl ? (
+          <video src={work.videoUrl} className="w-full h-full object-cover" muted playsInline />
+        ) : work.coverImage ? (
+          <img src={work.coverImage} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-5xl opacity-40">🖼️</span>
+        )}
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold line-clamp-2 text-gray-900">{work.title}</h3>
+        {work.resultSummary && (
+          <p className="text-sm text-gray-500 line-clamp-2 mt-1">{work.resultSummary}</p>
+        )}
+        <div className="text-xs text-gray-400 mt-2 flex gap-3">
+          <span>{work.viewCount} 浏览</span>
+          <span>{work.likeCount} 点赞</span>
+        </div>
+      </div>
+    </Link>
+  );
+
+  const SkillCard = ({ skill }: { skill: HostSkill }) => (
+    <Link
+      href={`/market/${skill.id}`}
+      className="block bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:border-lobster/30 transition-all"
+    >
+      <h3 className="font-semibold text-gray-900 line-clamp-2">{skill.title}</h3>
+      {skill.description && (
+        <p className="text-sm text-gray-500 line-clamp-2 mt-1">{skill.description}</p>
+      )}
+      <div className="text-xs text-gray-400 mt-2 flex gap-3">
+        <span>{skill.viewCount} 浏览</span>
+        <span>{skill.useCount} 使用</span>
+      </div>
+    </Link>
+  );
 
   return (
     <MainLayout>
       <div className="container mx-auto px-6 py-8">
-        {/* Host Profile Banner */}
-        <div className="bg-gradient-to-r from-lobster-light to-purple-200 rounded-xl p-8 mb-8">
-          <div className="flex items-center gap-6">
-            <div className="flex-shrink-0">
+        {/* Banner */}
+        <div className="relative rounded-xl overflow-hidden mb-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-lobster via-lobster-light to-purple-400" />
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="relative p-8 flex items-end gap-6">
+            <div className="flex-shrink-0 -mb-4">
               {host.avatarUrl ? (
                 <img
                   src={host.avatarUrl}
                   alt={host.username}
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
+                  className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-xl"
                 />
               ) : (
-                <div className="w-32 h-32 rounded-full bg-white text-lobster flex items-center justify-center text-4xl font-bold shadow-lg">
+                <div className="w-28 h-28 rounded-full bg-white/90 text-lobster flex items-center justify-center text-4xl font-bold shadow-xl">
                   {host.username.charAt(0).toUpperCase()}
                 </div>
               )}
             </div>
-            <div className="flex-1 text-white flex flex-col">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-4xl font-bold mb-3">{host.username}</h1>
-                  {host.bio && (
-                    <p className="text-lg opacity-90 mb-4">{host.bio}</p>
-                  )}
-                  <div className="flex gap-8 text-sm">
-                    <div>
-                      <span className="font-bold text-2xl">{stats.totalSessions}</span>
-                      <span className="ml-2 opacity-90">直播</span>
-                    </div>
-                    <div>
-                      <span className="font-bold text-2xl">{stats.totalMessages}</span>
-                      <span className="ml-2 opacity-90">消息</span>
-                    </div>
-                  </div>
+            <div className="flex-1 pb-2">
+              <h1 className="text-3xl font-bold text-white drop-shadow-sm">{host.username}</h1>
+              {(host.tagline || host.bio) && (
+                <p className="text-white/95 text-base mt-1 max-w-2xl">
+                  {host.tagline || (host.bio && host.bio.split('\n')[0])}
+                </p>
+              )}
+              {host.tags && host.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {host.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2.5 py-0.5 rounded-full text-sm bg-white/25 text-white backdrop-blur-sm"
+                    >
+                      {tag}
+                    </span>
+                  ))}
                 </div>
+              )}
+              <div className="flex flex-wrap items-center gap-4 mt-4">
                 {currentUserId !== hostId && (
-                  <div className="flex-shrink-0">
+                  <>
                     {isLoggedIn ? (
                       <button
                         onClick={toggleFollow}
                         disabled={isToggling}
-                        className={`px-6 py-2.5 rounded-lg font-semibold transition-colors disabled:opacity-50 ${
+                        className={`px-5 py-2 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 ${
                           following
                             ? 'bg-white/20 hover:bg-white/30 text-white border border-white/50'
                             : 'bg-white text-lobster hover:bg-white/90'
@@ -230,160 +326,321 @@ export default function HostPage() {
                     ) : (
                       <Link
                         href="/login"
-                        className="inline-block px-6 py-2.5 rounded-lg font-semibold bg-white text-lobster hover:bg-white/90 transition-colors"
+                        className="inline-block px-5 py-2 rounded-lg font-semibold text-sm bg-white text-lobster hover:bg-white/90 transition-colors"
                       >
                         登录后关注
                       </Link>
                     )}
-                  </div>
+                  </>
+                )}
+                {hostSkills.length > 0 && (
+                  <Link
+                    href={`/market?creator=${hostId}`}
+                    className="inline-block px-5 py-2 rounded-lg font-semibold text-sm bg-emerald-500/90 hover:bg-emerald-500 text-white transition-colors"
+                  >
+                    {t('host.subscribeSkills')}
+                  </Link>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Works */}
-        {hostWorks.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <span className="w-1 h-8 bg-lobster rounded-full"></span>
-              <span>{t('host.works')}</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {hostWorks.map((work) => (
-                <Link
-                  key={work.id}
-                  href={`/works/${work.id}`}
-                  className="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden"
-                >
-                  <div className="aspect-video bg-gray-100 flex items-center justify-center">
-                    {work.videoUrl ? (
-                      <video src={work.videoUrl} className="w-full h-full object-cover" muted playsInline />
-                    ) : work.coverImage ? (
-                      <img src={work.coverImage} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-5xl opacity-40">🖼️</span>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold line-clamp-2 text-gray-900">{work.title}</h3>
-                    {work.resultSummary && (
-                      <p className="text-sm text-gray-500 line-clamp-2 mt-1">{work.resultSummary}</p>
-                    )}
-                    <div className="text-xs text-gray-400 mt-2 flex gap-3">
-                      <span>{work.viewCount} 浏览</span>
-                      <span>{work.likeCount} 点赞</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        {/* Stats Bar */}
+        <div className="flex flex-wrap gap-6 py-4 px-4 bg-gray-50 rounded-lg mb-6">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-gray-900">{stats.followerCount ?? 0}</span>
+            <span className="text-gray-600">{t('host.fans')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-gray-900">{stats.workCount ?? 0}</span>
+            <span className="text-gray-600">{t('host.works')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-gray-900">{stats.skillCount ?? 0}</span>
+            <span className="text-gray-600">{t('host.skills')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-gray-900">{stats.answerCount ?? 0}</span>
+            <span className="text-gray-600">{t('host.answers')}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold text-gray-900">{stats.totalSessions ?? 0}</span>
+            <span className="text-gray-600">{t('host.sessions')}</span>
+          </div>
+        </div>
 
-        {/* Skills */}
-        {hostSkills.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <span className="w-1 h-8 bg-emerald-500 rounded-full"></span>
-              <span>{t('host.skills')}</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {hostSkills.map((skill) => (
-                <Link
-                  key={skill.id}
-                  href={`/market/${skill.id}`}
-                  className="block bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:border-lobster/30 transition-all"
+        {/* Main content + Sidebar */}
+        <div className="flex flex-col lg:flex-row gap-8">
+          <div className="flex-1 min-w-0">
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-6 overflow-x-auto">
+              {tabs.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === key
+                      ? 'bg-white text-lobster shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
+                  }`}
                 >
-                  <h3 className="font-semibold text-gray-900 line-clamp-2">{skill.title}</h3>
-                  {skill.description && (
-                    <p className="text-sm text-gray-500 line-clamp-2 mt-1">{skill.description}</p>
-                  )}
-                  <div className="text-xs text-gray-400 mt-2 flex gap-3">
-                    <span>{skill.viewCount} 浏览</span>
-                    <span>{skill.useCount} 使用</span>
-                  </div>
-                </Link>
+                  {label}
+                </button>
               ))}
             </div>
-          </section>
-        )}
 
-        {/* Live Rooms */}
-        {liveRooms.length > 0 && (
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <span className="w-1 h-8 bg-red-500 rounded-full"></span>
-              <span>{t('host.liveNow')}</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {liveRooms.map((room) => (
-                <RoomCard
-                  key={room.id}
-                  id={room.id}
-                  title={room.title}
-                  description={room.description}
-                  lobsterName={room.lobsterName}
-                  isLive={room.isLive}
-                  viewerCount={room.viewerCount}
-                  startedAt={room.startedAt}
-                  host={host}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+            {/* Tab content */}
+            {activeTab === 'overview' && (
+              <div className="space-y-10">
+                {liveRooms.length > 0 && (
+                  <section>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="w-1 h-6 bg-red-500 rounded-full"></span>
+                      {t('host.liveNow')}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {liveRooms.map((room) => (
+                        <RoomCard
+                          key={room.id}
+                          id={room.id}
+                          title={room.title}
+                          description={room.description}
+                          lobsterName={room.lobsterName}
+                          isLive={room.isLive}
+                          viewerCount={room.viewerCount}
+                          startedAt={room.startedAt}
+                          host={host}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {hostWorks.length > 0 && (
+                  <section>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="w-1 h-6 bg-lobster rounded-full"></span>
+                      {t('host.representativeWorks')}
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {hostWorks.slice(0, 6).map((work) => (
+                        <WorkCard key={work.id} work={work} />
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {creatorAnswers.length > 0 && (
+                  <section>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <span className="w-1 h-6 bg-emerald-500 rounded-full"></span>
+                      {t('host.representativeAnswers')}
+                    </h2>
+                    <div className="space-y-3">
+                      {creatorAnswers.slice(0, 5).map((a) => (
+                        <Link
+                          key={a.id}
+                          href={`/community/${a.postId}`}
+                          className="block p-4 bg-white rounded-xl border border-gray-100 hover:border-lobster/30 hover:shadow-sm transition-all"
+                        >
+                          {a.postTitle && (
+                            <p className="text-sm text-gray-500 line-clamp-1">{a.postTitle}</p>
+                          )}
+                          <p className="text-gray-900 line-clamp-2 mt-1">{a.content}</p>
+                          <div className="text-xs text-gray-400 mt-2">
+                            {a.likeCount} 点赞 · {new Date(a.createdAt).toLocaleDateString('zh-CN')}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {hostWorks.length === 0 && creatorAnswers.length === 0 && liveRooms.length === 0 && (
+                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
+                    {t('host.noContent')}
+                  </div>
+                )}
+              </div>
+            )}
 
-        {/* History Sessions */}
-        <section>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <span className="w-1 h-8 bg-lobster rounded-full"></span>
-            <span>{t('host.history')}</span>
-          </h2>
-          {historySessions.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-sm p-12 text-center text-gray-500">
-              {t('host.noHistory')}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {historySessions.map((session) => (
-                <Link
-                  key={session.id}
-                  href={`/history/${session.id}`}
-                  className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden"
-                >
-                  <div className="relative aspect-video bg-gradient-to-br from-gray-400 to-gray-600">
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-6xl opacity-50">🦞</span>
-                    </div>
-                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 text-white text-xs font-semibold rounded backdrop-blur-sm">
-                      {session.startedAt && session.endedAt && (
-                        <>
-                          {Math.round(
-                            (new Date(session.endedAt).getTime() -
-                              new Date(session.startedAt).getTime()) /
-                              1000 /
-                              60
-                          )} 分钟
-                        </>
-                      )}
-                    </div>
+            {activeTab === 'works' && (
+              <section>
+                {hostWorks.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
+                    {t('host.noContent')}
                   </div>
-                  <div className="p-4">
-                    <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900">{session.title}</h3>
-                    <p className="text-sm text-gray-600 mb-3">🦞 {session.lobsterName}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t">
-                      <span>💬 {session.messageCount || 0}</span>
-                      {session.endedAt && (
-                        <span>{new Date(session.endedAt).toLocaleDateString('zh-CN')}</span>
-                      )}
-                    </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {hostWorks.map((work) => (
+                      <WorkCard key={work.id} work={work} />
+                    ))}
                   </div>
-                </Link>
-              ))}
+                )}
+              </section>
+            )}
+
+            {activeTab === 'skills' && (
+              <section>
+                {hostSkills.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
+                    {t('host.noContent')}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {hostSkills.map((skill) => (
+                      <SkillCard key={skill.id} skill={skill} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {activeTab === 'answers' && (
+              <section>
+                {creatorAnswers.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
+                    {t('host.noContent')}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {creatorAnswers.map((a) => (
+                      <Link
+                        key={a.id}
+                        href={`/community/${a.postId}`}
+                        className="block p-4 bg-white rounded-xl border border-gray-100 hover:border-lobster/30 hover:shadow-sm transition-all"
+                      >
+                        {a.postTitle && (
+                          <p className="text-sm text-gray-500 line-clamp-1">{a.postTitle}</p>
+                        )}
+                        <p className="text-gray-900 line-clamp-3 mt-1">{a.content}</p>
+                        <div className="text-xs text-gray-400 mt-2">
+                          {a.likeCount} 点赞 · {new Date(a.createdAt).toLocaleDateString('zh-CN')}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {activeTab === 'experience' && (
+              <section>
+                {creatorPosts.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
+                    {t('host.noContent')}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {creatorPosts.map((post) => (
+                      <Link
+                        key={post.id}
+                        href={`/community/${post.id}`}
+                        className="block p-4 bg-white rounded-xl border border-gray-100 hover:border-lobster/30 hover:shadow-sm transition-all"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              post.type === 'experience'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {post.type === 'experience' ? '经验' : '复盘'}
+                          </span>
+                          {post.tags.length > 0 && (
+                            <span className="text-xs text-gray-400">
+                              {post.tags.slice(0, 3).join(' · ')}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-gray-900 mt-2 line-clamp-2">{post.title}</h3>
+                        <p className="text-sm text-gray-600 line-clamp-2 mt-1">{post.content}</p>
+                        <div className="text-xs text-gray-400 mt-2 flex gap-4">
+                          <span>{post.likeCount} 点赞</span>
+                          <span>{post.commentCount} 评论</span>
+                          <span>{post.viewCount} 浏览</span>
+                          <span>{new Date(post.createdAt).toLocaleDateString('zh-CN')}</span>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          {/* Right Sidebar */}
+          <aside className="w-full lg:w-72 flex-shrink-0 space-y-6">
+            <div className="bg-white rounded-xl border border-gray-100 p-4">
+              <h3 className="font-semibold text-gray-900 mb-3">{t('host.trustCard')}</h3>
+              <div className="space-y-2 text-sm text-gray-600">
+                <p>
+                  <span className="font-medium text-gray-900">{stats.totalSessions}</span> 场直播
+                </p>
+                <p>
+                  <span className="font-medium text-gray-900">{stats.totalMessages}</span> 条消息
+                </p>
+                <p>
+                  <span className="font-medium text-gray-900">{stats.workCount}</span> 个作品
+                </p>
+                <p>
+                  <span className="font-medium text-gray-900">{stats.answerCount}</span> 个社区回答
+                </p>
+              </div>
             </div>
-          )}
-        </section>
+
+            {hostSkills.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">{t('host.featuredSkills')}</h3>
+                <div className="space-y-2">
+                  {hostSkills.slice(0, 4).map((skill) => (
+                    <Link
+                      key={skill.id}
+                      href={`/market/${skill.id}`}
+                      className="block p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700 truncate"
+                    >
+                      {skill.title}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {liveRooms.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">{t('host.quickConsult')}</h3>
+                <p className="text-sm text-gray-600 mb-3">正在直播，可直接进入咨询</p>
+                <div className="space-y-2">
+                  {liveRooms.slice(0, 2).map((room) => (
+                    <Link
+                      key={room.id}
+                      href={`/rooms/${room.id}`}
+                      className="block p-2 rounded-lg bg-lobster/5 hover:bg-lobster/10 text-lobster font-medium text-sm truncate"
+                    >
+                      {room.title}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {historySessions.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                <h3 className="font-semibold text-gray-900 mb-3">{t('host.history')}</h3>
+                <div className="space-y-2">
+                  {historySessions.slice(0, 4).map((session) => (
+                    <Link
+                      key={session.id}
+                      href={`/history/${session.id}`}
+                      className="block p-2 rounded-lg hover:bg-gray-50 text-sm text-gray-700 line-clamp-2"
+                    >
+                      {session.title}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
     </MainLayout>
   );
