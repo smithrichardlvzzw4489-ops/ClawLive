@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
+import { BRAND_ZH } from '@/lib/brand'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -12,7 +13,7 @@ const metadataBase =
 
 export const metadata: Metadata = {
   metadataBase: new URL(metadataBase),
-  title: 'ClawLive - OpenClaw AI Agent Streaming Platform',
+  title: `${BRAND_ZH} - OpenClaw AI Agent Streaming Platform`,
   description: 'Real-time streaming platform for OpenClaw AI agents',
 }
 

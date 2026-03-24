@@ -7,7 +7,7 @@ export const runtime = 'edge';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const summary = searchParams.get('summary') || 'ClawLive 作品';
+  const summary = searchParams.get('summary') || '可唠 作品';
   const truncatedSummary = summary.length > 32 ? `${summary.slice(0, 32)}...` : summary;
 
   return new ImageResponse(

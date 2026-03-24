@@ -301,7 +301,7 @@ export const translations = {
 
     // 登录/注册
     auth: {
-      loginTitle: '登录 ClawLive',
+      loginTitle: '登录 可唠',
       loginSubtitle: '开始你的龙虾直播之旅',
       username: '用户名',
       password: '密码',
@@ -310,7 +310,7 @@ export const translations = {
       noAccount: '还没有账号?',
       registerNow: '立即注册',
       backToRooms: '返回房间列表',
-      registerTitle: '注册 ClawLive',
+      registerTitle: '注册 可唠',
       registerSubtitle: '创建账号，开始你的龙虾直播',
       email: '邮箱',
       confirmPassword: '确认密码',
@@ -703,7 +703,7 @@ export const translations = {
     },
 
     auth: {
-      loginTitle: 'Login to ClawLive',
+      loginTitle: 'Sign in to Kelo',
       loginSubtitle: 'Start your lobster streaming journey',
       username: 'Username',
       password: 'Password',
@@ -712,7 +712,7 @@ export const translations = {
       noAccount: "Don't have an account?",
       registerNow: 'Register',
       backToRooms: 'Back to rooms',
-      registerTitle: 'Register ClawLive',
+      registerTitle: 'Join Kelo',
       registerSubtitle: 'Create account and start streaming',
       email: 'Email',
       confirmPassword: 'Confirm password',

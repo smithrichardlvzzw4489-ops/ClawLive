@@ -75,7 +75,7 @@ export function HomeFeedSections() {
             className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
               activePartition === null
                 ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                : 'bg-gray-200/70 text-gray-700 hover:bg-gray-300/80'
             }`}
           >
             {t('works.partitionAll')}
@@ -88,7 +88,7 @@ export function HomeFeedSections() {
               className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                 activePartition === p.id
                   ? 'bg-gray-900 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-200/70 text-gray-700 hover:bg-gray-300/80'
               }`}
             >
               {t(`partitions.${p.nameKey}`)}
@@ -131,7 +131,7 @@ export function HomeFeedSections() {
             )}
           </div>
         ) : (
-          <div className="columns-2 gap-3 sm:columns-3 sm:gap-3 md:columns-4 lg:columns-5 lg:gap-3">
+          <div className="w-full columns-2 gap-3 sm:columns-3 sm:gap-3 md:columns-4 lg:columns-5 2xl:columns-6 [column-fill:balance]">
             {filteredWorks.map((work) => (
               <WorkCard
                 key={`w-${work.id}`}

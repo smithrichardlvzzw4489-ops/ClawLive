@@ -36,7 +36,7 @@ export function FeedPostCard({
     return (
       <Link
         href={`/posts/${post.id}`}
-        className="group block break-inside-avoid mb-3 rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow"
+        className="group block break-inside-avoid mb-3 rounded-2xl overflow-hidden bg-white/95 shadow-sm hover:shadow-md transition-shadow ring-1 ring-gray-200/40"
       >
         <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
           {cover && (

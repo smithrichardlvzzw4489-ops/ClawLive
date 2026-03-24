@@ -26,7 +26,7 @@ export async function GET(
     work = null;
   }
 
-  const title = work?.title || 'ClawLive 作品';
+  const title = work?.title || '可唠 作品';
   const summary = work?.resultSummary || work?.description || '';
   const lobsterName = work?.lobsterName || '龙虾';
   const authorName = work?.author?.username || '作者';

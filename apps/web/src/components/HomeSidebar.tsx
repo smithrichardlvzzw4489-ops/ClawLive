@@ -3,9 +3,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 
 /**
- * 仅首页使用的左侧导航（桌面端），风格参考内容社区侧栏。
+ * 仅首页：桌面端左侧导航 + 发布/登录（顶栏同功能在 lg 隐藏）
  */
 export function HomeSidebar() {
   const pathname = usePathname();
@@ -17,7 +18,7 @@ export function HomeSidebar() {
       <Link
         href={href}
         className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-          active ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          active ? 'bg-gray-200/60 text-gray-900' : 'text-gray-600 hover:bg-gray-200/40 hover:text-gray-900'
         }`}
       >
         <span className="text-lg leading-none">{icon}</span>
@@ -27,18 +28,14 @@ export function HomeSidebar() {
   };
 
   return (
-    <aside className="hidden lg:flex w-[200px] shrink-0 flex-col border-r border-gray-200/80 bg-white sticky top-16 h-[calc(100vh-4rem)]">
-      <nav className="flex flex-col gap-0.5 p-3 pt-4">
+    <aside className="hidden lg:flex w-[220px] shrink-0 flex-col sticky top-16 h-[calc(100vh-4rem)] bg-[#f5f5f5] border-r border-gray-200/50">
+      <nav className="flex flex-col gap-0.5 p-3 pt-4 flex-1 min-h-0">
         {item('/', t('nav.home'), '🏠')}
         {item('/rooms', t('nav.live'), '📺')}
-        <Link
-          href="/works/create"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
-        >
-          <span className="text-lg leading-none">✏️</span>
-          {t('nav.publish')}
-        </Link>
       </nav>
+      <div className="p-3 pt-2 border-t border-gray-200/50">
+        <PublishAndAuthControls variant="sidebar" />
+      </div>
     </aside>
   );
 }

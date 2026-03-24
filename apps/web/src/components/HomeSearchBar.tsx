@@ -4,8 +4,8 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
-/** 首页主栏顶部搜索（替代顶栏内搜索，贴近信息流布局） */
-export function HomeSearchBar() {
+/** 首页主栏搜索（顶栏下方 sticky 区域使用） */
+export function HomeSearchBar({ className = '' }: { className?: string }) {
   const { t } = useLocale();
   const router = useRouter();
   const [q, setQ] = useState('');
@@ -17,8 +17,8 @@ export function HomeSearchBar() {
   };
 
   return (
-    <form onSubmit={onSubmit} className="mb-4">
-      <div className="relative max-w-2xl mx-auto">
+    <form onSubmit={onSubmit} className={`w-full ${className}`}>
+      <div className="relative w-full">
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" aria-hidden>
           🔍
         </span>
@@ -27,7 +27,7 @@ export function HomeSearchBar() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t('searchPlaceholder')}
-          className="w-full pl-11 pr-4 py-3 rounded-full bg-gray-100 border-0 text-gray-800 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-lobster/25 focus:bg-white transition-all"
+          className="w-full pl-11 pr-4 py-2.5 rounded-full bg-white/90 border border-gray-200/80 text-gray-800 placeholder:text-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-lobster/20 focus:bg-white focus:border-transparent transition-all shadow-sm"
         />
       </div>
     </form>

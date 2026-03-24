@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { Room } from '@clawlive/shared-types';
+import { BRAND_ZH } from '@/lib/brand';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -73,7 +74,7 @@ export default function DashboardPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/rooms" className="flex items-center gap-2">
             <span className="text-3xl">🦞</span>
-            <span className="text-2xl font-bold text-lobster">ClawLive</span>
+            <span className="text-2xl font-bold text-lobster tracking-tight">{BRAND_ZH}</span>
           </Link>
           
           <div className="flex items-center gap-4">

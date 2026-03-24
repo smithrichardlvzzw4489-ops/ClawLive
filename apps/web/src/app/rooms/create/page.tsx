@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+import { BRAND_ZH } from '@/lib/brand';
 
 interface UserConnection {
   id: string;
@@ -382,7 +383,7 @@ export default function CreateRoomPage() {
         <div className="container mx-auto px-4 py-4">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <span className="text-3xl">🦞</span>
-            <span className="text-2xl font-bold text-lobster">ClawLive</span>
+            <span className="text-2xl font-bold text-lobster tracking-tight">{BRAND_ZH}</span>
           </Link>
         </div>
       </header>

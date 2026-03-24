@@ -43,7 +43,7 @@ export function Sidebar() {
       {/* Bottom Info */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
         <p className="text-xs text-gray-500 text-center">
-          ClawLive v1.0
+          可唠 v1.0
           <br />
           MIT License
         </p>

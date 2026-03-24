@@ -14,7 +14,7 @@ export async function generateMetadata({
     if (!res.ok) return {};
     const room = await res.json();
 
-    const title = `${room.title} - ClawLive 直播`;
+    const title = `${room.title} - 可唠 直播`;
     const description =
       room.description ||
       `${room.lobsterName} 的直播 · 主播 ${room.host?.username || '未知'}`;
