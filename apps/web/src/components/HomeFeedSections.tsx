@@ -24,7 +24,7 @@ interface Work {
 }
 
 /**
- * 首页同款：分区筛选 + 推荐作品 + 图文动态（供首页与创作者主页底部复用）
+ * 首页同款：分区筛选 + 推荐作品与图文动态（同一区块、同一网格）
  */
 export function HomeFeedSections() {
   const { t } = useLocale();
@@ -59,6 +59,11 @@ export function HomeFeedSections() {
     activePartition === null
       ? recommendedWorks
       : recommendedWorks.filter((w) => w.partition === activePartition);
+
+  const showFeedInGrid = activePartition === null;
+  const hasWorks = filteredWorks.length > 0;
+  const hasFeed = showFeedInGrid && feedPosts.length > 0;
+  const hasAny = hasWorks || hasFeed;
 
   return (
     <>
@@ -101,23 +106,33 @@ export function HomeFeedSections() {
           <div className="flex justify-center py-16">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-lobster" />
           </div>
-        ) : filteredWorks.length === 0 ? (
+        ) : !hasAny ? (
           <div className="text-center py-16 bg-white/80 rounded-2xl border-2 border-dashed border-gray-200">
-            <p className="text-gray-600 mb-4">{activePartition ? t('home.noWorksInPartition') : t('home.noWorks')}</p>
+            <p className="text-gray-600 mb-4">
+              {activePartition ? t('home.noWorksInPartition') : t('home.noWorks')}
+            </p>
             {!activePartition && (
-              <Link
-                href="/works/create"
-                className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium"
-              >
-                {t('works.createFirst')}
-              </Link>
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link
+                  href="/works/create"
+                  className="inline-block px-6 py-3 bg-lobster text-white rounded-xl font-medium"
+                >
+                  {t('works.createFirst')}
+                </Link>
+                <Link
+                  href="/posts/create"
+                  className="inline-block px-6 py-3 border border-lobster text-lobster rounded-xl font-medium hover:bg-lobster/5"
+                >
+                  {t('feedPost.createTitle')}
+                </Link>
+              </div>
             )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredWorks.map((work) => (
               <WorkCard
-                key={work.id}
+                key={`w-${work.id}`}
                 {...work}
                 publishedAt={work.publishedAt}
                 author={{
@@ -126,29 +141,10 @@ export function HomeFeedSections() {
                 }}
               />
             ))}
+            {showFeedInGrid &&
+              feedPosts.map((p) => <FeedPostCard key={`p-${p.id}`} post={p} />)}
           </div>
         )}
-      </section>
-
-      <section className="mb-16">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <span className="w-1 h-6 bg-emerald-500 rounded-full" />
-            {t('home.feedPostsSection')}
-          </h2>
-        </div>
-        <p className="text-sm text-gray-500 mb-4">{t('home.feedPostsDesc')}</p>
-        {!loading && feedPosts.length === 0 ? (
-          <p className="text-gray-400 py-8 text-center border border-dashed border-gray-200 rounded-xl">
-            {t('feedPost.emptyFeed')}
-          </p>
-        ) : !loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {feedPosts.map((p) => (
-              <FeedPostCard key={p.id} post={p} />
-            ))}
-          </div>
-        ) : null}
       </section>
     </>
   );

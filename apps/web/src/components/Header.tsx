@@ -147,6 +147,12 @@ export function Header() {
 
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                   <Link
+                    href="/my-profile"
+                    className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster transition-colors"
+                  >
+                    👤 {t('nav.myProfile')}
+                  </Link>
+                  <Link
                     href="/my-agent"
                     className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster transition-colors"
                   >
