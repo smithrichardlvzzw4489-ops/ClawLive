@@ -5,10 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
-type Variant = 'nav' | 'sidebar';
+type Variant = 'nav' | 'sidebar' | 'rail';
+
+/** 与左侧栏「首页」「直播」链接同款：圆角条、字重 */
+const railRow =
+  'flex w-full items-center gap-3 rounded-full px-4 py-3 text-[15px] font-medium transition-colors text-gray-700 hover:bg-gray-100/90 hover:text-gray-900';
+const railRowOpen = 'bg-gray-200/90 text-gray-900 font-semibold';
 
 const navBtn =
-  'px-4 py-2 rounded-lg font-medium transition-colors text-gray-700 hover:text-lobster hover:bg-gray-50 flex items-center gap-1 shrink-0';
+  'rounded-full px-3 py-2 text-[15px] font-medium text-gray-700 transition-colors hover:bg-gray-100/90 hover:text-gray-900 flex items-center gap-1 shrink-0 sm:px-4';
 
 /**
  * 发布下拉 + 登录/用户菜单。nav：与顶栏「首页」「直播」同款字重与圆角。
@@ -36,7 +41,99 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
     router.push('/login');
   };
 
-  const menuAlign = variant === 'sidebar' ? 'left-0' : 'right-0';
+  const menuAlign = variant === 'sidebar' || variant === 'rail' ? 'left-0' : 'right-0';
+
+  if (variant === 'rail') {
+    return (
+      <div className="flex w-full flex-col gap-0.5">
+        <div className="relative w-full">
+          <button
+            type="button"
+            onClick={() => setShowPublishMenu(!showPublishMenu)}
+            className={`${railRow} ${showPublishMenu ? railRowOpen : ''}`}
+          >
+            <span className="text-xl leading-none">✏️</span>
+            <span className="flex-1 text-left">{t('nav.publish')}</span>
+            <svg className="h-4 w-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showPublishMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowPublishMenu(false)} />
+              <div className={`absolute ${menuAlign} left-0 right-0 z-50 mt-1 rounded-xl border bg-white py-1 shadow-lg`}>
+                <Link
+                  href={user ? '/works/create' : '/login?redirect=/works/create'}
+                  className="block px-4 py-3 text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowPublishMenu(false)}
+                >
+                  🦞 {t('nav.publishCoCreate')}
+                </Link>
+                <Link
+                  href={user ? '/posts/create' : '/login?redirect=/posts/create'}
+                  className="block border-t px-4 py-3 text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowPublishMenu(false)}
+                >
+                  📝 {t('nav.publishPost')}
+                </Link>
+                <Link
+                  href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
+                  className="block border-t px-4 py-3 text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowPublishMenu(false)}
+                >
+                  📹 {t('nav.publishLive')}
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+        {user ? (
+          <div className="relative group w-full">
+            <button type="button" className={`${railRow} w-full`}>
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-200 text-sm font-semibold text-gray-700">
+                  {user.username.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span className="min-w-0 flex-1 truncate text-left">{user.username}</span>
+              <svg className="h-4 w-4 shrink-0 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            <div className="invisible absolute left-0 right-0 z-50 mt-1 w-full rounded-xl border bg-white opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
+              <Link href="/my-profile" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+                👤 {t('nav.myProfile')}
+              </Link>
+              <Link href="/my-agent" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+                🤖 {t('nav.myAgent')}
+              </Link>
+              <Link href="/my-streams" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+                📺 {t('nav.myStreams')}
+              </Link>
+              <Link href="/my-works" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+                📚 {t('nav.myWorks')}
+              </Link>
+              <div className="border-t" />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="block w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 hover:text-lobster"
+              >
+                {t('logout')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <Link href="/login" className={railRow}>
+            <span className="text-xl leading-none">👤</span>
+            <span>{t('login')}</span>
+          </Link>
+        )}
+      </div>
+    );
+  }
 
   if (variant === 'sidebar') {
     return (
