@@ -156,7 +156,7 @@ export const translations = {
     // 直播
     rooms: {
       title: '直播',
-      subtitle: '实时观看创作者如何让 Agent 解决真实问题，并把过程沉淀为可订阅能力',
+      subtitle: '实时观看创作者与 AI Agent 共创',
       createRoom: '创建直播间',
       noLive: '暂无正在直播的房间',
       createAndStart: '创建直播间并开始直播吧！',
@@ -566,7 +566,7 @@ export const translations = {
 
     rooms: {
       title: 'Live',
-      subtitle: 'Watch creators solve real problems with Agent and solidify process into subscribable capabilities',
+      subtitle: 'Watch live as creators co-create with AI Agents',
       createRoom: 'Create Room',
       noLive: 'No live rooms',
       createAndStart: 'Create a room and start streaming!',
