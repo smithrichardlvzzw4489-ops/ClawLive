@@ -29,57 +29,42 @@ export function Header() {
   };
 
   const isActive = (path: string) => pathname.startsWith(path);
-  const isHome = pathname === '/';
+
+  const navLink = (href: string, label: string, active: boolean) => (
+    <Link
+      href={href}
+      className={`px-4 py-2 rounded-lg font-medium transition-colors shrink-0 ${
+        active ? 'text-lobster bg-lobster/10' : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
+      }`}
+    >
+      {label}
+    </Link>
+  );
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white border-b z-50 shadow-sm">
-      <div className="h-16 px-4 sm:px-6 flex items-center gap-4 lg:gap-8">
-        <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-3xl">🦞</span>
-          <span className="text-2xl font-bold text-lobster tracking-tight">{BRAND_ZH}</span>
+    <header className="fixed top-0 left-0 right-0 z-50 border-b border-gray-200/50 bg-[#f5f5f5] shadow-sm">
+      <div className="mx-auto flex h-16 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6">
+        <Link href="/" className="flex shrink-0 items-center gap-2">
+          <span className="text-3xl leading-none">🦞</span>
+          <span className="text-2xl font-bold tracking-tight text-lobster">{BRAND_ZH}</span>
         </Link>
 
-        <nav className={`flex items-center gap-1 ${isHome ? 'lg:hidden' : ''}`}>
-          <Link
-            href="/"
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              pathname === '/'
-                ? 'text-lobster bg-lobster/10'
-                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
-            }`}
-          >
-            {t('nav.home')}
-          </Link>
-          <Link
-            href="/rooms"
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              isActive('/rooms')
-                ? 'text-lobster bg-lobster/10'
-                : 'text-gray-700 hover:text-lobster hover:bg-gray-50'
-            }`}
-          >
-            {t('nav.live')}
-          </Link>
+        <nav className="flex shrink-0 items-center gap-1">
+          {navLink('/', t('nav.home'), pathname === '/')}
+          {navLink('/rooms', t('nav.live'), isActive('/rooms'))}
         </nav>
 
-        {isHome ? (
-          <div className="flex-1 min-w-0" aria-hidden />
-        ) : (
-          <form onSubmit={handleSearch} className="flex-1 max-w-xl min-w-0">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-full text-gray-700 placeholder:text-gray-400 focus:outline-none focus:border-lobster focus:ring-2 focus:ring-lobster/20 transition-all"
-            />
-          </form>
-        )}
+        <PublishAndAuthControls variant="nav" />
 
-        {/* 首页：桌面端发布/登录在左侧栏；移动端仍用顶栏 */}
-        <div className={`items-center gap-3 flex-shrink-0 ${isHome ? 'flex lg:hidden' : 'flex'}`}>
-          <PublishAndAuthControls variant="header" />
-        </div>
+        <form onSubmit={handleSearch} className="min-w-0 flex-1 max-w-2xl">
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder={t('searchPlaceholder')}
+            className="w-full rounded-full border border-gray-200/80 bg-white/90 px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-lobster/20"
+          />
+        </form>
       </div>
     </header>
   );

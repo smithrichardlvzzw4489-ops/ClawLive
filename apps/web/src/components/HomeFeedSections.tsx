@@ -131,7 +131,7 @@ export function HomeFeedSections() {
             )}
           </div>
         ) : (
-          <div className="w-full columns-2 gap-3 sm:columns-3 sm:gap-3 md:columns-4 lg:columns-5 2xl:columns-6 [column-fill:balance]">
+          <div className="w-full columns-2 gap-3 [column-fill:balance] sm:columns-3 sm:gap-3 md:columns-4 md:gap-3 lg:columns-4">
             {filteredWorks.map((work) => (
               <WorkCard
                 key={`w-${work.id}`}
