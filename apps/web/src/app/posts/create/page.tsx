@@ -291,8 +291,9 @@ export default function CreateFeedPostPage() {
               className={`rounded-full px-3 py-1 text-xs font-medium transition ${
                 splitPreview ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
+              title={splitPreview ? t('feedPost.layoutStackHint') : t('feedPost.layoutSplitHint')}
             >
-              {splitPreview ? t('feedPost.editTab') : t('feedPost.previewTab')}
+              {splitPreview ? t('feedPost.layoutStack') : t('feedPost.layoutSplit')}
             </button>
             <input
               ref={inlineImageInputRef}
@@ -321,7 +322,7 @@ export default function CreateFeedPostPage() {
                 {bodyCountLabel}
               </span>
             </div>
-            <div className={splitPreview ? 'grid gap-4 md:grid-cols-2' : ''}>
+            <div className={splitPreview ? 'grid gap-4 md:grid-cols-2' : 'flex flex-col gap-4'}>
               <textarea
                 ref={textareaRef}
                 value={content}
@@ -330,11 +331,14 @@ export default function CreateFeedPostPage() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm leading-relaxed focus:border-lobster focus:ring-2 focus:ring-lobster/30"
                 placeholder="支持 Markdown（# 标题、列表、**粗体**、链接、插入正文图片等）…"
               />
-              {splitPreview && (
-                <div className="max-h-[min(32rem,70vh)] overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-inner">
+              <div className="flex min-h-0 flex-col rounded-lg border border-gray-200 bg-white shadow-inner">
+                <div className="shrink-0 border-b border-gray-100 px-4 py-2 text-xs font-medium text-gray-500">
+                  {t('feedPost.livePreview')}
+                </div>
+                <div className="max-h-[min(32rem,70vh)] min-h-[8rem] overflow-y-auto px-4 py-3">
                   <MarkdownBody content={content} />
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
