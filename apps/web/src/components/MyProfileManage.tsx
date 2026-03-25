@@ -50,11 +50,28 @@ interface MyFeedPost {
   createdAt: string;
 }
 
+interface HostMetrics {
+  followerCount: number;
+  totalSessions: number;
+  skillCount: number;
+}
+
+interface MySkillItem {
+  id: string;
+  title: string;
+  description?: string;
+  viewCount: number;
+  useCount: number;
+  sourceWorkId?: string;
+}
+
 export function MyProfileManage() {
   const router = useRouter();
   const { t } = useLocale();
   const [data, setData] = useState<MyWorksData | null>(null);
   const [feedPosts, setFeedPosts] = useState<MyFeedPost[]>([]);
+  const [hostMetrics, setHostMetrics] = useState<HostMetrics | null>(null);
+  const [mySkills, setMySkills] = useState<MySkillItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -75,14 +92,17 @@ export function MyProfileManage() {
         return;
       }
       const userData = await userResponse.json();
+      const uid = userData.id as string;
 
-      const [worksRes, feedRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/works/user/${userData.id}?includeDrafts=true`, {
+      const [worksRes, feedRes, hostRes, skillsRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/works/user/${uid}?includeDrafts=true`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`${API_BASE_URL}/api/feed-posts/me`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        fetch(`${API_BASE_URL}/api/rooms/host/${uid}`),
+        fetch(`${API_BASE_URL}/api/skills?authorId=${encodeURIComponent(uid)}`),
       ]);
 
       if (!worksRes.ok) throw new Error('works');
@@ -94,6 +114,35 @@ export function MyProfileManage() {
         setFeedPosts(Array.isArray(fd.posts) ? fd.posts : []);
       } else {
         setFeedPosts([]);
+      }
+
+      if (hostRes.ok) {
+        const hd = await hostRes.json();
+        const st = hd.stats ?? {};
+        setHostMetrics({
+          followerCount: typeof st.followerCount === 'number' ? st.followerCount : 0,
+          totalSessions: typeof st.totalSessions === 'number' ? st.totalSessions : 0,
+          skillCount: typeof st.skillCount === 'number' ? st.skillCount : 0,
+        });
+      } else {
+        setHostMetrics({ followerCount: 0, totalSessions: 0, skillCount: 0 });
+      }
+
+      if (skillsRes.ok) {
+        const sd = await skillsRes.json();
+        const list = Array.isArray(sd.skills) ? sd.skills : [];
+        setMySkills(
+          list.map((s: MySkillItem & { sourceWorkId?: string }) => ({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            viewCount: s.viewCount ?? 0,
+            useCount: s.useCount ?? 0,
+            sourceWorkId: s.sourceWorkId,
+          })),
+        );
+      } else {
+        setMySkills([]);
       }
     } catch {
       setError(t('workDetail.loadFailed'));
@@ -163,82 +212,247 @@ export function MyProfileManage() {
   const userId = author?.id;
   const draftWorks = works.filter((w) => w.status === 'draft');
   const publishedWorks = works.filter((w) => w.status === 'published');
+  const workTotal = draftWorks.length + publishedWorks.length;
+  const metrics = hostMetrics ?? { followerCount: 0, totalSessions: 0, skillCount: 0 };
 
   return (
     <MainLayout>
-      <div className="container mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex items-start gap-4">
-              {author?.avatarUrl ? (
-                <img
-                  src={resolveMediaUrl(author.avatarUrl)}
-                  alt=""
-                  className="h-20 w-20 shrink-0 rounded-full border-4 border-lobster/20 object-cover sm:h-24 sm:w-24"
-                />
-              ) : (
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-lobster text-2xl font-bold text-white sm:h-24 sm:w-24">
-                  {author?.username.charAt(0).toUpperCase() ?? '?'}
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('myProfileCenter.pageTitle')}</h1>
-                <p className="mt-1 text-gray-600">{author?.username}</p>
-                <p className="mt-3 max-w-xl text-sm text-gray-500">{t('myProfileCenter.pageSubtitle')}</p>
-                <div className="mt-4 flex flex-wrap gap-4 text-sm">
-                  <span>
-                    <span className="font-semibold text-gray-900">{stats.totalWorks}</span>{' '}
-                    <span className="text-gray-600">{t('myWorks.works')}</span>
-                  </span>
-                  <span>
-                    <span className="font-semibold text-gray-900">{stats.totalViews}</span>{' '}
-                    <span className="text-gray-600">{t('myWorks.views')}</span>
-                  </span>
-                  <span>
-                    <span className="font-semibold text-gray-900">{stats.totalLikes}</span>{' '}
-                    <span className="text-gray-600">{t('myWorks.likes')}</span>
-                  </span>
-                </div>
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        {/* 顶部：身份 + 快捷操作 */}
+        <header className="mb-8 flex flex-col gap-6 rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            {author?.avatarUrl ? (
+              <img
+                src={resolveMediaUrl(author.avatarUrl)}
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-full border-2 border-white object-cover shadow-md ring-2 ring-lobster/20 sm:h-20 sm:w-20"
+              />
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-lobster to-rose-600 text-2xl font-bold text-white shadow-md sm:h-20 sm:w-20">
+                {author?.username.charAt(0).toUpperCase() ?? '?'}
               </div>
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:flex-col">
-              {userId && (
-                <Link
-                  href={`/host/${userId}`}
-                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-800 shadow-sm transition hover:bg-gray-50"
-                >
-                  {t('myProfileCenter.openPublicProfile')} →
-                </Link>
-              )}
-              <Link
-                href="/works/create"
-                className="inline-flex items-center justify-center rounded-xl bg-lobster px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-lobster-dark"
-              >
-                + {t('myWorks.createNew')}
-              </Link>
-              <Link
-                href="/posts/create"
-                className="inline-flex items-center justify-center rounded-xl border border-lobster/40 bg-rose-50 px-5 py-2.5 text-sm font-medium text-lobster transition hover:bg-rose-100"
-              >
-                + {t('myProfileCenter.newFeedPost')}
-              </Link>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">{t('myProfileCenter.pageTitle')}</h1>
+              <p className="text-gray-600">{author?.username}</p>
+              <p className="mt-1 max-w-md text-sm text-gray-500">{t('myProfileCenter.pageSubtitle')}</p>
             </div>
           </div>
-        </div>
+          <div className="flex flex-wrap gap-2">
+            {userId && (
+              <Link
+                href={`/host/${userId}`}
+                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50"
+              >
+                {t('myProfileCenter.openPublicProfile')}
+              </Link>
+            )}
+            <Link
+              href="/works/create"
+              className="inline-flex items-center justify-center rounded-xl bg-lobster px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-lobster-dark"
+            >
+              + {t('myWorks.createNew')}
+            </Link>
+            <Link
+              href="/posts/create"
+              className="inline-flex items-center justify-center rounded-xl border border-lobster/30 bg-rose-50 px-4 py-2.5 text-sm font-medium text-lobster hover:bg-rose-100"
+            >
+              + {t('myProfileCenter.newFeedPost')}
+            </Link>
+          </div>
+        </header>
+
+        {/* 数据概览：粉丝 / 直播 / 能力流 / 作品 */}
+        <section className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statFollowers')}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.followerCount}</p>
+          </div>
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statLiveSessions')}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.totalSessions}</p>
+          </div>
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statSkills')}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{mySkills.length || metrics.skillCount}</p>
+          </div>
+          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statWorks')}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{workTotal}</p>
+            <p className="mt-0.5 text-[10px] text-gray-400">
+              {t('myWorks.views')} {stats.totalViews} · {t('myWorks.likes')} {stats.totalLikes}
+            </p>
+          </div>
+        </section>
+
+        {/* 我的作品：正在创作 / 已发布 */}
+        <section className="mb-10">
+          <h2 className="mb-4 text-lg font-bold text-gray-900">{t('myProfileCenter.sectionWorks')}</h2>
+
+          <div className="space-y-8">
+            <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 p-5 sm:p-6">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h3 className="text-base font-semibold text-amber-950">
+                  {t('myProfileCenter.sectionInProgress')}
+                  <span className="ml-2 rounded-full bg-amber-200/80 px-2 py-0.5 text-xs font-medium text-amber-900">
+                    {draftWorks.length}
+                  </span>
+                </h3>
+              </div>
+              {draftWorks.length === 0 ? (
+                <p className="text-sm text-amber-900/70">{t('myProfileCenter.emptyInProgress')}</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {draftWorks.map((work) => (
+                    <div
+                      key={work.id}
+                      className="rounded-xl border border-amber-100 bg-white p-4 shadow-sm"
+                    >
+                      <h4 className="font-semibold text-gray-900">{work.title}</h4>
+                      <p className="mt-1 text-sm text-gray-500">🦞 {work.lobsterName}</p>
+                      <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
+                        <span>💬 {work.messageCount}</span>
+                        <span>{new Date(work.updatedAt).toLocaleDateString('zh-CN')}</span>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Link
+                          href={`/works/${work.id}/studio`}
+                          className="flex-1 rounded-lg bg-lobster py-2 text-center text-sm font-medium text-white hover:bg-lobster-dark"
+                        >
+                          {t('myWorks.continueEdit')}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => deleteWork(work.id)}
+                          className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          {t('myWorks.delete')}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/30 p-5 sm:p-6">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h3 className="text-base font-semibold text-emerald-950">
+                  {t('myProfileCenter.sectionPublished')}
+                  <span className="ml-2 rounded-full bg-emerald-200/80 px-2 py-0.5 text-xs font-medium text-emerald-900">
+                    {publishedWorks.length}
+                  </span>
+                </h3>
+              </div>
+              {publishedWorks.length === 0 ? (
+                <p className="text-sm text-emerald-900/70">{t('myProfileCenter.emptyPublished')}</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {publishedWorks.map((work) => (
+                    <div
+                      key={work.id}
+                      className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
+                    >
+                      <Link href={`/works/${work.id}`} className="block">
+                        <div className={`relative aspect-video ${getWorkCardGradient(work.id)}`}>
+                          {work.coverImage ? (
+                            <img
+                              src={resolveMediaUrl(work.coverImage)}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <span className="text-5xl opacity-50">🦞</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <h4 className="line-clamp-2 font-semibold text-gray-900">{work.title}</h4>
+                          <p className="mt-1 text-xs text-gray-500">
+                            👁 {work.viewCount} · 💬 {work.messageCount}
+                          </p>
+                        </div>
+                      </Link>
+                      <div className="flex gap-2 border-t border-gray-50 px-2 py-2">
+                        <Link
+                          href={`/works/${work.id}/studio`}
+                          className="flex-1 rounded-lg bg-gray-100 py-2 text-center text-xs font-medium text-gray-800 hover:bg-gray-200"
+                        >
+                          {t('myProfileCenter.editWork')}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => deleteWork(work.id)}
+                          className="rounded-lg border border-red-200 px-2 py-2 text-xs text-red-600 hover:bg-red-50"
+                        >
+                          {t('myWorks.delete')}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* 能力流 */}
+        <section className="mb-10">
+          <h2 className="mb-4 text-lg font-bold text-gray-900">{t('myProfileCenter.sectionSkills')}</h2>
+          {mySkills.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-4 py-10 text-center text-sm text-gray-500">
+              {t('myProfileCenter.emptySkills')}
+            </div>
+          ) : (
+            <ul className="space-y-3">
+              {mySkills.map((s) => (
+                <li
+                  key={s.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900">{s.title}</p>
+                    {s.description && (
+                      <p className="mt-1 line-clamp-2 text-sm text-gray-500">{s.description}</p>
+                    )}
+                    <p className="mt-2 text-xs text-gray-400">
+                      👁 {s.viewCount} · 🔁 {s.useCount}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {s.sourceWorkId ? (
+                      <Link
+                        href={`/works/${s.sourceWorkId}`}
+                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        {t('myProfileCenter.skillFromWork')}
+                      </Link>
+                    ) : (
+                      <span className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs text-gray-600">
+                        {t('myProfileCenter.skillStandalone')}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* 图文动态 */}
-        <section className="mb-12">
-          <h2 className="mb-4 text-xl font-bold text-gray-900">{t('myProfileCenter.feedSection')}</h2>
+        <section className="mb-8">
+          <h2 className="mb-4 text-lg font-bold text-gray-900">{t('myProfileCenter.feedSection')}</h2>
           {feedPosts.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 py-10 text-center text-gray-500">
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 py-10 text-center text-sm text-gray-500">
               {t('myProfileCenter.feedEmpty')}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {feedPosts.map((post) => (
                 <div
                   key={post.id}
-                  className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
+                  className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
                 >
                   <Link href={`/posts/${post.id}`} className="block">
                     <div className="aspect-video bg-gray-100">
@@ -261,11 +475,11 @@ export function MyProfileManage() {
                       </p>
                     </div>
                   </Link>
-                  <div className="flex gap-2 border-t border-gray-100 p-2">
+                  <div className="border-t border-gray-100 p-2">
                     <button
                       type="button"
                       onClick={() => deleteFeedPost(post.id)}
-                      className="flex-1 rounded-lg border border-red-200 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                      className="w-full rounded-lg border border-red-200 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
                     >
                       {t('myWorks.delete')}
                     </button>
@@ -276,124 +490,19 @@ export function MyProfileManage() {
           )}
         </section>
 
-        {/* 草稿 */}
-        {draftWorks.length > 0 && (
-          <section className="mb-12">
-            <h2 className="mb-6 text-2xl font-bold text-gray-900">📝 {t('myWorks.drafts')}</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {draftWorks.map((work) => (
-                <div key={work.id} className="rounded-lg bg-white p-6 shadow transition-shadow hover:shadow-lg">
-                  <div className="mb-3 flex items-start justify-between">
-                    <h3 className="flex-1 text-xl font-semibold text-gray-900">{work.title}</h3>
-                    <span className="rounded bg-yellow-100 px-2 py-1 text-xs font-semibold text-yellow-700">
-                      {t('myWorks.drafts')}
-                    </span>
-                  </div>
-                  <p className="mb-3 text-gray-600">🦞 {work.lobsterName}</p>
-                  {work.description && (
-                    <p className="mb-3 line-clamp-2 text-sm text-gray-500">{work.description}</p>
-                  )}
-                  <div className="mb-4 flex items-center justify-between text-sm text-gray-500">
-                    <span>💬 {work.messageCount}</span>
-                    <span>{new Date(work.updatedAt).toLocaleDateString('zh-CN')}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/works/${work.id}/studio`}
-                      className="flex-1 rounded-lg bg-lobster py-2 text-center text-white transition hover:bg-lobster-dark"
-                    >
-                      {t('myWorks.continueEdit')}
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => deleteWork(work.id)}
-                      className="rounded-lg border border-red-300 px-4 py-2 text-red-600 transition hover:bg-red-50"
-                    >
-                      {t('myWorks.delete')}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {draftWorks.length === 0 && publishedWorks.length === 0 && feedPosts.length === 0 && (
-          <section className="mb-12">
-            <div className="rounded-lg bg-white p-12 text-center shadow">
-              <div className="mb-4 text-6xl">📚</div>
-              <h3 className="mb-2 text-xl font-semibold text-gray-900">{t('myWorks.noWorks')}</h3>
-              <p className="mb-6 text-gray-600">{t('myWorks.createPrompt')}</p>
-              <Link
-                href="/works/create"
-                className="inline-block rounded-lg bg-lobster px-6 py-3 font-semibold text-white hover:bg-lobster-dark"
-              >
-                {t('myWorks.createWork')}
-              </Link>
-            </div>
-          </section>
-        )}
-
-        {/* 已发布作品 */}
-        {publishedWorks.length > 0 && (
-          <section>
-            <h2 className="mb-6 text-2xl font-bold text-gray-900">✅ {t('myWorks.published')}</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {publishedWorks.map((work) => (
-                <div
-                  key={work.id}
-                  className="relative overflow-hidden rounded-xl bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-xl"
-                >
-                  <Link href={`/works/${work.id}`} className="block">
-                    <div className={`relative aspect-video ${getWorkCardGradient(work.id)}`}>
-                      {work.coverImage ? (
-                        <img
-                          src={resolveMediaUrl(work.coverImage)}
-                          alt=""
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <span className="text-6xl opacity-50">🦞</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="mb-2 line-clamp-2 text-base font-semibold text-gray-900">{work.title}</h3>
-                      <p className="mb-3 text-sm text-gray-600">🦞 {work.lobsterName}</p>
-                      <div className="flex items-center justify-between border-t pt-3 text-xs text-gray-500">
-                        <div className="flex gap-2">
-                          <span>👁️ {work.viewCount}</span>
-                          <span>💬 {work.messageCount}</span>
-                        </div>
-                        {work.publishedAt && (
-                          <span>{new Date(work.publishedAt).toLocaleDateString('zh-CN')}</span>
-                        )}
-                      </div>
-                    </div>
-                  </Link>
-                  <div className="flex gap-2 border-t border-gray-100 px-2 py-2">
-                    <Link
-                      href={`/works/${work.id}/studio`}
-                      className="flex-1 rounded-lg bg-gray-100 py-2 text-center text-xs font-medium text-gray-800 hover:bg-gray-200"
-                    >
-                      {t('myProfileCenter.editWork')}
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        deleteWork(work.id);
-                      }}
-                      className="rounded-lg border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50"
-                    >
-                      {t('myWorks.delete')}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+        {/* 全空引导 */}
+        {draftWorks.length === 0 && publishedWorks.length === 0 && feedPosts.length === 0 && mySkills.length === 0 && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+            <div className="mb-3 text-5xl">🦞</div>
+            <h3 className="text-lg font-semibold text-gray-900">{t('myWorks.noWorks')}</h3>
+            <p className="mt-2 text-gray-600">{t('myWorks.createPrompt')}</p>
+            <Link
+              href="/works/create"
+              className="mt-6 inline-block rounded-xl bg-lobster px-6 py-3 font-semibold text-white hover:bg-lobster-dark"
+            >
+              {t('myWorks.createWork')}
+            </Link>
+          </div>
         )}
       </div>
     </MainLayout>
