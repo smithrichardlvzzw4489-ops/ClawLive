@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { MarkdownBody } from '@/components/MarkdownBody';
 import { CoverImageCropModal } from '@/components/CoverImageCropModal';
+import { FeedPostBodyEditor, type FeedPostBodyEditorHandle } from '@/components/FeedPostBodyEditor';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
 import {
@@ -70,7 +71,8 @@ export default function CreateFeedPostPage() {
   /** 默认开启分栏预览，便于插入正文图片后立即在右侧看到渲染效果 */
   const [splitPreview, setSplitPreview] = useState(true);
   const [inlineImageBusy, setInlineImageBusy] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [bodyEditorKey, setBodyEditorKey] = useState(0);
+  const bodyEditorRef = useRef<FeedPostBodyEditorHandle>(null);
   const inlineImageInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +82,7 @@ export default function CreateFeedPostPage() {
       setTitle(d.title);
       setContent(d.content);
       setDraftBanner(true);
+      setBodyEditorKey((k) => k + 1);
     }
   }, []);
 
@@ -104,32 +107,20 @@ export default function CreateFeedPostPage() {
     clearDraftStorage();
     setDraftBanner(false);
     setDraftToast(null);
+    setTitle('');
+    setContent('');
+    setBodyEditorKey((k) => k + 1);
   }, []);
 
   const handleOneClickLayout = useCallback(() => {
     setContent((c) => oneClickLayoutMarkdown(c));
+    setBodyEditorKey((k) => k + 1);
     setLayoutToast(t('feedPost.layoutApplied'));
     window.setTimeout(() => setLayoutToast(null), 2200);
   }, [t]);
 
   const insertMarkdownAtCursor = useCallback((snippet: string) => {
-    const ta = textareaRef.current;
-    if (!ta) {
-      setContent((c) => (c + snippet).slice(0, FEED_POST_MAX_CONTENT));
-      return;
-    }
-    const start = ta.selectionStart;
-    const end = ta.selectionEnd;
-    const val = ta.value;
-    const before = val.slice(0, start);
-    const after = val.slice(end);
-    const merged = (before + snippet + after).slice(0, FEED_POST_MAX_CONTENT);
-    setContent(merged);
-    requestAnimationFrame(() => {
-      ta.focus();
-      const pos = Math.min(start + snippet.length, merged.length);
-      ta.setSelectionRange(pos, pos);
-    });
+    bodyEditorRef.current?.insertSnippet(snippet);
   }, []);
 
   const onPickInlineImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -327,12 +318,13 @@ export default function CreateFeedPostPage() {
               </span>
             </div>
             <div className={splitPreview ? 'grid gap-4 md:grid-cols-2' : 'flex flex-col gap-4'}>
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value.slice(0, FEED_POST_MAX_CONTENT))}
-                rows={splitPreview ? 18 : 14}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm leading-relaxed focus:border-lobster focus:ring-2 focus:ring-lobster/30"
+              <FeedPostBodyEditor
+                key={bodyEditorKey}
+                ref={bodyEditorRef}
+                initialContent={content}
+                onChange={(v) => setContent(v.slice(0, FEED_POST_MAX_CONTENT))}
+                maxLength={FEED_POST_MAX_CONTENT}
+                minRows={splitPreview ? 18 : 14}
                 placeholder="支持 Markdown（# 标题、列表、**粗体**、链接、插入正文图片等）…"
               />
               <div className="flex min-h-0 flex-col rounded-lg border border-gray-200 bg-white shadow-inner">
