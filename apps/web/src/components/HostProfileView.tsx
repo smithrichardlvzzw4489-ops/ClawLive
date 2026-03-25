@@ -30,6 +30,8 @@ interface Room {
 
 interface HostWork {
   id: string;
+  /** 传统作品 / 发作品图文 */
+  kind?: 'work' | 'feedPost';
   title: string;
   resultSummary?: string;
   partition?: string;
@@ -37,7 +39,7 @@ interface HostWork {
   videoUrl?: string;
   viewCount: number;
   likeCount: number;
-  publishedAt?: Date;
+  publishedAt?: Date | string;
 }
 
 interface HostSkill {
@@ -207,7 +209,7 @@ export function HostProfileView({
 
   const WorkCard = ({ work }: { work: HostWork }) => (
     <Link
-      href={`/works/${work.id}`}
+      href={work.kind === 'feedPost' ? `/posts/${work.id}` : `/works/${work.id}`}
       className="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden"
     >
       <div className="aspect-video bg-gray-100 flex items-center justify-center">

@@ -19,6 +19,27 @@ import {
   getMemoryRoomsMap,
   getMemoryMessagesMap,
 } from '../../lib/rooms-store';
+import { getFeedPostsMap } from '../../services/feed-posts-store';
+
+/** 与 web excerptPlainText 对齐的摘要，用于主播页作品卡片（含发作品图文） */
+function excerptForHostCard(content: string, maxLen: number): string {
+  const t = content
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/[*_~]{1,2}([^*_~]+)[*_~]{1,2}/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen)}…`;
+}
+
+function publishedTimeMs(publishedAt: Date | string | undefined): number {
+  if (!publishedAt) return 0;
+  return publishedAt instanceof Date ? publishedAt.getTime() : new Date(publishedAt).getTime();
+}
 
 // 兼容旧代码：导出 store 的 memory（仅单实例时正确，多实例请用 getRoom/getMessageHistory）
 const roomInfo = getMemoryRoomsMap();
@@ -458,21 +479,39 @@ export function roomSimpleRoutes(io: Server): Router {
           messageCount: history.messages.length,
         }));
 
-      const hostWorks = Array.from(works.values())
-        .filter(w => w.authorId === hostId && w.status === 'published')
-        .sort((a, b) => (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0))
-        .slice(0, 12)
-        .map(w => ({
-          id: w.id,
-          title: w.title,
-          resultSummary: w.resultSummary,
-          partition: w.partition,
-          coverImage: w.coverImage,
-          videoUrl: w.videoUrl,
-          viewCount: w.viewCount,
-          likeCount: w.likeCount,
-          publishedAt: w.publishedAt,
-        }));
+      const publishedClassicWorks = Array.from(works.values()).filter(
+        w => w.authorId === hostId && w.status === 'published'
+      );
+      const classicAsHostWorks = publishedClassicWorks.map(w => ({
+        id: w.id,
+        kind: 'work' as const,
+        title: w.title,
+        resultSummary: w.resultSummary,
+        partition: w.partition,
+        coverImage: w.coverImage,
+        videoUrl: w.videoUrl,
+        viewCount: w.viewCount,
+        likeCount: w.likeCount,
+        publishedAt: w.publishedAt,
+      }));
+
+      const feedPostsForHost = Array.from(getFeedPostsMap().values()).filter((p) => p.authorId === hostId);
+      const feedAsHostWorks = feedPostsForHost.map((p) => ({
+        id: p.id,
+        kind: 'feedPost' as const,
+        title: p.title,
+        resultSummary: excerptForHostCard(p.content, 120),
+        partition: undefined as string | undefined,
+        coverImage: p.imageUrls?.[0],
+        videoUrl: undefined as string | undefined,
+        viewCount: p.viewCount,
+        likeCount: p.likeCount ?? 0,
+        publishedAt: new Date(p.createdAt),
+      }));
+
+      const hostWorks = [...classicAsHostWorks, ...feedAsHostWorks]
+        .sort((a, b) => publishedTimeMs(b.publishedAt) - publishedTimeMs(a.publishedAt))
+        .slice(0, 12);
 
       const skillsMap = SkillsPersistence.loadAll();
       const hostSkills = Array.from(skillsMap.values())
@@ -536,6 +575,18 @@ export function roomSimpleRoutes(io: Server): Router {
       }
       const tags = Array.from(tagsSet).slice(0, 8);
 
+      const historyRoomIds = new Set(historySessions.map((h) => h.roomId));
+      let extraLiveSessionsFromRooms = 0;
+      for (const r of allRooms) {
+        if (r.hostId !== hostId) continue;
+        if (historyRoomIds.has(r.id)) continue;
+        if (r.startedAt || r.isLive) extraLiveSessionsFromRooms++;
+      }
+      const totalSessions = historySessions.length + extraLiveSessionsFromRooms;
+
+      const publishedWorksCount = publishedClassicWorks.length;
+      const workCount = publishedWorksCount + feedPostsForHost.length;
+
       res.json({
         host: {
           id: host.id,
@@ -553,10 +604,10 @@ export function roomSimpleRoutes(io: Server): Router {
         creatorPosts,
         stats: {
           followerCount,
-          workCount: Array.from(works.values()).filter(w => w.authorId === hostId && w.status === 'published').length,
+          workCount,
           skillCount: Array.from(skillsMap.values()).filter(s => s.authorId === hostId).length,
           answerCount,
-          totalSessions: historySessions.length,
+          totalSessions,
           totalMessages: historySessions.reduce((sum, s) => sum + s.messageCount, 0),
         },
       });
