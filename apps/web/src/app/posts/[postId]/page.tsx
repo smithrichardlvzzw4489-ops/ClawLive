@@ -399,6 +399,16 @@ export default function FeedPostDetailPage() {
                 <span className="text-gray-500 tabular-nums">👁️ {post.viewCount}</span>
               </div>
 
+              {post.imageUrls?.[0] && (
+                <div className="mt-8 overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+                  <img
+                    src={resolveMediaUrl(post.imageUrls[0])}
+                    alt=""
+                    className="mx-auto block h-auto w-full max-w-full object-contain"
+                  />
+                </div>
+              )}
+
               <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                 <div className="border-b bg-gray-50 px-4 py-3">
                   <h2 className="text-base font-semibold text-gray-900">{t('feedPost.bodySectionTitle')}</h2>

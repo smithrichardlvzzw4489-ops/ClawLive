@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { MarkdownBody } from '@/components/MarkdownBody';
-import { CoverImageCropModal } from '@/components/CoverImageCropModal';
 import { FeedPostBodyEditor, type FeedPostBodyEditorHandle } from '@/components/FeedPostBodyEditor';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
@@ -61,7 +60,6 @@ export default function CreateFeedPostPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [coverDataUrl, setCoverDataUrl] = useState<string | null>(null);
-  const [pendingCropSrc, setPendingCropSrc] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [draftBanner, setDraftBanner] = useState(false);
@@ -164,7 +162,7 @@ export default function CreateFeedPostPage() {
     }
   };
 
-  const onPickCoverFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPickCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !file.type.startsWith('image/')) return;
@@ -173,24 +171,13 @@ export default function CreateFeedPostPage() {
       return;
     }
     setError('');
-    const objectUrl = URL.createObjectURL(file);
-    setPendingCropSrc(objectUrl);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setCoverDataUrl(dataUrl);
+    } catch {
+      setError('读取图片失败');
+    }
   };
-
-  const cancelCoverCrop = useCallback(() => {
-    setPendingCropSrc((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-  }, []);
-
-  const completeCoverCrop = useCallback((dataUrl: string) => {
-    setPendingCropSrc((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    setCoverDataUrl(dataUrl);
-  }, []);
 
   const submit = async () => {
     setError('');
@@ -349,9 +336,11 @@ export default function CreateFeedPostPage() {
             </div>
             {coverDataUrl && (
               <div className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
-                <div className="relative mx-auto aspect-[3/4] max-w-[200px]">
-                  <img src={coverDataUrl} alt="" className="h-full w-full object-cover" />
-                </div>
+                <img
+                  src={coverDataUrl}
+                  alt=""
+                  className="mx-auto block max-h-[min(70vh,520px)] w-full max-w-md object-contain"
+                />
               </div>
             )}
           </div>
@@ -416,9 +405,11 @@ export default function CreateFeedPostPage() {
               <h3 className="text-xl font-bold text-gray-900">{title || '（无标题）'}</h3>
               {coverDataUrl && (
                 <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100">
-                  <div className="relative mx-auto aspect-[3/4] max-w-sm">
-                    <img src={coverDataUrl} alt="" className="h-full w-full object-cover" />
-                  </div>
+                  <img
+                    src={coverDataUrl}
+                    alt=""
+                    className="mx-auto block max-h-[min(70vh,560px)] w-full object-contain"
+                  />
                 </div>
               )}
               <div className="mt-4 border-t border-gray-100 pt-4">
@@ -440,13 +431,6 @@ export default function CreateFeedPostPage() {
         </div>
       )}
 
-      {pendingCropSrc && (
-        <CoverImageCropModal
-          imageSrc={pendingCropSrc}
-          onCancel={cancelCoverCrop}
-          onDone={completeCoverCrop}
-        />
-      )}
     </MainLayout>
   );
 }

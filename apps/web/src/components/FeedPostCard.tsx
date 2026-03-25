@@ -31,22 +31,22 @@ export function FeedPostCard({
     return (
       <Link
         href={`/posts/${post.id}`}
-        className="group flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md lg:h-full lg:min-h-0"
+        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid self-start transition-shadow hover:shadow-md"
       >
-        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 lg:aspect-auto lg:min-h-0 lg:flex-1">
+        <div className="relative w-full overflow-hidden bg-gray-100">
           {cover && (
             <img
               src={resolveMediaUrl(cover)}
               alt=""
-              className="absolute inset-0 h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              className="block h-auto w-full transition-transform duration-300 group-hover:scale-[1.02]"
             />
           )}
           {!cover && (
-            <div className={`absolute inset-0 bg-gradient-to-br ${getWorkCardGradient(post.id)} flex items-center justify-center p-4`}>
-              <p className="text-white text-xs font-medium text-center line-clamp-6">{summary}</p>
+            <div className={`flex min-h-[8rem] items-center justify-center bg-gradient-to-br p-4 ${getWorkCardGradient(post.id)}`}>
+              <p className="text-center text-xs font-medium text-white line-clamp-6">{summary}</p>
             </div>
           )}
-          <div className="absolute bottom-2 right-2 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] text-white font-medium backdrop-blur-sm">
+          <div className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
             👁 {post.viewCount}
           </div>
         </div>
@@ -79,26 +79,30 @@ export function FeedPostCard({
   return (
     <Link
       href={`/posts/${post.id}`}
-      className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
+      className="group overflow-hidden rounded-xl bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
     >
-      <div className="relative aspect-video overflow-hidden flex items-center justify-center p-6">
+      <div className="relative w-full overflow-hidden">
         {cover && (
-          <img
-            src={resolveMediaUrl(cover)}
-            alt={post.title}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+          <>
+            <img
+              src={resolveMediaUrl(cover)}
+              alt={post.title}
+              className="block h-auto w-full transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 via-black/20 to-transparent px-3 pb-10 pt-12">
+              <p className="text-center text-sm font-medium text-white line-clamp-3 drop-shadow-lg">{summary}</p>
+            </div>
+          </>
         )}
         {!cover && (
-          <div className={`absolute inset-0 bg-gradient-to-br ${getWorkCardGradient(post.id)}`}>
-            <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_70%_80%,_white_0%,_transparent_60%)]" />
+          <div className={`relative flex min-h-[10rem] items-center justify-center bg-gradient-to-br p-6 ${getWorkCardGradient(post.id)}`}>
+            <div className="pointer-events-none absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_70%_80%,_white_0%,_transparent_60%)]" />
+            <p className="relative z-10 text-center text-sm font-medium text-white line-clamp-3 drop-shadow-lg">{summary}</p>
           </div>
         )}
-        <div className="absolute inset-0 bg-black/40" />
-        <p className="relative z-10 text-white text-sm font-medium text-center line-clamp-3 drop-shadow-lg px-2">{summary}</p>
-        <div className="absolute bottom-2 right-2 flex items-center gap-2 text-white text-xs font-semibold z-10">
-          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">👁️ {post.viewCount}</span>
-          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">💬 {post.commentCount}</span>
+        <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2 text-xs font-semibold text-white">
+          <span className="rounded bg-black/60 px-2 py-1 backdrop-blur-sm">👁️ {post.viewCount}</span>
+          <span className="rounded bg-black/60 px-2 py-1 backdrop-blur-sm">💬 {post.commentCount}</span>
         </div>
       </div>
       <div className="p-4">
