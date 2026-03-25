@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +32,9 @@ function AuthForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [userNotFound, setUserNotFound] = useState(false);
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +71,10 @@ function AuthForm() {
       setError(t('auth.passwordMinLength'));
       return;
     }
+    if (!avatarDataUrl) {
+      setError(t('auth.avatarRequired'));
+      return;
+    }
 
     setLoading(true);
 
@@ -75,13 +82,17 @@ function AuthForm() {
       const response = await api.auth.register(
         formData.username,
         formData.email,
-        formData.password
+        formData.password,
+        avatarDataUrl
       );
       localStorage.setItem('token', response.token);
       localStorage.setItem('refreshToken', response.refreshToken);
       router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
     } catch (err: any) {
-      setError(err?.message || t('auth.registerFailed'));
+      const m = err?.message as string | undefined;
+      if (m === 'AVATAR_REQUIRED') setError(t('auth.avatarRequired'));
+      else if (m === 'INVALID_AVATAR') setError(t('auth.avatarInvalid'));
+      else setError(m || t('auth.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -91,12 +102,34 @@ function AuthForm() {
     setMode('register');
     setError('');
     setUserNotFound(false);
+    setAvatarDataUrl(null);
   };
 
   const switchToLogin = () => {
     setMode('login');
     setError('');
     setUserNotFound(false);
+    setAvatarDataUrl(null);
+  };
+
+  const onAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError(t('auth.avatarInvalidType'));
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setError(t('auth.avatarTooLarge'));
+      return;
+    }
+    setError('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatarDataUrl(typeof reader.result === 'string' ? reader.result : null);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   return (
@@ -188,6 +221,43 @@ function AuthForm() {
                 {error}
               </div>
             )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.avatarLabel')}</label>
+              <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-gray-400 transition hover:border-lobster/50 hover:bg-rose-50/50"
+                >
+                  {avatarDataUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={avatarDataUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-3xl">+</span>
+                  )}
+                </button>
+                <div className="min-w-0 flex-1 text-center text-sm text-gray-500 sm:text-left">
+                  <p>{t('auth.avatarHint')}</p>
+                  {avatarDataUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setAvatarDataUrl(null)}
+                      className="mt-1 text-lobster hover:underline"
+                    >
+                      {t('auth.avatarRemove')}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={onAvatarFile}
+              />
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.username')}</label>

@@ -1,11 +1,32 @@
 import { Router, Request, Response } from 'express';
 import type { IRouter } from 'express';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
+import { UPLOADS_DIR } from '../../lib/data-path';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { LoginRequest } from '@clawlive/shared-types';
 const router: IRouter = Router();
+
+/** 注册头像：≤2MB，data URL */
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+
+function parseAvatarDataUrl(dataUrl: string): { buf: Buffer; ext: string } | null {
+  if (!dataUrl.startsWith('data:')) return null;
+  const m = dataUrl.match(/^data:image\/([\w+.-]+);base64,(.+)$/i);
+  if (!m) return null;
+  const mime = m[1].toLowerCase();
+  let ext = 'png';
+  if (mime.includes('jpeg') || mime === 'jpg') ext = 'jpg';
+  else if (mime === 'png') ext = 'png';
+  else if (mime === 'gif') ext = 'gif';
+  else if (mime === 'webp') ext = 'webp';
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length === 0 || buf.length > MAX_AVATAR_BYTES) return null;
+  return { buf, ext };
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret';
@@ -13,17 +34,33 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, avatar } = req.body as {
+      username?: string;
+      email?: string;
+      password?: string;
+      avatar?: string;
+    };
 
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
+    if (typeof avatar !== 'string' || !avatar.trim()) {
+      return res.status(400).json({ error: 'AVATAR_REQUIRED' });
+    }
+
+    const parsed = parseAvatarDataUrl(avatar);
+    if (!parsed) {
+      return res.status(400).json({ error: 'INVALID_AVATAR' });
+    }
+
+    const emailNorm = email && String(email).trim() ? String(email).trim() : undefined;
+
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
           { username },
-          { email: email || '' },
+          ...(emailNorm ? [{ email: emailNorm }] : []),
         ],
       },
     });
@@ -37,15 +74,27 @@ router.post('/register', async (req: Request, res: Response) => {
     const user = await prisma.user.create({
       data: {
         username,
-        email,
+        email: emailNorm,
         passwordHash,
       },
+    });
+
+    const dir = join(UPLOADS_DIR, 'avatars');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    const filename = `${user.id}.${parsed.ext}`;
+    const filepath = join(dir, filename);
+    writeFileSync(filepath, parsed.buf);
+    const avatarUrl = `/uploads/avatars/${filename}`;
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { avatarUrl },
     });
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
     const refreshToken = jwt.sign({ userId: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' } as jwt.SignOptions);
 
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    const { passwordHash: _, ...userWithoutPassword } = updated;
 
     res.status(201).json({
       user: userWithoutPassword,

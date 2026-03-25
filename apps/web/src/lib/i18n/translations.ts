@@ -410,6 +410,13 @@ export const translations = {
       registerFailed: '注册失败',
       userNotFoundPrompt: '该账号未注册，请先注册再登录',
       networkError: '无法连接服务器，请确认后端服务已启动（默认端口 3001）',
+      avatarLabel: '头像',
+      avatarHint: '点击圆形区域上传，支持 JPG / PNG / GIF / WebP，单张不超过 2MB',
+      avatarRequired: '请上传头像后再注册',
+      avatarInvalid: '头像无效或过大，请换一张图片',
+      avatarTooLarge: '图片需不超过 2MB',
+      avatarInvalidType: '请选择图片文件',
+      avatarRemove: '移除',
     },
 
     // Skill 市场 / 能力流
@@ -897,6 +904,13 @@ export const translations = {
       registerFailed: 'Registration failed',
       userNotFoundPrompt: 'Account not registered. Please register first.',
       networkError: 'Cannot connect to server. Please ensure the backend is running (default port 3001).',
+      avatarLabel: 'Profile photo',
+      avatarHint: 'Tap the circle to upload. JPG / PNG / GIF / WebP, max 2MB',
+      avatarRequired: 'Please upload a profile photo to register',
+      avatarInvalid: 'Invalid image or file too large',
+      avatarTooLarge: 'Image must be 2MB or smaller',
+      avatarInvalidType: 'Please choose an image file',
+      avatarRemove: 'Remove',
     },
 
     market: {
