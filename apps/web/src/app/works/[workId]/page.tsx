@@ -168,13 +168,16 @@ export default function WorkDetailPage() {
 
   const skillText = getSkillContent();
   const hasSkillPanel = Boolean(skillText || linkedSkillId);
+  const hasSummary = Boolean(work.resultSummary || work.description);
+  const showRightColumn = hasSkillPanel || hasSummary;
   const publishedAt = work.publishedAt ? new Date(work.publishedAt) : null;
   const shareCount = typeof work.shareCount === 'number' ? work.shareCount : 0;
 
-  const interactionRight = (
-    <div className="flex flex-wrap items-center justify-end gap-5 text-gray-800 sm:gap-6">
+  /** 截图3：赞 / 分享 / 心 / 评论 — 放入 AI Summary 粉框内；无摘要时显示在底栏右侧 */
+  const interactionStatsRow = (
+    <div className="flex flex-wrap items-center justify-between gap-3 text-gray-800 sm:gap-4">
       <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
-        <span className="text-lg" aria-hidden>
+        <span className="text-xl" aria-hidden>
           👍
         </span>
         {work.likeCount}
@@ -188,16 +191,16 @@ export default function WorkDetailPage() {
         recordShareUrl={recordShareUrl}
       />
       <span
-        className="flex items-center gap-1.5 text-[15px] tabular-nums text-gray-700"
+        className="flex items-center gap-1.5 text-[15px] tabular-nums text-gray-800"
         title={t('workDetail.interactionCollect')}
       >
-        <span className="text-lg" aria-hidden>
-          ♥
+        <span className="text-xl" aria-hidden>
+          ❤️
         </span>
         {work.likeCount}
       </span>
       <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
-        <span className="text-lg" aria-hidden>
+        <span className="text-xl" aria-hidden>
           💬
         </span>
         {commentCount}
@@ -211,7 +214,7 @@ export default function WorkDetailPage() {
         <div className="mx-auto max-w-7xl px-4 pb-32 pt-6 sm:px-6 lg:px-8">
           <div
             className={
-              hasSkillPanel
+              showRightColumn
                 ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_288px] lg:items-start lg:gap-10 xl:grid-cols-[minmax(0,1fr)_320px]'
                 : ''
             }
@@ -251,27 +254,6 @@ export default function WorkDetailPage() {
                   </Link>
                 )}
               </div>
-
-              {(work.resultSummary || work.description) && (
-                <section className="mt-8">
-                  <h2 className="mb-3 text-lg font-bold text-gray-900">{t('workDetail.aiSummary')}</h2>
-                  <div
-                    className={`rounded-xl p-4 ${
-                      work.resultSummary ? 'border border-lobster/30 bg-lobster/10' : 'bg-gray-50'
-                    }`}
-                  >
-                    <p
-                      className={
-                        work.resultSummary
-                          ? 'text-base font-medium leading-relaxed text-gray-800'
-                          : 'text-gray-600'
-                      }
-                    >
-                      {work.resultSummary || work.description}
-                    </p>
-                  </div>
-                </section>
-              )}
 
               {work.tags && work.tags.length > 0 && (
                 <div className="mt-6 flex flex-wrap gap-2">
@@ -342,32 +324,56 @@ export default function WorkDetailPage() {
               <WorkCommentsSection workId={workId} onCountChange={setCommentCount} />
             </article>
 
-            {hasSkillPanel && (
+            {showRightColumn && (
               <aside className="mt-10 min-w-0 lg:mt-0">
                 <div className="space-y-4 lg:sticky lg:top-4">
-                  <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm">
-                    <h2 className="text-base font-bold text-gray-900">{t('workDetail.skillSidebarTitle')}</h2>
-                    <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('workDetail.skillSidebarDesc')}</p>
-                    {linkedSkillId && (
-                      <p className="mt-2 text-xs font-medium text-lobster">{t('workDetail.linkedSkillHint')}</p>
-                    )}
-                    {skillText ? (
-                      <>
-                        <pre className="mt-3 max-h-[min(60vh,32rem)] overflow-auto rounded-lg border border-gray-100 bg-gray-50 p-3 text-[11px] leading-snug text-gray-800">
-                          {skillText.length > 8000 ? `${skillText.slice(0, 8000)}…` : skillText}
-                        </pre>
-                        <button
-                          type="button"
-                          onClick={() => void copySkillMd()}
-                          className="mt-3 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
+                  {hasSkillPanel && (
+                    <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm">
+                      <h2 className="text-base font-bold text-gray-900">{t('workDetail.skillSidebarTitle')}</h2>
+                      <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('workDetail.skillSidebarDesc')}</p>
+                      {linkedSkillId && (
+                        <p className="mt-2 text-xs font-medium text-lobster">{t('workDetail.linkedSkillHint')}</p>
+                      )}
+                      {skillText ? (
+                        <>
+                          <pre className="mt-3 max-h-[min(50vh,28rem)] overflow-auto rounded-lg border border-gray-100 bg-gray-50 p-3 text-[11px] leading-snug text-gray-800">
+                            {skillText.length > 8000 ? `${skillText.slice(0, 8000)}…` : skillText}
+                          </pre>
+                          <button
+                            type="button"
+                            onClick={() => void copySkillMd()}
+                            className="mt-3 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
+                          >
+                            {copiedSkill ? t('workDetail.copied') : t('workDetail.copySkillMd')}
+                          </button>
+                        </>
+                      ) : linkedSkillId ? (
+                        <p className="mt-3 text-sm text-gray-600">{t('workDetail.noSkillToCopy')}</p>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {hasSummary && (
+                    <section className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm">
+                      <h2 className="text-base font-bold text-gray-900">{t('workDetail.aiSummary')}</h2>
+                      <div
+                        className={`mt-3 rounded-xl p-4 ${
+                          work.resultSummary ? 'border border-red-300/80 bg-rose-50/90' : 'border border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <p
+                          className={
+                            work.resultSummary
+                              ? 'text-sm font-medium leading-relaxed text-gray-800'
+                              : 'text-sm text-gray-600'
+                          }
                         >
-                          {copiedSkill ? t('workDetail.copied') : t('workDetail.copySkillMd')}
-                        </button>
-                      </>
-                    ) : linkedSkillId ? (
-                      <p className="mt-3 text-sm text-gray-600">{t('workDetail.noSkillToCopy')}</p>
-                    ) : null}
-                  </div>
+                          {work.resultSummary || work.description}
+                        </p>
+                        <div className="mt-4 border-t border-red-200/60 pt-3">{interactionStatsRow}</div>
+                      </div>
+                    </section>
+                  )}
                 </div>
               </aside>
             )}
@@ -375,7 +381,7 @@ export default function WorkDetailPage() {
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200/80 bg-white/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <Link href={`/host/${work.author.id}`} className="flex min-w-0 items-center gap-2">
                 {work.author.avatarUrl ? (
@@ -394,7 +400,7 @@ export default function WorkDetailPage() {
                 {t('workDetail.followAuthor')}
               </Link>
             </div>
-            {interactionRight}
+            {!hasSummary && <div className="flex min-w-0 flex-1 justify-end">{interactionStatsRow}</div>}
           </div>
         </div>
       </>
