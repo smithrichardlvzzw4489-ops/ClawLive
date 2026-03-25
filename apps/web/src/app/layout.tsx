@@ -3,7 +3,6 @@ import { Inter, Noto_Sans_SC, Noto_Serif_SC, ZCOOL_XiaoWei } from 'next/font/goo
 import './globals.css'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { ArticleFontProvider } from '@/components/ArticleFontProvider'
-import { PeekLobsterMascot } from '@/components/PeekLobsterMascot'
 import { BRAND_ZH } from '@/lib/brand'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -51,10 +50,7 @@ export default function RootLayout({
         className={`${inter.className} ${notoSansSC.variable} ${notoSerifSC.variable} ${zcoolXiaoWei.variable}`}
       >
         <LocaleProvider>
-          <ArticleFontProvider>
-            {children}
-            <PeekLobsterMascot />
-          </ArticleFontProvider>
+          <ArticleFontProvider>{children}</ArticleFontProvider>
         </LocaleProvider>
       </body>
     </html>
