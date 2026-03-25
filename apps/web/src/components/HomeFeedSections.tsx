@@ -6,6 +6,7 @@ import { WorkCard } from '@/components/WorkCard';
 import { FeedPostCard, type FeedPostCardItem } from '@/components/FeedPostCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { HOME_FEED_PARTITIONS } from '@/lib/work-partitions';
+import { API_BASE_URL } from '@/lib/api';
 
 interface Work {
   id: string;
@@ -43,7 +44,7 @@ export function HomeFeedSections() {
       const headers: HeadersInit = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/recommendations/home`, { headers });
+      const res = await fetch(`${API_BASE_URL}/api/recommendations/home`, { headers });
       if (res.ok) {
         const data = await res.json();
         setRecommendedWorks(data.recommendedWorks || []);

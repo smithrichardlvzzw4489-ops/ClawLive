@@ -3,6 +3,7 @@
 import type { Components } from 'react-markdown';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { resolveMediaUrl } from '@/lib/api';
 
 const components: Components = {
   h1: ({ children }) => <h1 className="mb-3 mt-4 text-2xl font-bold text-gray-900 first:mt-0">{children}</h1>,
@@ -20,6 +21,15 @@ const components: Components = {
     <a href={href} className="font-medium text-lobster underline decoration-lobster/30 hover:decoration-lobster" target="_blank" rel="noopener noreferrer">
       {children}
     </a>
+  ),
+  img: ({ src, alt }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src ? resolveMediaUrl(src) : ''}
+      alt={typeof alt === 'string' ? alt : ''}
+      className="my-3 max-h-[min(28rem,70vh)] w-full rounded-lg object-contain"
+      loading="lazy"
+    />
   ),
   strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,

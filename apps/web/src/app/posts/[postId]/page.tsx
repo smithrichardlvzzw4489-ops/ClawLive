@@ -202,7 +202,12 @@ export default function FeedPostDetailPage() {
   if (loading) {
     return (
       <MainLayout {...layoutPost}>
-        <div className="flex items-center justify-center py-20">
+        <div className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+          <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-lobster">
+            ← {t('feedPost.backHome')}
+          </Link>
+        </div>
+        <div className="flex items-center justify-center py-16">
           <div className="text-center">
             <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster"></div>
             <p className="text-gray-600">{t('loading')}</p>
@@ -215,7 +220,12 @@ export default function FeedPostDetailPage() {
   if (notFound || !post) {
     return (
       <MainLayout {...layoutPost}>
-        <div className="flex items-center justify-center py-20">
+        <div className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+          <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-lobster">
+            ← {t('feedPost.backHome')}
+          </Link>
+        </div>
+        <div className="flex items-center justify-center py-16">
           <div className="text-center">
             <p className="mb-4 text-red-600">{t('feedPost.notFound')}</p>
           </div>
@@ -232,6 +242,11 @@ export default function FeedPostDetailPage() {
         <div className="mx-auto max-w-7xl px-4 pb-32 pt-6 sm:px-6 lg:px-8">
           <div>
             <article className="min-w-0">
+              <div className="mb-5">
+                <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-lobster">
+                  ← {t('feedPost.backHome')}
+                </Link>
+              </div>
               <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">{post.title}</h1>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">

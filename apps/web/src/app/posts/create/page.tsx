@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { MarkdownBody } from '@/components/MarkdownBody';
+import { CoverImageCropModal } from '@/components/CoverImageCropModal';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
 import {
@@ -13,7 +14,6 @@ import {
   oneClickLayoutMarkdown,
 } from '@/lib/feed-post-markdown';
 
-const MAX_IMAGES = 9;
 const MAX_BYTES = 5 * 1024 * 1024;
 const DRAFT_KEY = 'clawlive:feed-post-draft-v1';
 
@@ -59,7 +59,8 @@ export default function CreateFeedPostPage() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [previews, setPreviews] = useState<{ file: File; url: string }[]>([]);
+  const [coverDataUrl, setCoverDataUrl] = useState<string | null>(null);
+  const [pendingCropSrc, setPendingCropSrc] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [draftBanner, setDraftBanner] = useState(false);
@@ -67,6 +68,10 @@ export default function CreateFeedPostPage() {
   const [layoutToast, setLayoutToast] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [splitPreview, setSplitPreview] = useState(false);
+  const [inlineImageBusy, setInlineImageBusy] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const inlineImageInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const d = loadDraftFromStorage();
@@ -106,30 +111,96 @@ export default function CreateFeedPostPage() {
     window.setTimeout(() => setLayoutToast(null), 2200);
   }, [t]);
 
-  const onPickImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + previews.length > MAX_IMAGES) {
-      setError(`最多 ${MAX_IMAGES} 张图`);
+  const insertMarkdownAtCursor = useCallback((snippet: string) => {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setContent((c) => (c + snippet).slice(0, FEED_POST_MAX_CONTENT));
       return;
     }
-    const next: { file: File; url: string }[] = [];
-    for (const f of files) {
-      if (!f.type.startsWith('image/')) continue;
-      if (f.size > MAX_BYTES) {
-        setError('单张图片不超过 5MB');
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const val = ta.value;
+    const before = val.slice(0, start);
+    const after = val.slice(end);
+    const merged = (before + snippet + after).slice(0, FEED_POST_MAX_CONTENT);
+    setContent(merged);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const pos = Math.min(start + snippet.length, merged.length);
+      ta.setSelectionRange(pos, pos);
+    });
+  }, []);
+
+  const onPickInlineImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > MAX_BYTES) {
+      setError('单张图片不超过 5MB');
+      return;
+    }
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login?redirect=/posts/create');
+      return;
+    }
+    setInlineImageBusy(true);
+    setError('');
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const res = await fetch(`${API_BASE_URL}/api/feed-posts/inline-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ image: dataUrl }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof data.error === 'string' ? data.error : '图片上传失败');
         return;
       }
-      const url = await readFileAsDataUrl(f);
-      next.push({ file: f, url });
+      const url = typeof data.url === 'string' ? data.url : '';
+      if (!url) {
+        setError('上传失败');
+        return;
+      }
+      insertMarkdownAtCursor(`\n\n![图片](${url})\n\n`);
+    } catch {
+      setError('网络错误');
+    } finally {
+      setInlineImageBusy(false);
     }
-    setPreviews((p) => [...p, ...next]);
-    setError('');
-    e.target.value = '';
   };
 
-  const removePreview = (index: number) => {
-    setPreviews((p) => p.filter((_, i) => i !== index));
+  const onPickCoverFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !file.type.startsWith('image/')) return;
+    if (file.size > MAX_BYTES) {
+      setError('单张图片不超过 5MB');
+      return;
+    }
+    setError('');
+    const objectUrl = URL.createObjectURL(file);
+    setPendingCropSrc(objectUrl);
   };
+
+  const cancelCoverCrop = useCallback(() => {
+    setPendingCropSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
+
+  const completeCoverCrop = useCallback((dataUrl: string) => {
+    setPendingCropSrc((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setCoverDataUrl(dataUrl);
+  }, []);
 
   const submit = async () => {
     setError('');
@@ -149,7 +220,7 @@ export default function CreateFeedPostPage() {
 
     setSubmitting(true);
     try {
-      const images = previews.map((p) => p.url);
+      const images = coverDataUrl ? [coverDataUrl] : [];
       const res = await fetch(`${API_BASE_URL}/api/feed-posts`, {
         method: 'POST',
         headers: {
@@ -222,6 +293,22 @@ export default function CreateFeedPostPage() {
             >
               {splitPreview ? t('feedPost.editTab') : t('feedPost.previewTab')}
             </button>
+            <input
+              ref={inlineImageInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={onPickInlineImage}
+            />
+            <button
+              type="button"
+              disabled={inlineImageBusy}
+              onClick={() => inlineImageInputRef.current?.click()}
+              className="rounded-full border border-lobster/40 bg-rose-50 px-3 py-1 text-xs font-medium text-lobster transition hover:bg-rose-100 disabled:opacity-50"
+              title={t('feedPost.insertBodyImageHint')}
+            >
+              {inlineImageBusy ? t('feedPost.insertBodyImageUploading') : t('feedPost.insertBodyImage')}
+            </button>
           </div>
 
           <div>
@@ -235,11 +322,12 @@ export default function CreateFeedPostPage() {
             </div>
             <div className={splitPreview ? 'grid gap-4 md:grid-cols-2' : ''}>
               <textarea
+                ref={textareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value.slice(0, FEED_POST_MAX_CONTENT))}
                 rows={splitPreview ? 18 : 14}
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm leading-relaxed focus:border-lobster focus:ring-2 focus:ring-lobster/30"
-                placeholder="支持 Markdown（# 标题、列表、**粗体**、链接等）…"
+                placeholder="支持 Markdown（# 标题、列表、**粗体**、链接、插入正文图片等）…"
               />
               {splitPreview && (
                 <div className="max-h-[min(32rem,70vh)] overflow-y-auto rounded-lg border border-gray-200 bg-white p-4 shadow-inner">
@@ -250,29 +338,40 @@ export default function CreateFeedPostPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('feedPost.imagesLabel')}</label>
-            <p className="mb-2 text-xs text-gray-500">{t('feedPost.imagesHint')}</p>
+            <label className="mb-1 block text-sm font-medium text-gray-700">{t('feedPost.coverImageLabel')}</label>
+            <p className="mb-2 text-xs text-gray-500">{t('feedPost.coverImageHint')}</p>
             <input
+              ref={coverFileInputRef}
               type="file"
               accept="image/jpeg,image/png,image/gif,image/webp"
-              multiple
-              onChange={onPickImages}
-              className="block w-full text-sm text-gray-600"
+              className="hidden"
+              onChange={onPickCoverFile}
             />
-            <div className="mt-3 flex flex-wrap gap-2">
-              {previews.map((p, i) => (
-                <div key={i} className="relative h-24 w-24 overflow-hidden rounded-lg border">
-                  <img src={p.url} alt="" className="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => removePreview(i)}
-                    className="absolute right-1 top-1 h-6 w-6 rounded bg-black/60 text-xs text-white"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => coverFileInputRef.current?.click()}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50"
+              >
+                {coverDataUrl ? t('feedPost.coverImageReplace') : t('feedPost.coverImageChoose')}
+              </button>
+              {coverDataUrl && (
+                <button
+                  type="button"
+                  onClick={() => setCoverDataUrl(null)}
+                  className="text-sm text-gray-500 underline hover:text-gray-800"
+                >
+                  {t('feedPost.coverImageRemove')}
+                </button>
+              )}
             </div>
+            {coverDataUrl && (
+              <div className="mt-3 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                <div className="relative mx-auto aspect-[3/4] max-w-[200px]">
+                  <img src={coverDataUrl} alt="" className="h-full w-full object-cover" />
+                </div>
+              </div>
+            )}
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -333,11 +432,11 @@ export default function CreateFeedPostPage() {
             </div>
             <div className="max-h-[calc(90vh-3.5rem)] overflow-y-auto px-4 py-4">
               <h3 className="text-xl font-bold text-gray-900">{title || '（无标题）'}</h3>
-              {previews.length > 0 && (
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  {previews.map((p, i) => (
-                    <img key={i} src={p.url} alt="" className="w-full rounded-lg object-cover" />
-                  ))}
+              {coverDataUrl && (
+                <div className="mt-4 overflow-hidden rounded-2xl border border-gray-100">
+                  <div className="relative mx-auto aspect-[3/4] max-w-sm">
+                    <img src={coverDataUrl} alt="" className="h-full w-full object-cover" />
+                  </div>
                 </div>
               )}
               <div className="mt-4 border-t border-gray-100 pt-4">
@@ -357,6 +456,14 @@ export default function CreateFeedPostPage() {
         <div className="fixed bottom-6 left-1/2 z-40 max-w-sm -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2.5 text-center text-sm text-white shadow-lg">
           {layoutToast}
         </div>
+      )}
+
+      {pendingCropSrc && (
+        <CoverImageCropModal
+          imageSrc={pendingCropSrc}
+          onCancel={cancelCoverCrop}
+          onDone={completeCoverCrop}
+        />
       )}
     </MainLayout>
   );

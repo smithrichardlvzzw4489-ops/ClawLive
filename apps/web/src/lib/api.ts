@@ -1,12 +1,19 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-/** 将后端返回的 /uploads/... 路径转为可访问的绝对 URL（首页卡片等必须用 API 域名，不能走前端站点的相对路径） */
+/**
+ * 媒体地址：/uploads/... 使用同源相对路径，由 next.config.js rewrites 转发到后端；
+ * 避免 NEXT_PUBLIC_API_URL 未注入时回退 localhost 导致线上裂图。
+ */
 export function resolveMediaUrl(path: string | null | undefined): string {
   if (path == null || path === '') return '';
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  if (normalized.startsWith('/uploads/')) {
+    return normalized;
+  }
   const base = API_BASE_URL.replace(/\/$/, '');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+  return `${base}${normalized}`;
 }
 
 const NETWORK_ERROR_MSG =

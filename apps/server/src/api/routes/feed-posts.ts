@@ -61,6 +61,29 @@ export function feedPostsRoutes(): Router {
     }
   });
 
+  /** 发作品正文内插图：先上传得到 /uploads/... 再写入 Markdown（须在 /:id 之前注册，避免误匹配） */
+  router.post('/inline-image', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { image } = req.body as { image?: string };
+      if (typeof image !== 'string' || !image.startsWith('data:')) {
+        return res.status(400).json({ error: '请提供图片 data URL' });
+      }
+      const parsed = parseDataUrl(image);
+      if (!parsed) {
+        return res.status(400).json({ error: '图片格式无效或单张不超过 5MB' });
+      }
+      const dir = join(UPLOADS_DIR, 'feed-posts', 'inline');
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      const name = `${uuidv4()}.${parsed.ext}`;
+      const rel = `/uploads/feed-posts/inline/${name}`;
+      writeFileSync(join(dir, name), parsed.buf);
+      res.json({ url: rel });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: '上传失败' });
+    }
+  });
+
   router.get('/:id/comments', async (req: Request, res: Response) => {
     try {
       const postId = req.params.id;
