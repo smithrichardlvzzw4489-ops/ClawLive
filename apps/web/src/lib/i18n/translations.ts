@@ -274,6 +274,7 @@ export const translations = {
       newFeedPost: '发布图文',
       editWork: '编辑',
       deleteFeedConfirm: '确认删除这条图文？此操作无法撤销。',
+      deleteFeedConfirmMultiple: '确认删除选中的 {n} 条图文？此操作无法撤销。',
       deleteFeedFailed: '删除失败',
     },
 
@@ -757,6 +758,7 @@ export const translations = {
       newFeedPost: 'New post',
       editWork: 'Edit',
       deleteFeedConfirm: 'Delete this post? This cannot be undone.',
+      deleteFeedConfirmMultiple: 'Delete {n} selected posts? This cannot be undone.',
       deleteFeedFailed: 'Failed to delete',
     },
 

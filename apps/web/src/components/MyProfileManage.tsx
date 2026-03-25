@@ -8,10 +8,15 @@ import { getProfileWorkTitleClass, getWorkCardGradient } from '@/components/Work
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 
-async function deleteWorkRequest(
-  token: string,
-  workId: string,
-): Promise<{ ok: boolean; error?: string }> {
+type DeleteApiResult = { ok: boolean; error?: string; unauthorized?: boolean };
+
+function parseDeleteFailure(response: Response, body: { error?: string; code?: string } | null): DeleteApiResult {
+  const error = body?.error ?? '';
+  const unauthorized = response.status === 401 || body?.code === 'TOKEN_EXPIRED';
+  return { ok: false, error, unauthorized };
+}
+
+async function deleteWorkRequest(token: string, workId: string): Promise<DeleteApiResult> {
   const response = await fetch(`${API_BASE_URL}/api/works/${encodeURIComponent(workId)}/delete`, {
     method: 'POST',
     headers: {
@@ -20,14 +25,42 @@ async function deleteWorkRequest(
     },
   });
   if (response.ok) return { ok: true };
-  let error = '';
+  let body: { error?: string; code?: string } | null = null;
   try {
-    const body = (await response.json()) as { error?: string };
-    if (body?.error) error = body.error;
+    body = (await response.json()) as { error?: string; code?: string };
   } catch {
     /* ignore */
   }
-  return { ok: false, error };
+  return parseDeleteFailure(response, body);
+}
+
+async function deleteFeedPostRequest(token: string, postId: string): Promise<DeleteApiResult> {
+  const response = await fetch(`${API_BASE_URL}/api/feed-posts/${encodeURIComponent(postId)}/delete`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (response.ok) return { ok: true };
+  let body: { error?: string; code?: string } | null = null;
+  try {
+    body = (await response.json()) as { error?: string; code?: string };
+  } catch {
+    /* ignore */
+  }
+  return parseDeleteFailure(response, body);
+}
+
+function redirectToLoginIfExpired(router: { replace: (href: string) => void }, result: DeleteApiResult): boolean {
+  if (!result.unauthorized) return false;
+  try {
+    localStorage.removeItem('token');
+  } catch {
+    /* ignore */
+  }
+  router.replace('/login?redirect=/my-profile');
+  return true;
 }
 
 interface Work {
@@ -97,6 +130,7 @@ export function MyProfileManage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedWorkIds, setSelectedWorkIds] = useState<Set<string>>(() => new Set());
+  const [selectedFeedPostIds, setSelectedFeedPostIds] = useState<Set<string>>(() => new Set());
 
   const loadAll = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -192,8 +226,30 @@ export function MyProfileManage() {
     });
   }, [data?.works]);
 
+  useEffect(() => {
+    const valid = new Set(feedPosts.map((p) => p.id));
+    setSelectedFeedPostIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (valid.has(id)) next.add(id);
+        else changed = true;
+      });
+      return changed || next.size !== prev.size ? next : prev;
+    });
+  }, [feedPosts]);
+
   const toggleWorkSelection = useCallback((id: string) => {
     setSelectedWorkIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleFeedPostSelection = useCallback((id: string) => {
+    setSelectedFeedPostIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -212,6 +268,9 @@ export function MyProfileManage() {
         return;
       }
       const settled = await Promise.allSettled(uniq.map((id) => deleteWorkRequest(token, id)));
+      for (const r of settled) {
+        if (r.status === 'fulfilled' && redirectToLoginIfExpired(router, r.value)) return;
+      }
       const failed = settled.filter(
         (r) =>
           r.status === 'rejected' ||
@@ -221,6 +280,34 @@ export function MyProfileManage() {
       setSelectedWorkIds(new Set());
       if (failed > 0) {
         alert(`${t('myWorks.deleteFailed')} (${failed}/${uniq.length})`);
+      }
+    },
+    [loadAll, router, t],
+  );
+
+  const deleteFeedPostsBulk = useCallback(
+    async (ids: string[]) => {
+      const uniq = [...new Set(ids)].filter(Boolean);
+      if (uniq.length === 0) return;
+      if (!confirm(t('myProfileCenter.deleteFeedConfirmMultiple', { n: String(uniq.length) }))) return;
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.replace('/login?redirect=/my-profile');
+        return;
+      }
+      const settled = await Promise.allSettled(uniq.map((id) => deleteFeedPostRequest(token, id)));
+      for (const r of settled) {
+        if (r.status === 'fulfilled' && redirectToLoginIfExpired(router, r.value)) return;
+      }
+      const failed = settled.filter(
+        (r) =>
+          r.status === 'rejected' ||
+          (r.status === 'fulfilled' && !r.value.ok),
+      ).length;
+      await loadAll();
+      setSelectedFeedPostIds(new Set());
+      if (failed > 0) {
+        alert(`${t('myProfileCenter.deleteFeedFailed')} (${failed}/${uniq.length})`);
       }
     },
     [loadAll, router, t],
@@ -242,6 +329,8 @@ export function MyProfileManage() {
           return next;
         });
         void loadAll();
+      } else if (redirectToLoginIfExpired(router, result)) {
+        /* redirected */
       } else {
         const detail = result.error ? ` ${result.error}` : '';
         alert(`${t('myWorks.deleteFailed')}${detail}`);
@@ -259,22 +348,18 @@ export function MyProfileManage() {
         router.replace('/login?redirect=/my-profile');
         return;
       }
-      const response = await fetch(`${API_BASE_URL}/api/feed-posts/${encodeURIComponent(postId)}/delete`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) void loadAll();
-      else {
-        let detail = '';
-        try {
-          const body = (await response.json()) as { error?: string };
-          if (body?.error) detail = ` ${body.error}`;
-        } catch {
-          /* ignore */
-        }
+      const result = await deleteFeedPostRequest(token, postId);
+      if (result.ok) {
+        setSelectedFeedPostIds((prev) => {
+          const next = new Set(prev);
+          next.delete(postId);
+          return next;
+        });
+        void loadAll();
+      } else if (redirectToLoginIfExpired(router, result)) {
+        /* redirected */
+      } else {
+        const detail = result.error ? ` ${result.error}` : '';
         alert(`${t('myProfileCenter.deleteFeedFailed')}${detail}`);
       }
     } catch {
@@ -317,6 +402,10 @@ export function MyProfileManage() {
   const selectedPublishedCount = publishedIds.filter((id) => selectedWorkIds.has(id)).length;
   const allDraftSelected = draftIds.length > 0 && selectedDraftCount === draftIds.length;
   const allPublishedSelected = publishedIds.length > 0 && selectedPublishedCount === publishedIds.length;
+
+  const feedPostIds = feedPosts.map((p) => p.id);
+  const selectedFeedCount = feedPostIds.filter((id) => selectedFeedPostIds.has(id)).length;
+  const allFeedSelected = feedPostIds.length > 0 && selectedFeedCount === feedPostIds.length;
 
   return (
     <MainLayout>
@@ -614,7 +703,44 @@ export function MyProfileManage() {
 
         {/* 图文动态 */}
         <section className="mb-8">
-          <h2 className="mb-4 text-lg font-bold text-gray-900">{t('myProfileCenter.feedSection')}</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-gray-900">{t('myProfileCenter.feedSection')}</h2>
+            {feedPosts.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (allFeedSelected) {
+                      setSelectedFeedPostIds((prev) => {
+                        const next = new Set(prev);
+                        feedPostIds.forEach((id) => next.delete(id));
+                        return next;
+                      });
+                    } else {
+                      setSelectedFeedPostIds((prev) => {
+                        const next = new Set(prev);
+                        feedPostIds.forEach((id) => next.add(id));
+                        return next;
+                      });
+                    }
+                  }}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  {allFeedSelected ? t('myWorks.deselectAll') : t('myWorks.selectAll')}
+                </button>
+                <button
+                  type="button"
+                  disabled={selectedFeedCount === 0}
+                  onClick={() =>
+                    void deleteFeedPostsBulk(feedPostIds.filter((id) => selectedFeedPostIds.has(id)))
+                  }
+                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t('myWorks.deleteSelected', { n: String(selectedFeedCount) })}
+                </button>
+              </div>
+            )}
+          </div>
           {feedPosts.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 py-10 text-center text-sm text-gray-500">
               {t('myProfileCenter.feedEmpty')}
@@ -624,8 +750,17 @@ export function MyProfileManage() {
               {feedPosts.map((post) => (
                 <div
                   key={post.id}
-                  className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
+                  className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
                 >
+                  <label className="absolute left-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-white/95 shadow-sm ring-1 ring-gray-200/80">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-lobster focus:ring-lobster"
+                      checked={selectedFeedPostIds.has(post.id)}
+                      onChange={() => toggleFeedPostSelection(post.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </label>
                   <Link href={`/posts/${post.id}`} className="block">
                     <div className="aspect-video bg-gray-100">
                       {post.imageUrls?.[0] ? (

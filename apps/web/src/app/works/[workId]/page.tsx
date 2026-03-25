@@ -368,12 +368,6 @@ export default function WorkDetailPage() {
                 </div>
               )}
 
-              {work.coverImage && (
-                <div className="mt-8 overflow-hidden rounded-xl shadow-sm">
-                  <img src={work.coverImage} alt="" className="max-h-[28rem] w-full object-cover" />
-                </div>
-              )}
-
               {work.videoUrl && (
                 <div className="mt-8">
                   <VideoUrlPlayer url={work.videoUrl} className="w-full" />
