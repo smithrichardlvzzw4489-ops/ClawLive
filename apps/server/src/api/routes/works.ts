@@ -6,7 +6,7 @@ import { join } from 'path';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { works, workMessages, userProfiles, getHostInfo, getHostInfoBatch } from './rooms-simple';
+import { works, workMessages, userProfiles, getHostInfo, getHostInfoBatch, mergeWorksFromDisk } from './rooms-simple';
 import { getAllRooms, getRoom, getMessageHistory } from '../../lib/rooms-store';
 import { WorksPersistence } from '../../services/works-persistence';
 import { mtprotoService } from '../../services/telegram-mtproto';
@@ -577,18 +577,22 @@ export function worksRoutes(io: Server): Router {
     }
   });
 
-  // DELETE /api/works/:workId - 删除作品
-  router.delete('/:workId', authenticateToken, async (req: AuthRequest, res: Response) => {
+  // DELETE /api/works/:workId 与 POST /api/works/:workId/delete — 删除作品（POST 兼容部分 CDN/网关拦截 DELETE）
+  async function handleDeleteWork(req: AuthRequest, res: Response) {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
+
+      if (!works.get(workId)) {
+        mergeWorksFromDisk();
+      }
 
       const work = works.get(workId);
       if (!work) {
         return res.status(404).json({ error: 'Work not found' });
       }
 
-      if (work.authorId !== userId) {
+      if (String(work.authorId) !== String(userId)) {
         return res.status(403).json({ error: 'Not authorized' });
       }
 
@@ -602,7 +606,10 @@ export function worksRoutes(io: Server): Router {
       console.error('Error deleting work:', error);
       res.status(500).json({ error: 'Failed to delete work' });
     }
-  });
+  }
+
+  router.delete('/:workId', authenticateToken, handleDeleteWork);
+  router.post('/:workId/delete', authenticateToken, handleDeleteWork);
 
   // POST /api/works/:workId/message - 发送消息（创作过程中）
   router.post('/:workId/message', authenticateToken, async (req: AuthRequest, res: Response) => {
@@ -740,8 +747,10 @@ export function worksRoutes(io: Server): Router {
       const { userId } = req.params;
       const { includeDrafts } = req.query;
 
-      let userWorks = Array.from(works.values())
-        .filter(work => work.authorId === userId);
+      mergeWorksFromDisk();
+      let userWorks = Array.from(works.values()).filter(
+        (work) => String(work.authorId) === String(userId),
+      );
 
       // Check if requester is the author (for drafts)
       if (includeDrafts === 'true') {

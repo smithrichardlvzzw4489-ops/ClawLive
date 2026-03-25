@@ -20,6 +20,38 @@ export function getWorkCardGradient(id: string): string {
   return PLACEHOLDER_SURFACE_STYLES[hashId(id) % PLACEHOLDER_SURFACE_STYLES.length];
 }
 
+/** 无封面占位正文：按 id 在黑体/楷体/宋体系间轮换，统一加粗 */
+export function getFeedPlaceholderBodyClass(
+  id: string,
+  layout: 'masonry' | 'list' = 'masonry'
+): string {
+  const n = hashId(id) % 3;
+  const families = [
+    "[font-family:'PingFang_SC','Microsoft_YaHei','Noto_Sans_SC',ui-sans-serif,sans-serif]",
+    "[font-family:'STKaiti','KaiTi','KaiTi_GB2312',serif]",
+    "[font-family:'Songti_SC','Noto_Serif_SC','STSong',serif]",
+  ];
+  const clamp = layout === 'masonry' ? 'line-clamp-6' : 'line-clamp-3';
+  const size = layout === 'list' ? 'text-sm' : n === 1 ? 'text-[13px]' : 'text-[12px]';
+  const tracking = n === 2 && layout === 'masonry' ? 'tracking-wide' : '';
+  return `relative z-[1] text-center font-bold leading-relaxed text-neutral-900 ${clamp} ${size} ${tracking} ${families[n]}`;
+}
+
+/** 信息流卡片标题（小红书式底部） */
+export const feedCardTitleClass =
+  "text-sm font-bold leading-snug tracking-tight text-gray-900 line-clamp-2 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif]";
+
+/** 个人中心作品列表标题：按 id 在黑体/楷体/宋体系间轮换，加粗 */
+export function getProfileWorkTitleClass(id: string): string {
+  const n = hashId(id) % 3;
+  const stacks = [
+    "font-bold leading-snug text-gray-900 line-clamp-2 text-base [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif]",
+    "font-bold leading-snug text-gray-900 line-clamp-2 text-base [font-family:'STKaiti','KaiTi','KaiTi_GB2312',serif]",
+    "font-bold leading-snug text-gray-900 line-clamp-2 text-base tracking-wide [font-family:'Songti_SC','Noto_Serif_SC','STSong',serif]",
+  ];
+  return stacks[n];
+}
+
 const PLACEHOLDER_SURFACE_STYLES = [
   'bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:12px_12px] ring-1 ring-gray-200/90',
   'bg-gradient-to-br from-stone-50 via-orange-50/40 to-amber-50/30 ring-1 ring-stone-200/50',
@@ -117,15 +149,15 @@ export function WorkCard({
                 >
                   &ldquo;
                 </span>
-                <p className="relative z-[1] text-center text-[11px] font-medium leading-relaxed text-neutral-800 line-clamp-6 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
-                  {summary}
-                </p>
+                <p className={getFeedPlaceholderBodyClass(id)}>{summary}</p>
               </div>
             )}
           </div>
         )}
         <div className="shrink-0 p-2.5">
-          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-lobster transition-colors">
+          <h3
+            className={`${feedCardTitleClass} group-hover:text-lobster transition-colors`}
+          >
             {title}
           </h3>
           <div className="mt-2 flex items-center justify-between gap-2">
@@ -137,7 +169,9 @@ export function WorkCard({
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <span className="truncate text-xs text-gray-600">{displayName}</span>
+              <span className="truncate text-xs font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
+                {displayName}
+              </span>
             </div>
             <span className="shrink-0 text-xs text-gray-500 tabular-nums">
               ♥ {likeCount}
@@ -180,9 +214,7 @@ export function WorkCard({
             >
               &ldquo;
             </span>
-            <p className="relative z-[2] text-center text-sm font-medium leading-relaxed text-neutral-800 line-clamp-3 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
-              {summary}
-            </p>
+            <p className={getFeedPlaceholderBodyClass(id, 'list')}>{summary}</p>
           </div>
         )}
 
@@ -197,7 +229,9 @@ export function WorkCard({
       </div>
 
       <div className="p-4">
-        <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900 group-hover:text-lobster transition-colors">
+        <h3
+          className={`text-base font-bold mb-2 line-clamp-2 text-gray-900 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif] group-hover:text-lobster transition-colors`}
+        >
           {title}
         </h3>
 

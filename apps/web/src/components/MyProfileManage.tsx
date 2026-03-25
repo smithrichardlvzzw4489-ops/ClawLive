@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
-import { getWorkCardGradient } from '@/components/WorkCard';
+import { getProfileWorkTitleClass, getWorkCardGradient } from '@/components/WorkCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 
@@ -159,12 +159,29 @@ export function MyProfileManage() {
     if (!confirm(t('myWorks.confirmDelete'))) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/works/${workId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+      if (!token) {
+        router.replace('/login?redirect=/my-profile');
+        return;
+      }
+      // POST …/delete：部分 CDN/网关会拦截 DELETE；服务端与 DELETE 等价
+      const response = await fetch(`${API_BASE_URL}/api/works/${encodeURIComponent(workId)}/delete`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       if (response.ok) void loadAll();
-      else alert(t('myWorks.deleteFailed'));
+      else {
+        let detail = '';
+        try {
+          const body = (await response.json()) as { error?: string };
+          if (body?.error) detail = ` ${body.error}`;
+        } catch {
+          /* ignore */
+        }
+        alert(`${t('myWorks.deleteFailed')}${detail}`);
+      }
     } catch {
       alert(t('myWorks.deleteFailed'));
     }
@@ -209,7 +226,6 @@ export function MyProfileManage() {
   }
 
   const { author, works, stats } = data;
-  const userId = author?.id;
   const draftWorks = works.filter((w) => w.status === 'draft');
   const publishedWorks = works.filter((w) => w.status === 'published');
   const workTotal = draftWorks.length + publishedWorks.length;
@@ -218,8 +234,8 @@ export function MyProfileManage() {
   return (
     <MainLayout>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {/* 顶部：身份 + 快捷操作 */}
-        <header className="mb-8 flex flex-col gap-6 rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        {/* 顶部：身份 */}
+        <header className="mb-8 rounded-2xl border border-gray-200/80 bg-white p-6 shadow-sm">
           <div className="flex items-center gap-4">
             {author?.avatarUrl ? (
               <img
@@ -237,28 +253,6 @@ export function MyProfileManage() {
               <p className="text-gray-600">{author?.username}</p>
               <p className="mt-1 max-w-md text-sm text-gray-500">{t('myProfileCenter.pageSubtitle')}</p>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {userId && (
-              <Link
-                href={`/host/${userId}`}
-                className="inline-flex items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50"
-              >
-                {t('myProfileCenter.openPublicProfile')}
-              </Link>
-            )}
-            <Link
-              href="/works/create"
-              className="inline-flex items-center justify-center rounded-xl bg-lobster px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-lobster-dark"
-            >
-              + {t('myWorks.createNew')}
-            </Link>
-            <Link
-              href="/posts/create"
-              className="inline-flex items-center justify-center rounded-xl border border-lobster/30 bg-rose-50 px-4 py-2.5 text-sm font-medium text-lobster hover:bg-rose-100"
-            >
-              + {t('myProfileCenter.newFeedPost')}
-            </Link>
           </div>
         </header>
 
@@ -292,7 +286,7 @@ export function MyProfileManage() {
           <div className="space-y-8">
             <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 p-5 sm:p-6">
               <div className="mb-4 flex items-center justify-between gap-2">
-                <h3 className="text-base font-semibold text-amber-950">
+                <h3 className="text-base font-bold text-amber-950">
                   {t('myProfileCenter.sectionInProgress')}
                   <span className="ml-2 rounded-full bg-amber-200/80 px-2 py-0.5 text-xs font-medium text-amber-900">
                     {draftWorks.length}
@@ -308,8 +302,10 @@ export function MyProfileManage() {
                       key={work.id}
                       className="rounded-xl border border-amber-100 bg-white p-4 shadow-sm"
                     >
-                      <h4 className="font-semibold text-gray-900">{work.title}</h4>
-                      <p className="mt-1 text-sm text-gray-500">🦞 {work.lobsterName}</p>
+                      <h4 className={getProfileWorkTitleClass(work.id)}>{work.title}</h4>
+                      <p className="mt-1 text-sm font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
+                        🦞 {work.lobsterName}
+                      </p>
                       <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
                         <span>💬 {work.messageCount}</span>
                         <span>{new Date(work.updatedAt).toLocaleDateString('zh-CN')}</span>
@@ -337,7 +333,7 @@ export function MyProfileManage() {
 
             <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/30 p-5 sm:p-6">
               <div className="mb-4 flex items-center justify-between gap-2">
-                <h3 className="text-base font-semibold text-emerald-950">
+                <h3 className="text-base font-bold text-emerald-950">
                   {t('myProfileCenter.sectionPublished')}
                   <span className="ml-2 rounded-full bg-emerald-200/80 px-2 py-0.5 text-xs font-medium text-emerald-900">
                     {publishedWorks.length}
@@ -368,8 +364,8 @@ export function MyProfileManage() {
                           )}
                         </div>
                         <div className="p-3">
-                          <h4 className="line-clamp-2 font-semibold text-gray-900">{work.title}</h4>
-                          <p className="mt-1 text-xs text-gray-500">
+                          <h4 className={getProfileWorkTitleClass(work.id)}>{work.title}</h4>
+                          <p className="mt-1 text-xs font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
                             👁 {work.viewCount} · 💬 {work.messageCount}
                           </p>
                         </div>

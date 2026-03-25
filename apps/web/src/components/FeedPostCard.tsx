@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { getWorkCardGradient } from '@/components/WorkCard';
+import { feedCardTitleClass, getFeedPlaceholderBodyClass, getWorkCardGradient } from '@/components/WorkCard';
 import { excerptPlainText } from '@/lib/feed-post-markdown';
 import { resolveMediaUrl } from '@/lib/api';
 
@@ -52,16 +52,12 @@ export function FeedPostCard({
               >
                 &ldquo;
               </span>
-              <p className="relative z-[1] text-center text-[11px] font-medium leading-relaxed text-neutral-800 line-clamp-6 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
-                {summary}
-              </p>
+              <p className={getFeedPlaceholderBodyClass(post.id)}>{summary}</p>
             </div>
           </div>
         )}
         <div className="shrink-0 p-2.5">
-          <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-lobster transition-colors">
-            {post.title}
-          </h3>
+          <h3 className={`${feedCardTitleClass} group-hover:text-lobster transition-colors`}>{post.title}</h3>
           <div className="mt-2 flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-1.5">
               {post.author.avatarUrl ? (
@@ -75,7 +71,9 @@ export function FeedPostCard({
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <span className="truncate text-xs text-gray-600">{displayName}</span>
+              <span className="truncate text-xs font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
+                {displayName}
+              </span>
             </div>
             <span className="shrink-0 text-xs text-gray-500 tabular-nums">💬 {post.commentCount}</span>
           </div>
@@ -110,9 +108,7 @@ export function FeedPostCard({
             >
               &ldquo;
             </span>
-            <p className="relative z-[1] text-center text-sm font-medium leading-relaxed text-neutral-800 line-clamp-3 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
-              {summary}
-            </p>
+            <p className={getFeedPlaceholderBodyClass(post.id, 'list')}>{summary}</p>
           </div>
         )}
         <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2 text-xs font-semibold text-white">
@@ -121,7 +117,9 @@ export function FeedPostCard({
         </div>
       </div>
       <div className="p-4">
-        <h3 className="text-base font-semibold mb-2 line-clamp-2 text-gray-900 group-hover:text-lobster transition-colors">
+        <h3
+          className={`text-base font-bold mb-2 line-clamp-2 text-gray-900 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif] group-hover:text-lobster transition-colors`}
+        >
           {post.title}
         </h3>
         <p className="text-sm text-gray-600">

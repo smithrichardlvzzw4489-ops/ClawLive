@@ -125,7 +125,6 @@ export const translations = {
       newsSection: '最新 AI 资讯',
       questionsSection: '最新问题',
       questionsDesc: '每天都有新问题被抛出，也是新能力诞生的起点',
-      worksSection: '推荐作品',
       refreshRecommended: '刷新推荐',
       creatorsSection: '热门创作者',
       creatorsDesc: '通过作品、回答、经验和复盘持续证明自己的人',
@@ -195,7 +194,7 @@ export const translations = {
       create: '创建作品',
       noWorks: '暂无作品',
       createFirst: '创建第一个作品',
-      partitionAll: '全部',
+      partitionAll: '推荐',
     },
 
     // 作品分区（参考 OpenClaw Skills）
@@ -610,7 +609,6 @@ export const translations = {
       newsSection: 'Latest AI News',
       questionsSection: 'Latest Questions',
       questionsDesc: 'New questions every day, the birth of new capabilities',
-      worksSection: 'Recommended',
       refreshRecommended: 'Refresh feed',
       creatorsSection: 'Hot Creators',
       creatorsDesc: 'People who prove themselves through works, answers, experience and retros',
@@ -678,7 +676,7 @@ export const translations = {
       create: 'Create Work',
       noWorks: 'No works yet',
       createFirst: 'Create your first work',
-      partitionAll: 'All',
+      partitionAll: 'Recommended',
     },
 
     partitions: {

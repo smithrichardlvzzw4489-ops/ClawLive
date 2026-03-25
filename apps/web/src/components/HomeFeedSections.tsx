@@ -161,8 +161,7 @@ export function HomeFeedSections() {
       </section>
 
       <section>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-base font-bold text-gray-900">{t('home.worksSection')}</h2>
+        <div className="mb-3 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => void loadRecommendations('refresh')}

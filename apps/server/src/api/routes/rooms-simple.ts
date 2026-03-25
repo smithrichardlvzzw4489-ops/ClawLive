@@ -129,6 +129,19 @@ loaded.workMessages.forEach((msgs, workId) => {
   workMessages.set(workId, msgs.map((m) => ({ ...m, workId })));
 });
 
+/** 将磁盘上的作品合并进内存（多实例或重启后当前实例可能缺条目） */
+export function mergeWorksFromDisk(): void {
+  const disk = WorksPersistence.loadAll();
+  disk.works.forEach((w, k) => {
+    if (!works.has(k)) works.set(k, w);
+  });
+  disk.workMessages.forEach((msgs, workId) => {
+    if (!workMessages.has(workId)) {
+      workMessages.set(workId, msgs.map((m) => ({ ...m, workId })));
+    }
+  });
+}
+
 // 校验 hostId 是否为有效的 UUID（避免触发 Prisma 引擎 panic）
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 function isValidHostId(id: string): boolean {
