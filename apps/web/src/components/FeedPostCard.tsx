@@ -33,16 +33,18 @@ export function FeedPostCard({
         href={`/posts/${post.id}`}
         className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
       >
-        <div className="relative w-full overflow-hidden rounded-t-2xl bg-gray-100">
+        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-2xl bg-gray-100">
           {cover && (
             <img
               src={resolveMediaUrl(cover)}
               alt=""
-              className="block h-auto w-full transition-transform duration-300 group-hover:scale-[1.02]"
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
             />
           )}
           {!cover && (
-            <div className={`relative flex min-h-[8rem] items-center justify-center p-4 ${getWorkCardGradient(post.id)}`}>
+            <div
+              className={`absolute inset-0 flex items-center justify-center p-4 ${getWorkCardGradient(post.id)}`}
+            >
               <span
                 className="pointer-events-none absolute left-2.5 top-2 font-serif text-[2.25rem] leading-none text-neutral-900/[0.07]"
                 aria-hidden
