@@ -315,6 +315,12 @@ export const translations = {
       commentPostFailed: '留言失败，请重试',
       commentNetworkError: '网络错误，请检查登录状态或稍后重试',
       followAuthor: '+ 关注',
+      followingLabel: '已关注',
+      followNeedLogin: '请先登录后再关注',
+      followSuccess: '关注成功',
+      unfollowSuccess: '已取消关注',
+      followFailed: '关注失败，请稍后重试',
+      followIsSelf: '这是你的作品',
     },
 
     // 登录/注册
@@ -736,6 +742,12 @@ export const translations = {
       commentPostFailed: 'Could not post comment',
       commentNetworkError: 'Network error. Check login or try again.',
       followAuthor: '+ Follow',
+      followingLabel: 'Following',
+      followNeedLogin: 'Please sign in to follow',
+      followSuccess: 'Followed',
+      unfollowSuccess: 'Unfollowed',
+      followFailed: 'Something went wrong. Try again.',
+      followIsSelf: 'This is your work',
     },
 
     auth: {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { ShareButton } from '@/components/ShareButton';
@@ -79,6 +79,7 @@ const layoutWork = { hideHeader: true as const, flatBackground: true, showSideba
 
 export default function WorkDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const workId = params.workId as string;
   const { t } = useLocale();
 
@@ -88,6 +89,11 @@ export default function WorkDetailPage() {
   const [error, setError] = useState('');
   const [copiedSkill, setCopiedSkill] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
+  const [following, setFollowing] = useState(false);
+  const [followChecking, setFollowChecking] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [followToggling, setFollowToggling] = useState(false);
+  const [followToast, setFollowToast] = useState<string | null>(null);
 
   const getSkillContent = useCallback((): string | null => {
     if (!work) return null;
@@ -110,6 +116,52 @@ export default function WorkDetailPage() {
   useEffect(() => {
     loadWork();
   }, [workId]);
+
+  useEffect(() => {
+    if (!work) return;
+    let cancelled = false;
+    const checkFollow = async () => {
+      setFollowChecking(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        setCurrentUserId(null);
+        setFollowing(false);
+        setFollowChecking(false);
+        return;
+      }
+      try {
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!meRes.ok || cancelled) {
+          setFollowChecking(false);
+          return;
+        }
+        const me = await meRes.json();
+        if (cancelled) return;
+        setCurrentUserId(me.id);
+        if (me.id === work.author.id) {
+          setFollowChecking(false);
+          return;
+        }
+        const fr = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/check/${work.author.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (fr.ok && !cancelled) {
+          const { following: f } = await fr.json();
+          setFollowing(Boolean(f));
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setFollowChecking(false);
+      }
+    };
+    void checkFollow();
+    return () => {
+      cancelled = true;
+    };
+  }, [work?.author.id, work?.id]);
 
   const loadWork = async () => {
     try {
@@ -174,6 +226,40 @@ export default function WorkDetailPage() {
   const shareCount = typeof work.shareCount === 'number' ? work.shareCount : 0;
 
   /** 截图1：赞 / 分享 / 心 / 评论 — 放在底栏右侧红框内（截图2） */
+  const handleFollowClick = async () => {
+    if (!work) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.alert(t('workDetail.followNeedLogin'));
+      router.push(`/login?redirect=/works/${encodeURIComponent(workId)}`);
+      return;
+    }
+    if (currentUserId === work.author.id) {
+      window.alert(t('workDetail.followIsSelf'));
+      return;
+    }
+    if (followToggling || followChecking) return;
+    setFollowToggling(true);
+    setFollowToast(null);
+    try {
+      const method = following ? 'DELETE' : 'POST';
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/${work.author.id}`, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const next = !following;
+        setFollowing(next);
+        setFollowToast(next ? t('workDetail.followSuccess') : t('workDetail.unfollowSuccess'));
+        window.setTimeout(() => setFollowToast(null), 2800);
+      } else {
+        window.alert(t('workDetail.followFailed'));
+      }
+    } finally {
+      setFollowToggling(false);
+    }
+  };
+
   const interactionStatsRow = (
     <div className="flex min-w-0 flex-wrap items-center justify-end gap-4 text-gray-800 sm:gap-6 md:gap-8">
       <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
@@ -379,10 +465,22 @@ export default function WorkDetailPage() {
           </div>
         </div>
 
+        {followToast && (
+          <div
+            role="status"
+            className="fixed bottom-[5.5rem] left-1/2 z-40 max-w-[min(90vw,20rem)] -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2.5 text-center text-sm text-white shadow-lg"
+          >
+            {followToast}
+          </div>
+        )}
+
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200/80 bg-white/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 shrink-0 items-center gap-3">
-              <Link href={`/host/${work.author.id}`} className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
+              <Link
+                href={`/host/${work.author.id}`}
+                className="flex min-w-0 max-w-[60vw] items-center gap-2 rounded-lg outline-none ring-offset-2 hover:bg-gray-50/80 focus-visible:ring-2 focus-visible:ring-lobster/30 sm:max-w-none"
+              >
                 {work.author.avatarUrl ? (
                   <img src={work.author.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
                 ) : (
@@ -392,12 +490,22 @@ export default function WorkDetailPage() {
                 )}
                 <span className="truncate font-medium text-gray-900">{work.author.username}</span>
               </Link>
-              <Link
-                href={`/host/${work.author.id}`}
-                className="shrink-0 rounded-full bg-emerald-500 px-3 py-1 text-sm font-medium text-white transition hover:bg-emerald-600"
-              >
-                {t('workDetail.followAuthor')}
-              </Link>
+              {currentUserId === work.author.id ? (
+                <span className="shrink-0 text-xs text-gray-400">{t('workDetail.followIsSelf')}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleFollowClick()}
+                  disabled={followToggling || followChecking}
+                  className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium transition disabled:opacity-50 ${
+                    following
+                      ? 'border border-gray-200 bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                  }`}
+                >
+                  {followToggling ? '…' : following ? t('workDetail.followingLabel') : t('workDetail.followAuthor')}
+                </button>
+              )}
             </div>
             <div className="min-w-0 flex-1 sm:pl-4">
               <div className="ml-auto w-fit max-w-full rounded-lg border border-red-300/70 bg-rose-50/95 px-3 py-2 sm:px-5 sm:py-2.5">
