@@ -54,13 +54,11 @@ export function HomeFeedSections() {
   const [recommendedWorks, setRecommendedWorks] = useState<Work[]>([]);
   const [feedPosts, setFeedPosts] = useState<FeedPostCardItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [activePartition, setActivePartition] = useState<string | null>(null);
   const breakpointCols = useFeedGridColumnCount();
 
-  const loadRecommendations = useCallback(async (mode: 'initial' | 'refresh') => {
-    if (mode === 'refresh') setRefreshing(true);
-    else setLoading(true);
+  const loadRecommendations = useCallback(async () => {
+    setLoading(true);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const headers: HeadersInit = {};
@@ -76,12 +74,11 @@ export function HomeFeedSections() {
       console.error('Error loading recommendations:', e);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadRecommendations('initial');
+    void loadRecommendations();
   }, [loadRecommendations]);
 
   const filteredWorks =
@@ -161,32 +158,6 @@ export function HomeFeedSections() {
       </section>
 
       <section>
-        <div className="mb-3 flex items-center justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => void loadRecommendations('refresh')}
-            disabled={refreshing || loading}
-            aria-label={t('home.refreshRecommended')}
-            title={t('home.refreshRecommended')}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.75}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={`h-[18px] w-[18px] ${refreshing ? 'animate-spin' : ''}`}
-              aria-hidden
-            >
-              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-              <path d="M21 3v5h-5" />
-              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-              <path d="M8 16H3v5" />
-            </svg>
-          </button>
-        </div>
         {loading ? (
           <div className="flex justify-center py-16">
             <div className="h-9 w-9 animate-spin rounded-full border-2 border-gray-200 border-t-lobster" />
