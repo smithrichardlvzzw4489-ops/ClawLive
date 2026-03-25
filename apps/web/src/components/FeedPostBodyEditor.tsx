@@ -70,6 +70,20 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
     const [parts, setParts] = useState<MdPart[]>(() => splitAndNormalize(initialContent));
     const containerRef = useRef<HTMLDivElement>(null);
 
+    /** 首段 textarea 行数：随内容增高，避免仅两行字却占满 18 行导致与图片距离过大 */
+    const rowsForTextPart = useCallback(
+      (part: MdPart, index: number) => {
+        if (part.type !== 'text') return 4;
+        const lineCount = part.text.length === 0 ? 1 : part.text.split('\n').length;
+        const padded = lineCount + 2;
+        if (index === 0) {
+          return Math.max(4, Math.min(minRows, padded));
+        }
+        return Math.max(4, Math.min(14, padded));
+      },
+      [minRows],
+    );
+
     const updateTextPart = useCallback(
       (index: number, text: string) => {
         setParts((prev) => {
@@ -132,10 +146,10 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
         ref={containerRef}
         className={`rounded-lg border border-gray-300 bg-white px-4 py-3 focus-within:border-lobster focus-within:ring-2 focus-within:ring-lobster/30 ${className}`}
       >
-        <div className="flex min-h-[min(28rem,70vh)] flex-col gap-4 overflow-y-auto">
+        <div className="flex max-h-[min(70vh,36rem)] min-h-0 flex-col gap-2 overflow-y-auto">
           {parts.map((part, i) =>
             part.type === 'image' ? (
-              <figure key={`img-${i}-${part.src.slice(-24)}`} className="relative mx-auto max-w-full">
+              <figure key={`img-${i}-${part.src.slice(-24)}`} className="relative mx-auto max-w-full shrink-0">
                 <img
                   src={resolveMediaUrl(part.src)}
                   alt={part.alt}
@@ -155,7 +169,7 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
                 data-part-index={i}
                 value={part.text}
                 onChange={(e) => updateTextPart(i, e.target.value)}
-                rows={i === 0 ? minRows : Math.max(4, Math.min(14, part.text.split('\n').length + 2))}
+                rows={rowsForTextPart(part, i)}
                 placeholder={i === 0 ? placeholder : undefined}
                 className="w-full resize-y bg-transparent font-mono text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none"
               />

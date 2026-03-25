@@ -296,7 +296,7 @@ export default function CreateFeedPostPage() {
               initialContent={content}
               onChange={(v) => setContent(v.slice(0, FEED_POST_MAX_CONTENT))}
               maxLength={FEED_POST_MAX_CONTENT}
-              minRows={18}
+              minRows={14}
               placeholder="支持 Markdown（# 标题、列表、**粗体**、链接、插入正文图片等）…"
             />
           </div>
