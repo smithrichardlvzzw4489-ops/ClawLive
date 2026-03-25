@@ -25,15 +25,18 @@ interface Work {
   author: { id: string; username: string; avatarUrl?: string };
 }
 
-/** 与 Tailwind sm/lg 断点一致：2 / 3 / 5 列 */
+/**
+ * 竖版优先：窄屏单列纵向滚动；随宽度增加为多列瀑布流。
+ * 窄于 640px：1 列；sm～lg：3 列；lg+：5 列
+ */
 function useFeedGridColumnCount(): number {
-  const [n, setN] = useState(2);
+  const [n, setN] = useState(1);
   useLayoutEffect(() => {
     const update = () => {
       const w = window.innerWidth;
       if (w >= 1024) setN(5);
       else if (w >= 640) setN(3);
-      else setN(2);
+      else setN(1);
     };
     update();
     window.addEventListener('resize', update);
