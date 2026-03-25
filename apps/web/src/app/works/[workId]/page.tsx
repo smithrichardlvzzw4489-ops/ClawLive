@@ -339,7 +339,10 @@ export default function WorkDetailPage() {
                   statCount={shareCount}
                   recordShareUrl={recordShareUrl}
                 />
-                <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
+                <span
+                  className="flex items-center gap-1.5 text-[15px] tabular-nums text-gray-700"
+                  title={t('workDetail.interactionCollect')}
+                >
                   <span className="text-lg" aria-hidden>
                     ♥
                   </span>
