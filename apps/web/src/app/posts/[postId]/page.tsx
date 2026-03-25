@@ -8,14 +8,8 @@ import { ShareButton } from '@/components/ShareButton';
 import { WorkCommentsSection } from '@/components/WorkCommentsSection';
 import { MarkdownBody } from '@/components/MarkdownBody';
 import { useLocale } from '@/lib/i18n/LocaleContext';
-import { API_BASE_URL } from '@/lib/api';
+import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 import { excerptPlainText } from '@/lib/feed-post-markdown';
-
-function absUrl(path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  const base = API_BASE_URL.replace(/\/$/, '');
-  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
-}
 
 interface PostDetail {
   id: string;
@@ -231,28 +225,19 @@ export default function FeedPostDetailPage() {
   }
 
   const publishedAt = post.createdAt ? new Date(post.createdAt) : null;
-  const summaryText = excerptPlainText(post.content, 320);
-  const hasSummary = Boolean(summaryText);
-  const showRightColumn = hasSummary;
 
   return (
     <MainLayout {...layoutPost}>
       <>
         <div className="mx-auto max-w-7xl px-4 pb-32 pt-6 sm:px-6 lg:px-8">
-          <div
-            className={
-              showRightColumn
-                ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_288px] lg:items-start lg:gap-10 xl:grid-cols-[minmax(0,1fr)_320px]'
-                : ''
-            }
-          >
+          <div>
             <article className="min-w-0">
               <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">{post.title}</h1>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
                 <Link href={`/host/${post.author.id}`} className="flex items-center gap-1.5 hover:text-lobster">
                   {post.author.avatarUrl ? (
-                    <img src={absUrl(post.author.avatarUrl)} alt="" className="h-6 w-6 rounded-full object-cover" />
+                    <img src={resolveMediaUrl(post.author.avatarUrl)} alt="" className="h-6 w-6 rounded-full object-cover" />
                   ) : (
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-lobster text-xs text-white">
                       {post.author.username.charAt(0).toUpperCase()}
@@ -280,7 +265,7 @@ export default function FeedPostDetailPage() {
                     {post.imageUrls.map((u, i) => (
                       <img
                         key={i}
-                        src={absUrl(u)}
+                        src={resolveMediaUrl(u)}
                         alt=""
                         className="max-h-[28rem] w-full rounded-xl object-cover"
                       />
@@ -300,19 +285,6 @@ export default function FeedPostDetailPage() {
 
               <WorkCommentsSection scope="feedPost" postId={postId} onCountChange={setCommentCount} />
             </article>
-
-            {showRightColumn && (
-              <aside className="mt-10 min-w-0 lg:mt-0">
-                <div className="space-y-4 lg:sticky lg:top-4">
-                  <section className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm">
-                    <h2 className="text-base font-bold text-gray-900">{t('feedPost.summaryTitle')}</h2>
-                    <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                      <p className="text-sm leading-relaxed text-gray-700">{summaryText}</p>
-                    </div>
-                  </section>
-                </div>
-              </aside>
-            )}
           </div>
         </div>
 
@@ -334,7 +306,7 @@ export default function FeedPostDetailPage() {
               >
                 {post.author.avatarUrl ? (
                   <img
-                    src={absUrl(post.author.avatarUrl)}
+                    src={resolveMediaUrl(post.author.avatarUrl)}
                     alt=""
                     className="h-10 w-10 shrink-0 rounded-full object-cover"
                   />

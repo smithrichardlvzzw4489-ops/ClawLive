@@ -1,6 +1,14 @@
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+/** 将后端返回的 /uploads/... 路径转为可访问的绝对 URL（首页卡片等必须用 API 域名，不能走前端站点的相对路径） */
+export function resolveMediaUrl(path: string | null | undefined): string {
+  if (path == null || path === '') return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const base = API_BASE_URL.replace(/\/$/, '');
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
 const NETWORK_ERROR_MSG =
   '无法连接服务器，请确认后端服务已启动（默认端口 3001）';
 

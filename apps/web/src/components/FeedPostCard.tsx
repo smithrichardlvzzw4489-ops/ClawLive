@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { getWorkCardGradient } from '@/components/WorkCard';
 import { excerptPlainText } from '@/lib/feed-post-markdown';
+import { resolveMediaUrl } from '@/lib/api';
 
 export interface FeedPostCardItem {
   id: string;
@@ -13,12 +14,6 @@ export interface FeedPostCardItem {
   commentCount: number;
   createdAt: string;
   author: { id: string; username: string; avatarUrl?: string | null };
-}
-
-function absUrl(path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
-  const base = process.env.NEXT_PUBLIC_API_URL || '';
-  return `${base}${path}`;
 }
 
 export function FeedPostCard({
@@ -41,7 +36,7 @@ export function FeedPostCard({
         <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 lg:aspect-auto lg:min-h-0 lg:flex-1">
           {cover && (
             <img
-              src={absUrl(cover)}
+              src={resolveMediaUrl(cover)}
               alt=""
               className="absolute inset-0 h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
             />
@@ -63,7 +58,7 @@ export function FeedPostCard({
             <div className="flex min-w-0 items-center gap-1.5">
               {post.author.avatarUrl ? (
                 <img
-                  src={absUrl(post.author.avatarUrl)}
+                  src={resolveMediaUrl(post.author.avatarUrl)}
                   alt=""
                   className="h-6 w-6 shrink-0 rounded-full object-cover"
                 />
@@ -89,7 +84,7 @@ export function FeedPostCard({
       <div className="relative aspect-video overflow-hidden flex items-center justify-center p-6">
         {cover && (
           <img
-            src={absUrl(cover)}
+            src={resolveMediaUrl(cover)}
             alt={post.title}
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

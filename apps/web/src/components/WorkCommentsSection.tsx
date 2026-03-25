@@ -55,7 +55,21 @@ export function WorkCommentsSection(props: CommentsProps) {
   onCountRef.current = props.onCountChange;
 
   useEffect(() => {
-    setToken(typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+    const readToken = () => {
+      setToken(typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+    };
+    readToken();
+    window.addEventListener('storage', readToken);
+    window.addEventListener('focus', readToken);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') readToken();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('storage', readToken);
+      window.removeEventListener('focus', readToken);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, []);
 
   const load = useCallback(async () => {
