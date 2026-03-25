@@ -258,7 +258,7 @@ sequenceDiagram
     participant API
     participant DB
     
-    Client->>API: POST /auth/login {username, password}
+    Client->>API: POST /auth/login {email, password}
     API->>DB: 查询用户
     DB-->>API: 返回用户（含 passwordHash）
     API->>API: bcrypt.compare(password, hash)

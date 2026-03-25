@@ -41,12 +41,12 @@ Authorization: Bearer <your-jwt-token>
 ```
 
 #### POST /api/auth/login
-用户登录
+用户登录（使用注册时的邮箱）
 
 **请求体**
 ```json
 {
-  "username": "alice",
+  "email": "alice@example.com",
   "password": "securepassword"
 }
 ```

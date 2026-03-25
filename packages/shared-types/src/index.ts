@@ -107,7 +107,7 @@ export interface UpdateRoomRequest {
 }
 
 export interface LoginRequest {
-  username: string;
+  email: string;
   password: string;
 }
 

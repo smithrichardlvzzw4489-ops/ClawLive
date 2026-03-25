@@ -69,10 +69,10 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
 export const api = {
   auth: {
-    login: (username: string, password: string) =>
+    login: (email: string, password: string) =>
       fetchAPI('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       }),
     register: (username: string, email: string, password: string, avatar: string) =>
       fetchAPI('/api/auth/register', {

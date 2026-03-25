@@ -22,8 +22,8 @@ export function useAuth() {
     }
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const response = await api.auth.login(username, password);
+  const login = async (email: string, password: string) => {
+    const response = await api.auth.login(email, password);
     localStorage.setItem('token', response.token);
     localStorage.setItem('refreshToken', response.refreshToken);
     setUser(response.user);

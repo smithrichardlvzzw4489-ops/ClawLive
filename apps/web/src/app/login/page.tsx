@@ -17,8 +17,8 @@ function AuthForm() {
   const { t } = useLocale();
   const [mode, setMode] = useState<Mode>('login');
 
-  // Login
-  const [username, setUsername] = useState('');
+  // Login（使用邮箱）
+  const [loginEmail, setLoginEmail] = useState('');
   const [password, setPassword] = useState('');
 
   // Register
@@ -43,7 +43,7 @@ function AuthForm() {
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(loginEmail.trim(), password);
       router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
     } catch (err: any) {
       const msg = err?.message || '';
@@ -185,11 +185,12 @@ function AuthForm() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.username')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.loginEmailLabel')}</label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                autoComplete="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
                 required
               />
