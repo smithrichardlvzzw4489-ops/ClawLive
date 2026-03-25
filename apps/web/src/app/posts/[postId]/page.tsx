@@ -274,21 +274,6 @@ export default function FeedPostDetailPage() {
                 <span className="text-gray-500 tabular-nums">👁️ {post.viewCount}</span>
               </div>
 
-              {post.imageUrls?.length > 0 && (
-                <div className="mt-8 overflow-hidden rounded-xl shadow-sm">
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {post.imageUrls.map((u, i) => (
-                      <img
-                        key={i}
-                        src={resolveMediaUrl(u)}
-                        alt=""
-                        className="max-h-[28rem] w-full rounded-xl object-cover"
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
               <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                 <div className="border-b bg-gray-50 px-4 py-3">
                   <h2 className="text-base font-semibold text-gray-900">{t('feedPost.bodySectionTitle')}</h2>
