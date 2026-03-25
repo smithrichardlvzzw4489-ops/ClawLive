@@ -31,7 +31,7 @@ export function FeedPostCard({
     return (
       <Link
         href={`/posts/${post.id}`}
-        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid self-start transition-shadow hover:shadow-md"
+        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
       >
         <div className="relative w-full overflow-hidden bg-gray-100">
           {cover && (

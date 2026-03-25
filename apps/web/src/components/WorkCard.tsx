@@ -84,9 +84,9 @@ export function WorkCard({
     return (
       <Link
         href={`/works/${id}`}
-        className="group flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md lg:h-full lg:min-h-0"
+        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
       >
-        <div className="relative aspect-[3/4] overflow-hidden bg-gray-100 lg:aspect-auto lg:min-h-0 lg:flex-1">
+        <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
           {coverImage && (
             <img
               src={coverImage}

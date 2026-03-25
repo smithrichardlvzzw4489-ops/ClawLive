@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { WorkCard } from '@/components/WorkCard';
 import { FeedPostCard, type FeedPostCardItem } from '@/components/FeedPostCard';
@@ -24,9 +24,26 @@ interface Work {
   author: { id: string; username: string; avatarUrl?: string };
 }
 
+/** 与 Tailwind sm/lg 断点一致：2 / 3 / 5 列 */
+function useFeedGridColumnCount(): number {
+  const [n, setN] = useState(2);
+  useLayoutEffect(() => {
+    const update = () => {
+      const w = window.innerWidth;
+      if (w >= 1024) setN(5);
+      else if (w >= 640) setN(3);
+      else setN(2);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return n;
+}
+
 /**
  * 首页：分区筛选 + 推荐作品与图文动态。
- * 大屏（lg+）：5 列 × 行高约半屏，一屏约见 2 行共 10 个卡片；继续向下滚动见更多行。
+ * 瀑布式多列：按序 round-robin 分列，避免等高网格造成的巨大行间空白。
  */
 export function HomeFeedSections() {
   const { t } = useLocale();
@@ -35,6 +52,7 @@ export function HomeFeedSections() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activePartition, setActivePartition] = useState<string | null>(null);
+  const breakpointCols = useFeedGridColumnCount();
 
   const loadRecommendations = useCallback(async (mode: 'initial' | 'refresh') => {
     if (mode === 'refresh') setRefreshing(true);
@@ -71,6 +89,37 @@ export function HomeFeedSections() {
   const hasWorks = filteredWorks.length > 0;
   const hasFeed = showFeedInGrid && feedPosts.length > 0;
   const hasAny = hasWorks || hasFeed;
+
+  const totalItems =
+    filteredWorks.length + (showFeedInGrid ? feedPosts.length : 0);
+  const columnCount = totalItems > 0 ? Math.min(breakpointCols, totalItems) : 1;
+
+  const masonryColumns = useMemo(() => {
+    const buckets: ReactNode[][] = Array.from({ length: columnCount }, () => []);
+    let i = 0;
+    for (const work of filteredWorks) {
+      buckets[i % columnCount].push(
+        <WorkCard
+          key={`w-${work.id}`}
+          variant="xhs"
+          {...work}
+          publishedAt={work.publishedAt}
+          author={{
+            ...work.author,
+            avatarUrl: work.author.avatarUrl,
+          }}
+        />,
+      );
+      i += 1;
+    }
+    if (showFeedInGrid) {
+      for (const p of feedPosts) {
+        buckets[i % columnCount].push(<FeedPostCard key={`p-${p.id}`} post={p} variant="xhs" />);
+        i += 1;
+      }
+    }
+    return buckets;
+  }, [filteredWorks, feedPosts, showFeedInGrid, columnCount]);
 
   return (
     <>
@@ -159,21 +208,12 @@ export function HomeFeedSections() {
             )}
           </div>
         ) : (
-          <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:auto-rows-[minmax(0,calc((100vh-16rem)/2))] lg:gap-3">
-            {filteredWorks.map((work) => (
-              <WorkCard
-                key={`w-${work.id}`}
-                variant="xhs"
-                {...work}
-                publishedAt={work.publishedAt}
-                author={{
-                  ...work.author,
-                  avatarUrl: work.author.avatarUrl,
-                }}
-              />
+          <div className="flex w-full gap-3">
+            {masonryColumns.map((col, colIdx) => (
+              <div key={colIdx} className="flex min-w-0 flex-1 flex-col gap-3">
+                {col}
+              </div>
             ))}
-            {showFeedInGrid &&
-              feedPosts.map((p) => <FeedPostCard key={`p-${p.id}`} post={p} variant="xhs" />)}
           </div>
         )}
       </section>
