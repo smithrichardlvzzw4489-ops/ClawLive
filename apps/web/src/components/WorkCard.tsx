@@ -20,21 +20,29 @@ export function getWorkCardGradient(id: string): string {
   return PLACEHOLDER_SURFACE_STYLES[hashId(id) % PLACEHOLDER_SURFACE_STYLES.length];
 }
 
-/** 无封面占位正文：按 id 在黑体/楷体/宋体系间轮换，统一加粗 */
+/** 无封面占位正文：按 id 在多种中文字体间轮换，特粗字重 */
 export function getFeedPlaceholderBodyClass(
   id: string,
   layout: 'masonry' | 'list' = 'masonry'
 ): string {
-  const n = hashId(id) % 3;
+  const n = hashId(id) % 5;
   const families = [
     "[font-family:'PingFang_SC','Microsoft_YaHei','Noto_Sans_SC',ui-sans-serif,sans-serif]",
     "[font-family:'STKaiti','KaiTi','KaiTi_GB2312',serif]",
     "[font-family:'Songti_SC','Noto_Serif_SC','STSong',serif]",
+    "[font-family:'STFangsong','FangSong','FZFangSong-Z02',serif]",
+    "[font-family:'SimHei','Microsoft_YaHei_UI','Noto_Sans_SC',sans-serif]",
   ];
   const clamp = layout === 'masonry' ? 'line-clamp-6' : 'line-clamp-3';
-  const size = layout === 'list' ? 'text-sm' : n === 1 ? 'text-[13px]' : 'text-[12px]';
-  const tracking = n === 2 && layout === 'masonry' ? 'tracking-wide' : '';
-  return `relative z-[1] text-center font-bold leading-relaxed text-neutral-900 ${clamp} ${size} ${tracking} ${families[n]}`;
+  const size =
+    layout === 'list'
+      ? 'text-sm'
+      : n === 1 || n === 3
+        ? 'text-[13px]'
+        : 'text-[12px]';
+  const tracking = (n === 2 || n === 3) && layout === 'masonry' ? 'tracking-wide' : '';
+  const weight = n === 4 ? 'font-black' : 'font-extrabold';
+  return `relative z-[1] text-center ${weight} leading-relaxed text-neutral-900 antialiased ${clamp} ${size} ${tracking} ${families[n]}`;
 }
 
 /** 信息流卡片标题（小红书式底部） */
