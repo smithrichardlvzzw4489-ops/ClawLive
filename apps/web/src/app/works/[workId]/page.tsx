@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { ShareButton } from '@/components/ShareButton';
 import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
+import { WorkCommentsSection } from '@/components/WorkCommentsSection';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 interface Message {
@@ -28,6 +29,8 @@ interface Work {
   videoUrl?: string;
   viewCount: number;
   likeCount: number;
+  shareCount?: number;
+  commentCount?: number;
   publishedAt: Date;
   messages: Message[];
   author: {
@@ -43,7 +46,6 @@ interface Work {
   } | null;
 }
 
-/** 从 agent 消息中提取所有 SKILL.md 风格内容（含 YAML 头与正文），支持多个 Skill */
 function extractSkillFromMessages(messages: Message[]): string | null {
   const blocks: string[] = [];
   const seen = new Set<string>();
@@ -58,13 +60,11 @@ function extractSkillFromMessages(messages: Message[]): string | null {
 
   for (const msg of messages) {
     if (msg.sender !== 'agent' || !msg.content) continue;
-    // 匹配 ``` 或 ```md 或 ```yaml 等 fenced blocks
     const blockRe = /```(?:md|yaml|skill)?\s*\n([\s\S]*?)```/g;
     let m;
     while ((m = blockRe.exec(msg.content)) !== null) {
       addIfSkill(m[1].trim());
     }
-    // 无语言标签的 ``` block
     const bareRe = /```\s*\n([\s\S]*?)```/g;
     while ((m = bareRe.exec(msg.content)) !== null) {
       addIfSkill(m[1].trim());
@@ -79,12 +79,13 @@ export default function WorkDetailPage() {
   const params = useParams();
   const workId = params.workId as string;
   const { t } = useLocale();
-  
+
   const [work, setWork] = useState<Work | null>(null);
   const [linkedSkillId, setLinkedSkillId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copiedSkill, setCopiedSkill] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
 
   const getSkillContent = useCallback((): string | null => {
     if (!work) return null;
@@ -114,32 +115,36 @@ export default function WorkDetailPage() {
       const headers: HeadersInit = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}`, { headers });
-      
+
       if (!response.ok) {
         throw new Error('Failed to load work');
       }
 
       const workData = await response.json();
       setWork(workData);
+      setCommentCount(typeof workData.commentCount === 'number' ? workData.commentCount : 0);
       const skillRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills?sourceWorkId=${workId}`);
       if (skillRes.ok) {
         const skillData = await skillRes.json();
         const skills = skillData.skills || [];
         if (skills.length > 0) setLinkedSkillId(skills[0].id);
       }
-    } catch (err: any) {
-      setError(err.message || '加载失败');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '加载失败');
     } finally {
       setLoading(false);
     }
   };
+
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
+  const recordShareUrl = `${apiBase.replace(/\/$/, '')}/api/works/${workId}/share`;
 
   if (loading) {
     return (
       <MainLayout showSidebar={false}>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-lobster mx-auto mb-4"></div>
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster"></div>
             <p className="text-gray-600">{t('loading')}</p>
           </div>
         </div>
@@ -152,152 +157,235 @@ export default function WorkDetailPage() {
       <MainLayout showSidebar={false}>
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <p className="text-red-600 mb-4">{error || t('workDetail.notFound')}</p>
+            <p className="mb-4 text-red-600">{error || t('workDetail.notFound')}</p>
           </div>
         </div>
       </MainLayout>
     );
   }
 
+  const skillText = getSkillContent();
+  const hasSkillPanel = Boolean(skillText || linkedSkillId);
+  const publishedAt = work.publishedAt ? new Date(work.publishedAt) : null;
+  const shareCount = typeof work.shareCount === 'number' ? work.shareCount : 0;
+
   return (
     <MainLayout showSidebar={false}>
-      <div className="container mx-auto px-6 py-8 max-w-5xl">
-        {/* Header Card */}
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{work.title}</h1>
-              {(work.resultSummary || work.description) && (
-                <div className={`mb-4 p-4 rounded-xl ${work.resultSummary ? 'bg-lobster/10 border border-lobster/30' : ''}`}>
-                  <p className={`${work.resultSummary ? 'text-lg font-medium text-gray-800' : 'text-gray-600'}`}>
-                    {work.resultSummary || work.description}
-                  </p>
-                </div>
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+        <div
+          className={
+            hasSkillPanel
+              ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_288px] lg:items-start lg:gap-10 xl:grid-cols-[minmax(0,1fr)_320px]'
+              : ''
+          }
+        >
+          <article className="min-w-0">
+            <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">{work.title}</h1>
+
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
+              <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                {t('workDetail.originalTag')}
+              </span>
+              <Link href={`/host/${work.author.id}`} className="flex items-center gap-1.5 hover:text-lobster">
+                {work.author.avatarUrl ? (
+                  <img src={work.author.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
+                ) : (
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-lobster text-xs text-white">
+                    {work.author.username.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span className="font-medium text-gray-800">{work.author.username}</span>
+              </Link>
+              {publishedAt && (
+                <time dateTime={publishedAt.toISOString()} className="text-gray-500">
+                  {publishedAt.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </time>
               )}
-              <div className="flex items-center gap-6 text-sm text-gray-600 flex-wrap">
-                <Link href={`/host/${work.author.id}`} className="flex items-center gap-2 hover:text-lobster">
+              <span className="text-gray-500">🎧 {work.viewCount}人</span>
+              {work.authorLiveRoom && (
+                <Link
+                  href={`/rooms/${work.authorLiveRoom.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-500/25"
+                >
+                  <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-red-500" />
+                  {t('workDetail.authorLive')}
+                </Link>
+              )}
+            </div>
+
+            {(work.resultSummary || work.description) && (
+              <div
+                className={`mt-6 rounded-xl p-4 ${
+                  work.resultSummary ? 'border border-lobster/30 bg-lobster/10' : 'bg-gray-50'
+                }`}
+              >
+                <p
+                  className={
+                    work.resultSummary ? 'text-base font-medium leading-relaxed text-gray-800' : 'text-gray-600'
+                  }
+                >
+                  {work.resultSummary || work.description}
+                </p>
+              </div>
+            )}
+
+            {work.tags && work.tags.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {work.tags.map((tag, index) => (
+                  <span key={index} className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-600">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <p className="mt-2 text-xs text-gray-500">
+              🦞 {work.lobsterName} · 💬 {work.messages.length}
+            </p>
+
+            {work.coverImage && (
+              <div className="mt-8 overflow-hidden rounded-xl shadow-sm">
+                <img src={work.coverImage} alt="" className="max-h-[28rem] w-full object-cover" />
+              </div>
+            )}
+
+            {work.videoUrl && (
+              <div className="mt-8">
+                <VideoUrlPlayer url={work.videoUrl} className="w-full" />
+              </div>
+            )}
+
+            <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+              <div className="border-b bg-gray-50 px-4 py-3">
+                <h2 className="text-base font-semibold text-gray-900">{t('workDetail.creativeProcess')}</h2>
+                <p className="mt-0.5 text-xs leading-snug text-gray-600">
+                  {t('workDetail.processDesc', { name: work.lobsterName })}
+                </p>
+              </div>
+              <div className="space-y-1 px-2 py-3">
+                {work.messages.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-gray-500">{t('workDetail.noMessages')}</div>
+                ) : (
+                  work.messages.map((msg) => (
+                    <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[min(98%,40rem)] rounded-lg px-2.5 py-1.5 ${
+                          msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-purple-100 text-gray-900'
+                        }`}
+                      >
+                        <div className="mb-0.5 flex flex-wrap items-baseline gap-1 leading-none">
+                          <span className="max-w-[10rem] truncate text-[10px] font-semibold opacity-90">
+                            {msg.sender === 'user' ? work.author.username : work.lobsterName}
+                          </span>
+                          <span className="shrink-0 text-[10px] tabular-nums opacity-70">
+                            {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        {msg.videoUrl && (
+                          <div className="mb-1 max-w-sm overflow-hidden rounded">
+                            <VideoUrlPlayer url={msg.videoUrl} />
+                          </div>
+                        )}
+                        {msg.content ? (
+                          <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">{msg.content}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col gap-4 rounded-xl border border-gray-100 bg-white px-4 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <Link href={`/host/${work.author.id}`} className="flex items-center gap-2">
                   {work.author.avatarUrl ? (
-                    <img src={work.author.avatarUrl} alt={work.author.username} className="w-6 h-6 rounded-full" />
+                    <img src={work.author.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-lobster text-white flex items-center justify-center text-xs">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lobster text-sm text-white">
                       {work.author.username.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <span>{work.author.username}</span>
+                  <span className="font-medium text-gray-900">{work.author.username}</span>
                 </Link>
-                {work.authorLiveRoom && (
-                  <Link
-                    href={`/rooms/${work.authorLiveRoom.id}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 text-red-600 rounded-lg font-medium hover:bg-red-500/25 transition-colors"
-                  >
-                    <span className="inline-block w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                    {t('workDetail.authorLive')}
-                  </Link>
-                )}
-                <span>🦞 {work.lobsterName}</span>
-                <span>👁️ {work.viewCount}</span>
-                <span>💬 {work.messages.length}</span>
-                <span>📅 {new Date(work.publishedAt).toLocaleDateString('zh-CN')}</span>
-              </div>
-              {work.tags && work.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {work.tags.map((tag, index) => (
-                    <span key={index} className="px-3 py-1 bg-gray-100 text-gray-600 text-sm rounded-full">
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <ShareButton
-                url={`/works/${workId}`}
-                title={work.title}
-                text={work.resultSummary || work.description || `${work.lobsterName} 的作品 - ${work.title}`}
-              />
-              {getSkillContent() && (
-                <button
-                  type="button"
-                  onClick={copySkillMd}
-                  className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                <Link
+                  href={`/host/${work.author.id}`}
+                  className="rounded-full bg-emerald-500 px-3 py-1 text-sm font-medium text-white transition hover:bg-emerald-600"
                 >
-                  <span>📋</span>
-                  <span>{copiedSkill ? t('workDetail.copied') : t('workDetail.copySkillMd')}</span>
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Cover Image */}
-        {work.coverImage && (
-          <div className="mb-6">
-            <img
-              src={work.coverImage}
-              alt={work.title}
-              className="w-full max-h-96 object-cover rounded-xl shadow-sm"
-            />
-          </div>
-        )}
-
-        {/* 作品主视频 */}
-        {work.videoUrl && (
-          <div className="mb-6">
-            <VideoUrlPlayer url={work.videoUrl} className="w-full" />
-          </div>
-        )}
-
-        {/* Chat Content */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="border-b px-3 py-2 bg-gray-50">
-            <h2 className="text-base font-semibold text-gray-900">{t('workDetail.creativeProcess')}</h2>
-            <p className="text-xs text-gray-600 mt-0.5 leading-snug">
-              {t('workDetail.processDesc', { name: work.lobsterName })}
-            </p>
-          </div>
-          
-          <div className="px-2 py-2 space-y-1">
-            {work.messages.length === 0 ? (
-              <div className="text-center text-gray-500 py-6 text-sm">
-                {t('workDetail.noMessages')}
+                  {t('workDetail.followAuthor')}
+                </Link>
               </div>
-            ) : (
-              work.messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[min(98%,40rem)] rounded px-2 py-1 ${
-                      msg.sender === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-purple-100 text-gray-900'
-                    }`}
-                  >
-                    <div className="flex items-baseline gap-1 mb-px flex-wrap leading-none">
-                      <span className="text-[10px] font-semibold opacity-90 truncate max-w-[10rem]">
-                        {msg.sender === 'user' ? work.author.username : work.lobsterName}
-                      </span>
-                      <span className="text-[10px] opacity-70 tabular-nums shrink-0">
-                        {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                    {msg.videoUrl && (
-                      <div className="mb-1 rounded overflow-hidden max-w-sm">
-                        <VideoUrlPlayer url={msg.videoUrl} />
-                      </div>
-                    )}
-                    {msg.content ? (
-                      <p className="whitespace-pre-wrap break-words text-xs leading-tight">{msg.content}</p>
-                    ) : null}
-                  </div>
+              <div className="flex flex-wrap items-center gap-6 text-gray-800">
+                <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
+                  <span className="text-lg" aria-hidden>
+                    👍
+                  </span>
+                  {work.likeCount}
+                </span>
+                <ShareButton
+                  variant="stat"
+                  url={`/works/${workId}`}
+                  title={work.title}
+                  text={work.resultSummary || work.description || `${work.lobsterName} 的作品 - ${work.title}`}
+                  statCount={shareCount}
+                  recordShareUrl={recordShareUrl}
+                />
+                <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
+                  <span className="text-lg" aria-hidden>
+                    ♥
+                  </span>
+                  {work.likeCount}
+                </span>
+                <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
+                  <span className="text-lg" aria-hidden>
+                    💬
+                  </span>
+                  {commentCount}
+                </span>
+              </div>
+            </div>
+
+            <WorkCommentsSection workId={workId} onCountChange={setCommentCount} />
+          </article>
+
+          {hasSkillPanel && (
+            <aside className="mt-10 min-w-0 lg:mt-0">
+              <div className="space-y-4 lg:sticky lg:top-24">
+                <div className="rounded-xl border border-gray-200/80 bg-white p-4 shadow-sm">
+                  <h2 className="text-base font-bold text-gray-900">{t('workDetail.skillSidebarTitle')}</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('workDetail.skillSidebarDesc')}</p>
+                  {linkedSkillId && (
+                    <p className="mt-2 text-xs font-medium text-lobster">{t('workDetail.linkedSkillHint')}</p>
+                  )}
+                  {skillText ? (
+                    <>
+                      <pre className="mt-3 max-h-[min(70vh,36rem)] overflow-auto rounded-lg border border-gray-100 bg-gray-50 p-3 text-[11px] leading-snug text-gray-800">
+                        {skillText.length > 8000 ? `${skillText.slice(0, 8000)}…` : skillText}
+                      </pre>
+                      <button
+                        type="button"
+                        onClick={() => void copySkillMd()}
+                        className="mt-3 w-full rounded-xl border border-gray-300 py-2.5 text-sm font-medium text-gray-800 transition hover:bg-gray-50"
+                      >
+                        {copiedSkill ? t('workDetail.copied') : t('workDetail.copySkillMd')}
+                      </button>
+                    </>
+                  ) : linkedSkillId ? (
+                    <p className="mt-3 text-sm text-gray-600">{t('workDetail.noSkillToCopy')}</p>
+                  ) : null}
                 </div>
-              ))
-            )}
-          </div>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     </MainLayout>

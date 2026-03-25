@@ -15,6 +15,12 @@ import { recordBehavior } from '../../services/user-behavior';
 import { isValidPartition, DEFAULT_PARTITION } from '../../lib/work-partitions';
 import { generateResultSummary } from '../../services/llm';
 import { createSkillFromWork } from './skills';
+import {
+  getWorkComments,
+  getWorkCommentCount,
+  addWorkComment,
+} from '../../services/work-comments-store';
+import { getShareCount, incrementShareCount } from '../../services/work-share-stats';
 
 export function worksRoutes(io: Server): Router {
   const router = Router();
@@ -97,6 +103,87 @@ export function worksRoutes(io: Server): Router {
     }
   });
 
+  // GET /api/works/:workId/comments
+  router.get('/:workId/comments', async (req: Request, res: Response) => {
+    try {
+      const { workId } = req.params;
+      const work = works.get(workId);
+      if (!work) return res.status(404).json({ error: 'Work not found' });
+      if (work.status !== 'published') {
+        return res.json({ comments: [] });
+      }
+      const list = getWorkComments(workId);
+      const authorIds = [...new Set(list.map((c) => c.authorId))];
+      const authorMap = await getHostInfoBatch(authorIds);
+      const comments = list.map((c) => {
+        const a = authorMap.get(c.authorId);
+        return {
+          id: c.id,
+          content: c.content,
+          createdAt: c.createdAt,
+          author: a
+            ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl }
+            : { id: c.authorId, username: 'Unknown', avatarUrl: null as string | null },
+        };
+      });
+      res.json({ comments });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to list comments' });
+    }
+  });
+
+  // POST /api/works/:workId/comments
+  router.post('/:workId/comments', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { workId } = req.params;
+      const work = works.get(workId);
+      if (!work) return res.status(404).json({ error: 'Work not found' });
+      if (work.status !== 'published') {
+        return res.status(403).json({ error: 'Comments only on published works' });
+      }
+      const content = typeof req.body?.content === 'string' ? req.body.content : '';
+      if (!content.trim()) {
+        return res.status(400).json({ error: 'content required' });
+      }
+      const userId = req.user!.id;
+      const c = addWorkComment(workId, userId, content);
+      const author = await getHostInfo(userId);
+      res.status(201).json({
+        comment: {
+          id: c.id,
+          content: c.content,
+          createdAt: c.createdAt,
+          author: author
+            ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
+            : { id: userId, username: 'Unknown', avatarUrl: null },
+        },
+      });
+    } catch (e: any) {
+      if (e?.message === 'empty') {
+        return res.status(400).json({ error: 'content required' });
+      }
+      console.error(e);
+      res.status(500).json({ error: 'Failed to post comment' });
+    }
+  });
+
+  // POST /api/works/:workId/share — 记录一次分享（复制链接成功后由前端调用）
+  router.post('/:workId/share', async (req: Request, res: Response) => {
+    try {
+      const { workId } = req.params;
+      const w = works.get(workId);
+      if (!w || w.status !== 'published') {
+        return res.status(404).json({ error: 'Work not found' });
+      }
+      const next = incrementShareCount(workId);
+      res.json({ shareCount: next });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to record share' });
+    }
+  });
+
   // GET /api/works/:workId - 获取作品详情
   router.get('/:workId', async (req: Request, res: Response) => {
     try {
@@ -166,6 +253,8 @@ export function worksRoutes(io: Server): Router {
 
       res.json({
         ...work,
+        shareCount: getShareCount(workId),
+        commentCount: getWorkCommentCount(workId),
         author: {
           id: author.id,
           username: author.username,
