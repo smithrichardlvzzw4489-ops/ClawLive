@@ -67,11 +67,20 @@ const config: Config = {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' },
         },
+        /** 左侧半露龙虾：偶尔向右「冒头」 */
+        'lobster-peek': {
+          '0%, 72%, 100%': { transform: 'translateX(calc(-50% + 0px))' },
+          '76%': { transform: 'translateX(calc(-50% + 8px))' },
+          '80%': { transform: 'translateX(calc(-50% + 30px))' },
+          '84%': { transform: 'translateX(calc(-50% + 10px))' },
+          '88%': { transform: 'translateX(calc(-50% + 0px))' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-in-out',
         'slide-up': 'slide-up 0.3s ease-out',
         'float': 'float 3s ease-in-out infinite',
+        'lobster-peek': 'lobster-peek 11s ease-in-out infinite',
       },
       boxShadow: {
         'card': '0 2px 8px rgba(0, 0, 0, 0.08)',
