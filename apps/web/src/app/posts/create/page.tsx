@@ -219,10 +219,14 @@ export default function CreateFeedPostPage() {
       setError('标题或正文超出字数限制');
       return;
     }
+    if (!coverDataUrl) {
+      setError(t('feedPost.coverRequired'));
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const images = coverDataUrl ? [coverDataUrl] : [];
+      const images = [coverDataUrl];
       const res = await fetch(`${API_BASE_URL}/api/feed-posts`, {
         method: 'POST',
         headers: {
@@ -343,7 +347,13 @@ export default function CreateFeedPostPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">{t('feedPost.coverImageLabel')}</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t('feedPost.coverImageLabel')}
+              <span className="ml-1 text-red-500" aria-hidden>
+                *
+              </span>
+              <span className="ml-1 text-xs font-normal text-gray-400">{t('feedPost.coverImageRequiredBadge')}</span>
+            </label>
             <input
               ref={coverFileInputRef}
               type="file"

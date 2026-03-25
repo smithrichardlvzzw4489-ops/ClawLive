@@ -231,6 +231,7 @@ export function feedPostsRoutes(): Router {
       if (!t || t.length > 120) return res.status(400).json({ error: '标题必填且不超过120字' });
       if (!c || c.length > 20000) return res.status(400).json({ error: '正文必填且不超过20000字' });
       const imgs = Array.isArray(images) ? images : [];
+      if (imgs.length === 0) return res.status(400).json({ error: '请上传封面图片' });
       if (imgs.length > MAX_IMAGES) return res.status(400).json({ error: `最多${MAX_IMAGES}张图` });
 
       const id = uuidv4();
@@ -246,6 +247,9 @@ export function feedPostsRoutes(): Router {
         const name = `${uuidv4()}.${parsed.ext}`;
         writeFileSync(join(uploadDir, name), parsed.buf);
         imageUrls.push(`/uploads/feed-posts/${id}/${name}`);
+      }
+      if (imageUrls.length === 0) {
+        return res.status(400).json({ error: '请上传封面图片' });
       }
 
       const record: FeedPostRecord = {
