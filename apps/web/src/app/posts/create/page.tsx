@@ -285,7 +285,6 @@ export default function CreateFeedPostPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-500">{t('feedPost.markdownHint')}</span>
             <button
               type="button"
               onClick={() => setSplitPreview((s) => !s)}
