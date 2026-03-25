@@ -265,7 +265,7 @@ export default function MyWorksPage() {
               {publishedWorks.map((work) => (
                 <div key={work.id} className="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2 overflow-hidden relative">
                   <Link href={`/works/${work.id}`} className="block">
-                    <div className={`relative aspect-video bg-gradient-to-br ${getWorkCardGradient(work.id)}`}>
+                    <div className={`relative aspect-video ${getWorkCardGradient(work.id)}`}>
                       {work.coverImage ? (
                         <img src={work.coverImage} alt={work.title} className="w-full h-full object-cover" />
                       ) : (

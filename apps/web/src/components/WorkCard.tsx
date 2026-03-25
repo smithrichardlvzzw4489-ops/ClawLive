@@ -12,30 +12,33 @@ function hashId(id: string): number {
   return Math.abs(h);
 }
 
-/** 导出供其他卡片使用：根据作品 id 返回渐变类名 */
+/**
+ * 无封面占位背景（小红书式：纸感、点阵/弥散、低饱和；按 id 稳定选一套）。
+ * 返回完整 utility 类名，勿再拼 `bg-gradient-to-br`。
+ */
 export function getWorkCardGradient(id: string): string {
-  return GRADIENT_STYLES[hashId(id) % GRADIENT_STYLES.length];
+  return PLACEHOLDER_SURFACE_STYLES[hashId(id) % PLACEHOLDER_SURFACE_STYLES.length];
 }
 
-const GRADIENT_STYLES = [
-  'from-violet-400/80 to-indigo-500/80',
-  'from-amber-400/80 to-orange-500/80',
-  'from-emerald-500/80 to-teal-600/80',
-  'from-rose-400/80 to-pink-500/80',
-  'from-cyan-400/80 to-blue-500/80',
-  'from-fuchsia-400/80 to-purple-600/80',
-  'from-lime-400/80 to-green-600/80',
-  'from-sky-400/80 to-indigo-500/80',
-  'from-amber-500/80 to-red-500/80',
-  'from-violet-500/80 to-fuchsia-500/80',
+const PLACEHOLDER_SURFACE_STYLES = [
+  'bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:12px_12px] ring-1 ring-gray-200/90',
+  'bg-gradient-to-br from-stone-50 via-orange-50/40 to-amber-50/30 ring-1 ring-stone-200/50',
+  'bg-[#f4f5f7] ring-1 ring-gray-200/70',
+  'bg-gradient-to-b from-amber-50/60 to-[#fffbeb] ring-1 ring-amber-100/70',
+  'bg-gradient-to-b from-slate-50 via-blue-50/25 to-slate-100/90 ring-1 ring-slate-200/60',
+  'bg-gradient-to-br from-emerald-50/90 via-white to-lime-50/35 ring-1 ring-emerald-100/45',
+  'bg-[#fafafa] ring-1 ring-gray-200/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85)]',
+  'bg-white bg-[linear-gradient(#f3f4f6_1px,transparent_1px),linear-gradient(90deg,#f3f4f6_1px,transparent_1px)] bg-[length:18px_18px] ring-1 ring-gray-200/80',
+  'bg-gradient-to-br from-rose-50/80 via-white to-violet-50/45 ring-1 ring-rose-100/40',
 ] as const;
 
-const VIDEO_GRADIENT_STYLES = [
-  'from-slate-700 to-slate-900',
-  'from-slate-600 to-slate-800',
-  'from-neutral-700 to-neutral-900',
-  'from-stone-700 to-stone-900',
-  'from-zinc-700 to-zinc-900',
+/** 仅有视频无封面时：克制深色底，避免高饱和「系统渐变」 */
+const VIDEO_PLACEHOLDER_STYLES = [
+  'bg-gradient-to-br from-slate-800 via-slate-900 to-neutral-950',
+  'bg-gradient-to-br from-zinc-800 via-neutral-900 to-stone-950',
+  'bg-gradient-to-br from-slate-900 via-blue-950/80 to-neutral-950',
+  'bg-gradient-to-br from-stone-800 via-neutral-900 to-zinc-950',
+  'bg-gradient-to-br from-slate-700 via-slate-900 to-black',
 ] as const;
 
 interface WorkCardProps {
@@ -99,20 +102,30 @@ export function WorkCard({
           )}
           {!coverImage && videoUrl && (
             <div
-              className={`flex min-h-[10rem] items-center justify-center bg-gradient-to-br ${VIDEO_GRADIENT_STYLES[styleIndex % VIDEO_GRADIENT_STYLES.length]}`}
+              className={`flex min-h-[10rem] items-center justify-center ${VIDEO_PLACEHOLDER_STYLES[styleIndex % VIDEO_PLACEHOLDER_STYLES.length]}`}
             >
-              <span className="text-4xl opacity-90">▶</span>
+              <span className="text-4xl text-white/90 drop-shadow">▶</span>
             </div>
           )}
           {!coverImage && !videoUrl && (
             <div
-              className={`flex min-h-[10rem] items-center justify-center bg-gradient-to-br p-4 ${GRADIENT_STYLES[styleIndex % GRADIENT_STYLES.length]}`}
+              className={`relative flex min-h-[10rem] items-center justify-center p-4 ${getWorkCardGradient(id)}`}
             >
-              <p className="text-center text-xs font-medium text-white line-clamp-6 drop-shadow">{summary}</p>
+              <span
+                className="pointer-events-none absolute left-2.5 top-2 font-serif text-[2.5rem] leading-none text-neutral-900/[0.07]"
+                aria-hidden
+              >
+                &ldquo;
+              </span>
+              <p className="relative z-[1] text-center text-[11px] font-medium leading-relaxed text-neutral-800 line-clamp-6 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
+                {summary}
+              </p>
             </div>
           )}
           <div className="pointer-events-none absolute bottom-2 right-2 z-10 flex gap-1 text-[10px] font-medium text-white opacity-90">
-            <span className="rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm">👁 {viewCount}</span>
+            <span className="rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm shadow-sm">
+              👁 {viewCount}
+            </span>
           </div>
         </div>
         <div className="shrink-0 p-2.5">
@@ -144,34 +157,46 @@ export function WorkCard({
       href={`/works/${id}`}
       className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
     >
-      <div className="relative aspect-video overflow-hidden flex items-center justify-center p-6">
+      <div className="relative flex aspect-video items-center justify-center overflow-hidden p-6">
         {coverImage && (
-          <img
-            src={coverImage}
-            alt={title}
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+          <>
+            <img
+              src={coverImage}
+              alt={title}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 z-[1] bg-black/40" />
+            <p className="relative z-10 text-center text-sm font-medium text-white line-clamp-3 drop-shadow-lg">{summary}</p>
+          </>
         )}
         {!coverImage && videoUrl && (
           <div
-            className={`absolute inset-0 bg-gradient-to-br ${VIDEO_GRADIENT_STYLES[styleIndex % VIDEO_GRADIENT_STYLES.length]} flex items-center justify-center`}
+            className={`absolute inset-0 z-[1] flex items-center justify-center ${VIDEO_PLACEHOLDER_STYLES[styleIndex % VIDEO_PLACEHOLDER_STYLES.length]}`}
           >
-            <span className="text-5xl opacity-80">🎬</span>
+            <span className="text-5xl text-white/85 drop-shadow">🎬</span>
           </div>
         )}
         {!coverImage && !videoUrl && (
-          <div className={`absolute inset-0 bg-gradient-to-br ${GRADIENT_STYLES[styleIndex % GRADIENT_STYLES.length]}`}>
-            <div className="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_70%_80%,_white_0%,_transparent_60%)]" />
+          <div className={`absolute inset-0 z-[1] flex items-center justify-center p-6 ${getWorkCardGradient(id)}`}>
+            <span
+              className="pointer-events-none absolute left-3 top-2 font-serif text-5xl leading-none text-neutral-900/[0.06]"
+              aria-hidden
+            >
+              &ldquo;
+            </span>
+            <p className="relative z-[2] text-center text-sm font-medium leading-relaxed text-neutral-800 line-clamp-3 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
+              {summary}
+            </p>
           </div>
         )}
-        <div className="absolute inset-0 bg-black/40" />
-        <p className="relative z-10 text-white text-sm font-medium text-center line-clamp-3 drop-shadow-lg">{summary}</p>
 
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300" />
+        {coverImage && (
+          <div className="pointer-events-none absolute inset-0 z-[2] bg-black/0 transition group-hover:bg-black/10" />
+        )}
 
-        <div className="absolute bottom-2 right-2 flex items-center gap-2 text-white text-xs font-semibold z-10">
-          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">👁️ {viewCount}</span>
-          <span className="px-2 py-1 bg-black/60 rounded backdrop-blur-sm">💬 {messageCount}</span>
+        <div className="absolute bottom-2 right-2 z-20 flex items-center gap-2 text-xs font-semibold text-white">
+          <span className="rounded bg-black/60 px-2 py-1 backdrop-blur-sm">👁️ {viewCount}</span>
+          <span className="rounded bg-black/60 px-2 py-1 backdrop-blur-sm">💬 {messageCount}</span>
         </div>
       </div>
 

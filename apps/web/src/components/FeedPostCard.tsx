@@ -42,8 +42,16 @@ export function FeedPostCard({
             />
           )}
           {!cover && (
-            <div className={`flex min-h-[8rem] items-center justify-center bg-gradient-to-br p-4 ${getWorkCardGradient(post.id)}`}>
-              <p className="text-center text-xs font-medium text-white line-clamp-6">{summary}</p>
+            <div className={`relative flex min-h-[8rem] items-center justify-center p-4 ${getWorkCardGradient(post.id)}`}>
+              <span
+                className="pointer-events-none absolute left-2.5 top-2 font-serif text-[2.25rem] leading-none text-neutral-900/[0.07]"
+                aria-hidden
+              >
+                &ldquo;
+              </span>
+              <p className="relative z-[1] text-center text-[11px] font-medium leading-relaxed text-neutral-800 line-clamp-6 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
+                {summary}
+              </p>
             </div>
           )}
           <div className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
@@ -95,9 +103,16 @@ export function FeedPostCard({
           </>
         )}
         {!cover && (
-          <div className={`relative flex min-h-[10rem] items-center justify-center bg-gradient-to-br p-6 ${getWorkCardGradient(post.id)}`}>
-            <div className="pointer-events-none absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_70%_80%,_white_0%,_transparent_60%)]" />
-            <p className="relative z-10 text-center text-sm font-medium text-white line-clamp-3 drop-shadow-lg">{summary}</p>
+          <div className={`relative flex min-h-[10rem] items-center justify-center p-6 ${getWorkCardGradient(post.id)}`}>
+            <span
+              className="pointer-events-none absolute left-3 top-2 font-serif text-5xl leading-none text-neutral-900/[0.06]"
+              aria-hidden
+            >
+              &ldquo;
+            </span>
+            <p className="relative z-[1] text-center text-sm font-medium leading-relaxed text-neutral-800 line-clamp-3 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
+              {summary}
+            </p>
           </div>
         )}
         <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2 text-xs font-semibold text-white">
