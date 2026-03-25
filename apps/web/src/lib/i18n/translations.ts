@@ -299,6 +299,7 @@ export const translations = {
       listToMarketLabel: '同时上架 Skill 到市场（其他用户可直接复制使用）',
       agentTyping: '正在输入中...',
       originalTag: '原创',
+      aiSummary: 'AI Summary',
       skillSidebarTitle: 'Skill',
       skillSidebarDesc: '复制以下内容到其它 Agent 即可复现能力',
       linkedSkillHint: '已同步为能力流',
@@ -311,6 +312,8 @@ export const translations = {
       commentsNeedLogin: '请先登录后参与留言',
       commentsEmpty: '暂无留言，来抢沙发吧',
       commentsSending: '发送中…',
+      commentPostFailed: '留言失败，请重试',
+      commentNetworkError: '网络错误，请检查登录状态或稍后重试',
       followAuthor: '+ 关注',
     },
 
@@ -717,6 +720,7 @@ export const translations = {
       listToMarketLabel: 'Also list Skill on marketplace (others can copy and use)',
       agentTyping: 'Typing...',
       originalTag: 'Original',
+      aiSummary: 'AI Summary',
       skillSidebarTitle: 'Skill',
       skillSidebarDesc: 'Copy into another Agent to reuse this capability',
       linkedSkillHint: 'Listed as a skill',
@@ -729,6 +733,8 @@ export const translations = {
       commentsNeedLogin: 'Please sign in to comment',
       commentsEmpty: 'No comments yet',
       commentsSending: 'Sending…',
+      commentPostFailed: 'Could not post comment',
+      commentNetworkError: 'Network error. Check login or try again.',
       followAuthor: '+ Follow',
     },
 

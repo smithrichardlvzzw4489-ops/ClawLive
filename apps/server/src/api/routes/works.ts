@@ -117,10 +117,12 @@ export function worksRoutes(io: Server): Router {
       const authorMap = await getHostInfoBatch(authorIds);
       const comments = list.map((c) => {
         const a = authorMap.get(c.authorId);
+        const created =
+          c.createdAt instanceof Date ? c.createdAt.toISOString() : new Date(c.createdAt).toISOString();
         return {
           id: c.id,
           content: c.content,
-          createdAt: c.createdAt,
+          createdAt: created,
           author: a
             ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl }
             : { id: c.authorId, username: 'Unknown', avatarUrl: null as string | null },
@@ -153,7 +155,7 @@ export function worksRoutes(io: Server): Router {
         comment: {
           id: c.id,
           content: c.content,
-          createdAt: c.createdAt,
+          createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : new Date(c.createdAt).toISOString(),
           author: author
             ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
             : { id: userId, username: 'Unknown', avatarUrl: null },

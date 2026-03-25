@@ -13,16 +13,24 @@ interface MainLayoutProps {
   showSidebar?: boolean;
   /** 沉浸式页面（作品详情等）：不显示左侧导航栏 */
   hideLeftNav?: boolean;
+  /** 不显示顶栏（如作品沉浸式阅读页） */
+  hideHeader?: boolean;
 }
 
-export function MainLayout({ children, flatBackground, showSidebar, hideLeftNav }: MainLayoutProps) {
+export function MainLayout({
+  children,
+  flatBackground,
+  showSidebar,
+  hideLeftNav,
+  hideHeader,
+}: MainLayoutProps) {
   const noLeftRail = Boolean(hideLeftNav) || showSidebar === false;
 
   return (
     <div className={flatBackground ? 'min-h-screen bg-[#f5f5f5]' : 'min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50'}>
-      <Header leftNav={!noLeftRail} />
+      {!hideHeader && <Header leftNav={!noLeftRail} />}
 
-      <div className="pt-16">
+      <div className={hideHeader ? 'pt-0' : 'pt-16'}>
         {!noLeftRail && <MainLeftNav />}
         <main className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''}`}>{children}</main>
       </div>

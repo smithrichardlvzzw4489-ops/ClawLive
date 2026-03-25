@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
@@ -9,6 +9,26 @@ export interface WorkCommentItem {
   content: string;
   createdAt: string;
   author: { id: string; username: string; avatarUrl?: string | null };
+}
+
+function normalizeComment(raw: unknown): WorkCommentItem | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  const author = o.author as Record<string, unknown> | undefined;
+  if (!o.id || typeof o.content !== 'string' || !author || typeof author.username !== 'string') return null;
+  let created = '';
+  if (typeof o.createdAt === 'string') created = o.createdAt;
+  else created = new Date().toISOString();
+  return {
+    id: String(o.id),
+    content: o.content,
+    createdAt: created,
+    author: {
+      id: String(author.id ?? ''),
+      username: author.username,
+      avatarUrl: (author.avatarUrl as string | null | undefined) ?? null,
+    },
+  };
 }
 
 export function WorkCommentsSection({
@@ -23,7 +43,10 @@ export function WorkCommentsSection({
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [submitError, setSubmitError] = useState('');
   const [token, setToken] = useState<string | null>(null);
+  const onCountRef = useRef(onCountChange);
+  onCountRef.current = onCountChange;
 
   useEffect(() => {
     setToken(typeof window !== 'undefined' ? localStorage.getItem('token') : null);
@@ -34,16 +57,21 @@ export function WorkCommentsSection({
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/comments`);
       if (res.ok) {
         const data = await res.json();
-        const list = data.comments || [];
+        const rawList = data.comments || [];
+        const list: WorkCommentItem[] = [];
+        for (const item of rawList) {
+          const n = normalizeComment(item);
+          if (n) list.push(n);
+        }
         setComments(list);
-        onCountChange?.(list.length);
+        onCountRef.current?.(list.length);
       }
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [workId, onCountChange]);
+  }, [workId]);
 
   useEffect(() => {
     void load();
@@ -52,6 +80,7 @@ export function WorkCommentsSection({
   const submit = async () => {
     const tkn = localStorage.getItem('token');
     if (!tkn || !text.trim()) return;
+    setSubmitError('');
     setSending(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/comments`, {
@@ -62,20 +91,26 @@ export function WorkCommentsSection({
         },
         body: JSON.stringify({ content: text.trim() }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        const c = data.comment;
-        if (c) {
+      const data = res.ok ? await res.json().catch(() => ({})) : await res.json().catch(() => ({}));
+      if (res.ok && data.comment) {
+        const n = normalizeComment(data.comment);
+        if (n) {
           setComments((prev) => {
-            const next = [...prev, c];
-            onCountChange?.(next.length);
+            const next = [...prev, n];
+            onCountRef.current?.(next.length);
             return next;
           });
+          setText('');
+        } else {
+          await load();
+          setText('');
         }
-        setText('');
+      } else {
+        const err = typeof data.error === 'string' ? data.error : res.statusText;
+        setSubmitError(err || t('workDetail.commentPostFailed'));
       }
     } catch {
-      // ignore
+      setSubmitError(t('workDetail.commentNetworkError'));
     } finally {
       setSending(false);
     }
@@ -110,6 +145,10 @@ export function WorkCommentsSection({
           </Link>
           <span className="text-gray-500"> · {t('workDetail.commentsNeedLogin')}</span>
         </p>
+      )}
+
+      {submitError && (
+        <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{submitError}</p>
       )}
 
       {loading ? (
