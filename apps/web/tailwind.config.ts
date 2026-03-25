@@ -108,8 +108,36 @@ const config: Config = {
               fontWeight: '500',
               textDecorationColor: 'rgba(238, 90, 111, 0.35)',
             },
-            'h1, h2, h3': {
+            h1: {
+              fontSize: theme('fontSize.xl'),
+              lineHeight: '1.35',
+              fontWeight: '700',
               letterSpacing: '-0.02em',
+              marginTop: theme('spacing.6'),
+              marginBottom: theme('spacing.3'),
+            },
+            h2: {
+              fontSize: theme('fontSize.lg'),
+              lineHeight: '1.4',
+              fontWeight: '600',
+              letterSpacing: '-0.015em',
+              marginTop: theme('spacing.6'),
+              marginBottom: theme('spacing.2'),
+            },
+            h3: {
+              fontSize: theme('fontSize.base'),
+              lineHeight: '1.45',
+              fontWeight: '600',
+              letterSpacing: '-0.01em',
+              marginTop: theme('spacing.5'),
+              marginBottom: theme('spacing.2'),
+            },
+            h4: {
+              fontSize: theme('fontSize.sm'),
+              lineHeight: '1.5',
+              fontWeight: '600',
+              marginTop: theme('spacing.4'),
+              marginBottom: theme('spacing.1.5'),
             },
             blockquote: {
               fontStyle: 'normal' as const,
