@@ -54,9 +54,6 @@ export function FeedPostCard({
               </p>
             </div>
           )}
-          <div className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-            👁 {post.viewCount}
-          </div>
         </div>
         <div className="shrink-0 p-2.5">
           <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-lobster transition-colors">

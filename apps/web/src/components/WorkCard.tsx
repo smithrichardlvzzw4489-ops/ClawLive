@@ -122,11 +122,6 @@ export function WorkCard({
               </p>
             </div>
           )}
-          <div className="pointer-events-none absolute bottom-2 right-2 z-10 flex gap-1 text-[10px] font-medium text-white opacity-90">
-            <span className="rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm shadow-sm">
-              👁 {viewCount}
-            </span>
-          </div>
         </div>
         <div className="shrink-0 p-2.5">
           <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-lobster transition-colors">
