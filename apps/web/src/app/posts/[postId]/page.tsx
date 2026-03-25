@@ -33,6 +33,13 @@ const layoutPost = {
   hideLeftNav: true as const,
 };
 
+/** 与微信公众号正文类似的窄列阅读宽度，左右留白更大 */
+const articleContainerClass =
+  'mx-auto w-full max-w-[680px] px-4 pb-8 pt-6 sm:px-5 lg:px-6';
+const articleMainClass = 'mx-auto w-full max-w-[680px] px-4 pb-32 pt-6 sm:px-5 lg:px-6';
+const bottomBarInnerClass =
+  'mx-auto flex w-full max-w-[680px] flex-wrap items-center gap-4 px-4 py-3 sm:px-5 lg:px-6';
+
 export default function FeedPostDetailPage() {
   const { t } = useLocale();
   const router = useRouter();
@@ -320,7 +327,7 @@ export default function FeedPostDetailPage() {
   if (loading) {
     return (
       <MainLayout {...layoutPost}>
-        <div className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+        <div className={articleContainerClass}>
           <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-lobster">
             ← {t('feedPost.backHome')}
           </Link>
@@ -338,7 +345,7 @@ export default function FeedPostDetailPage() {
   if (notFound || !post) {
     return (
       <MainLayout {...layoutPost}>
-        <div className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 lg:px-8">
+        <div className={articleContainerClass}>
           <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-lobster">
             ← {t('feedPost.backHome')}
           </Link>
@@ -357,7 +364,7 @@ export default function FeedPostDetailPage() {
   return (
     <MainLayout {...layoutPost}>
       <>
-        <div className="mx-auto max-w-7xl px-4 pb-32 pt-6 sm:px-6 lg:px-8">
+        <div className={articleMainClass}>
           <div>
             <article className="min-w-0">
               <div className="mb-5">
@@ -421,7 +428,7 @@ export default function FeedPostDetailPage() {
         )}
 
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200/80 bg-white/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <div className={bottomBarInnerClass}>
             <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
               <Link
                 href={`/host/${post.author.id}`}
