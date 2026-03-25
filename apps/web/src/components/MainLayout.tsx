@@ -35,7 +35,7 @@ export function MainLayout({
         <main className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''}`}>{children}</main>
       </div>
 
-      <AgentChatWidget />
+      {noLeftRail ? <AgentChatWidget /> : <div className="lg:hidden"><AgentChatWidget /></div>}
     </div>
   );
 }

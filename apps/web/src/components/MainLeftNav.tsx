@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
+import { AgentChatWidget } from '@/components/AgentChatWidget';
 
 const RAIL_W = 'w-[220px] xl:w-[240px]';
 
@@ -42,6 +43,7 @@ export function MainLeftNav() {
         {item('/', t('nav.home'), '🏠')}
         {item('/rooms', t('nav.live'), '📺')}
         <PublishAndAuthControls variant="rail" />
+        <AgentChatWidget variant="rail" />
       </nav>
     </aside>
   );
