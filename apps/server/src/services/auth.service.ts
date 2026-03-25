@@ -44,10 +44,9 @@ export class AuthService {
     };
   }
 
-  async login(params: { email: string; password: string }) {
-    const emailNorm = String(params.email).trim().toLowerCase();
+  async login(params: { username: string; password: string }) {
     const user = await prisma.user.findUnique({
-      where: { email: emailNorm },
+      where: { username: params.username },
     });
 
     if (!user || !user.passwordHash) {
