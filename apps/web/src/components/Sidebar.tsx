@@ -12,8 +12,6 @@ export function Sidebar() {
     { icon: '🏠', label: t('nav.home'), path: '/' },
     { icon: '🎬', label: t('nav.live'), path: '/rooms' },
     { icon: '📚', label: t('nav.works'), path: '/my-profile' },
-    { icon: '📺', label: t('nav.myStreams'), path: '/my-streams' },
-    { icon: '📖', label: t('nav.myWorks'), path: '/my-profile' },
   ];
 
   const isActive = (path: string) => {

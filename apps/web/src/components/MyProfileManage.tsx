@@ -8,6 +8,28 @@ import { getProfileWorkTitleClass, getWorkCardGradient } from '@/components/Work
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 
+async function deleteWorkRequest(
+  token: string,
+  workId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/works/${encodeURIComponent(workId)}/delete`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (response.ok) return { ok: true };
+  let error = '';
+  try {
+    const body = (await response.json()) as { error?: string };
+    if (body?.error) error = body.error;
+  } catch {
+    /* ignore */
+  }
+  return { ok: false, error };
+}
+
 interface Work {
   id: string;
   title: string;
@@ -74,6 +96,7 @@ export function MyProfileManage() {
   const [mySkills, setMySkills] = useState<MySkillItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedWorkIds, setSelectedWorkIds] = useState<Set<string>>(() => new Set());
 
   const loadAll = useCallback(async () => {
     const token = localStorage.getItem('token');
@@ -155,6 +178,54 @@ export function MyProfileManage() {
     void loadAll();
   }, [loadAll]);
 
+  useEffect(() => {
+    if (!data?.works) return;
+    const valid = new Set(data.works.map((w) => w.id));
+    setSelectedWorkIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (valid.has(id)) next.add(id);
+        else changed = true;
+      });
+      return changed || next.size !== prev.size ? next : prev;
+    });
+  }, [data?.works]);
+
+  const toggleWorkSelection = useCallback((id: string) => {
+    setSelectedWorkIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const deleteWorksBulk = useCallback(
+    async (ids: string[]) => {
+      const uniq = [...new Set(ids)].filter(Boolean);
+      if (uniq.length === 0) return;
+      if (!confirm(t('myWorks.confirmDeleteMultiple', { n: String(uniq.length) }))) return;
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.replace('/login?redirect=/my-profile');
+        return;
+      }
+      const settled = await Promise.allSettled(uniq.map((id) => deleteWorkRequest(token, id)));
+      const failed = settled.filter(
+        (r) =>
+          r.status === 'rejected' ||
+          (r.status === 'fulfilled' && !r.value.ok),
+      ).length;
+      await loadAll();
+      setSelectedWorkIds(new Set());
+      if (failed > 0) {
+        alert(`${t('myWorks.deleteFailed')} (${failed}/${uniq.length})`);
+      }
+    },
+    [loadAll, router, t],
+  );
+
   const deleteWork = async (workId: string) => {
     if (!confirm(t('myWorks.confirmDelete'))) return;
     try {
@@ -163,8 +234,32 @@ export function MyProfileManage() {
         router.replace('/login?redirect=/my-profile');
         return;
       }
-      // POST …/delete：部分 CDN/网关会拦截 DELETE；服务端与 DELETE 等价
-      const response = await fetch(`${API_BASE_URL}/api/works/${encodeURIComponent(workId)}/delete`, {
+      const result = await deleteWorkRequest(token, workId);
+      if (result.ok) {
+        setSelectedWorkIds((prev) => {
+          const next = new Set(prev);
+          next.delete(workId);
+          return next;
+        });
+        void loadAll();
+      } else {
+        const detail = result.error ? ` ${result.error}` : '';
+        alert(`${t('myWorks.deleteFailed')}${detail}`);
+      }
+    } catch {
+      alert(t('myWorks.deleteFailed'));
+    }
+  };
+
+  const deleteFeedPost = async (postId: string) => {
+    if (!confirm(t('myProfileCenter.deleteFeedConfirm'))) return;
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.replace('/login?redirect=/my-profile');
+        return;
+      }
+      const response = await fetch(`${API_BASE_URL}/api/feed-posts/${encodeURIComponent(postId)}/delete`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -180,23 +275,8 @@ export function MyProfileManage() {
         } catch {
           /* ignore */
         }
-        alert(`${t('myWorks.deleteFailed')}${detail}`);
+        alert(`${t('myProfileCenter.deleteFeedFailed')}${detail}`);
       }
-    } catch {
-      alert(t('myWorks.deleteFailed'));
-    }
-  };
-
-  const deleteFeedPost = async (postId: string) => {
-    if (!confirm(t('myProfileCenter.deleteFeedConfirm'))) return;
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE_URL}/api/feed-posts/${postId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) void loadAll();
-      else alert(t('myProfileCenter.deleteFeedFailed'));
     } catch {
       alert(t('myProfileCenter.deleteFeedFailed'));
     }
@@ -230,6 +310,13 @@ export function MyProfileManage() {
   const publishedWorks = works.filter((w) => w.status === 'published');
   const workTotal = draftWorks.length + publishedWorks.length;
   const metrics = hostMetrics ?? { followerCount: 0, totalSessions: 0, skillCount: 0 };
+
+  const draftIds = draftWorks.map((w) => w.id);
+  const publishedIds = publishedWorks.map((w) => w.id);
+  const selectedDraftCount = draftIds.filter((id) => selectedWorkIds.has(id)).length;
+  const selectedPublishedCount = publishedIds.filter((id) => selectedWorkIds.has(id)).length;
+  const allDraftSelected = draftIds.length > 0 && selectedDraftCount === draftIds.length;
+  const allPublishedSelected = publishedIds.length > 0 && selectedPublishedCount === publishedIds.length;
 
   return (
     <MainLayout>
@@ -285,13 +372,46 @@ export function MyProfileManage() {
 
           <div className="space-y-8">
             <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 p-5 sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-base font-bold text-amber-950">
                   {t('myProfileCenter.sectionInProgress')}
                   <span className="ml-2 rounded-full bg-amber-200/80 px-2 py-0.5 text-xs font-medium text-amber-900">
                     {draftWorks.length}
                   </span>
                 </h3>
+                {draftWorks.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (allDraftSelected) {
+                          setSelectedWorkIds((prev) => {
+                            const next = new Set(prev);
+                            draftIds.forEach((id) => next.delete(id));
+                            return next;
+                          });
+                        } else {
+                          setSelectedWorkIds((prev) => {
+                            const next = new Set(prev);
+                            draftIds.forEach((id) => next.add(id));
+                            return next;
+                          });
+                        }
+                      }}
+                      className="rounded-lg border border-amber-200/80 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100/70"
+                    >
+                      {allDraftSelected ? t('myWorks.deselectAll') : t('myWorks.selectAll')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedDraftCount === 0}
+                      onClick={() => void deleteWorksBulk(draftIds.filter((id) => selectedWorkIds.has(id)))}
+                      className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {t('myWorks.deleteSelected', { n: String(selectedDraftCount) })}
+                    </button>
+                  </div>
+                )}
               </div>
               {draftWorks.length === 0 ? (
                 <p className="text-sm text-amber-900/70">{t('myProfileCenter.emptyInProgress')}</p>
@@ -302,13 +422,25 @@ export function MyProfileManage() {
                       key={work.id}
                       className="rounded-xl border border-amber-100 bg-white p-4 shadow-sm"
                     >
-                      <h4 className={getProfileWorkTitleClass(work.id)}>{work.title}</h4>
-                      <p className="mt-1 text-sm font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
-                        🦞 {work.lobsterName}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
-                        <span>💬 {work.messageCount}</span>
-                        <span>{new Date(work.updatedAt).toLocaleDateString('zh-CN')}</span>
+                      <div className="flex gap-3">
+                        <label className="flex shrink-0 cursor-pointer pt-0.5">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-gray-300 text-lobster focus:ring-lobster"
+                            checked={selectedWorkIds.has(work.id)}
+                            onChange={() => toggleWorkSelection(work.id)}
+                          />
+                        </label>
+                        <div className="min-w-0 flex-1">
+                          <h4 className={getProfileWorkTitleClass(work.id)}>{work.title}</h4>
+                          <p className="mt-1 text-sm font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
+                            🦞 {work.lobsterName}
+                          </p>
+                          <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
+                            <span>💬 {work.messageCount}</span>
+                            <span>{new Date(work.updatedAt).toLocaleDateString('zh-CN')}</span>
+                          </div>
+                        </div>
                       </div>
                       <div className="mt-4 flex gap-2">
                         <Link
@@ -332,13 +464,48 @@ export function MyProfileManage() {
             </div>
 
             <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/30 p-5 sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-base font-bold text-emerald-950">
                   {t('myProfileCenter.sectionPublished')}
                   <span className="ml-2 rounded-full bg-emerald-200/80 px-2 py-0.5 text-xs font-medium text-emerald-900">
                     {publishedWorks.length}
                   </span>
                 </h3>
+                {publishedWorks.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (allPublishedSelected) {
+                          setSelectedWorkIds((prev) => {
+                            const next = new Set(prev);
+                            publishedIds.forEach((id) => next.delete(id));
+                            return next;
+                          });
+                        } else {
+                          setSelectedWorkIds((prev) => {
+                            const next = new Set(prev);
+                            publishedIds.forEach((id) => next.add(id));
+                            return next;
+                          });
+                        }
+                      }}
+                      className="rounded-lg border border-emerald-200/80 bg-white px-3 py-1.5 text-xs font-medium text-emerald-900 hover:bg-emerald-100/60"
+                    >
+                      {allPublishedSelected ? t('myWorks.deselectAll') : t('myWorks.selectAll')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedPublishedCount === 0}
+                      onClick={() =>
+                        void deleteWorksBulk(publishedIds.filter((id) => selectedWorkIds.has(id)))
+                      }
+                      className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {t('myWorks.deleteSelected', { n: String(selectedPublishedCount) })}
+                    </button>
+                  </div>
+                )}
               </div>
               {publishedWorks.length === 0 ? (
                 <p className="text-sm text-emerald-900/70">{t('myProfileCenter.emptyPublished')}</p>
@@ -347,8 +514,17 @@ export function MyProfileManage() {
                   {publishedWorks.map((work) => (
                     <div
                       key={work.id}
-                      className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
+                      className="relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:shadow-md"
                     >
+                      <label className="absolute left-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-md bg-white/95 shadow-sm ring-1 ring-gray-200/80">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-lobster focus:ring-lobster"
+                          checked={selectedWorkIds.has(work.id)}
+                          onChange={() => toggleWorkSelection(work.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </label>
                       <Link href={`/works/${work.id}`} className="block">
                         <div className={`relative aspect-video ${getWorkCardGradient(work.id)}`}>
                           {work.coverImage ? (
@@ -475,7 +651,7 @@ export function MyProfileManage() {
                     <button
                       type="button"
                       onClick={() => deleteFeedPost(post.id)}
-                      className="w-full rounded-lg border border-red-200 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50"
+                      className="w-full rounded-lg border border-red-200 py-1.5 text-xs font-bold text-red-600 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif] hover:bg-red-50"
                     >
                       {t('myWorks.delete')}
                     </button>

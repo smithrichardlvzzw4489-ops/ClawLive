@@ -245,7 +245,11 @@ export const translations = {
       createPrompt: '开始创作你的第一个作品吧！',
       createWork: '创建作品',
       confirmDelete: '确认删除这个作品吗？此操作无法撤销。',
+      confirmDeleteMultiple: '确认删除选中的 {n} 个作品吗？此操作无法撤销。',
       deleteFailed: '删除失败',
+      selectAll: '全选',
+      deselectAll: '取消全选',
+      deleteSelected: '删除选中({n})',
     },
 
     myProfileCenter: {
@@ -724,7 +728,11 @@ export const translations = {
       createPrompt: 'Create your first work!',
       createWork: 'Create Work',
       confirmDelete: 'Delete this work? This cannot be undone.',
+      confirmDeleteMultiple: 'Delete {n} selected works? This cannot be undone.',
       deleteFailed: 'Delete failed',
+      selectAll: 'Select all',
+      deselectAll: 'Deselect all',
+      deleteSelected: 'Delete selected ({n})',
     },
 
     myProfileCenter: {

@@ -7,7 +7,7 @@ import { getHostInfo, getHostInfoBatch } from './rooms-simple';
 import { addFeedPostComment, getFeedPostComments } from '../../services/feed-post-comments-store';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
-import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store';
+import { getFeedPostsMap, mergeFeedPostsFromDisk, saveFeedPosts } from '../../services/feed-posts-store';
 import {
   getReactions,
   removeReactionsForPost,
@@ -72,8 +72,9 @@ export function feedPostsRoutes(): Router {
   router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
+      mergeFeedPostsFromDisk();
       const list = Array.from(feedPostsMap.values())
-        .filter((p) => p.authorId === userId)
+        .filter((p) => String(p.authorId) === String(userId))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const items = list.map((p) => ({
         id: p.id,
@@ -209,12 +210,17 @@ export function feedPostsRoutes(): Router {
     }
   });
 
-  router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+  async function handleDeleteFeedPost(req: AuthRequest, res: Response) {
     try {
       const postId = req.params.id;
+      if (!feedPostsMap.get(postId)) {
+        mergeFeedPostsFromDisk();
+      }
       const p = feedPostsMap.get(postId);
       if (!p) return res.status(404).json({ error: 'Not found' });
-      if (p.authorId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' });
+      if (String(p.authorId) !== String(req.user!.id)) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
       feedPostsMap.delete(postId);
       removeReactionsForPost(postId);
       saveFeedPosts();
@@ -223,7 +229,10 @@ export function feedPostsRoutes(): Router {
       console.error(e);
       res.status(500).json({ error: 'Failed to delete' });
     }
-  });
+  }
+
+  router.delete('/:id', authenticateToken, handleDeleteFeedPost);
+  router.post('/:id/delete', authenticateToken, handleDeleteFeedPost);
 
   router.get('/:id', async (req: Request, res: Response) => {
     try {
