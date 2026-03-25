@@ -152,6 +152,9 @@ export const translations = {
       submitting: '发布中…',
       needLogin: '请先登录',
       emptyFeed: '暂无图文动态',
+      notFound: '内容不存在',
+      summaryTitle: '摘要',
+      bodySectionTitle: '正文',
     },
 
     // 直播
@@ -321,6 +324,7 @@ export const translations = {
       unfollowSuccess: '已取消关注',
       followFailed: '关注失败，请稍后重试',
       followIsSelf: '这是你的作品',
+      followSessionExpired: '登录已过期，请重新登录后再试',
     },
 
     // 登录/注册
@@ -587,6 +591,9 @@ export const translations = {
       submitting: 'Publishing…',
       needLogin: 'Please sign in',
       emptyFeed: 'No posts yet',
+      notFound: 'This post could not be found',
+      summaryTitle: 'Summary',
+      bodySectionTitle: 'Body',
     },
 
     rooms: {
@@ -748,6 +755,7 @@ export const translations = {
       unfollowSuccess: 'Unfollowed',
       followFailed: 'Something went wrong. Try again.',
       followIsSelf: 'This is your work',
+      followSessionExpired: 'Your session expired. Please sign in again.',
     },
 
     auth: {

@@ -8,6 +8,7 @@ import { ShareButton } from '@/components/ShareButton';
 import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
 import { WorkCommentsSection } from '@/components/WorkCommentsSection';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { API_BASE_URL } from '@/lib/api';
 
 interface Message {
   id: string;
@@ -130,7 +131,7 @@ export default function WorkDetailPage() {
         return;
       }
       try {
-        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+        const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!meRes.ok || cancelled) {
@@ -140,13 +141,16 @@ export default function WorkDetailPage() {
         const me = await meRes.json();
         if (cancelled) return;
         setCurrentUserId(me.id);
-        if (me.id === work.author.id) {
+        if (String(me.id) === String(work.author.id)) {
           setFollowChecking(false);
           return;
         }
-        const fr = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/check/${work.author.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const fr = await fetch(
+          `${API_BASE_URL}/api/user-follows/check/${encodeURIComponent(String(work.author.id))}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
         if (fr.ok && !cancelled) {
           const { following: f } = await fr.json();
           setFollowing(Boolean(f));
@@ -168,7 +172,7 @@ export default function WorkDetailPage() {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const headers: HeadersInit = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}`, { headers });
+      const response = await fetch(`${API_BASE_URL}/api/works/${workId}`, { headers });
 
       if (!response.ok) {
         throw new Error('Failed to load work');
@@ -177,7 +181,7 @@ export default function WorkDetailPage() {
       const workData = await response.json();
       setWork(workData);
       setCommentCount(typeof workData.commentCount === 'number' ? workData.commentCount : 0);
-      const skillRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills?sourceWorkId=${workId}`);
+      const skillRes = await fetch(`${API_BASE_URL}/api/skills?sourceWorkId=${workId}`);
       if (skillRes.ok) {
         const skillData = await skillRes.json();
         const skills = skillData.skills || [];
@@ -190,8 +194,7 @@ export default function WorkDetailPage() {
     }
   };
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || '';
-  const recordShareUrl = `${apiBase.replace(/\/$/, '')}/api/works/${workId}/share`;
+  const recordShareUrl = `${API_BASE_URL.replace(/\/$/, '')}/api/works/${workId}/share`;
 
   if (loading) {
     return (
@@ -234,7 +237,7 @@ export default function WorkDetailPage() {
       router.push(`/login?redirect=/works/${encodeURIComponent(workId)}`);
       return;
     }
-    if (currentUserId === work.author.id) {
+    if (String(currentUserId) === String(work.author.id)) {
       window.alert(t('workDetail.followIsSelf'));
       return;
     }
@@ -243,7 +246,8 @@ export default function WorkDetailPage() {
     setFollowToast(null);
     try {
       const method = following ? 'DELETE' : 'POST';
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/${work.author.id}`, {
+      const hostSeg = encodeURIComponent(String(work.author.id));
+      const res = await fetch(`${API_BASE_URL}/api/user-follows/${hostSeg}`, {
         method,
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -252,9 +256,22 @@ export default function WorkDetailPage() {
         setFollowing(next);
         setFollowToast(next ? t('workDetail.followSuccess') : t('workDetail.unfollowSuccess'));
         window.setTimeout(() => setFollowToast(null), 2800);
-      } else {
-        window.alert(t('workDetail.followFailed'));
+        return;
       }
+      const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        window.alert(t('workDetail.followSessionExpired'));
+        router.push(`/login?redirect=/works/${encodeURIComponent(workId)}`);
+        return;
+      }
+      if (res.status === 400 && body.code === 'SELF_FOLLOW') {
+        window.alert(t('workDetail.followIsSelf'));
+        return;
+      }
+      window.alert(typeof body.error === 'string' ? body.error : t('workDetail.followFailed'));
+    } catch {
+      window.alert(t('workDetail.followFailed'));
     } finally {
       setFollowToggling(false);
     }
@@ -490,7 +507,7 @@ export default function WorkDetailPage() {
                 )}
                 <span className="truncate font-medium text-gray-900">{work.author.username}</span>
               </Link>
-              {currentUserId === work.author.id ? (
+              {String(currentUserId) === String(work.author.id) ? (
                 <span className="shrink-0 text-xs text-gray-400">{t('workDetail.followIsSelf')}</span>
               ) : (
                 <button

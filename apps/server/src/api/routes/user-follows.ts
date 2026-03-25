@@ -26,6 +26,9 @@ export function userFollowsRoutes(): Router {
     const userId = req.user!.id;
     const hostId = req.params.hostId;
     if (!hostId) return res.status(400).json({ error: 'hostId required' });
+    if (String(userId) === String(hostId)) {
+      return res.status(400).json({ error: '不能关注自己', code: 'SELF_FOLLOW' });
+    }
     follow(userId, hostId);
     res.json({ success: true, following: true });
   });

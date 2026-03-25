@@ -36,17 +36,21 @@ function saveAll(records: FollowRecord[]) {
 }
 
 export function isFollowing(userId: string, hostId: string): boolean {
+  const u = String(userId);
+  const h = String(hostId);
   const records = loadAll();
-  return records.some((r) => r.userId === userId && r.hostId === hostId);
+  return records.some((r) => String(r.userId) === u && String(r.hostId) === h);
 }
 
 export function follow(userId: string, hostId: string): boolean {
-  if (userId === hostId) return false; // 不能关注自己
+  const u = String(userId);
+  const h = String(hostId);
+  if (u === h) return false; // 不能关注自己
   const records = loadAll();
-  if (records.some((r) => r.userId === userId && r.hostId === hostId)) return true; // 已关注
+  if (records.some((r) => String(r.userId) === u && String(r.hostId) === h)) return true; // 已关注
   records.push({
-    userId,
-    hostId,
+    userId: u,
+    hostId: h,
     createdAt: new Date().toISOString(),
   });
   saveAll(records);
@@ -54,13 +58,17 @@ export function follow(userId: string, hostId: string): boolean {
 }
 
 export function unfollow(userId: string, hostId: string): boolean {
-  const records = loadAll().filter((r) => !(r.userId === userId && r.hostId === hostId));
-  if (records.length === loadAll().length) return false; // 未关注过
-  saveAll(records);
+  const u = String(userId);
+  const h = String(hostId);
+  const records = loadAll();
+  const next = records.filter((r) => !(String(r.userId) === u && String(r.hostId) === h));
+  if (next.length === records.length) return false;
+  saveAll(next);
   return true;
 }
 
 export function getFollowerCount(hostId: string): number {
+  const h = String(hostId);
   const records = loadAll();
-  return records.filter((r) => r.hostId === hostId).length;
+  return records.filter((r) => String(r.hostId) === h).length;
 }
