@@ -5,19 +5,16 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { ShareButton } from '@/components/ShareButton';
+import { WorkCommentsSection } from '@/components/WorkCommentsSection';
+import { MarkdownBody } from '@/components/MarkdownBody';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
+import { excerptPlainText } from '@/lib/feed-post-markdown';
 
 function absUrl(path: string): string {
   if (path.startsWith('http://') || path.startsWith('https://')) return path;
   const base = API_BASE_URL.replace(/\/$/, '');
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
-}
-
-function excerpt(text: string, maxLen: number): string {
-  const t = text.replace(/\s+/g, ' ').trim();
-  if (t.length <= maxLen) return t;
-  return `${t.slice(0, maxLen)}…`;
 }
 
 interface PostDetail {
@@ -187,7 +184,7 @@ export default function FeedPostDetailPage() {
         variant="stat"
         url={`/posts/${postId}`}
         title={post.title}
-        text={excerpt(post.content, 120)}
+        text={excerptPlainText(post.content, 120)}
         statCount={0}
       />
       <span
@@ -234,7 +231,7 @@ export default function FeedPostDetailPage() {
   }
 
   const publishedAt = post.createdAt ? new Date(post.createdAt) : null;
-  const summaryText = excerpt(post.content, 320);
+  const summaryText = excerptPlainText(post.content, 320);
   const hasSummary = Boolean(summaryText);
   const showRightColumn = hasSummary;
 
@@ -297,16 +294,11 @@ export default function FeedPostDetailPage() {
                   <h2 className="text-base font-semibold text-gray-900">{t('feedPost.bodySectionTitle')}</h2>
                 </div>
                 <div className="px-4 py-4">
-                  <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-gray-800">
-                    {post.content}
-                  </p>
+                  <MarkdownBody content={post.content} />
                 </div>
               </div>
 
-              <section className="mt-8 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-                <h3 className="mb-4 text-lg font-bold text-gray-900">{t('workDetail.commentsTitle')}</h3>
-                <p className="py-6 text-center text-sm text-gray-500">{t('workDetail.commentsEmpty')}</p>
-              </section>
+              <WorkCommentsSection scope="feedPost" postId={postId} onCountChange={setCommentCount} />
             </article>
 
             {showRightColumn && (
@@ -334,7 +326,7 @@ export default function FeedPostDetailPage() {
         )}
 
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200/80 bg-white/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
               <Link
                 href={`/host/${post.author.id}`}
@@ -370,10 +362,8 @@ export default function FeedPostDetailPage() {
                 </button>
               )}
             </div>
-            <div className="min-w-0 flex-1 sm:pl-4">
-              <div className="ml-auto w-fit max-w-full rounded-lg border border-red-300/70 bg-rose-50/95 px-3 py-2 sm:px-5 sm:py-2.5">
-                {interactionStatsRow}
-              </div>
+            <div className="flex min-w-0 flex-1 items-center justify-center sm:pl-2">
+              <div className="w-fit max-w-full">{interactionStatsRow}</div>
             </div>
           </div>
         </div>

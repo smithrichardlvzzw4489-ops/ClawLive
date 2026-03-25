@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { getWorkCardGradient } from '@/components/WorkCard';
+import { excerptPlainText } from '@/lib/feed-post-markdown';
 
 export interface FeedPostCardItem {
   id: string;
@@ -27,8 +28,7 @@ export function FeedPostCard({
   post: FeedPostCardItem;
   variant?: 'default' | 'xhs';
 }) {
-  const summary =
-    post.content.replace(/\s+/g, ' ').trim().slice(0, 120) || post.title;
+  const summary = excerptPlainText(post.content, 120) || post.title;
   const cover = post.imageUrls?.[0];
   const displayName = post.author.username === 'Unknown' ? '作者' : post.author.username;
 

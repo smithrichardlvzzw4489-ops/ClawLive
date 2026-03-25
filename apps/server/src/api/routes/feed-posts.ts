@@ -3,7 +3,8 @@ import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { getHostInfoBatch } from './rooms-simple';
+import { getHostInfo, getHostInfoBatch } from './rooms-simple';
+import { addFeedPostComment, getFeedPostComments } from '../../services/feed-post-comments-store';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
 import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store';
@@ -57,6 +58,68 @@ export function feedPostsRoutes(): Router {
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to list posts' });
+    }
+  });
+
+  router.get('/:id/comments', async (req: Request, res: Response) => {
+    try {
+      const postId = req.params.id;
+      const p = feedPostsMap.get(postId);
+      if (!p) return res.status(404).json({ error: 'Not found' });
+      const list = getFeedPostComments(postId);
+      const authorIds = [...new Set(list.map((c) => c.authorId))];
+      const authorMap = await getHostInfoBatch(authorIds);
+      const comments = list.map((c) => {
+        const a = authorMap.get(c.authorId);
+        const created =
+          c.createdAt instanceof Date ? c.createdAt.toISOString() : new Date(c.createdAt).toISOString();
+        return {
+          id: c.id,
+          content: c.content,
+          createdAt: created,
+          author: a
+            ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl }
+            : { id: c.authorId, username: 'Unknown', avatarUrl: null as string | null },
+        };
+      });
+      res.json({ comments });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to list comments' });
+    }
+  });
+
+  router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const postId = req.params.id;
+      const p = feedPostsMap.get(postId);
+      if (!p) return res.status(404).json({ error: 'Not found' });
+      const content = typeof req.body?.content === 'string' ? req.body.content : '';
+      if (!content.trim()) {
+        return res.status(400).json({ error: 'content required' });
+      }
+      const userId = req.user!.id;
+      const c = addFeedPostComment(postId, userId, content);
+      p.commentCount = (p.commentCount || 0) + 1;
+      feedPostsMap.set(p.id, p);
+      saveFeedPosts();
+      const author = await getHostInfo(userId);
+      res.status(201).json({
+        comment: {
+          id: c.id,
+          content: c.content,
+          createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : new Date(c.createdAt).toISOString(),
+          author: author
+            ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
+            : { id: userId, username: 'Unknown', avatarUrl: null },
+        },
+      });
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'message' in e && (e as { message: string }).message === 'empty') {
+        return res.status(400).json({ error: 'content required' });
+      }
+      console.error(e);
+      res.status(500).json({ error: 'Failed to post comment' });
     }
   });
 

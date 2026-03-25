@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { API_BASE_URL } from '@/lib/api';
 
 export interface WorkCommentItem {
   id: string;
@@ -31,22 +32,27 @@ function normalizeComment(raw: unknown): WorkCommentItem | null {
   };
 }
 
-export function WorkCommentsSection({
-  workId,
-  onCountChange,
-}: {
-  workId: string;
-  onCountChange?: (n: number) => void;
-}) {
+type CommentsProps =
+  | { scope: 'work'; workId: string; onCountChange?: (n: number) => void }
+  | { scope: 'feedPost'; postId: string; onCountChange?: (n: number) => void };
+
+export function WorkCommentsSection(props: CommentsProps) {
   const { t } = useLocale();
+  const resourceId = props.scope === 'work' ? props.workId : props.postId;
+  const commentsEndpoint = `${API_BASE_URL}/api/${
+    props.scope === 'work' ? `works/${resourceId}` : `feed-posts/${resourceId}`
+  }/comments`;
+  const loginRedirectPath =
+    props.scope === 'work' ? `/works/${resourceId}` : `/posts/${encodeURIComponent(resourceId)}`;
+
   const [comments, setComments] = useState<WorkCommentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [token, setToken] = useState<string | null>(null);
-  const onCountRef = useRef(onCountChange);
-  onCountRef.current = onCountChange;
+  const onCountRef = useRef(props.onCountChange);
+  onCountRef.current = props.onCountChange;
 
   useEffect(() => {
     setToken(typeof window !== 'undefined' ? localStorage.getItem('token') : null);
@@ -54,7 +60,7 @@ export function WorkCommentsSection({
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/comments`);
+      const res = await fetch(commentsEndpoint);
       if (res.ok) {
         const data = await res.json();
         const rawList = data.comments || [];
@@ -71,7 +77,7 @@ export function WorkCommentsSection({
     } finally {
       setLoading(false);
     }
-  }, [workId]);
+  }, [commentsEndpoint]);
 
   useEffect(() => {
     void load();
@@ -83,7 +89,7 @@ export function WorkCommentsSection({
     setSubmitError('');
     setSending(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/comments`, {
+      const res = await fetch(commentsEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -140,7 +146,7 @@ export function WorkCommentsSection({
         </div>
       ) : (
         <p className="mb-6 text-sm text-gray-500">
-          <Link href={`/login?redirect=/works/${workId}`} className="font-medium text-lobster hover:underline">
+          <Link href={`/login?redirect=${encodeURIComponent(loginRedirectPath)}`} className="font-medium text-lobster hover:underline">
             {t('login')}
           </Link>
           <span className="text-gray-500"> · {t('workDetail.commentsNeedLogin')}</span>

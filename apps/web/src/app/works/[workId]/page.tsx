@@ -424,7 +424,7 @@ export default function WorkDetailPage() {
                 </div>
               </div>
 
-              <WorkCommentsSection workId={workId} onCountChange={setCommentCount} />
+              <WorkCommentsSection scope="work" workId={workId} onCountChange={setCommentCount} />
             </article>
 
             {showRightColumn && (
@@ -492,7 +492,7 @@ export default function WorkDetailPage() {
         )}
 
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200/80 bg-white/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-3">
               <Link
                 href={`/host/${work.author.id}`}
@@ -524,10 +524,8 @@ export default function WorkDetailPage() {
                 </button>
               )}
             </div>
-            <div className="min-w-0 flex-1 sm:pl-4">
-              <div className="ml-auto w-fit max-w-full rounded-lg border border-red-300/70 bg-rose-50/95 px-3 py-2 sm:px-5 sm:py-2.5">
-                {interactionStatsRow}
-              </div>
+            <div className="flex min-w-0 flex-1 items-center justify-center sm:pl-2">
+              <div className="w-fit max-w-full">{interactionStatsRow}</div>
             </div>
           </div>
         </div>
