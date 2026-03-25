@@ -32,9 +32,10 @@ function normalizeComment(raw: unknown): WorkCommentItem | null {
   };
 }
 
-type CommentsProps =
+type CommentsProps = (
   | { scope: 'work'; workId: string; onCountChange?: (n: number) => void }
-  | { scope: 'feedPost'; postId: string; onCountChange?: (n: number) => void };
+  | { scope: 'feedPost'; postId: string; onCountChange?: (n: number) => void }
+) & { anchorId?: string };
 
 export function WorkCommentsSection(props: CommentsProps) {
   const { t } = useLocale();
@@ -137,7 +138,7 @@ export function WorkCommentsSection(props: CommentsProps) {
   };
 
   return (
-    <section className="mt-8 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+    <section id={props.anchorId} className="mt-8 scroll-mt-24 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
       <h3 className="mb-4 text-lg font-bold text-gray-900">{t('workDetail.commentsTitle')}</h3>
 
       {token ? (

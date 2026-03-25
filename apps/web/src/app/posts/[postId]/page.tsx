@@ -18,8 +18,11 @@ interface PostDetail {
   imageUrls: string[];
   viewCount: number;
   likeCount: number;
+  favoriteCount: number;
   commentCount: number;
   createdAt: string;
+  likedByMe?: boolean;
+  favoritedByMe?: boolean;
   author: { id: string; username: string; avatarUrl?: string | null };
 }
 
@@ -45,18 +48,28 @@ export default function FeedPostDetailPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [followToggling, setFollowToggling] = useState(false);
   const [followToast, setFollowToast] = useState<string | null>(null);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [favoriteBusy, setFavoriteBusy] = useState(false);
 
   const loadPost = useCallback(async () => {
     if (!postId) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/feed-posts/${postId}`);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const res = await fetch(`${API_BASE_URL}/api/feed-posts/${postId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.status === 404) {
         setNotFound(true);
         return;
       }
       if (!res.ok) throw new Error('load failed');
       const data = (await res.json()) as PostDetail;
-      setPost(data);
+      setPost({
+        ...data,
+        favoriteCount: typeof data.favoriteCount === 'number' ? data.favoriteCount : 0,
+        likedByMe: Boolean(data.likedByMe),
+        favoritedByMe: Boolean(data.favoritedByMe),
+      });
       setCommentCount(typeof data.commentCount === 'number' ? data.commentCount : 0);
     } catch {
       setNotFound(true);
@@ -166,14 +179,109 @@ export default function FeedPostDetailPage() {
     }
   };
 
+  const scrollToComments = () => {
+    const el = document.getElementById('feed-post-comments');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const toggleLike = async () => {
+    if (!post || likeBusy) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.alert(t('workDetail.followNeedLogin'));
+      router.push(`/login?redirect=/posts/${encodeURIComponent(postId)}`);
+      return;
+    }
+    setLikeBusy(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/feed-posts/${encodeURIComponent(postId)}/like`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json().catch(() => ({}))) as { liked?: boolean; likeCount?: number; error?: string };
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        window.alert(t('workDetail.followSessionExpired'));
+        router.push(`/login?redirect=/posts/${encodeURIComponent(postId)}`);
+        return;
+      }
+      if (!res.ok) {
+        window.alert(typeof data.error === 'string' ? data.error : '操作失败');
+        return;
+      }
+      setPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              likedByMe: Boolean(data.liked),
+              likeCount: typeof data.likeCount === 'number' ? data.likeCount : prev.likeCount,
+            }
+          : null
+      );
+    } catch {
+      window.alert(t('workDetail.followFailed'));
+    } finally {
+      setLikeBusy(false);
+    }
+  };
+
+  const toggleFavorite = async () => {
+    if (!post || favoriteBusy) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.alert(t('workDetail.followNeedLogin'));
+      router.push(`/login?redirect=/posts/${encodeURIComponent(postId)}`);
+      return;
+    }
+    setFavoriteBusy(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/feed-posts/${encodeURIComponent(postId)}/favorite`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = (await res.json().catch(() => ({}))) as { favorited?: boolean; favoriteCount?: number; error?: string };
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        window.alert(t('workDetail.followSessionExpired'));
+        router.push(`/login?redirect=/posts/${encodeURIComponent(postId)}`);
+        return;
+      }
+      if (!res.ok) {
+        window.alert(typeof data.error === 'string' ? data.error : '操作失败');
+        return;
+      }
+      setPost((prev) =>
+        prev
+          ? {
+              ...prev,
+              favoritedByMe: Boolean(data.favorited),
+              favoriteCount: typeof data.favoriteCount === 'number' ? data.favoriteCount : prev.favoriteCount,
+            }
+          : null
+      );
+    } catch {
+      window.alert(t('workDetail.followFailed'));
+    } finally {
+      setFavoriteBusy(false);
+    }
+  };
+
   const interactionStatsRow = post ? (
-    <div className="flex min-w-0 flex-wrap items-center justify-end gap-4 text-gray-800 sm:gap-6 md:gap-8">
-      <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 text-gray-800 sm:gap-4 md:gap-6">
+      <button
+        type="button"
+        onClick={() => void toggleLike()}
+        disabled={likeBusy}
+        title={t('workDetail.interactionLike')}
+        className={`flex items-center gap-1.5 rounded-full px-2 py-1 text-[15px] tabular-nums transition active:scale-95 disabled:opacity-50 ${
+          post.likedByMe ? 'bg-amber-50 ring-2 ring-amber-200/80' : 'hover:bg-gray-100'
+        }`}
+      >
         <span className="text-xl" aria-hidden>
           👍
         </span>
         {post.likeCount}
-      </span>
+      </button>
       <ShareButton
         variant="stat"
         url={`/posts/${postId}`}
@@ -181,21 +289,31 @@ export default function FeedPostDetailPage() {
         text={excerptPlainText(post.content, 120)}
         statCount={0}
       />
-      <span
-        className="flex items-center gap-1.5 text-[15px] tabular-nums text-gray-800"
+      <button
+        type="button"
+        onClick={() => void toggleFavorite()}
+        disabled={favoriteBusy}
         title={t('workDetail.interactionCollect')}
+        className={`flex items-center gap-1.5 rounded-full px-2 py-1 text-[15px] tabular-nums text-gray-800 transition active:scale-95 disabled:opacity-50 ${
+          post.favoritedByMe ? 'bg-rose-50 ring-2 ring-rose-200/80' : 'hover:bg-gray-100'
+        }`}
       >
         <span className="text-xl" aria-hidden>
           ❤️
         </span>
-        {post.likeCount}
-      </span>
-      <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
+        {post.favoriteCount}
+      </button>
+      <button
+        type="button"
+        onClick={scrollToComments}
+        title={t('workDetail.commentsTitle')}
+        className="flex items-center gap-1.5 rounded-full px-2 py-1 text-[15px] tabular-nums transition hover:bg-gray-100 active:scale-95"
+      >
         <span className="text-xl" aria-hidden>
           💬
         </span>
         {commentCount}
-      </span>
+      </button>
     </div>
   ) : null;
 
@@ -283,7 +401,12 @@ export default function FeedPostDetailPage() {
                 </div>
               </div>
 
-              <WorkCommentsSection scope="feedPost" postId={postId} onCountChange={setCommentCount} />
+              <WorkCommentsSection
+                scope="feedPost"
+                postId={postId}
+                anchorId="feed-post-comments"
+                onCountChange={setCommentCount}
+              />
             </article>
           </div>
         </div>

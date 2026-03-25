@@ -2,12 +2,13 @@ import { Router, Request, Response } from 'express';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, AuthRequest, getUserIdFromBearer } from '../middleware/auth';
 import { getHostInfo, getHostInfoBatch } from './rooms-simple';
 import { addFeedPostComment, getFeedPostComments } from '../../services/feed-post-comments-store';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
 import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store';
+import { getReactions, toggleFavorite, toggleLike } from '../../services/feed-post-reactions-store';
 
 const MAX_IMAGES = 9;
 const MAX_BYTES_PER_IMAGE = 5 * 1024 * 1024;
@@ -47,6 +48,7 @@ export function feedPostsRoutes(): Router {
           imageUrls: p.imageUrls,
           viewCount: p.viewCount,
           likeCount: p.likeCount,
+          favoriteCount: p.favoriteCount ?? 0,
           commentCount: p.commentCount,
           createdAt: p.createdAt,
           author: author
@@ -146,6 +148,38 @@ export function feedPostsRoutes(): Router {
     }
   });
 
+  router.post('/:id/like', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const postId = req.params.id;
+      const p = feedPostsMap.get(postId);
+      if (!p) return res.status(404).json({ error: 'Not found' });
+      const userId = req.user!.id;
+      const { liked } = toggleLike(postId, userId, p);
+      feedPostsMap.set(p.id, p);
+      saveFeedPosts();
+      res.json({ liked, likeCount: p.likeCount });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to toggle like' });
+    }
+  });
+
+  router.post('/:id/favorite', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const postId = req.params.id;
+      const p = feedPostsMap.get(postId);
+      if (!p) return res.status(404).json({ error: 'Not found' });
+      const userId = req.user!.id;
+      const { favorited } = toggleFavorite(postId, userId, p);
+      feedPostsMap.set(p.id, p);
+      saveFeedPosts();
+      res.json({ favorited, favoriteCount: p.favoriteCount ?? 0 });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to toggle favorite' });
+    }
+  });
+
   router.get('/:id', async (req: Request, res: Response) => {
     try {
       const p = feedPostsMap.get(req.params.id);
@@ -153,6 +187,11 @@ export function feedPostsRoutes(): Router {
       p.viewCount += 1;
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
+
+      const uid = getUserIdFromBearer(req);
+      const reactions = getReactions(p.id);
+      const likedByMe = uid ? reactions.likes.includes(uid) : false;
+      const favoritedByMe = uid ? reactions.favorites.includes(uid) : false;
 
       const authorMap = await getHostInfoBatch([p.authorId]);
       const author = authorMap.get(p.authorId);
@@ -163,8 +202,11 @@ export function feedPostsRoutes(): Router {
         imageUrls: p.imageUrls,
         viewCount: p.viewCount,
         likeCount: p.likeCount,
+        favoriteCount: p.favoriteCount ?? 0,
         commentCount: p.commentCount,
         createdAt: p.createdAt,
+        likedByMe,
+        favoritedByMe,
         author: author
           ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
           : { id: p.authorId, username: 'Unknown', avatarUrl: null },
@@ -214,6 +256,7 @@ export function feedPostsRoutes(): Router {
         imageUrls,
         viewCount: 0,
         likeCount: 0,
+        favoriteCount: 0,
         commentCount: 0,
         createdAt: new Date().toISOString(),
       };

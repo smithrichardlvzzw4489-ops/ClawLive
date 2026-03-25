@@ -11,12 +11,17 @@ export type FeedPostRecord = {
   imageUrls: string[];
   viewCount: number;
   likeCount: number;
+  /** 收藏数（与点赞分开统计） */
+  favoriteCount: number;
   commentCount: number;
   createdAt: string;
 };
 
 function reviveDates(obj: unknown): FeedPostRecord {
   const o = obj as FeedPostRecord;
+  if (typeof o.favoriteCount !== 'number' || Number.isNaN(o.favoriteCount)) {
+    o.favoriteCount = 0;
+  }
   return o;
 }
 
