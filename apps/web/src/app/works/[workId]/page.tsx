@@ -173,9 +173,9 @@ export default function WorkDetailPage() {
   const publishedAt = work.publishedAt ? new Date(work.publishedAt) : null;
   const shareCount = typeof work.shareCount === 'number' ? work.shareCount : 0;
 
-  /** 截图3：赞 / 分享 / 心 / 评论 — 放入 AI Summary 粉框内；无摘要时显示在底栏右侧 */
+  /** 截图1：赞 / 分享 / 心 / 评论 — 放在底栏右侧红框内（截图2） */
   const interactionStatsRow = (
-    <div className="flex flex-wrap items-center justify-between gap-3 text-gray-800 sm:gap-4">
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-4 text-gray-800 sm:gap-6 md:gap-8">
       <span className="flex items-center gap-1.5 text-[15px] tabular-nums">
         <span className="text-xl" aria-hidden>
           👍
@@ -370,7 +370,6 @@ export default function WorkDetailPage() {
                         >
                           {work.resultSummary || work.description}
                         </p>
-                        <div className="mt-4 border-t border-red-200/60 pt-3">{interactionStatsRow}</div>
                       </div>
                     </section>
                   )}
@@ -382,7 +381,7 @@ export default function WorkDetailPage() {
 
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-gray-200/80 bg-white/95 shadow-[0_-4px_24px_rgba(0,0,0,0.06)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-3">
+            <div className="flex min-w-0 shrink-0 items-center gap-3">
               <Link href={`/host/${work.author.id}`} className="flex min-w-0 items-center gap-2">
                 {work.author.avatarUrl ? (
                   <img src={work.author.avatarUrl} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
@@ -400,7 +399,11 @@ export default function WorkDetailPage() {
                 {t('workDetail.followAuthor')}
               </Link>
             </div>
-            {!hasSummary && <div className="flex min-w-0 flex-1 justify-end">{interactionStatsRow}</div>}
+            <div className="min-w-0 flex-1 sm:pl-4">
+              <div className="ml-auto w-fit max-w-full rounded-lg border border-red-300/70 bg-rose-50/95 px-3 py-2 sm:px-5 sm:py-2.5">
+                {interactionStatsRow}
+              </div>
+            </div>
           </div>
         </div>
       </>
