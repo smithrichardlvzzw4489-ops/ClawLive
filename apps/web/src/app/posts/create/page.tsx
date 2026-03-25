@@ -341,7 +341,6 @@ export default function CreateFeedPostPage() {
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">{t('feedPost.coverImageLabel')}</label>
-            <p className="mb-2 text-xs text-gray-500">{t('feedPost.coverImageHint')}</p>
             <input
               ref={coverFileInputRef}
               type="file"
