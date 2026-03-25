@@ -89,41 +89,41 @@ export function WorkCard({
         href={`/works/${id}`}
         className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
       >
-        {/* 信息流竖版画幅 3:4，与小红书瀑布流一致；详情页仍可全宽展示 */}
-        <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-2xl bg-gray-100">
-          {coverImage && (
-            <>
-              <img
-                src={coverImage}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-            </>
-          )}
-          {!coverImage && videoUrl && (
-            <div
-              className={`absolute inset-0 flex items-center justify-center ${VIDEO_PLACEHOLDER_STYLES[styleIndex % VIDEO_PLACEHOLDER_STYLES.length]}`}
-            >
-              <span className="text-4xl text-white/90 drop-shadow">▶</span>
-            </div>
-          )}
-          {!coverImage && !videoUrl && (
-            <div
-              className={`absolute inset-0 flex items-center justify-center p-4 ${getWorkCardGradient(id)}`}
-            >
-              <span
-                className="pointer-events-none absolute left-2.5 top-2 font-serif text-[2.5rem] leading-none text-neutral-900/[0.07]"
-                aria-hidden
+        {coverImage ? (
+          <div className="relative w-full overflow-hidden rounded-t-2xl bg-gray-100">
+            <img
+              src={coverImage}
+              alt=""
+              className="block h-auto w-full transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+        ) : (
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-2xl bg-gray-100">
+            {videoUrl && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center ${VIDEO_PLACEHOLDER_STYLES[styleIndex % VIDEO_PLACEHOLDER_STYLES.length]}`}
               >
-                &ldquo;
-              </span>
-              <p className="relative z-[1] text-center text-[11px] font-medium leading-relaxed text-neutral-800 line-clamp-6 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
-                {summary}
-              </p>
-            </div>
-          )}
-        </div>
+                <span className="text-4xl text-white/90 drop-shadow">▶</span>
+              </div>
+            )}
+            {!videoUrl && (
+              <div
+                className={`absolute inset-0 flex items-center justify-center p-4 ${getWorkCardGradient(id)}`}
+              >
+                <span
+                  className="pointer-events-none absolute left-2.5 top-2 font-serif text-[2.5rem] leading-none text-neutral-900/[0.07]"
+                  aria-hidden
+                >
+                  &ldquo;
+                </span>
+                <p className="relative z-[1] text-center text-[11px] font-medium leading-relaxed text-neutral-800 line-clamp-6 [font-family:ui-serif,Georgia,'Songti_SC','Noto_Serif_SC',serif]">
+                  {summary}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         <div className="shrink-0 p-2.5">
           <h3 className="text-sm font-semibold text-gray-900 line-clamp-2 leading-snug group-hover:text-lobster transition-colors">
             {title}
