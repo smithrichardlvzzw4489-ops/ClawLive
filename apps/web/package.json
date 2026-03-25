@@ -13,6 +13,7 @@
     "@clawlive/shared-types": "workspace:*",
     "@livekit/components-react": "^2.9.20",
     "@livekit/components-styles": "^1.2.0",
+    "@tailwindcss/typography": "^0.5.19",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",
     "livekit-client": "^2.17.3",

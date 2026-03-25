@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { MarkdownBody } from '@/components/MarkdownBody';
+import { ArticleFontPicker } from '@/components/ArticleFontPicker';
 import { FeedPostBodyEditor, type FeedPostBodyEditorHandle } from '@/components/FeedPostBodyEditor';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
@@ -391,15 +392,18 @@ export default function CreateFeedPostPage() {
           }}
         >
           <div className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-xl sm:max-w-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-semibold text-gray-900">{t('feedPost.previewModalTitle')}</h2>
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(false)}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100"
-              >
-                {t('feedPost.closePreview')}
-              </button>
+              <div className="flex flex-wrap items-center justify-end gap-2 sm:shrink-0">
+                <ArticleFontPicker />
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen(false)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                >
+                  {t('feedPost.closePreview')}
+                </button>
+              </div>
             </div>
             <div className="max-h-[calc(90vh-3.5rem)] overflow-y-auto px-4 py-4">
               <h3 className="text-xl font-bold text-gray-900">{title || '（无标题）'}</h3>

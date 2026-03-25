@@ -7,6 +7,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { ShareButton } from '@/components/ShareButton';
 import { WorkCommentsSection } from '@/components/WorkCommentsSection';
 import { MarkdownBody } from '@/components/MarkdownBody';
+import { ArticleFontPicker } from '@/components/ArticleFontPicker';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 import { excerptPlainText } from '@/lib/feed-post-markdown';
@@ -400,8 +401,9 @@ export default function FeedPostDetailPage() {
               </div>
 
               <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                <div className="border-b bg-gray-50 px-4 py-3">
+                <div className="flex flex-col gap-3 border-b bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-base font-semibold text-gray-900">{t('feedPost.bodySectionTitle')}</h2>
+                  <ArticleFontPicker className="sm:justify-end" />
                 </div>
                 <div className="px-4 py-4">
                   <MarkdownBody content={post.content} />

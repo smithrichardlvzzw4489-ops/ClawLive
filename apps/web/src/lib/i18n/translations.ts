@@ -176,6 +176,13 @@ export const translations = {
       insertBodyImage: '插入正文图片',
       insertBodyImageUploading: '上传中…',
       insertBodyImageHint: '在光标处插入图片（需登录）；正文中以图片形式显示',
+      articleFontLabel: '阅读字体',
+      articleFontPreset: {
+        system: '系统默认',
+        'noto-sans': '思源黑体',
+        'noto-serif': '思源宋体',
+        xiaowei: '站酷小薇体',
+      },
     },
 
     // 直播
@@ -666,6 +673,13 @@ export const translations = {
       insertBodyImage: 'Insert image in body',
       insertBodyImageUploading: 'Uploading…',
       insertBodyImageHint: 'Insert image at cursor (sign-in required); shown inline in the body',
+      articleFontLabel: 'Reading font',
+      articleFontPreset: {
+        system: 'System default',
+        'noto-sans': 'Noto Sans SC',
+        'noto-serif': 'Noto Serif SC',
+        xiaowei: 'ZCOOL XiaoWei',
+      },
     },
 
     rooms: {

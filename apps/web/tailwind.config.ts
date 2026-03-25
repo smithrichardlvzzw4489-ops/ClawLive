@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss'
+import typography from '@tailwindcss/typography'
 
 const config: Config = {
   content: [
@@ -76,9 +77,51 @@ const config: Config = {
         'card': '0 2px 8px rgba(0, 0, 0, 0.08)',
         'card-hover': '0 8px 20px rgba(0, 0, 0, 0.12)',
       },
+      fontFamily: {
+        'article-sans': ['var(--font-noto-sans-sc)', 'system-ui', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+        'article-serif': ['var(--font-noto-serif-sc)', 'Noto Serif SC', 'Songti SC', 'serif'],
+        'article-display': ['var(--font-zcool-xiaowei)', 'KaiTi', 'serif'],
+      },
+      typography: (theme: (path: string) => string) => ({
+        DEFAULT: {
+          css: {
+            maxWidth: 'none',
+            color: theme('colors.gray.800'),
+            lineHeight: '1.75',
+            '--tw-prose-body': theme('colors.gray.800'),
+            '--tw-prose-headings': theme('colors.gray.900'),
+            '--tw-prose-lead': theme('colors.gray.600'),
+            '--tw-prose-links': theme('colors.lobster.DEFAULT'),
+            '--tw-prose-bold': theme('colors.gray.900'),
+            '--tw-prose-counters': theme('colors.gray.600'),
+            '--tw-prose-bullets': theme('colors.gray.400'),
+            '--tw-prose-hr': theme('colors.gray.200'),
+            '--tw-prose-quotes': theme('colors.gray.700'),
+            '--tw-prose-quote-borders': theme('colors.gray.300'),
+            '--tw-prose-captions': theme('colors.gray.500'),
+            '--tw-prose-code': theme('colors.gray.800'),
+            '--tw-prose-pre-code': theme('colors.gray.100'),
+            '--tw-prose-pre-bg': theme('colors.gray.900'),
+            '--tw-prose-th-borders': theme('colors.gray.300'),
+            '--tw-prose-td-borders': theme('colors.gray.200'),
+            a: {
+              fontWeight: '500',
+              textDecorationColor: 'rgba(238, 90, 111, 0.35)',
+            },
+            'h1, h2, h3': {
+              letterSpacing: '-0.02em',
+            },
+            blockquote: {
+              fontStyle: 'normal' as const,
+              borderLeftColor: theme('colors.gray.300'),
+              color: theme('colors.gray.700'),
+            },
+          },
+        },
+      }),
     },
   },
-  plugins: [],
+  plugins: [typography],
 }
 
 export default config
