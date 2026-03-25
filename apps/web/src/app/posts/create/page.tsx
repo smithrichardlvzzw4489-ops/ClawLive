@@ -67,7 +67,8 @@ export default function CreateFeedPostPage() {
   const [draftToast, setDraftToast] = useState<string | null>(null);
   const [layoutToast, setLayoutToast] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [splitPreview, setSplitPreview] = useState(false);
+  /** 默认开启分栏预览，便于插入正文图片后立即在右侧看到渲染效果 */
+  const [splitPreview, setSplitPreview] = useState(true);
   const [inlineImageBusy, setInlineImageBusy] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inlineImageInputRef = useRef<HTMLInputElement>(null);
@@ -167,6 +168,7 @@ export default function CreateFeedPostPage() {
         return;
       }
       insertMarkdownAtCursor(`\n\n![图片](${url})\n\n`);
+      setSplitPreview(true);
     } catch {
       setError('网络错误');
     } finally {

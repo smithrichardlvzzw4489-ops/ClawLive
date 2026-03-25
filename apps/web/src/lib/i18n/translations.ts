@@ -183,7 +183,7 @@ export const translations = {
       previewTab: '分栏预览',
       insertBodyImage: '插入正文图片',
       insertBodyImageUploading: '上传中…',
-      insertBodyImageHint: '在光标处插入 Markdown 图片（需登录）',
+      insertBodyImageHint: '在光标处插入 Markdown 图片（需登录）；右侧分栏预览中会显示图片',
     },
 
     // 直播
@@ -651,7 +651,7 @@ export const translations = {
       previewTab: 'Split preview',
       insertBodyImage: 'Insert image in body',
       insertBodyImageUploading: 'Uploading…',
-      insertBodyImageHint: 'Insert Markdown image at cursor (sign-in required)',
+      insertBodyImageHint: 'Insert Markdown image at cursor (sign-in required); image shows in split preview',
     },
 
     rooms: {

@@ -1,9 +1,15 @@
 'use client';
 
 import type { Components } from 'react-markdown';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { resolveMediaUrl } from '@/lib/api';
+
+/** 允许 data: 内联图等，其余走默认安全策略（相对路径 /uploads 等默认可用） */
+function markdownUrlTransform(url: string): string {
+  if (url.startsWith('data:')) return url;
+  return defaultUrlTransform(url);
+}
 
 const components: Components = {
   h1: ({ children }) => <h1 className="mb-3 mt-4 text-2xl font-bold text-gray-900 first:mt-0">{children}</h1>,
@@ -22,15 +28,18 @@ const components: Components = {
       {children}
     </a>
   ),
-  img: ({ src, alt }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src ? resolveMediaUrl(src) : ''}
-      alt={typeof alt === 'string' ? alt : ''}
-      className="my-3 max-h-[min(28rem,70vh)] w-full rounded-lg object-contain"
-      loading="lazy"
-    />
-  ),
+  img: ({ src, alt }) => {
+    const raw = typeof src === 'string' ? src : '';
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={raw ? resolveMediaUrl(raw) : ''}
+        alt={typeof alt === 'string' ? alt : ''}
+        className="my-3 max-h-[min(28rem,70vh)] w-full rounded-lg object-contain"
+        loading="lazy"
+      />
+    );
+  },
   strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   code: ({ className, children, ...props }) => {
@@ -67,7 +76,7 @@ const components: Components = {
 export function MarkdownBody({ content, className = '' }: { content: string; className?: string }) {
   return (
     <div className={`markdown-body text-[15px] leading-relaxed text-gray-800 ${className}`}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} urlTransform={markdownUrlTransform}>
         {content || ''}
       </ReactMarkdown>
     </div>
