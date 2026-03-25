@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { HomeFeedMasonry, type MasonryItem } from '@/components/HomeFeedMasonry';
 import { WorkCard } from '@/components/WorkCard';
 import { FeedPostCard, type FeedPostCardItem } from '@/components/FeedPostCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -43,7 +44,7 @@ function useFeedGridColumnCount(): number {
 
 /**
  * 首页：分区筛选 + 推荐作品与图文动态。
- * 瀑布式多列：按序 round-robin 分列，避免等高网格造成的巨大行间空白。
+ * 瀑布流：最短列优先（小红书式），列间距与卡片间距约 16px（gap-4）。
  */
 export function HomeFeedSections() {
   const { t } = useLocale();
@@ -94,32 +95,35 @@ export function HomeFeedSections() {
     filteredWorks.length + (showFeedInGrid ? feedPosts.length : 0);
   const columnCount = totalItems > 0 ? Math.min(breakpointCols, totalItems) : 1;
 
-  const masonryColumns = useMemo(() => {
-    const buckets: ReactNode[][] = Array.from({ length: columnCount }, () => []);
-    let i = 0;
+  const feedItems = useMemo((): MasonryItem[] => {
+    const out: MasonryItem[] = [];
     for (const work of filteredWorks) {
-      buckets[i % columnCount].push(
-        <WorkCard
-          key={`w-${work.id}`}
-          variant="xhs"
-          {...work}
-          publishedAt={work.publishedAt}
-          author={{
-            ...work.author,
-            avatarUrl: work.author.avatarUrl,
-          }}
-        />,
-      );
-      i += 1;
+      out.push({
+        id: `w-${work.id}`,
+        node: (
+          <WorkCard
+            key={`w-${work.id}`}
+            variant="xhs"
+            {...work}
+            publishedAt={work.publishedAt}
+            author={{
+              ...work.author,
+              avatarUrl: work.author.avatarUrl,
+            }}
+          />
+        ),
+      });
     }
     if (showFeedInGrid) {
       for (const p of feedPosts) {
-        buckets[i % columnCount].push(<FeedPostCard key={`p-${p.id}`} post={p} variant="xhs" />);
-        i += 1;
+        out.push({
+          id: `p-${p.id}`,
+          node: <FeedPostCard key={`p-${p.id}`} post={p} variant="xhs" />,
+        });
       }
     }
-    return buckets;
-  }, [filteredWorks, feedPosts, showFeedInGrid, columnCount]);
+    return out;
+  }, [filteredWorks, feedPosts, showFeedInGrid]);
 
   return (
     <>
@@ -208,13 +212,7 @@ export function HomeFeedSections() {
             )}
           </div>
         ) : (
-          <div className="flex w-full gap-3">
-            {masonryColumns.map((col, colIdx) => (
-              <div key={colIdx} className="flex min-w-0 flex-1 flex-col gap-3">
-                {col}
-              </div>
-            ))}
-          </div>
+          <HomeFeedMasonry items={feedItems} columnCount={columnCount} />
         )}
       </section>
     </>

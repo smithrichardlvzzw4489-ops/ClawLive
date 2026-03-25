@@ -86,32 +86,32 @@ export function WorkCard({
         href={`/works/${id}`}
         className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
       >
-        <div className="relative aspect-[3/4] w-full overflow-hidden bg-gray-100">
+        <div className="relative w-full overflow-hidden rounded-t-2xl bg-gray-100">
           {coverImage && (
-            <img
-              src={coverImage}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-            />
+            <>
+              <img
+                src={coverImage}
+                alt=""
+                className="block h-auto w-full transition-transform duration-300 group-hover:scale-[1.02]"
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            </>
           )}
           {!coverImage && videoUrl && (
             <div
-              className={`absolute inset-0 bg-gradient-to-br ${VIDEO_GRADIENT_STYLES[styleIndex % VIDEO_GRADIENT_STYLES.length]} flex items-center justify-center`}
+              className={`flex min-h-[10rem] items-center justify-center bg-gradient-to-br ${VIDEO_GRADIENT_STYLES[styleIndex % VIDEO_GRADIENT_STYLES.length]}`}
             >
               <span className="text-4xl opacity-90">▶</span>
             </div>
           )}
           {!coverImage && !videoUrl && (
             <div
-              className={`absolute inset-0 bg-gradient-to-br ${GRADIENT_STYLES[styleIndex % GRADIENT_STYLES.length]} flex items-center justify-center p-4`}
+              className={`flex min-h-[10rem] items-center justify-center bg-gradient-to-br p-4 ${GRADIENT_STYLES[styleIndex % GRADIENT_STYLES.length]}`}
             >
-              <p className="text-white text-xs font-medium text-center line-clamp-6 drop-shadow">{summary}</p>
+              <p className="text-center text-xs font-medium text-white line-clamp-6 drop-shadow">{summary}</p>
             </div>
           )}
-          {coverImage && (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-          )}
-          <div className="absolute bottom-2 right-2 flex gap-1 text-[10px] text-white font-medium z-10 opacity-90">
+          <div className="pointer-events-none absolute bottom-2 right-2 z-10 flex gap-1 text-[10px] font-medium text-white opacity-90">
             <span className="rounded-full bg-black/45 px-1.5 py-0.5 backdrop-blur-sm">👁 {viewCount}</span>
           </div>
         </div>

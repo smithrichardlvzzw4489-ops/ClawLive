@@ -33,7 +33,7 @@ export function FeedPostCard({
         href={`/posts/${post.id}`}
         className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
       >
-        <div className="relative w-full overflow-hidden bg-gray-100">
+        <div className="relative w-full overflow-hidden rounded-t-2xl bg-gray-100">
           {cover && (
             <img
               src={resolveMediaUrl(cover)}
