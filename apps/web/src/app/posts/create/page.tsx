@@ -68,8 +68,6 @@ export default function CreateFeedPostPage() {
   const [draftToast, setDraftToast] = useState<string | null>(null);
   const [layoutToast, setLayoutToast] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  /** 默认开启分栏预览，便于插入正文图片后立即在右侧看到渲染效果 */
-  const [splitPreview, setSplitPreview] = useState(true);
   const [inlineImageBusy, setInlineImageBusy] = useState(false);
   const [bodyEditorKey, setBodyEditorKey] = useState(0);
   const bodyEditorRef = useRef<FeedPostBodyEditorHandle>(null);
@@ -159,7 +157,6 @@ export default function CreateFeedPostPage() {
         return;
       }
       insertMarkdownAtCursor(`\n\n![图片](${url})\n\n`);
-      setSplitPreview(true);
     } catch {
       setError('网络错误');
     } finally {
@@ -280,16 +277,6 @@ export default function CreateFeedPostPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSplitPreview((s) => !s)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                splitPreview ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              title={splitPreview ? t('feedPost.layoutStackHint') : t('feedPost.layoutSplitHint')}
-            >
-              {splitPreview ? t('feedPost.layoutStack') : t('feedPost.layoutSplit')}
-            </button>
             <input
               ref={inlineImageInputRef}
               type="file"
@@ -317,25 +304,15 @@ export default function CreateFeedPostPage() {
                 {bodyCountLabel}
               </span>
             </div>
-            <div className={splitPreview ? 'grid gap-4 md:grid-cols-2' : 'flex flex-col gap-4'}>
-              <FeedPostBodyEditor
-                key={bodyEditorKey}
-                ref={bodyEditorRef}
-                initialContent={content}
-                onChange={(v) => setContent(v.slice(0, FEED_POST_MAX_CONTENT))}
-                maxLength={FEED_POST_MAX_CONTENT}
-                minRows={splitPreview ? 18 : 14}
-                placeholder="支持 Markdown（# 标题、列表、**粗体**、链接、插入正文图片等）…"
-              />
-              <div className="flex min-h-0 flex-col rounded-lg border border-gray-200 bg-white shadow-inner">
-                <div className="shrink-0 border-b border-gray-100 px-4 py-2 text-xs font-medium text-gray-500">
-                  {t('feedPost.livePreview')}
-                </div>
-                <div className="max-h-[min(32rem,70vh)] min-h-[8rem] overflow-y-auto px-4 py-3">
-                  <MarkdownBody content={content} />
-                </div>
-              </div>
-            </div>
+            <FeedPostBodyEditor
+              key={bodyEditorKey}
+              ref={bodyEditorRef}
+              initialContent={content}
+              onChange={(v) => setContent(v.slice(0, FEED_POST_MAX_CONTENT))}
+              maxLength={FEED_POST_MAX_CONTENT}
+              minRows={18}
+              placeholder="支持 Markdown（# 标题、列表、**粗体**、链接、插入正文图片等）…"
+            />
           </div>
 
           <div>
