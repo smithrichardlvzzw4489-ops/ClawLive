@@ -704,7 +704,12 @@ export function MyProfileManage() {
         {/* 图文动态 */}
         <section className="mb-8">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-gray-900">{t('myProfileCenter.feedSection')}</h2>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">{t('myProfileCenter.feedSection')}</h2>
+              {feedPosts.length > 0 && (
+                <p className="mt-1 text-xs text-gray-500">{t('myProfileCenter.feedBulkHint')}</p>
+              )}
+            </div>
             {feedPosts.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <button
