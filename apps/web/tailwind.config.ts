@@ -108,8 +108,9 @@ const config: Config = {
               fontWeight: '500',
               textDecorationColor: 'rgba(238, 90, 111, 0.35)',
             },
+            /** 与常见正文排版接近：标题略大于正文，不夸张 */
             h1: {
-              fontSize: theme('fontSize.xl'),
+              fontSize: theme('fontSize.2xl'),
               lineHeight: '1.35',
               fontWeight: '700',
               letterSpacing: '-0.02em',
@@ -117,7 +118,7 @@ const config: Config = {
               marginBottom: theme('spacing.3'),
             },
             h2: {
-              fontSize: theme('fontSize.lg'),
+              fontSize: theme('fontSize.xl'),
               lineHeight: '1.4',
               fontWeight: '600',
               letterSpacing: '-0.015em',
@@ -125,7 +126,7 @@ const config: Config = {
               marginBottom: theme('spacing.2'),
             },
             h3: {
-              fontSize: theme('fontSize.base'),
+              fontSize: theme('fontSize.lg'),
               lineHeight: '1.45',
               fontWeight: '600',
               letterSpacing: '-0.01em',
@@ -133,7 +134,7 @@ const config: Config = {
               marginBottom: theme('spacing.2'),
             },
             h4: {
-              fontSize: theme('fontSize.sm'),
+              fontSize: theme('fontSize.base'),
               lineHeight: '1.5',
               fontWeight: '600',
               marginTop: theme('spacing.4'),

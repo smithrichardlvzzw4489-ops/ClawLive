@@ -46,7 +46,7 @@ export function MarkdownBody({ content, className = '' }: { content: string; cla
 
   return (
     <div
-      className={`markdown-body prose prose-gray max-w-none text-pretty text-[15px] antialiased ${fontClass} prose-headings:scroll-mt-24 prose-p:leading-[1.75] prose-li:leading-relaxed prose-blockquote:border-l-lobster/40 prose-blockquote:font-normal prose-a:font-medium prose-img:mx-auto ${className}`}
+      className={`markdown-body prose prose-gray max-w-none text-pretty antialiased ${fontClass} prose-headings:scroll-mt-24 prose-p:leading-[1.75] prose-li:leading-relaxed prose-blockquote:border-l-lobster/40 prose-blockquote:font-normal prose-a:font-medium prose-img:mx-auto ${className}`}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} urlTransform={markdownUrlTransform}>
         {content || ''}
