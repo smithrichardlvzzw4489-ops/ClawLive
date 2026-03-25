@@ -69,15 +69,8 @@ interface HostData {
 
 type TabKey = 'overview' | 'works' | 'skills';
 
-export type HostProfileVariant = 'public' | 'self';
-
-export function HostProfileView({
-  hostId,
-  variant = 'public',
-}: {
-  hostId: string;
-  variant?: HostProfileVariant;
-}) {
+/** 对外展示的创作者主页（访客视角）；个人管理请使用 `/my-profile` */
+export function HostProfileView({ hostId }: { hostId: string }) {
   const { t } = useLocale();
   const [data, setData] = useState<HostData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -250,19 +243,6 @@ export function HostProfileView({
   return (
     <MainLayout>
       <div className="container mx-auto px-6 py-8">
-        {variant === 'self' && (
-          <div className="mb-6 rounded-xl bg-lobster/5 border border-lobster/20 px-4 py-3 text-sm text-gray-700 flex flex-wrap items-center justify-between gap-3">
-            <p className="max-w-3xl">{t('host.selfManagementHint')}</p>
-            <Link
-              href={`/host/${hostId}`}
-              className="text-lobster font-medium hover:underline shrink-0 whitespace-nowrap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {t('host.openPublicProfile')} →
-            </Link>
-          </div>
-        )}
         {/* Banner */}
         <div className="relative rounded-xl overflow-hidden mb-6">
           <div className="absolute inset-0 bg-gradient-to-br from-lobster via-lobster-light to-purple-400" />

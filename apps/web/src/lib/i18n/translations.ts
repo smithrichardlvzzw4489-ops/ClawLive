@@ -31,6 +31,7 @@ export const translations = {
       publishLive: '创建直播',
       myAgent: '我的 Agent',
       myStreams: '我的直播',
+      myProfile: '个人中心',
       myWorks: '我的作品',
       createLive: '创建直播间',
       createWork: '创建作品',
@@ -246,6 +247,18 @@ export const translations = {
       createWork: '创建作品',
       confirmDelete: '确认删除这个作品吗？此操作无法撤销。',
       deleteFailed: '删除失败',
+    },
+
+    myProfileCenter: {
+      pageTitle: '个人中心',
+      pageSubtitle: '在此管理你的作品与图文动态。访客看到的创作者展示页请使用下方「查看我的创作者主页」。',
+      openPublicProfile: '查看我的创作者主页',
+      feedSection: '图文动态',
+      feedEmpty: '暂无已发布的图文',
+      newFeedPost: '发布图文',
+      editWork: '编辑',
+      deleteFeedConfirm: '确认删除这条图文？此操作无法撤销。',
+      deleteFeedFailed: '删除失败',
     },
 
     myAgent: {
@@ -701,6 +714,19 @@ export const translations = {
       createWork: 'Create Work',
       confirmDelete: 'Delete this work? This cannot be undone.',
       deleteFailed: 'Delete failed',
+    },
+
+    myProfileCenter: {
+      pageTitle: 'Account',
+      pageSubtitle:
+        'Manage your works and posts here. Share your public creator page with visitors using the link below.',
+      openPublicProfile: 'View my public creator page',
+      feedSection: 'Posts',
+      feedEmpty: 'No posts yet',
+      newFeedPost: 'New post',
+      editWork: 'Edit',
+      deleteFeedConfirm: 'Delete this post? This cannot be undone.',
+      deleteFeedFailed: 'Failed to delete',
     },
 
     myAgent: {

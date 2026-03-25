@@ -7,5 +7,5 @@ export default function HostPage() {
   const params = useParams();
   const hostId = params.hostId as string;
 
-  return <HostProfileView hostId={hostId} variant="public" />;
+  return <HostProfileView hostId={hostId} />;
 }

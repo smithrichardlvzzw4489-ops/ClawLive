@@ -112,7 +112,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
               <Link href="/my-streams" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
                 📺 {t('nav.myStreams')}
               </Link>
-              <Link href="/my-works" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+              <Link href="/my-profile" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
                 📚 {t('nav.myWorks')}
               </Link>
               <div className="border-t" />
@@ -204,7 +204,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
               <Link href="/my-streams" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
                 📺 {t('nav.myStreams')}
               </Link>
-              <Link href="/my-works" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+              <Link href="/my-profile" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
                 📚 {t('nav.myWorks')}
               </Link>
               <div className="border-t" />
@@ -297,7 +297,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
             <Link href="/my-streams" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
               📺 {t('nav.myStreams')}
             </Link>
-            <Link href="/my-works" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+            <Link href="/my-profile" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
               📚 {t('nav.myWorks')}
             </Link>
             <div className="border-t" />

@@ -8,7 +8,12 @@ import { addFeedPostComment, getFeedPostComments } from '../../services/feed-pos
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
 import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store';
-import { getReactions, toggleFavorite, toggleLike } from '../../services/feed-post-reactions-store';
+import {
+  getReactions,
+  removeReactionsForPost,
+  toggleFavorite,
+  toggleLike,
+} from '../../services/feed-post-reactions-store';
 
 const MAX_IMAGES = 9;
 const MAX_BYTES_PER_IMAGE = 5 * 1024 * 1024;
@@ -56,6 +61,30 @@ export function feedPostsRoutes(): Router {
             : { id: p.authorId, username: 'Unknown', avatarUrl: null },
         };
       });
+      res.json({ posts: items });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to list posts' });
+    }
+  });
+
+  /** 当前用户发布的图文（须在 /:id 之前注册） */
+  router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const list = Array.from(feedPostsMap.values())
+        .filter((p) => p.authorId === userId)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const items = list.map((p) => ({
+        id: p.id,
+        title: p.title,
+        content: p.content,
+        imageUrls: p.imageUrls,
+        viewCount: p.viewCount,
+        likeCount: p.likeCount,
+        commentCount: p.commentCount,
+        createdAt: p.createdAt,
+      }));
       res.json({ posts: items });
     } catch (e) {
       console.error(e);
@@ -177,6 +206,22 @@ export function feedPostsRoutes(): Router {
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to toggle favorite' });
+    }
+  });
+
+  router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const postId = req.params.id;
+      const p = feedPostsMap.get(postId);
+      if (!p) return res.status(404).json({ error: 'Not found' });
+      if (p.authorId !== req.user!.id) return res.status(403).json({ error: 'Forbidden' });
+      feedPostsMap.delete(postId);
+      removeReactionsForPost(postId);
+      saveFeedPosts();
+      res.json({ ok: true });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to delete' });
     }
   });
 

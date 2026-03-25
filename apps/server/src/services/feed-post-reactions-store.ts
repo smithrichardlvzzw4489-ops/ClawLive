@@ -56,6 +56,11 @@ export function toggleLike(postId: string, userId: string, p: FeedPostRecord): {
   return { liked: i < 0 };
 }
 
+export function removeReactionsForPost(postId: string): void {
+  byPost.delete(postId);
+  persist();
+}
+
 export function toggleFavorite(postId: string, userId: string, p: FeedPostRecord): { favorited: boolean } {
   let r = byPost.get(postId);
   if (!r) {
