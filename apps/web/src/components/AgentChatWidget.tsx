@@ -160,10 +160,10 @@ export function AgentChatWidget() {
 
   return (
     <>
-      {/* 浮动按钮 */}
+      {/* 浮动按钮：与左侧栏同宽区域内水平居中（220px / 240px rail） */}
       <button
         onClick={handleToggle}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-lobster text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center"
+        className="fixed bottom-6 left-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-lobster text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl lg:left-[82px] xl:left-[92px]"
         title={t('inbox.toggle')}
       >
         <span className="text-2xl">🦞</span>
@@ -174,7 +174,7 @@ export function AgentChatWidget() {
 
       {/* 展开面板 */}
       {expanded && user && (
-        <div className="fixed bottom-24 right-6 z-40 w-[360px] max-h-[480px] bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+        <div className="fixed bottom-24 left-4 right-4 z-40 flex max-h-[min(480px,70vh)] w-auto max-w-[360px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl sm:left-6 sm:right-auto sm:w-[360px] lg:left-[82px] xl:left-[92px]">
           <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
             <span className="font-semibold text-gray-900">🦞 Agent</span>
             <div className="flex items-center gap-2">
