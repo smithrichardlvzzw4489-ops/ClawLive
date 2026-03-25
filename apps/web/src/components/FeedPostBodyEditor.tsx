@@ -36,13 +36,32 @@ function splitAndNormalize(md: string): MdPart[] {
   const out: MdPart[] = [...raw];
   if (out[0].type === 'image') out.unshift({ type: 'text', text: '' });
   if (out[out.length - 1].type === 'image') out.push({ type: 'text', text: '' });
+
+  /** 去掉「紧邻图片」两侧多余换行，避免 textarea 出现大片空行 */
+  for (let i = 0; i < out.length; i++) {
+    if (out[i].type !== 'text') continue;
+    const t = out[i] as MdPart & { type: 'text' };
+    if (i + 1 < out.length && out[i + 1].type === 'image') {
+      t.text = t.text.replace(/\n+$/g, '');
+    }
+    if (i > 0 && out[i - 1].type === 'image') {
+      t.text = t.text.replace(/^\n+/g, '');
+    }
+  }
   return out;
 }
 
 function joinMarkdownParts(parts: MdPart[]): string {
-  return parts
-    .map((p) => (p.type === 'text' ? p.text : `![${p.alt}](${p.src})`))
-    .join('');
+  let out = '';
+  for (const p of parts) {
+    if (p.type === 'text') {
+      out += p.text;
+    } else {
+      if (out.length > 0 && !out.endsWith('\n')) out += '\n';
+      out += `![${p.alt}](${p.src})`;
+    }
+  }
+  return out;
 }
 
 function joinRange(parts: MdPart[], start: number, end: number): string {
@@ -71,15 +90,19 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
     const containerRef = useRef<HTMLDivElement>(null);
 
     /** 首段 textarea 行数：随内容增高，避免仅两行字却占满 18 行导致与图片距离过大 */
+    /** 行数按「非末尾空行」计，避免尾部 \n 撑高；再留 1 行余量 */
     const rowsForTextPart = useCallback(
       (part: MdPart, index: number) => {
         if (part.type !== 'text') return 4;
-        const lineCount = part.text.length === 0 ? 1 : part.text.split('\n').length;
-        const padded = lineCount + 2;
+        const lines = part.text.split('\n');
+        let end = lines.length;
+        while (end > 0 && lines[end - 1] === '') end--;
+        const contentLines = Math.max(1, end);
+        const padded = contentLines + 1;
         if (index === 0) {
-          return Math.max(4, Math.min(minRows, padded));
+          return Math.max(3, Math.min(minRows, padded));
         }
-        return Math.max(4, Math.min(14, padded));
+        return Math.max(3, Math.min(14, padded));
       },
       [minRows],
     );
