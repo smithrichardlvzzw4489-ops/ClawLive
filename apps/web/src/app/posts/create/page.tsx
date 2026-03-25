@@ -250,7 +250,6 @@ export default function CreateFeedPostPage() {
         <Link href="/" className="mb-6 inline-block text-sm text-gray-500 hover:text-lobster">
           ← {t('back')}
         </Link>
-        <h1 className="mb-6 text-2xl font-bold text-gray-900">{t('feedPost.createTitle')}</h1>
 
         {draftBanner && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
