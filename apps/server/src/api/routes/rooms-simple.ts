@@ -114,37 +114,50 @@ function isValidHostId(id: string): boolean {
   return typeof id === 'string' && id.length > 0 && UUID_REGEX.test(id);
 }
 
-// 获取主播信息：优先内存，否则从数据库拉取并缓存
-async function getHostInfo(hostId: string): Promise<{ id: string; username: string; avatarUrl?: string | null }> {
+type HostInfoPublic = { id: string; username: string; avatarUrl?: string | null; bio?: string | null };
+
+// 获取主播信息：以数据库为准，避免内存缓存与 Prisma 不一致；bio 合并 DB 与旧内存
+async function getHostInfo(hostId: string): Promise<HostInfoPublic> {
   if (!isValidHostId(hostId)) {
-    return { id: hostId, username: 'Unknown', avatarUrl: null };
+    return { id: hostId, username: 'Unknown', avatarUrl: null, bio: null };
   }
-  let host = userProfiles.get(hostId);
-  if (host) return { id: host.id, username: host.username, avatarUrl: host.avatarUrl };
   try {
-    const user = await prisma.user.findUnique({ where: { id: hostId }, select: { id: true, username: true, avatarUrl: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: hostId },
+      select: { id: true, username: true, avatarUrl: true, bio: true },
+    });
     if (user) {
-      const profile = { id: user.id, username: user.username, avatarUrl: user.avatarUrl ?? undefined };
-      userProfiles.set(hostId, { ...profile, bio: undefined });
-      return profile;
+      const existing = userProfiles.get(hostId);
+      const bio = user.bio ?? existing?.bio ?? undefined;
+      const profile = {
+        id: user.id,
+        username: user.username,
+        avatarUrl: user.avatarUrl ?? undefined,
+        bio,
+      };
+      userProfiles.set(hostId, profile);
+      return {
+        id: profile.id,
+        username: profile.username,
+        avatarUrl: profile.avatarUrl ?? null,
+        bio: profile.bio ?? null,
+      };
     }
   } catch (e) {
     console.warn('[getHostInfo] Prisma lookup failed:', e);
   }
-  return { id: hostId, username: 'Unknown', avatarUrl: null };
+  const host = userProfiles.get(hostId);
+  if (host) {
+    return { id: host.id, username: host.username, avatarUrl: host.avatarUrl ?? null, bio: host.bio ?? null };
+  }
+  return { id: hostId, username: 'Unknown', avatarUrl: null, bio: null };
 }
 
-// 批量获取主播信息（单次 findMany，避免并行 findUnique 触发 Prisma 引擎 panic）
+// 批量获取主播信息（单次 findMany，避免并行 findUnique 触发 Prisma 引擎 panic）；以 DB 为准刷新缓存
 async function getHostInfoBatch(hostIds: string[]): Promise<Map<string, { id: string; username: string; avatarUrl?: string | null }>> {
   const result = new Map<string, { id: string; username: string; avatarUrl?: string | null }>();
-  const toFetch = hostIds.filter((id) => isValidHostId(id));
-  const fromCache = toFetch.filter((id) => userProfiles.has(id));
-  for (const id of fromCache) {
-    const h = userProfiles.get(id)!;
-    result.set(id, { id: h.id, username: h.username, avatarUrl: h.avatarUrl });
-  }
-  const needDb = toFetch.filter((id) => !userProfiles.has(id));
-  if (needDb.length === 0) {
+  const toFetch = [...new Set(hostIds.filter((id) => isValidHostId(id)))];
+  if (toFetch.length === 0) {
     for (const id of hostIds) {
       if (!result.has(id)) result.set(id, { id, username: 'Unknown', avatarUrl: null });
     }
@@ -152,20 +165,32 @@ async function getHostInfoBatch(hostIds: string[]): Promise<Map<string, { id: st
   }
   try {
     const users = await prisma.user.findMany({
-      where: { id: { in: needDb } },
-      select: { id: true, username: true, avatarUrl: true },
+      where: { id: { in: toFetch } },
+      select: { id: true, username: true, avatarUrl: true, bio: true },
     });
     for (const u of users) {
-      const profile = { id: u.id, username: u.username, avatarUrl: u.avatarUrl ?? undefined };
-      userProfiles.set(u.id, { ...profile, bio: undefined });
-      result.set(u.id, { ...profile, avatarUrl: u.avatarUrl ?? null });
+      const existing = userProfiles.get(u.id);
+      const bio = u.bio ?? existing?.bio ?? undefined;
+      const profile = {
+        id: u.id,
+        username: u.username,
+        avatarUrl: u.avatarUrl ?? undefined,
+        bio,
+      };
+      userProfiles.set(u.id, profile);
+      result.set(u.id, { id: profile.id, username: profile.username, avatarUrl: profile.avatarUrl ?? null });
     }
   } catch (e) {
     console.warn('[getHostInfoBatch] Prisma lookup failed:', e);
   }
   for (const id of hostIds) {
     if (!result.has(id)) {
-      result.set(id, { id, username: 'Unknown', avatarUrl: null });
+      const h = userProfiles.get(id);
+      if (h) {
+        result.set(id, { id: h.id, username: h.username, avatarUrl: h.avatarUrl ?? null });
+      } else {
+        result.set(id, { id, username: 'Unknown', avatarUrl: null });
+      }
     }
   }
   return result;
@@ -503,7 +528,7 @@ export function roomSimpleRoutes(io: Server): Router {
           createdAt: p.createdAt,
         }));
 
-      const bio = userProfiles.get(hostId)?.bio;
+      const bio = host.bio ?? userProfiles.get(hostId)?.bio;
       const tagline = bio ? (bio.includes('\n') ? bio.split('\n')[0].trim() : bio.trim()).slice(0, 80) : undefined;
       const tagsSet = new Set<string>();
       for (const w of hostWorks) {
@@ -544,13 +569,21 @@ export function roomSimpleRoutes(io: Server): Router {
   router.get('/user/profile/:userId', async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
-      const user = userProfiles.get(userId);
-
+      if (!isValidHostId(userId)) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, username: true, email: true, avatarUrl: true, bio: true, createdAt: true, updatedAt: true },
+      });
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
-
-      res.json(user);
+      const mem = userProfiles.get(userId);
+      res.json({
+        ...user,
+        bio: user.bio ?? mem?.bio ?? null,
+      });
     } catch (error) {
       console.error('Error fetching user profile:', error);
       res.status(500).json({ error: 'Failed to fetch user profile' });
@@ -562,26 +595,41 @@ export function roomSimpleRoutes(io: Server): Router {
       const userId = req.user!.id;
       const { username, bio, avatarUrl } = req.body;
 
-      let profile = userProfiles.get(userId);
-
-      if (!profile) {
-        profile = {
-          id: userId,
-          username: username || `user-${userId.slice(0, 8)}`,
-          bio: bio || '',
-          avatarUrl: avatarUrl || null,
-        };
-      } else {
-        if (username) profile.username = username;
-        if (bio !== undefined) profile.bio = bio;
-        if (avatarUrl !== undefined) profile.avatarUrl = avatarUrl;
+      const existing = await prisma.user.findUnique({ where: { id: userId } });
+      if (!existing) {
+        return res.status(404).json({ error: 'User not found' });
       }
 
-      userProfiles.set(userId, profile);
-      res.json(profile);
+      if (username && username !== existing.username) {
+        const taken = await prisma.user.findFirst({
+          where: { username, NOT: { id: userId } },
+        });
+        if (taken) {
+          return res.status(409).json({ error: 'Username already taken' });
+        }
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(username !== undefined && username !== '' && { username }),
+          ...(bio !== undefined && { bio }),
+          ...(avatarUrl !== undefined && { avatarUrl }),
+        },
+        select: { id: true, username: true, email: true, avatarUrl: true, bio: true, createdAt: true, updatedAt: true },
+      });
+
+      userProfiles.set(userId, {
+        id: updated.id,
+        username: updated.username,
+        bio: updated.bio ?? undefined,
+        avatarUrl: updated.avatarUrl ?? undefined,
+      });
+
+      res.json(updated);
     } catch (error) {
       console.error('Error updating profile:', error);
-      res.status(500).json({ error: 'Failed to fetch user profile' });
+      res.status(500).json({ error: 'Failed to update user profile' });
     }
   });
 

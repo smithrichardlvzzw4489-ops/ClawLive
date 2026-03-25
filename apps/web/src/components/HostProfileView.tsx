@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { RoomCard } from '@/components/RoomCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
 
 interface Host {
   id: string;
@@ -88,7 +89,7 @@ export function HostProfileView({
   useEffect(() => {
     const fetchHostData = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/host/${hostId}`);
+        const response = await fetch(`${API_BASE_URL}/api/rooms/host/${hostId}`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch host data');
@@ -114,7 +115,7 @@ export function HostProfileView({
         return;
       }
       try {
-        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+        const meRes = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!meRes.ok) {
@@ -125,7 +126,7 @@ export function HostProfileView({
         setIsLoggedIn(true);
         setCurrentUserId(me.id);
         if (me.id === hostId) return;
-        const followRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/check/${hostId}`, {
+        const followRes = await fetch(`${API_BASE_URL}/api/user-follows/check/${hostId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (followRes.ok) {
@@ -146,7 +147,7 @@ export function HostProfileView({
     setIsToggling(true);
     try {
       const method = following ? 'DELETE' : 'POST';
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-follows/${hostId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/user-follows/${hostId}`, {
         method,
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -211,9 +212,9 @@ export function HostProfileView({
     >
       <div className="aspect-video bg-gray-100 flex items-center justify-center">
         {work.videoUrl ? (
-          <video src={work.videoUrl} className="w-full h-full object-cover" muted playsInline />
+          <video src={resolveMediaUrl(work.videoUrl)} className="w-full h-full object-cover" muted playsInline />
         ) : work.coverImage ? (
-          <img src={work.coverImage} alt="" className="w-full h-full object-cover" />
+          <img src={resolveMediaUrl(work.coverImage)} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="text-5xl opacity-40">🖼️</span>
         )}
@@ -268,7 +269,7 @@ export function HostProfileView({
             <div className="flex-shrink-0 -mb-4">
               {host.avatarUrl ? (
                 <img
-                  src={host.avatarUrl}
+                  src={resolveMediaUrl(host.avatarUrl)}
                   alt={host.username}
                   className="w-28 h-28 rounded-full object-cover border-4 border-white shadow-xl"
                 />
