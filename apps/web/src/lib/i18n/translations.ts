@@ -108,7 +108,7 @@ export const translations = {
       subtitle: '找到真正会用 Agent 解决问题的人，而不只是发布内容的人',
       empty: '暂无创作者',
     },
-    searchPlaceholder: '搜索作品、UP主、Skill...',
+    searchPlaceholder: '探索更多内容',
     search: {
       title: '搜索',
       empty: '请输入关键词搜索',
@@ -672,7 +672,7 @@ export const translations = {
       subtitle: 'Find people who truly solve problems with Agent, not just post content',
       empty: 'No creators yet',
     },
-    searchPlaceholder: 'Search live, works, creators...',
+    searchPlaceholder: 'Explore more content',
     search: {
       title: 'Search',
       empty: 'Enter keywords to search',

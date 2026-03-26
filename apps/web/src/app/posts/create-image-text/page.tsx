@@ -170,26 +170,27 @@ export default function CreateFeedImageTextPage() {
 
           <div>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <label className="text-sm font-medium text-gray-700">{t('feedImagePost.imagesLabel')}</label>
+              <span className="text-sm font-medium text-gray-700">{t('feedImagePost.imagesLabel')}</span>
               <span className="text-xs text-gray-500">{t('feedImagePost.imagesHint')}</span>
             </div>
-            <input
-              id="feed-image-text-file-input"
-              type="file"
-              accept="image/*"
-              multiple
-              disabled={images.length >= MAX_IMAGES}
-              className="sr-only"
-              onChange={(e) => void onPickFiles(e)}
-            />
-            <label
-              htmlFor="feed-image-text-file-input"
-              className={`mt-2 inline-block cursor-pointer rounded-xl border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 ${
-                images.length >= MAX_IMAGES ? 'pointer-events-none cursor-not-allowed opacity-50' : ''
-              }`}
-            >
-              {t('feedImagePost.addImage')} ({images.length}/{MAX_IMAGES})
-            </label>
+            <div className="relative mt-2 inline-block max-w-full">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                disabled={images.length >= MAX_IMAGES}
+                onChange={(e) => void onPickFiles(e)}
+                className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:pointer-events-none disabled:cursor-not-allowed"
+                aria-label={`${t('feedImagePost.addImage')} (${images.length}/${MAX_IMAGES})`}
+              />
+              <div
+                className={`pointer-events-none flex min-h-[44px] min-w-[10rem] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm ${
+                  images.length >= MAX_IMAGES ? 'opacity-50' : ''
+                }`}
+              >
+                {t('feedImagePost.addImage')} ({images.length}/{MAX_IMAGES})
+              </div>
+            </div>
 
             {images.length > 0 && (
               <ul className="mt-4 space-y-3">
