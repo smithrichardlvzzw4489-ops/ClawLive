@@ -97,11 +97,11 @@ export function Header({ leftNav = true }: HeaderProps) {
         </div>
 
         {isHome && (
-          <div className="flex min-w-0 flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-center md:absolute md:left-1/2 md:top-1/2 md:z-10 md:max-w-[min(560px,52vw)] md:-translate-x-1/2 md:-translate-y-1/2 md:px-2 lg:gap-x-4">
-            <span className="text-sm font-bold tracking-tight text-gray-900 sm:text-base lg:text-lg">
+          <div className="flex min-w-0 max-w-full flex-nowrap items-baseline justify-center gap-x-3 overflow-x-auto text-center md:absolute md:left-1/2 md:top-1/2 md:z-10 md:max-w-[min(720px,calc(100vw-20rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-visible md:px-2 lg:gap-x-4">
+            <span className="shrink-0 whitespace-nowrap text-sm font-bold tracking-tight text-gray-900 sm:text-base lg:text-lg">
               {t('home.heroTitle')}
             </span>
-            <span className="text-xs leading-relaxed text-gray-600 sm:text-sm">
+            <span className="shrink-0 whitespace-nowrap text-xs leading-relaxed text-gray-600 sm:text-sm">
               {t('home.heroSubtitle')}
             </span>
           </div>
