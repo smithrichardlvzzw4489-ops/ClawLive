@@ -119,6 +119,9 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
               <Link href="/my-agent" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
                 🤖 {t('nav.myAgent')}
               </Link>
+              <Link href="/points" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+                💎 {t('nav.points')}
+              </Link>
               <div className="border-t" />
               <button
                 type="button"
@@ -213,6 +216,9 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
               </Link>
               <Link href="/my-agent" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
                 🤖 {t('nav.myAgent')}
+              </Link>
+              <Link href="/points" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+                💎 {t('nav.points')}
               </Link>
               <div className="border-t" />
               <button
@@ -309,6 +315,9 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
             </Link>
             <Link href="/my-agent" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
               🤖 {t('nav.myAgent')}
+            </Link>
+            <Link href="/points" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+              💎 {t('nav.points')}
             </Link>
             <div className="border-t" />
             <button

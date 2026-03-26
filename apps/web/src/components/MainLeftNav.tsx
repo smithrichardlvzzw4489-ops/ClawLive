@@ -13,7 +13,7 @@ const itemBase =
   'flex items-center gap-3 rounded-full px-4 py-3 text-[15px] font-medium transition-colors';
 
 /**
- * 桌面端左侧导航：首页 / 直播 / 发布 / 登录 同一组、同款圆角条。
+ * 桌面端左侧导航：首页 / 直播 / 发布 / 用户菜单（内含积分兑换）同一组、同款圆角条。
  */
 export function MainLeftNav() {
   const pathname = usePathname();
@@ -43,7 +43,6 @@ export function MainLeftNav() {
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/', t('nav.home'), '🏠')}
         {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
-        {item('/points', t('nav.points'), '💎')}
         <PublishAndAuthControls variant="rail" />
         <AgentChatWidget variant="rail" />
       </nav>
