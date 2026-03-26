@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { API_BASE_URL } from '@/lib/api';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
 
 export default function CreateWorkPage() {
@@ -31,7 +32,7 @@ export default function CreateWorkPage() {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works`, {
+        const res = await fetch(`${API_BASE_URL}/api/works`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ title: '新作品', description: '', lobsterName: '小龙' }),
@@ -64,7 +65,7 @@ export default function CreateWorkPage() {
         router.push('/login');
         return;
       }
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works`, {
+      const response = await fetch(`${API_BASE_URL}/api/works`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(formData),
@@ -84,7 +85,7 @@ export default function CreateWorkPage() {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${createdWorkId}`, {
+        await fetch(`${API_BASE_URL}/api/works/${createdWorkId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ title: formData.title, lobsterName: formData.lobsterName }),

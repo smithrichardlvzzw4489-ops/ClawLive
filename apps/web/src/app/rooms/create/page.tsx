@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, API_BASE_URL } from '@/lib/api';
 import Link from 'next/link';
 import { BRAND_ZH } from '@/lib/brand';
 
@@ -68,7 +68,7 @@ export default function CreateRoomPage() {
     const loadConnections = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+        const res = await fetch(`${API_BASE_URL}/api/user-agent-connections`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -122,7 +122,7 @@ export default function CreateRoomPage() {
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -154,7 +154,7 @@ export default function CreateRoomPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-start`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +199,7 @@ export default function CreateRoomPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-code`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-code`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -218,7 +218,7 @@ export default function CreateRoomPage() {
 
       if (data.success) {
         setMessage({ type: 'success', text: '🎉 连接已保存！正在应用到直播间并开始直播...' });
-        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
+        const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ connectionId: data.connection.id }),
@@ -252,7 +252,7 @@ export default function CreateRoomPage() {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -271,7 +271,7 @@ export default function CreateRoomPage() {
 
       if (data.success) {
         setMessage({ type: 'success', text: '🎉 连接已保存！正在应用到直播间并开始直播...' });
-        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
+        const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-room/${createdRoomId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ connectionId: data.connection.id }),
@@ -300,7 +300,7 @@ export default function CreateRoomPage() {
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/test-openclaw-direct`, {
+      const res = await fetch(`${API_BASE_URL}/api/agent-config/test-openclaw-direct`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -331,7 +331,7 @@ export default function CreateRoomPage() {
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${createdRoomId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/agent-config/${createdRoomId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -356,7 +356,7 @@ export default function CreateRoomPage() {
   const startLivestream = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${createdRoomId}/start`, {
+      const res = await fetch(`${API_BASE_URL}/api/rooms/${createdRoomId}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

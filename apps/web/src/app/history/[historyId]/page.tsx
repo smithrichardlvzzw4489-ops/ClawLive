@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { API_BASE_URL } from '@/lib/api';
 import { trackBehavior } from '@/hooks/useBehaviorTrack';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
@@ -45,7 +46,7 @@ export default function HistoryPage() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/history/${historyId}`);
+        const response = await fetch(`${API_BASE_URL}/api/rooms/history/${historyId}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch history');

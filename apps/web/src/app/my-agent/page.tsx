@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
+import { API_BASE_URL } from '@/lib/api';
 import { AgentConnectForInbox } from '@/components/AgentConnectForInbox';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
@@ -15,7 +16,7 @@ function ApplyToInboxButton({ connectionId }: { connectionId: string }) {
     setApplying(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-inbox`, {
+      const res = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-inbox`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ connectionId }),
@@ -56,7 +57,7 @@ export default function MyAgentPage() {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+      const res = await fetch(`${API_BASE_URL}/api/user-agent-connections`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

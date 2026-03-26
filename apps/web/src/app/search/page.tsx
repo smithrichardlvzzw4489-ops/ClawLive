@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { API_BASE_URL } from '@/lib/api';
 import { WorkCard } from '@/components/WorkCard';
 import { RoomCard } from '@/components/RoomCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -65,7 +66,7 @@ function SearchContent() {
       return;
     }
     setLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/search?q=${encodeURIComponent(q)}`)
+    fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(q)}`)
       .then((res) => res.json())
       .then((data) => {
         setResult({

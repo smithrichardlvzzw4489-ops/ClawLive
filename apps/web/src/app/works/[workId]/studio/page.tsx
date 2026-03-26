@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { API_BASE_URL } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
@@ -105,7 +106,7 @@ export default function WorkStudioPage() {
   const checkAgentConfig = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/work-agent-config/${workId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/work-agent-config/${workId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -128,7 +129,7 @@ export default function WorkStudioPage() {
         return;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/works/${workId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -151,7 +152,7 @@ export default function WorkStudioPage() {
   const loadMessages = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/messages`, {
+      const response = await fetch(`${API_BASE_URL}/api/works/${workId}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -172,7 +173,7 @@ export default function WorkStudioPage() {
     setSavingVideoUrl(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/works/${workId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -198,7 +199,7 @@ export default function WorkStudioPage() {
     setSending(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/message`, {
+      const response = await fetch(`${API_BASE_URL}/api/works/${workId}/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -236,7 +237,7 @@ export default function WorkStudioPage() {
     setGeneratingSummary(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/generate-result-summary`, {
+      const res = await fetch(`${API_BASE_URL}/api/works/${workId}/generate-result-summary`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -262,7 +263,7 @@ export default function WorkStudioPage() {
       }
 
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/${workId}/publish`, {
+      const response = await fetch(`${API_BASE_URL}/api/works/${workId}/publish`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -428,7 +429,7 @@ export default function WorkStudioPage() {
                     setHealthChecking(true);
                     setHealthCheckResult(null);
                     try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/skills/health-check`, {
+                      const res = await fetch(`${API_BASE_URL}/api/skills/health-check`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: publishSkillMarkdown.trim() }),

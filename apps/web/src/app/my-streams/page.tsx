@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { API_BASE_URL } from '@/lib/api';
 import { RoomCard } from '@/components/RoomCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
@@ -52,7 +53,7 @@ export default function MyStreamsPage() {
         }
 
         // Get current user
-        const userResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+        const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -68,7 +69,7 @@ export default function MyStreamsPage() {
 
         // Get user's streams
         const streamsResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/rooms/host/${userData.id}`
+          `${API_BASE_URL}/api/rooms/host/${userData.id}`
         );
 
         if (!streamsResponse.ok) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { API_BASE_URL } from '@/lib/api';
 import { RoomList } from '@/components/RoomList';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
@@ -13,7 +14,7 @@ export default function RoomsPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+    fetch(`${API_BASE_URL}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
