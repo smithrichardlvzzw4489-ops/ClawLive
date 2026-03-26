@@ -44,18 +44,17 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     Object.assign(headers, optsHeaders as Record<string, string>);
   }
 
+  const url = `${API_BASE_URL}${endpoint}`;
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    response = await fetch(url, {
       ...options,
       headers,
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('fetch') || msg.includes('NetworkError') || msg.includes('Failed to fetch')) {
-      throw new APIError(0, getNetworkErrorMsg());
-    }
-    throw new APIError(0, msg || 'Network request failed');
+    const raw = err instanceof Error ? err.message : String(err);
+    const detail = `[${url}] ${raw}`;
+    throw new APIError(0, `${getNetworkErrorMsg()}\n(${detail})`);
   }
 
   if (!response.ok) {

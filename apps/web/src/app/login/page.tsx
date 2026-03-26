@@ -1,10 +1,10 @@
 'use client';
 
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { api } from '@/lib/api';
+import { api, API_BASE_URL } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
@@ -32,6 +32,25 @@ function AuthForm() {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [connStatus, setConnStatus] = useState<'checking' | 'ok' | 'fail'>('checking');
+  const [connDetail, setConnDetail] = useState('');
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    fetch(`${API_BASE_URL}/api/health`, { signal: ctrl.signal, mode: 'cors' })
+      .then(r => {
+        clearTimeout(timer);
+        if (r.ok) { setConnStatus('ok'); }
+        else { setConnStatus('fail'); setConnDetail(`HTTP ${r.status} from ${API_BASE_URL}`); }
+      })
+      .catch(err => {
+        clearTimeout(timer);
+        setConnStatus('fail');
+        setConnDetail(`${API_BASE_URL} → ${err?.message || err}`);
+      });
+    return () => { clearTimeout(timer); ctrl.abort(); };
+  }, []);
   const [userNotFound, setUserNotFound] = useState(false);
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +164,14 @@ function AuthForm() {
             {mode === 'login' ? t('auth.loginSubtitle') : t('auth.registerSubtitle')}
           </p>
         </div>
+
+        {connStatus !== 'ok' && (
+          <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${connStatus === 'checking' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+            {connStatus === 'checking'
+              ? `正在检测后端连通性... (${API_BASE_URL})`
+              : `后端不可达: ${connDetail}`}
+          </div>
+        )}
 
         {/* Tab 切换 */}
         <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
