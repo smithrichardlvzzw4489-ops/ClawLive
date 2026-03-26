@@ -56,8 +56,10 @@ agent-test/
 agent-listener.js
 telegram-bridge.js
 
-# Cursor/IDE artifacts
-.cursor/
+# Cursor/IDE artifacts（项目内可共享的规则除外）
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 assets/
 
 # Work agent configs (contains sensitive session data)

@@ -1,0 +1,14 @@
+---
+description: After code changes, commit and push to origin
+alwaysApply: true
+---
+
+# Git：修改后推送
+
+在完成对本仓库的**实质性代码或配置修改**后（非仅只读探索），在任务结束前应：
+
+1. `git status` 确认变更范围  
+2. `git add` 相关文件并 `git commit`，说明清晰  
+3. `git push` 到当前分支对应的远程（通常为 `origin/main`）
+
+若用户明确表示不提交、或仅本地实验，可例外。默认假设用户希望改动进入远程仓库。
