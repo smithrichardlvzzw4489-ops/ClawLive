@@ -69,6 +69,7 @@ export function Header({ leftNav = true }: HeaderProps) {
               <nav className="flex shrink-0 items-center gap-0.5">
                 {navLink('/', t('nav.home'), pathname === '/')}
                 {navLink('/rooms', t('nav.live'), isActive('/rooms'))}
+                {navLink('/points', t('nav.points'), isActive('/points'))}
               </nav>
               <PublishAndAuthControls variant="nav" />
             </div>
@@ -77,6 +78,7 @@ export function Header({ leftNav = true }: HeaderProps) {
               <nav className="ml-0.5 flex shrink-0 items-center gap-0.5 sm:ml-1">
                 {navLink('/', t('nav.home'), pathname === '/')}
                 {navLink('/rooms', t('nav.live'), isActive('/rooms'))}
+                {navLink('/points', t('nav.points'), isActive('/points'))}
               </nav>
               <PublishAndAuthControls variant="nav" />
             </>
