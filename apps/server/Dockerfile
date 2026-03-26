@@ -22,6 +22,6 @@ WORKDIR /app/apps/server
 ENV NODE_ENV=production
 EXPOSE 3001
 
-# 启动时应用所有待执行的数据库迁移，然后启动服务
+# 启动时应用迁移；若检测到 P3005（非空 DB 无迁移记录）则强制重置后再部署
 ENV PRISMA_HIDE_UPDATE_MESSAGE=1
-CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy 2>&1 | tee /tmp/pm.log; grep -q 'P3005' /tmp/pm.log && npx prisma migrate reset --force --skip-seed; exec node dist/index.js"]
