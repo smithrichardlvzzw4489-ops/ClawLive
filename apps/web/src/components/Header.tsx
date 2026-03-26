@@ -49,10 +49,14 @@ export function Header({ leftNav = true }: HeaderProps) {
     </Link>
   );
 
+  const isHome = pathname === '/';
+  const searchInputClass =
+    'w-full rounded-full border border-gray-200/80 bg-white/90 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-lobster/20';
+
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-[#f5f5f5] shadow-sm">
-      <div className="mx-auto flex h-16 min-w-0 items-center gap-2 px-3 sm:gap-3 sm:px-4 md:grid md:h-16 md:grid-cols-[minmax(0,1fr)_minmax(0,42rem)_minmax(0,1fr)] md:items-center md:gap-2 lg:px-6">
-        <div className="flex min-w-0 items-center gap-0.5 md:col-start-1 md:justify-self-start md:gap-1">
+      <div className="mx-auto flex min-w-0 flex-col gap-2 px-3 py-2 sm:px-4 md:flex-row md:items-center md:gap-3 lg:px-6">
+        <div className="flex min-w-0 shrink-0 items-center justify-between gap-2 md:justify-start md:gap-1">
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="text-3xl leading-none">🦞</span>
             <span className="text-xl font-bold tracking-tight text-lobster sm:text-2xl">{BRAND_ZH}</span>
@@ -75,22 +79,44 @@ export function Header({ leftNav = true }: HeaderProps) {
               <PublishAndAuthControls variant="nav" />
             </>
           )}
+
+          <form
+            onSubmit={handleSearch}
+            className="max-w-[200px] shrink-0 sm:max-w-[220px] md:hidden"
+          >
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className={searchInputClass}
+            />
+          </form>
         </div>
+
+        {isHome && (
+          <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-center gap-x-3 gap-y-1 md:justify-start lg:gap-x-4">
+            <span className="text-sm font-bold tracking-tight text-gray-900 sm:text-base lg:text-lg">
+              {t('home.heroTitle')}
+            </span>
+            <span className="text-xs leading-relaxed text-gray-600 sm:text-sm">
+              {t('home.heroSubtitle')}
+            </span>
+          </div>
+        )}
 
         <form
           onSubmit={handleSearch}
-          className="min-w-0 flex-1 md:col-start-2 md:w-full md:flex-none md:max-w-none md:justify-self-center"
+          className={`hidden shrink-0 md:block ${isHome ? 'max-w-[200px] sm:max-w-[240px] lg:max-w-[260px]' : 'ml-auto max-w-[200px] sm:max-w-[240px] lg:max-w-[260px]'}`}
         >
           <input
             type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={t('searchPlaceholder')}
-            className="w-full rounded-full border border-gray-200/80 bg-white/90 px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-lobster/20"
+            className={searchInputClass}
           />
         </form>
-
-        <div className="hidden min-h-0 md:col-start-3 md:block md:justify-self-stretch" aria-hidden />
       </div>
     </header>
   );
