@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
@@ -28,8 +28,6 @@ export default function CreateFeedImageTextPage() {
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const titleLen = title.length;
   const bodyLen = content.length;
 
@@ -176,21 +174,22 @@ export default function CreateFeedImageTextPage() {
               <span className="text-xs text-gray-500">{t('feedImagePost.imagesHint')}</span>
             </div>
             <input
-              ref={fileInputRef}
+              id="feed-image-text-file-input"
               type="file"
               accept="image/*"
               multiple
-              className="hidden"
+              disabled={images.length >= MAX_IMAGES}
+              className="sr-only"
               onChange={(e) => void onPickFiles(e)}
             />
-            <button
-              type="button"
-              disabled={images.length >= MAX_IMAGES}
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-2 rounded-xl border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            <label
+              htmlFor="feed-image-text-file-input"
+              className={`mt-2 inline-block cursor-pointer rounded-xl border border-dashed border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 ${
+                images.length >= MAX_IMAGES ? 'pointer-events-none cursor-not-allowed opacity-50' : ''
+              }`}
             >
               {t('feedImagePost.addImage')} ({images.length}/{MAX_IMAGES})
-            </button>
+            </label>
 
             {images.length > 0 && (
               <ul className="mt-4 space-y-3">

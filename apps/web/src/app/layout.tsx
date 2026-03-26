@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_SC, Noto_Serif_SC, ZCOOL_XiaoWei } from 'next/font/goo
 import './globals.css'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
 import { ArticleFontProvider } from '@/components/ArticleFontProvider'
+import { AgentChatWidget } from '@/components/AgentChatWidget'
 import { BRAND_ZH } from '@/lib/brand'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -51,6 +52,7 @@ export default function RootLayout({
       >
         <LocaleProvider>
           <ArticleFontProvider>{children}</ArticleFontProvider>
+          <AgentChatWidget />
         </LocaleProvider>
       </body>
     </html>

@@ -56,7 +56,11 @@ export function Header({ leftNav = true }: HeaderProps) {
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-[#f5f5f5] shadow-sm">
-      <div className="relative mx-auto flex min-w-0 flex-col gap-2 px-3 py-2 sm:px-4 md:flex-row md:items-center md:gap-3 lg:px-6">
+      <div
+        className={`relative mx-auto flex min-w-0 flex-col gap-2 px-3 sm:px-4 md:flex-row md:items-center md:gap-3 lg:px-6 ${
+          isHome ? 'py-3.5 sm:py-4' : 'py-2'
+        }`}
+      >
         <div
           className={`flex min-w-0 items-center justify-between gap-2 md:justify-start md:gap-1 ${isHome ? 'md:flex-1' : 'shrink-0'}`}
         >
@@ -101,10 +105,10 @@ export function Header({ leftNav = true }: HeaderProps) {
 
         {isHome && (
           <div className="flex min-w-0 max-w-full flex-nowrap items-baseline justify-center gap-x-3 overflow-x-auto text-center md:absolute md:left-1/2 md:top-1/2 md:z-10 md:max-w-[min(720px,calc(100vw-20rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-visible md:px-2 lg:gap-x-4">
-            <span className="shrink-0 whitespace-nowrap text-sm font-bold tracking-tight text-gray-900 sm:text-base lg:text-lg">
+            <span className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-gray-900 sm:text-lg lg:text-xl">
               {t('home.heroTitle')}
             </span>
-            <span className="shrink-0 whitespace-nowrap text-xs leading-relaxed text-gray-600 sm:text-sm">
+            <span className="shrink-0 whitespace-nowrap text-sm leading-relaxed text-gray-600 sm:text-base">
               {t('home.heroSubtitle')}
             </span>
           </div>

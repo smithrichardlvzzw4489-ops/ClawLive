@@ -15,12 +15,7 @@ interface Message {
   timestamp: Date;
 }
 
-type AgentChatWidgetProps = {
-  /** 嵌入左侧栏：按钮随栏布局，面板在按钮上方展开；默认 false 为全屏固定底角 */
-  variant?: 'overlay' | 'rail';
-};
-
-export function AgentChatWidget({ variant = 'overlay' }: AgentChatWidgetProps) {
+export function AgentChatWidget() {
   const { t } = useLocale();
   const { socket, isConnected } = useSocket();
   const [user, setUser] = useState<{ id: string } | null>(null);
@@ -162,17 +157,11 @@ export function AgentChatWidget({ variant = 'overlay' }: AgentChatWidgetProps) {
     }
   };
 
-  const isRail = variant === 'rail';
-
   const trigger = (
     <button
       type="button"
       onClick={handleToggle}
-      className={
-        isRail
-          ? 'relative z-40 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-lobster text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl'
-          : 'fixed bottom-6 left-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-lobster text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl lg:left-[82px] xl:left-[92px]'
-      }
+      className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-lobster text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl"
       title={t('inbox.toggle')}
     >
       <span className="text-2xl">🦞</span>
@@ -184,13 +173,7 @@ export function AgentChatWidget({ variant = 'overlay' }: AgentChatWidgetProps) {
 
   const panel =
     expanded && user ? (
-    <div
-      className={
-        isRail
-          ? 'absolute bottom-full left-1/2 z-40 mb-3 flex max-h-[min(480px,70vh)] w-[min(360px,calc(100vw-2rem))] -translate-x-1/2 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl'
-          : 'fixed bottom-24 left-4 right-4 z-40 flex max-h-[min(480px,70vh)] w-auto max-w-[360px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl sm:left-6 sm:right-auto sm:w-[360px] lg:left-[82px] xl:left-[92px]'
-      }
-    >
+    <div className="fixed bottom-24 left-4 right-4 z-40 flex max-h-[min(480px,70vh)] w-auto max-w-[360px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl sm:left-auto sm:right-6 sm:w-[360px]">
           <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
             <span className="font-semibold text-gray-900">🦞 Agent</span>
             <div className="flex items-center gap-2">
@@ -318,17 +301,8 @@ export function AgentChatWidget({ variant = 'overlay' }: AgentChatWidgetProps) {
 
   return (
     <>
-      {isRail ? (
-        <div className="relative z-30 flex justify-center pt-3">
-          {trigger}
-          {panel}
-        </div>
-      ) : (
-        <>
-          {trigger}
-          {panel}
-        </>
-      )}
+      {trigger}
+      {panel}
     </>
   );
 }

@@ -3,7 +3,6 @@
 import { ReactNode } from 'react';
 import { Header } from './Header';
 import { MainLeftNav } from './MainLeftNav';
-import { AgentChatWidget } from './AgentChatWidget';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -29,7 +28,7 @@ export function MainLayout({
 }: MainLayoutProps) {
   const noLeftRail = Boolean(hideLeftNav) || showSidebar === false;
   const mainTop =
-    hideHeader ? 'pt-0' : spaciousHeader ? 'pt-24 sm:pt-20' : 'pt-16';
+    hideHeader ? 'pt-0' : spaciousHeader ? 'pt-28 sm:pt-24' : 'pt-16';
 
   return (
     <div className={flatBackground ? 'min-h-screen bg-[#f5f5f5]' : 'min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50'}>
@@ -39,8 +38,6 @@ export function MainLayout({
         {!noLeftRail && <MainLeftNav />}
         <main className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''}`}>{children}</main>
       </div>
-
-      {noLeftRail ? <AgentChatWidget /> : <div className="lg:hidden"><AgentChatWidget /></div>}
     </div>
   );
 }

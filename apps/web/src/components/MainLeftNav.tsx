@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
-import { AgentChatWidget } from '@/components/AgentChatWidget';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 const RAIL_W = 'w-[220px] xl:w-[240px]';
@@ -17,6 +16,7 @@ const itemBase =
  */
 export function MainLeftNav() {
   const pathname = usePathname();
+  const isHome = pathname === '/';
   const { t } = useLocale();
 
   const item = (href: string, label: string, icon: string) => {
@@ -38,13 +38,14 @@ export function MainLeftNav() {
 
   return (
     <aside
-      className={`fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] ${RAIL_W} flex-col border-r border-gray-200/60 bg-[#f5f5f5] lg:flex`}
+      className={`fixed left-0 z-30 hidden ${RAIL_W} flex-col border-r border-gray-200/60 bg-[#f5f5f5] lg:flex ${
+        isHome ? 'top-20 h-[calc(100vh-5rem)]' : 'top-16 h-[calc(100vh-4rem)]'
+      }`}
     >
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/', t('nav.home'), '🏠')}
         {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
         <PublishAndAuthControls variant="rail" />
-        <AgentChatWidget variant="rail" />
       </nav>
     </aside>
   );
