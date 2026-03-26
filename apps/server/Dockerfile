@@ -22,6 +22,6 @@ WORKDIR /app/apps/server
 ENV NODE_ENV=production
 EXPOSE 3001
 
-# 启动时按 schema 自动补齐缺失表；抑制 Prisma 更新提示（避免 Railway 误判为 error）
+# 启动时应用所有待执行的数据库迁移，然后启动服务
 ENV PRISMA_HIDE_UPDATE_MESSAGE=1
-CMD ["sh", "-c", "npx prisma db push --skip-generate && exec node dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/index.js"]
