@@ -37,9 +37,16 @@ export default function PointsPage() {
     setLoadError(null);
     try {
       const data = (await api.points.llm()) as LlmInfo;
+      if (typeof window !== 'undefined') {
+        console.log('[Points] API response:', JSON.stringify(data));
+      }
       setInfo(data);
     } catch (e) {
-      setLoadError(e instanceof APIError ? e.message : '加载失败');
+      const msg = e instanceof APIError ? e.message : '加载失败';
+      if (typeof window !== 'undefined') {
+        console.error('[Points] load error:', msg, e);
+      }
+      setLoadError(msg);
     }
   }, [isAuthenticated]);
 
@@ -170,7 +177,10 @@ export default function PointsPage() {
         <p className="mt-2 text-sm leading-relaxed text-gray-600">{t('points.subtitle')}</p>
 
         {loadError && (
-          <p className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{loadError}</p>
+          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <p>{loadError}</p>
+            <p className="mt-1 text-xs text-gray-500">[DEBUG] API endpoint: /api/points/llm</p>
+          </div>
         )}
 
         {info && (
@@ -194,7 +204,15 @@ export default function PointsPage() {
             )}
 
             {!info.litellmConfigured ? (
-              <p className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">{t('points.notConfigured')}</p>
+              <div className="rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p>{t('points.notConfigured')}</p>
+                <p className="mt-2 text-xs text-gray-500 break-all">
+                  [DEBUG] litellmConfigured={String(info.litellmConfigured)},
+                  clawPoints={info.clawPoints},
+                  proxyBaseUrl={info.litellmProxyBaseUrl ?? 'null'},
+                  loadError={loadError ?? 'none'}
+                </p>
+              </div>
             ) : (
               <>
                 <div>
