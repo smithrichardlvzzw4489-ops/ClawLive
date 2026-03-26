@@ -55,8 +55,10 @@ export function Header({ leftNav = true }: HeaderProps) {
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-gray-200/50 bg-[#f5f5f5] shadow-sm">
-      <div className="mx-auto flex min-w-0 flex-col gap-2 px-3 py-2 sm:px-4 md:flex-row md:items-center md:gap-3 lg:px-6">
-        <div className="flex min-w-0 shrink-0 items-center justify-between gap-2 md:justify-start md:gap-1">
+      <div className="relative mx-auto flex min-w-0 flex-col gap-2 px-3 py-2 sm:px-4 md:flex-row md:items-center md:gap-3 lg:px-6">
+        <div
+          className={`flex min-w-0 items-center justify-between gap-2 md:justify-start md:gap-1 ${isHome ? 'md:flex-1' : 'shrink-0'}`}
+        >
           <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="text-3xl leading-none">🦞</span>
             <span className="text-xl font-bold tracking-tight text-lobster sm:text-2xl">{BRAND_ZH}</span>
@@ -95,7 +97,7 @@ export function Header({ leftNav = true }: HeaderProps) {
         </div>
 
         {isHome && (
-          <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-center gap-x-3 gap-y-1 md:justify-start lg:gap-x-4">
+          <div className="flex min-w-0 flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-center md:absolute md:left-1/2 md:top-1/2 md:z-10 md:max-w-[min(560px,52vw)] md:-translate-x-1/2 md:-translate-y-1/2 md:px-2 lg:gap-x-4">
             <span className="text-sm font-bold tracking-tight text-gray-900 sm:text-base lg:text-lg">
               {t('home.heroTitle')}
             </span>
@@ -105,18 +107,22 @@ export function Header({ leftNav = true }: HeaderProps) {
           </div>
         )}
 
-        <form
-          onSubmit={handleSearch}
-          className={`hidden shrink-0 md:block ${isHome ? 'max-w-[200px] sm:max-w-[240px] lg:max-w-[260px]' : 'ml-auto max-w-[200px] sm:max-w-[240px] lg:max-w-[260px]'}`}
+        <div
+          className={`hidden min-w-0 md:flex md:flex-1 md:items-center md:justify-end ${isHome ? '' : 'md:ml-auto'}`}
         >
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={t('searchPlaceholder')}
-            className={searchInputClass}
-          />
-        </form>
+          <form
+            onSubmit={handleSearch}
+            className="w-full max-w-[200px] shrink-0 sm:max-w-[220px] lg:max-w-[240px]"
+          >
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className={searchInputClass}
+            />
+          </form>
+        </div>
       </div>
     </header>
   );
