@@ -5,14 +5,21 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@clawlive/shared-types'],
   output: 'standalone',
-  /** 浏览器使用同源 /uploads/... 加载图片，由 Next 转发到后端，避免客户端 bundle 中 API 地址错误导致裂图 */
   async rewrites() {
-    return [
-      {
-        source: '/uploads/:path*',
-        destination: `${apiOrigin}/uploads/:path*`,
-      },
-    ];
+    return {
+      beforeFiles: [],
+      afterFiles: [
+        {
+          source: '/uploads/:path*',
+          destination: `${apiOrigin}/uploads/:path*`,
+        },
+        {
+          source: '/api/:path*',
+          destination: `${apiOrigin}/api/:path*`,
+        },
+      ],
+      fallback: [],
+    };
   },
   images: {
     remotePatterns: [

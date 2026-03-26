@@ -1,5 +1,13 @@
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const _BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+/**
+ * Client-side: empty string → requests go through Next.js rewrites (Vercel proxy).
+ * Server-side: actual backend URL for SSR / API routes.
+ */
+export const API_BASE_URL = typeof window === 'undefined' ? _BACKEND_URL : '';
+
+/** Actual backend origin for server-only contexts (e.g. video-proxy, OG images). */
+export const SERVER_API_URL = _BACKEND_URL;
 
 /**
  * 媒体地址：/uploads/... 使用同源相对路径，由 next.config.js rewrites 转发到后端；

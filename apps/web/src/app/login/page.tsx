@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
-import { api, API_BASE_URL } from '@/lib/api';
+import { api, API_BASE_URL, SERVER_API_URL } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
@@ -38,16 +38,16 @@ function AuthForm() {
   useEffect(() => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
-    fetch(`${API_BASE_URL}/api/health`, { signal: ctrl.signal, mode: 'cors' })
+    fetch(`/api/health`, { signal: ctrl.signal })
       .then(r => {
         clearTimeout(timer);
         if (r.ok) { setConnStatus('ok'); }
-        else { setConnStatus('fail'); setConnDetail(`HTTP ${r.status} from ${API_BASE_URL}`); }
+        else { setConnStatus('fail'); setConnDetail(`HTTP ${r.status}`); }
       })
       .catch(err => {
         clearTimeout(timer);
         setConnStatus('fail');
-        setConnDetail(`${API_BASE_URL} → ${err?.message || err}`);
+        setConnDetail(`${err?.message || err}`);
       });
     return () => { clearTimeout(timer); ctrl.abort(); };
   }, []);
