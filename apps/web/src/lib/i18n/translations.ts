@@ -137,7 +137,7 @@ export const translations = {
 
     // 首页
     home: {
-      heroTitle: '玩转AI，就来虾壳，解锁更多玩法；',
+      heroTitle: '玩转AI，就来虾壳，解锁更多玩法',
       heroSubtitle: '让分享被看到，让价值被挖掘，让学习更轻松',
       btnSkillsFlow: '查看能力流',
       btnCommunity: '进入社区',
@@ -668,7 +668,7 @@ export const translations = {
     },
 
     home: {
-      heroTitle: 'Play with AI on XiaKe — unlock more ways to play;',
+      heroTitle: 'Play with AI on XiaKe — unlock more ways to play',
       heroSubtitle: 'Let sharing be seen, value discovered, and learning easier.',
       btnSkillsFlow: 'View Skills',
       btnCommunity: 'Community',
