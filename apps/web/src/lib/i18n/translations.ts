@@ -63,6 +63,12 @@ export const translations = {
       coverRequired: '请设置封面（截取画面或上传图片）',
       needVideoFirst: '请先上传视频',
       videoNotReady: '视频尚未就绪，请稍后再试',
+      coverHintBeforePublish:
+        '发布前请先点击「使用当前画面为封面」或上传封面图；成功后会显示封面预览。',
+      coverCaptureFailed: '无法从视频截取封面（浏览器限制），请改用「上传封面图」。',
+      coverUploadInvalid: '封面未正确保存，请重试截取或上传。',
+      needLoginPublish: '登录已失效，请重新登录后再发布。',
+      coverReady: '封面已保存，可以发布。',
     },
 
     // 搜索
@@ -596,6 +602,12 @@ export const translations = {
       coverRequired: 'Please set a cover (frame or upload)',
       needVideoFirst: 'Please upload a video first',
       videoNotReady: 'Video not ready yet',
+      coverHintBeforePublish:
+        'Before publishing, capture a frame or upload a cover image. A preview will appear when saved.',
+      coverCaptureFailed: 'Could not capture from video (browser restriction). Please upload a cover image.',
+      coverUploadInvalid: 'Cover was not saved correctly. Try again.',
+      needLoginPublish: 'Session expired. Please sign in again to publish.',
+      coverReady: 'Cover saved. You can publish.',
     },
 
     creators: {

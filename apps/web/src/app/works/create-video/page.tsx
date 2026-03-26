@@ -23,6 +23,7 @@ export default function CreateVideoWorkPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const errorBannerRef = useRef<HTMLDivElement>(null);
 
   const [workId, setWorkId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
@@ -89,6 +90,11 @@ export default function CreateVideoWorkPage() {
   }, [router, token]);
 
   useEffect(() => {
+    if (!error) return;
+    errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [error]);
+
+  useEffect(() => {
     return () => {
       if (videoObjectUrl) URL.revokeObjectURL(videoObjectUrl);
     };
@@ -153,7 +159,11 @@ export default function CreateVideoWorkPage() {
         if (!res.ok) {
           throw new Error(typeof data.error === 'string' ? data.error : 'cover failed');
         }
-        setCoverServerUrl(data.url);
+        const savedUrl = typeof data.url === 'string' ? data.url : '';
+        if (!savedUrl) {
+          throw new Error(t('createVideo.coverUploadInvalid'));
+        }
+        setCoverServerUrl(savedUrl);
         setCoverPreview(dataUrl);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'cover failed');
@@ -161,7 +171,7 @@ export default function CreateVideoWorkPage() {
         setBusy(false);
       }
     },
-    [workId, token]
+    [workId, token, t]
   );
 
   const captureFrameFromVideo = useCallback(() => {
@@ -181,9 +191,22 @@ export default function CreateVideoWorkPage() {
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0, w, h);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    void uploadCoverDataUrl(dataUrl);
+
+    const paintAndUpload = () => {
+      try {
+        ctx.drawImage(video, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        void uploadCoverDataUrl(dataUrl);
+      } catch {
+        setError(t('createVideo.coverCaptureFailed'));
+      }
+    };
+
+    if (video.seeking) {
+      video.addEventListener('seeked', paintAndUpload, { once: true });
+    } else {
+      paintAndUpload();
+    }
   }, [videoObjectUrl, uploadCoverDataUrl, t]);
 
   const onVideoSeekInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -204,7 +227,10 @@ export default function CreateVideoWorkPage() {
   };
 
   const handlePublish = async () => {
-    if (!workId || !token) return;
+    if (!workId || !token) {
+      setError(t('createVideo.needLoginPublish'));
+      return;
+    }
     if (!title.trim()) {
       setError(t('createVideo.titleRequired'));
       return;
@@ -306,7 +332,13 @@ export default function CreateVideoWorkPage() {
 
         <div className="mt-8 space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+            <div
+              ref={errorBannerRef}
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            >
+              {error}
+            </div>
           )}
 
           <div>
@@ -422,6 +454,13 @@ export default function CreateVideoWorkPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {videoUploadedUrl && !coverServerUrl && (
+            <p className="text-sm text-amber-800">{t('createVideo.coverHintBeforePublish')}</p>
+          )}
+          {coverServerUrl && (
+            <p className="text-sm text-emerald-700">{t('createVideo.coverReady')}</p>
           )}
 
           <div className="flex flex-wrap gap-3 pt-2">
