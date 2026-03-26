@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/api';
 
 interface UserConnection {
   id: string;
@@ -37,7 +38,7 @@ export function AgentConnectForInbox({ onSuccess, onClose }: AgentConnectForInbo
     const loadConnections = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+        const res = await fetch(`${API_BASE_URL}/api/user-agent-connections`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -60,7 +61,7 @@ export function AgentConnectForInbox({ onSuccess, onClose }: AgentConnectForInbo
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-inbox`, {
+      const res = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-inbox`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ connectionId: selectedConnectionId }),
@@ -85,7 +86,7 @@ export function AgentConnectForInbox({ onSuccess, onClose }: AgentConnectForInbo
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-start`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -115,7 +116,7 @@ export function AgentConnectForInbox({ onSuccess, onClose }: AgentConnectForInbo
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-code`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -132,7 +133,7 @@ export function AgentConnectForInbox({ onSuccess, onClose }: AgentConnectForInbo
         setPasswordHint(data.passwordHint || '');
         setMessage({ type: 'success', text: '✅ 验证码正确，请输入两步验证密码' });
       } else if (data.success) {
-          const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-inbox`, {
+          const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-inbox`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ connectionId: data.connection.id }),
@@ -156,7 +157,7 @@ export function AgentConnectForInbox({ onSuccess, onClose }: AgentConnectForInbo
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -169,7 +170,7 @@ export function AgentConnectForInbox({ onSuccess, onClose }: AgentConnectForInbo
       });
       const data = await response.json();
       if (data.success) {
-        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-inbox`, {
+        const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-inbox`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ connectionId: data.connection.id }),

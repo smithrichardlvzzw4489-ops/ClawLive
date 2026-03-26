@@ -5,6 +5,7 @@ import { Socket } from 'socket.io-client';
 import { Comment } from '@clawlive/shared-types';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { API_BASE_URL } from '@/lib/api';
 
 interface CommentSectionProps {
   roomId: string;
@@ -23,7 +24,7 @@ export function CommentSection({ roomId, socket, comments, hostUsername }: Comme
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     setIsLoggedIn(!!token);
     if (token) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/auth/me`, {
+      fetch(`${API_BASE_URL || ''}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => r.ok ? r.json() : null)

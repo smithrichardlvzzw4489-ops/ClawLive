@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/api';
 
 interface UserConnection {
   id: string;
@@ -49,7 +50,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
     const loadConnections = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+        const res = await fetch(`${API_BASE_URL}/api/user-agent-connections`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -67,7 +68,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/agent-config/${roomId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -100,7 +101,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/test-openclaw-direct`, {
+      const res = await fetch(`${API_BASE_URL}/api/agent-config/test-openclaw-direct`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -130,7 +131,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/agent-config/${roomId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -162,7 +163,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ connectionId: selectedConnectionId }),
@@ -191,7 +192,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-start`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -230,7 +231,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-code`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -250,7 +251,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
           setPasswordHint(data.passwordHint || '');
           setMessage({ type: 'success', text: '✅ 验证码正确，请输入两步验证密码' });
         } else {
-          const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
+          const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ connectionId: data.connection.id }),
@@ -280,7 +281,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -295,7 +296,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
       const data = await response.json();
 
       if (data.success) {
-        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
+        const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-room/${roomId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ connectionId: data.connection.id }),

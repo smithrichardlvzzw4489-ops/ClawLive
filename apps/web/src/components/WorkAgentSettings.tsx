@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { API_BASE_URL } from '@/lib/api';
 
 interface UserConnection {
   id: string;
@@ -47,7 +48,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
     const loadConnections = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections`, {
+        const res = await fetch(`${API_BASE_URL}/api/user-agent-connections`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (res.ok) {
@@ -65,7 +66,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/work-agent-config/${workId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/work-agent-config/${workId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -94,7 +95,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
     setMessage(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ connectionId: selectedConnectionId }),
@@ -123,7 +124,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-start`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -161,7 +162,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-code`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -181,7 +182,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
           setPasswordHint(data.passwordHint || '');
           setMessage({ type: 'success', text: '✅ 验证码正确，请输入两步验证密码' });
         } else {
-          const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
+          const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ connectionId: data.connection.id }),
@@ -212,7 +213,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/mtproto-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/user-agent-connections/mtproto-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -226,7 +227,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
 
       const data = await response.json();
       if (data.success) {
-        const applyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
+        const applyRes = await fetch(`${API_BASE_URL}/api/user-agent-connections/apply-to-work/${workId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({ connectionId: data.connection.id }),

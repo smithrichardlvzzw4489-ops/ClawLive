@@ -17,6 +17,7 @@ import { useLocale } from '@/lib/i18n/LocaleContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { sendMessageToGateway } from '@/hooks/useGateway';
+import { API_BASE_URL } from '@/lib/api';
 
 interface LiveStreamProps {
   roomId: string;
@@ -119,7 +120,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
           return;
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -128,7 +129,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
         if (response.ok) {
           const user = await response.json();
           setParticipantName(user.username || user.id?.slice(0, 8) || 'user');
-          const roomResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}`);
+          const roomResponse = await fetch(`${API_BASE_URL}/api/rooms/${roomId}`);
           if (roomResponse.ok) {
             const roomData = await roomResponse.json();
             setIsHost(user.id === roomData.hostId);
@@ -152,7 +153,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     let cancelled = false;
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}/browser-gateway`, {
+    fetch(`${API_BASE_URL}/api/agent-config/${roomId}/browser-gateway`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -180,7 +181,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     // Check if agent is configured
     try {
       const token = localStorage.getItem('token');
-      const configResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agent-config/${roomId}`, {
+      const configResponse = await fetch(`${API_BASE_URL}/api/agent-config/${roomId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -214,7 +215,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     setIsTogglingLive(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/start`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -249,7 +250,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     setIsTogglingLive(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/stop`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/stop`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -281,7 +282,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     setHostMessage('');
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/message`, {
+      const response = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -312,7 +313,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
               }
               const agentContent = result.error ? `❌ Agent 回复失败：${result.error}` : (result.response || '');
               if (!agentContent.trim()) return;
-              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/agent-message`, {
+              fetch(`${API_BASE_URL}/api/rooms/${roomId}/agent-message`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -327,7 +328,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                 clearTimeout(agentTypingTimeoutRef.current);
                 agentTypingTimeoutRef.current = null;
               }
-              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rooms/${roomId}/agent-message`, {
+              fetch(`${API_BASE_URL}/api/rooms/${roomId}/agent-message`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -352,7 +353,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
 
   // API 兜底：Socket 可能在多实例时返回 未知房间，用 API 获取真实房间信息
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const apiUrl = API_BASE_URL;
     if (!apiUrl) return;
     let cancelled = false;
     fetch(`${apiUrl}/api/rooms/${roomId}`)
@@ -616,7 +617,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
                       if (!token) { router.push('/login'); return; }
                       setConverting(true);
                       try {
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/convert-from-chat`, {
+                        const res = await fetch(`${API_BASE_URL}/api/works/convert-from-chat`, {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                           body: JSON.stringify({ sourceType: 'live', roomId }),

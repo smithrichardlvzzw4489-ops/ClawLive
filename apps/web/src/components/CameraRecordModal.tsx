@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useCameraRecord } from '@/hooks/useCameraRecord';
+import { API_BASE_URL } from '@/lib/api';
 
 type VideoTarget = 'work' | 'message';
 
@@ -61,7 +62,7 @@ export function CameraRecordModal({ isOpen, onClose, onVideoReady, workId }: Cam
       });
 
       const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const apiUrl = API_BASE_URL || 'http://localhost:3001';
       const res = await fetch(`${apiUrl}/api/works/${workId}/upload-video`, {
         method: 'POST',
         headers: {

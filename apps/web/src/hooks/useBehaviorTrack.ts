@@ -2,6 +2,8 @@
  * 用户行为上报，用于个性化推荐
  */
 
+import { API_BASE_URL } from '@/lib/api';
+
 type BehaviorType = 'work_view' | 'room_join' | 'history_view' | 'work_like';
 
 export function trackBehavior(type: BehaviorType, targetId: string): void {
@@ -10,7 +12,7 @@ export function trackBehavior(type: BehaviorType, targetId: string): void {
   const token = localStorage.getItem('token');
   if (!token) return;
 
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/behavior/track`, {
+  fetch(`${API_BASE_URL}/api/behavior/track`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

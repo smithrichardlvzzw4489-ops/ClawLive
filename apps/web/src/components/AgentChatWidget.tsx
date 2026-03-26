@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSocket } from '@/hooks/useSocket';
 import { format } from 'date-fns';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { API_BASE_URL } from '@/lib/api';
 import { AgentConnectForInbox } from './AgentConnectForInbox';
 
 interface Message {
@@ -38,7 +39,7 @@ export function AgentChatWidget() {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+      const res = await fetch(`${API_BASE_URL}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -51,7 +52,7 @@ export function AgentChatWidget() {
   };
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/recommendations/home`)
+    fetch(`${API_BASE_URL}/api/recommendations/home`)
       .then((r) => r.json())
       .then((d) => setRecommendedSkills((d.recommendedSkills || []).slice(0, 3).map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))))
       .catch(() => setRecommendedSkills([]));
@@ -61,7 +62,7 @@ export function AgentChatWidget() {
     if (!user) return;
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/inbox/status`, {
+    fetch(`${API_BASE_URL}/api/inbox/status`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
@@ -117,7 +118,7 @@ export function AgentChatWidget() {
     setInput('');
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/inbox/message`, {
+      const res = await fetch(`${API_BASE_URL}/api/inbox/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,7 +187,7 @@ export function AgentChatWidget() {
                     if (!token) return;
                     setConverting(true);
                     try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/works/convert-from-chat`, {
+                      const res = await fetch(`${API_BASE_URL}/api/works/convert-from-chat`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
                         body: JSON.stringify({ sourceType: 'inbox' }),

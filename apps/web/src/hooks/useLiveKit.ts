@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Room, RoomEvent, Track } from 'livekit-client';
+import { API_BASE_URL } from '@/lib/api';
 
 const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL || '';
 
@@ -36,10 +37,7 @@ export function useLiveKit({
         ? { roomId, participantName: participantName || `host-${Date.now()}`, isHost: true }
         : { roomId };
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      if (!apiUrl) throw new Error('未配置 API 地址，请设置 NEXT_PUBLIC_API_URL');
-
-      const res = await fetch(`${apiUrl}${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,9 +61,7 @@ export function useLiveKit({
 
   const fetchSpeakerToken = useCallback(async () => {
     const authToken = localStorage.getItem('token');
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    if (!apiUrl) throw new Error('未配置 API 地址');
-    const res = await fetch(`${apiUrl}/api/livekit/token-speaker`, {
+    const res = await fetch(`${API_BASE_URL}/api/livekit/token-speaker`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

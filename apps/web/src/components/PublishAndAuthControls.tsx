@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { API_BASE_URL } from '@/lib/api';
 
 type Variant = 'nav' | 'sidebar' | 'rail';
 
@@ -28,7 +29,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
+    fetch(`${API_BASE_URL}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : null))
