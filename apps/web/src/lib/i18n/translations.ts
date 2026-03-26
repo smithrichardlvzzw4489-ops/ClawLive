@@ -67,6 +67,16 @@ export const translations = {
       noKey: '暂无虚拟 Key，请先成功兑换一次',
       copyFailed: '复制失败，请手动复制',
       models: '可用模型',
+      testSection: '连接测试（调试用）',
+      testHint: '向 LiteLLM 发一条最小对话，确认代理与上游模型可用。可先测 Master，兑换后再测虚拟 Key。',
+      testMessageLabel: '自定义提示（可选）',
+      testMessagePlaceholder: '留空则使用默认短提示',
+      testMaster: '测试代理（Master Key）',
+      testVirtual: '用我的虚拟 Key 测试',
+      testing: '请求中…',
+      testOk: '模型回复',
+      testFailed: '测试失败',
+      testNeedVirtual: '请先在上方兑换积分以生成虚拟 Key',
     },
 
     createVideo: {

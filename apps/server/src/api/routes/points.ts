@@ -9,6 +9,7 @@ import {
   isLitellmConfigured,
   LitellmNotConfiguredError,
 } from '../../services/litellm-budget';
+import { testLiteLLMWithMasterKey, testLiteLLMWithVirtualKey } from '../../services/llm';
 
 function maskVirtualKey(key: string | null | undefined): string | null {
   if (!key) return null;
@@ -42,6 +43,44 @@ export function pointsRoutes(): IRouter {
     } catch (e) {
       console.error('GET /api/points/llm', e);
       res.status(500).json({ error: 'Failed to load points' });
+    }
+  });
+
+  /**
+   * 调试 LiteLLM：POST body 可选 { message?: string, useVirtualKey?: boolean }
+   * - 默认用 Master Key 测通代理+上游
+   * - useVirtualKey=true 时用当前用户已保存的虚拟 Key（需先兑换过）
+   */
+  router.post('/llm/test', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const body = req.body as { message?: unknown; useVirtualKey?: unknown };
+    const message = typeof body.message === 'string' ? body.message : undefined;
+    const useVirtualKey = body.useVirtualKey === true;
+
+    if (!isLitellmConfigured()) {
+      return res.status(503).json({ error: 'LITELLM_NOT_CONFIGURED' });
+    }
+
+    try {
+      if (useVirtualKey) {
+        const userId = req.user!.id;
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { litellmVirtualKey: true },
+        });
+        if (!user?.litellmVirtualKey) {
+          return res.status(400).json({ error: 'NO_VIRTUAL_KEY' });
+        }
+        const result = await testLiteLLMWithVirtualKey(user.litellmVirtualKey, message);
+        return res.json({ ok: true, mode: 'virtual', ...result });
+      }
+      const result = await testLiteLLMWithMasterKey(message);
+      return res.json({ ok: true, mode: 'master', ...result });
+    } catch (e) {
+      console.error('POST /api/points/llm/test', e);
+      const detail = e instanceof Error ? e.message : String(e);
+      return res.status(502).json({
+        error: `LLM_TEST_FAILED: ${detail}`,
+      });
     }
   });
 

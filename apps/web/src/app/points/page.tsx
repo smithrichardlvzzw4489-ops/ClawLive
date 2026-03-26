@@ -27,6 +27,10 @@ export default function PointsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
+  const [testMessage, setTestMessage] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ reply: string; model: string; mode: string } | null>(null);
+  const [testErr, setTestErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -78,6 +82,48 @@ export default function PointsPage() {
       await navigator.clipboard.writeText(text);
     } catch {
       setActionError(t('points.copyFailed'));
+    }
+  };
+
+  const runLlmTest = async (useVirtualKey: boolean) => {
+    if (!info?.litellmConfigured) return;
+    setTestErr(null);
+    setTestResult(null);
+    setTesting(true);
+    try {
+      const msg = testMessage.trim();
+      const data = (await api.points.testLlm({
+        useVirtualKey,
+        ...(msg ? { message: msg } : {}),
+      })) as {
+        ok?: boolean;
+        reply?: string;
+        model?: string;
+        mode?: string;
+        message?: string;
+        error?: string;
+      };
+      if (data.reply != null && data.model != null) {
+        setTestResult({
+          reply: data.reply,
+          model: data.model,
+          mode: data.mode || '',
+        });
+      } else {
+        setTestErr(data.message || data.error || t('points.testFailed'));
+      }
+    } catch (e) {
+      if (e instanceof APIError) {
+        if (e.status === 400 && e.message.includes('NO_VIRTUAL')) {
+          setTestErr(t('points.testNeedVirtual'));
+        } else {
+          setTestErr(e.message || t('points.testFailed'));
+        }
+      } else {
+        setTestErr(t('points.testFailed'));
+      }
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -176,6 +222,51 @@ export default function PointsPage() {
                 >
                   {submitting ? t('points.redeeming') : t('points.redeem')}
                 </button>
+
+                <div className="border-t border-gray-100 pt-6">
+                  <p className="text-sm font-medium text-gray-800">{t('points.testSection')}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('points.testHint')}</p>
+                  <label className="mt-3 block text-xs font-medium text-gray-600">
+                    {t('points.testMessageLabel')}
+                  </label>
+                  <input
+                    type="text"
+                    value={testMessage}
+                    onChange={(e) => setTestMessage(e.target.value)}
+                    placeholder={t('points.testMessagePlaceholder')}
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
+                    disabled={testing}
+                  />
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={testing}
+                      onClick={() => void runLlmTest(false)}
+                      className="rounded-full border border-lobster/40 bg-white px-4 py-2 text-sm font-medium text-lobster hover:bg-lobster/5 disabled:opacity-50"
+                    >
+                      {testing ? t('points.testing') : t('points.testMaster')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={testing || !info.hasVirtualKey}
+                      onClick={() => void runLlmTest(true)}
+                      className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                      title={!info.hasVirtualKey ? t('points.testNeedVirtual') : undefined}
+                    >
+                      {testing ? t('points.testing') : t('points.testVirtual')}
+                    </button>
+                  </div>
+                  {testErr && <p className="mt-2 text-sm text-red-600">{testErr}</p>}
+                  {testResult && (
+                    <div className="mt-3 rounded-lg border border-green-100 bg-green-50/80 px-3 py-2 text-sm text-gray-800">
+                      <p className="text-xs text-gray-500">
+                        {t('points.models')}: {testResult.model} · {testResult.mode}
+                      </p>
+                      <p className="mt-1 font-medium">{t('points.testOk')}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words">{testResult.reply}</p>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 

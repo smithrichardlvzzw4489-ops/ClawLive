@@ -19,4 +19,7 @@ WORKDIR /app/apps/server
 ENV NODE_ENV=production
 EXPOSE 3001
 
+# Railway: leave "Custom Start Command" EMPTY so this CMD runs.
+# If you must override, use a shell — never bare `cd ... &&` (Railway reports: The executable `cd` could not be found).
+# Example override: sh -c "npx prisma migrate deploy && node dist/index.js"
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
