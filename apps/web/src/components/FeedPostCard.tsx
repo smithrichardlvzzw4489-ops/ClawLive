@@ -7,6 +7,7 @@ import { resolveMediaUrl } from '@/lib/api';
 
 export interface FeedPostCardItem {
   id: string;
+  kind?: 'article' | 'imageText';
   title: string;
   content: string;
   imageUrls: string[];

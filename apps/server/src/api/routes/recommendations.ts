@@ -106,6 +106,7 @@ export function recommendationRoutes(): Router {
         const a = feedAuthorMap.get(p.authorId);
         return {
           id: p.id,
+          kind: p.kind ?? 'article',
           title: p.title,
           content: p.content,
           imageUrls: p.imageUrls,

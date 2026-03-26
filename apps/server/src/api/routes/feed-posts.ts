@@ -17,6 +17,13 @@ import {
 
 const MAX_IMAGES = 9;
 const MAX_BYTES_PER_IMAGE = 5 * 1024 * 1024;
+const FEED_IMAGE_TEXT_MAX = 600;
+
+function isPlainTextNoEmbeddedImages(content: string): boolean {
+  if (/\!\[/.test(content)) return false;
+  if (/<\s*img\b/i.test(content)) return false;
+  return true;
+}
 
 function parseDataUrl(dataUrl: string): { buf: Buffer; ext: string } | null {
   if (!dataUrl.startsWith('data:')) return null;
@@ -48,6 +55,7 @@ export function feedPostsRoutes(): Router {
         const author = authorMap.get(p.authorId);
         return {
           id: p.id,
+          kind: p.kind ?? 'article',
           title: p.title,
           content: p.content,
           imageUrls: p.imageUrls,
@@ -78,6 +86,7 @@ export function feedPostsRoutes(): Router {
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       const items = list.map((p) => ({
         id: p.id,
+        kind: p.kind ?? 'article',
         title: p.title,
         content: p.content,
         imageUrls: p.imageUrls,
@@ -251,6 +260,7 @@ export function feedPostsRoutes(): Router {
       const author = authorMap.get(p.authorId);
       res.json({
         id: p.id,
+        kind: p.kind ?? 'article',
         title: p.title,
         content: p.content,
         imageUrls: p.imageUrls,
@@ -274,19 +284,36 @@ export function feedPostsRoutes(): Router {
   router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
-      const { title, content, images } = req.body as {
+      const { title, content, images, kind: kindRaw } = req.body as {
         title?: string;
         content?: string;
         images?: string[];
+        kind?: string;
       };
+
+      const kind: 'article' | 'imageText' = kindRaw === 'imageText' ? 'imageText' : 'article';
 
       const t = typeof title === 'string' ? title.trim() : '';
       const c = typeof content === 'string' ? content.trim() : '';
       if (!t || t.length > 120) return res.status(400).json({ error: '标题必填且不超过120字' });
-      if (!c || c.length > 20000) return res.status(400).json({ error: '正文必填且不超过20000字' });
+
       const imgs = Array.isArray(images) ? images : [];
-      if (imgs.length === 0) return res.status(400).json({ error: '请上传封面图片' });
-      if (imgs.length > MAX_IMAGES) return res.status(400).json({ error: `最多${MAX_IMAGES}张图` });
+
+      if (kind === 'imageText') {
+        if (!c || c.length > FEED_IMAGE_TEXT_MAX) {
+          return res.status(400).json({ error: `正文必填且不超过${FEED_IMAGE_TEXT_MAX}字` });
+        }
+        if (!isPlainTextNoEmbeddedImages(c)) {
+          return res.status(400).json({ error: '正文不可插入图片' });
+        }
+        if (imgs.length < 1 || imgs.length > MAX_IMAGES) {
+          return res.status(400).json({ error: `请上传1～${MAX_IMAGES}张图片，第一张为封面` });
+        }
+      } else {
+        if (!c || c.length > 20000) return res.status(400).json({ error: '正文必填且不超过20000字' });
+        if (imgs.length === 0) return res.status(400).json({ error: '请上传封面图片' });
+        if (imgs.length > MAX_IMAGES) return res.status(400).json({ error: `最多${MAX_IMAGES}张图` });
+      }
 
       const id = uuidv4();
       const uploadDir = join(UPLOADS_DIR, 'feed-posts', id);
@@ -309,6 +336,7 @@ export function feedPostsRoutes(): Router {
       const record: FeedPostRecord = {
         id,
         authorId: userId,
+        kind,
         title: t,
         content: c,
         imageUrls,

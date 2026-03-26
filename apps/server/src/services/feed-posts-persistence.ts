@@ -6,6 +6,8 @@ const FILE = getDataFilePath('feed-posts.json');
 export type FeedPostRecord = {
   id: string;
   authorId: string;
+  /** 缺省或 article：写文章（Markdown）；imageText：写图文（纯文字 + 独立图集） */
+  kind?: 'article' | 'imageText';
   title: string;
   content: string;
   imageUrls: string[];

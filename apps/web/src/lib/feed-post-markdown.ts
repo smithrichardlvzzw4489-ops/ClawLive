@@ -28,3 +28,5 @@ export function excerptPlainText(text: string, maxLen: number): string {
 
 export const FEED_POST_MAX_TITLE = 120;
 export const FEED_POST_MAX_CONTENT = 20000;
+/** 写图文：正文纯文字上限 */
+export const FEED_IMAGE_TEXT_MAX_CONTENT = 600;
