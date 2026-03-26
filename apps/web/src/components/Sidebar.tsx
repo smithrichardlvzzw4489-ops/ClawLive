@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { BRAND_ZH } from '@/lib/brand';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -11,7 +12,7 @@ export function Sidebar() {
 
   const navItems = [
     { icon: '🏠', label: t('nav.home'), path: '/' },
-    { icon: '🎬', label: t('nav.live'), path: '/rooms' },
+    ...(SHOW_LIVE_FEATURES ? [{ icon: '🎬', label: t('nav.live'), path: '/rooms' }] : []),
     { icon: '📚', label: t('nav.works'), path: '/my-profile' },
   ];
 

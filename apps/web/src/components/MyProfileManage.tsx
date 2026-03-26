@@ -7,6 +7,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { getProfileWorkTitleClass, getWorkCardGradient } from '@/components/WorkCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 type DeleteApiResult = { ok: boolean; error?: string; unauthorized?: boolean };
 
@@ -432,16 +433,20 @@ export function MyProfileManage() {
           </div>
         </header>
 
-        {/* 数据概览：粉丝 / 直播 / 能力流 / 作品 */}
-        <section className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* 数据概览：粉丝 / 直播 / 能力流 / 作品（直播统计受 SHOW_LIVE_FEATURES 控制） */}
+        <section
+          className={`mb-10 grid grid-cols-2 gap-3 ${SHOW_LIVE_FEATURES ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}
+        >
           <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statFollowers')}</p>
             <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.followerCount}</p>
           </div>
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statLiveSessions')}</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.totalSessions}</p>
-          </div>
+          {SHOW_LIVE_FEATURES && (
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statLiveSessions')}</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.totalSessions}</p>
+            </div>
+          )}
           <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statSkills')}</p>
             <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{mySkills.length || metrics.skillCount}</p>

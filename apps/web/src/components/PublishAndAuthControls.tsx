@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 type Variant = 'nav' | 'sidebar' | 'rail';
 
@@ -83,13 +84,15 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
                 >
                   🎬 {t('nav.publishVideo')}
                 </Link>
-                <Link
-                  href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
-                  className="block border-t px-4 py-3 text-gray-700 hover:bg-gray-50"
-                  onClick={() => setShowPublishMenu(false)}
-                >
-                  📹 {t('nav.publishLive')}
-                </Link>
+                {SHOW_LIVE_FEATURES && (
+                  <Link
+                    href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
+                    className="block border-t px-4 py-3 text-gray-700 hover:bg-gray-50"
+                    onClick={() => setShowPublishMenu(false)}
+                  >
+                    📹 {t('nav.publishLive')}
+                  </Link>
+                )}
               </div>
             </>
           )}
@@ -176,13 +179,15 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
                 >
                   🎬 {t('nav.publishVideo')}
                 </Link>
-                <Link
-                  href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
-                  className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
-                  onClick={() => setShowPublishMenu(false)}
-                >
-                  📹 {t('nav.publishLive')}
-                </Link>
+                {SHOW_LIVE_FEATURES && (
+                  <Link
+                    href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
+                    className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
+                    onClick={() => setShowPublishMenu(false)}
+                  >
+                    📹 {t('nav.publishLive')}
+                  </Link>
+                )}
               </div>
             </>
           )}
@@ -269,13 +274,15 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
               >
                 🎬 {t('nav.publishVideo')}
               </Link>
-              <Link
-                href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
-                className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
-                onClick={() => setShowPublishMenu(false)}
-              >
-                📹 {t('nav.publishLive')}
-              </Link>
+              {SHOW_LIVE_FEATURES && (
+                <Link
+                  href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
+                  className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
+                  onClick={() => setShowPublishMenu(false)}
+                >
+                  📹 {t('nav.publishLive')}
+                </Link>
+              )}
             </div>
           </>
         )}

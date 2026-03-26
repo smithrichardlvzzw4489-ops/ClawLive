@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { trackBehavior } from '@/hooks/useBehaviorTrack';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 interface Message {
   id: string;
@@ -82,8 +83,8 @@ export default function HistoryPage() {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || t('history.loadFailed')}</p>
-            <Link href="/rooms" className="text-lobster hover:underline">
-              {t('history.backToList')}
+            <Link href={SHOW_LIVE_FEATURES ? '/rooms' : '/'} className="text-lobster hover:underline">
+              {SHOW_LIVE_FEATURES ? t('history.backToList') : t('auth.backToHome')}
             </Link>
           </div>
         </div>

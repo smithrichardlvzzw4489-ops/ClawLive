@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 type Mode = 'login' | 'register';
 
@@ -335,8 +336,11 @@ function AuthForm() {
         </div>
 
         <div className="mt-4 text-center">
-          <Link href="/rooms" className="text-sm text-gray-500 hover:text-gray-700">
-            ← {t('auth.backToRooms')}
+          <Link
+            href={SHOW_LIVE_FEATURES ? '/rooms' : '/'}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            ← {SHOW_LIVE_FEATURES ? t('auth.backToRooms') : t('auth.backToHome')}
           </Link>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { RoomCard } from '@/components/RoomCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, resolveMediaUrl } from '@/lib/api';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 interface Host {
   id: string;
@@ -184,8 +185,8 @@ export function HostProfileView({ hostId }: { hostId: string }) {
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <p className="text-red-600 mb-4">{error || t('history.loadFailed')}</p>
-            <Link href="/rooms" className="text-lobster hover:underline">
-              {t('history.backToList')}
+            <Link href={SHOW_LIVE_FEATURES ? '/rooms' : '/'} className="text-lobster hover:underline">
+              {SHOW_LIVE_FEATURES ? t('history.backToList') : t('auth.backToHome')}
             </Link>
           </div>
         </div>
@@ -310,10 +311,12 @@ export function HostProfileView({ hostId }: { hostId: string }) {
             <span className="text-2xl font-bold text-gray-900">{stats.skillCount ?? 0}</span>
             <span className="text-gray-600">{t('host.skills')}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-gray-900">{stats.totalSessions ?? 0}</span>
-            <span className="text-gray-600">{t('host.sessions')}</span>
-          </div>
+          {SHOW_LIVE_FEATURES && (
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-gray-900">{stats.totalSessions ?? 0}</span>
+              <span className="text-gray-600">{t('host.sessions')}</span>
+            </div>
+          )}
         </div>
 
         <div className="min-w-0">
@@ -337,7 +340,7 @@ export function HostProfileView({ hostId }: { hostId: string }) {
             {/* Tab content */}
             {activeTab === 'overview' && (
               <div className="space-y-10">
-                {liveRooms.length > 0 && (
+                {SHOW_LIVE_FEATURES && liveRooms.length > 0 && (
                   <section>
                     <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                       <span className="w-1 h-6 bg-red-500 rounded-full"></span>
@@ -373,7 +376,7 @@ export function HostProfileView({ hostId }: { hostId: string }) {
                     </div>
                   </section>
                 )}
-                {hostWorks.length === 0 && liveRooms.length === 0 && (
+                {hostWorks.length === 0 && (!SHOW_LIVE_FEATURES || liveRooms.length === 0) && (
                   <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
                     {t('host.noContent')}
                   </div>

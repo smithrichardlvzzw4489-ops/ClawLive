@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { WorkCard } from '@/components/WorkCard';
 import { RoomCard } from '@/components/RoomCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 interface SearchResult {
   rooms: Array<{
@@ -56,7 +57,7 @@ function SearchContent() {
   const { t } = useLocale();
   const [result, setResult] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('live');
+  const [activeTab, setActiveTab] = useState<TabType>(SHOW_LIVE_FEATURES ? 'live' : 'works');
 
   useEffect(() => {
     if (!q.trim()) {
@@ -78,12 +79,30 @@ function SearchContent() {
       .finally(() => setLoading(false));
   }, [q]);
 
-  const tabs: { key: TabType; label: string; count: number }[] = [
-    { key: 'live', label: t('search.tabLive'), count: result?.rooms?.length ?? 0 },
-    { key: 'works', label: t('search.tabWorks'), count: result?.works?.length ?? 0 },
-    { key: 'skills', label: t('search.tabSkills'), count: result?.skills?.length ?? 0 },
-    { key: 'hosts', label: t('search.tabHosts'), count: result?.hosts?.length ?? 0 },
-  ];
+  useEffect(() => {
+    if (!SHOW_LIVE_FEATURES && activeTab === 'live') {
+      setActiveTab('works');
+    }
+  }, [activeTab]);
+
+  const tabs: { key: TabType; label: string; count: number }[] = useMemo(() => {
+    const all: { key: TabType; label: string; count: number }[] = [
+      { key: 'live', label: t('search.tabLive'), count: result?.rooms?.length ?? 0 },
+      { key: 'works', label: t('search.tabWorks'), count: result?.works?.length ?? 0 },
+      { key: 'skills', label: t('search.tabSkills'), count: result?.skills?.length ?? 0 },
+      { key: 'hosts', label: t('search.tabHosts'), count: result?.hosts?.length ?? 0 },
+    ];
+    if (!SHOW_LIVE_FEATURES) {
+      return all.filter((x) => x.key !== 'live');
+    }
+    return all;
+  }, [t, result]);
+
+  const resultTotalCount = useMemo(() => {
+    if (!result) return 0;
+    const r = SHOW_LIVE_FEATURES ? (result.rooms?.length ?? 0) : 0;
+    return r + (result.works?.length ?? 0) + (result.hosts?.length ?? 0) + (result.skills?.length ?? 0);
+  }, [result]);
 
   return (
     <div className="container mx-auto px-6 py-8">
@@ -93,7 +112,7 @@ function SearchContent() {
           <p className="text-gray-500">{t('search.empty')}</p>
         ) : (
           <p className="text-gray-600">
-            「{q}」 — {(result?.rooms?.length ?? 0) + (result?.works?.length ?? 0) + (result?.hosts?.length ?? 0) + (result?.skills?.length ?? 0)} {t('search.resultsCount')}
+            「{q}」 — {resultTotalCount} {t('search.resultsCount')}
           </p>
         )}
       </div>
@@ -118,7 +137,7 @@ function SearchContent() {
             ))}
           </div>
 
-          {activeTab === 'live' && (
+          {SHOW_LIVE_FEATURES && activeTab === 'live' && (
             <section>
               {!result?.rooms?.length ? (
                 <p className="text-gray-500 py-8 text-center">{t('search.noResults')}</p>

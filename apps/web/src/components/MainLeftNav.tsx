@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { AgentChatWidget } from '@/components/AgentChatWidget';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 const RAIL_W = 'w-[220px] xl:w-[240px]';
 
@@ -41,7 +42,7 @@ export function MainLeftNav() {
     >
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/', t('nav.home'), '🏠')}
-        {item('/rooms', t('nav.live'), '📺')}
+        {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
         {item('/points', t('nav.points'), '💎')}
         <PublishAndAuthControls variant="rail" />
         <AgentChatWidget variant="rail" />

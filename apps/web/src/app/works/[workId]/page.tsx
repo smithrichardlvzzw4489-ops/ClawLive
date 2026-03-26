@@ -9,6 +9,7 @@ import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
 import { WorkCommentsSection } from '@/components/WorkCommentsSection';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
+import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 interface Message {
   id: string;
@@ -350,7 +351,7 @@ export default function WorkDetailPage() {
                     })}
                   </time>
                 )}
-                {work.authorLiveRoom && (
+                {SHOW_LIVE_FEATURES && work.authorLiveRoom && (
                   <Link
                     href={`/rooms/${work.authorLiveRoom.id}`}
                     className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-500/25"
