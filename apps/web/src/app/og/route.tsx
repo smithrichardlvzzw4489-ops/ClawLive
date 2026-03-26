@@ -2,12 +2,13 @@
  * 动态 OG 图 - 从 URL 查询参数读取 title、desc，无 fetch，Edge 可正常工作
  */
 import { ImageResponse } from 'next/og';
+import { BRAND_ZH } from '@/lib/brand';
 
 export const runtime = 'edge';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const summary = searchParams.get('summary') || '可唠 作品';
+  const summary = searchParams.get('summary') || `${BRAND_ZH} 作品`;
   const truncatedSummary = summary.length > 32 ? `${summary.slice(0, 32)}...` : summary;
 
   return new ImageResponse(

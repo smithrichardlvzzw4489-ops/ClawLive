@@ -2,11 +2,22 @@
 
 import { MainLayout } from '@/components/MainLayout';
 import { HomeFeedSections } from '@/components/HomeFeedSections';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 export default function HomePage() {
+  const { t } = useLocale();
+
   return (
     <MainLayout flatBackground>
       <div className="w-full min-h-[calc(100vh-4rem)] bg-[#f5f5f5] px-3 pb-8 pt-3 sm:px-4 lg:px-6">
+        <header className="mx-auto max-w-6xl pb-6 pt-2 text-center sm:text-left">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+            {t('home.heroTitle')}
+          </h1>
+          <p className="mt-3 text-base leading-relaxed text-gray-600 sm:text-lg">
+            {t('home.heroSubtitle')}
+          </p>
+        </header>
         <HomeFeedSections />
       </div>
     </MainLayout>

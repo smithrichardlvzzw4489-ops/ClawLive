@@ -3,6 +3,7 @@
  * 动态 /works/[id]/og 在 Vercel Edge 下返回 0 字节，故此图作为作品页分享预览
  */
 import { ImageResponse } from 'next/og';
+import { BRAND_ZH } from '@/lib/brand';
 
 export const runtime = 'edge';
 
@@ -62,7 +63,7 @@ export async function GET() {
             clawlab.live
           </div>
           <div style={{ fontSize: 44, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 18 }}>
-            可唠 作品
+            {BRAND_ZH} 作品
           </div>
           <div style={{ fontSize: 22, color: 'rgba(255,255,255,0.85)', lineHeight: 1.5 }}>
             让 AI 帮你干活

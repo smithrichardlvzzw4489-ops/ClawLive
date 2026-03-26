@@ -30,7 +30,7 @@ interface Room {
 
 interface HostWork {
   id: string;
-  /** 传统作品 / 发作品图文 */
+  /** 传统作品 / 写文章图文 */
   kind?: 'work' | 'feedPost';
   title: string;
   resultSummary?: string;
@@ -67,7 +67,7 @@ interface HostData {
   };
 }
 
-type TabKey = 'overview' | 'works' | 'skills';
+type TabKey = 'overview' | 'works';
 
 /** 对外展示的创作者主页（访客视角）；个人管理请使用 `/my-profile` */
 export function HostProfileView({ hostId }: { hostId: string }) {
@@ -193,11 +193,10 @@ export function HostProfileView({ hostId }: { hostId: string }) {
     );
   }
 
-  const { host, liveRooms, hostWorks = [], hostSkills = [], stats } = data;
+  const { host, liveRooms, hostWorks = [], stats } = data;
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'overview', label: t('host.tabOverview') },
     { key: 'works', label: t('host.tabWorks') },
-    { key: 'skills', label: t('host.tabSkills') },
   ];
 
   const WorkCard = ({ work }: { work: HostWork }) => (
@@ -225,19 +224,6 @@ export function HostProfileView({ hostId }: { hostId: string }) {
         </div>
       </div>
     </Link>
-  );
-
-  const SkillCard = ({ skill }: { skill: HostSkill }) => (
-    <div className="block bg-white rounded-xl border border-gray-100 p-4">
-      <h3 className="font-semibold text-gray-900 line-clamp-2">{skill.title}</h3>
-      {skill.description && (
-        <p className="text-sm text-gray-500 line-clamp-2 mt-1">{skill.description}</p>
-      )}
-      <div className="text-xs text-gray-400 mt-2 flex gap-3">
-        <span>{skill.viewCount} 浏览</span>
-        <span>{skill.useCount} 使用</span>
-      </div>
-    </div>
   );
 
   return (
@@ -405,22 +391,6 @@ export function HostProfileView({ hostId }: { hostId: string }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {hostWorks.map((work) => (
                       <WorkCard key={work.id} work={work} />
-                    ))}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {activeTab === 'skills' && (
-              <section>
-                {hostSkills.length === 0 ? (
-                  <div className="py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-100">
-                    {t('host.noContent')}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {hostSkills.map((skill) => (
-                      <SkillCard key={skill.id} skill={skill} />
                     ))}
                   </div>
                 )}

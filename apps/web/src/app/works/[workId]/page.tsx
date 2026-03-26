@@ -28,6 +28,8 @@ interface Work {
   tags?: string[];
   coverImage?: string;
   videoUrl?: string;
+  /** 纯视频投稿（无工作室对话时间线） */
+  contentKind?: 'video';
   viewCount: number;
   likeCount: number;
   shareCount?: number;
@@ -225,6 +227,7 @@ export default function WorkDetailPage() {
   const hasSkillPanel = Boolean(skillText || linkedSkillId);
   const hasSummary = Boolean(work.resultSummary || work.description);
   const showRightColumn = hasSkillPanel || hasSummary;
+  const isVideoOnly = work.contentKind === 'video';
   const publishedAt = work.publishedAt ? new Date(work.publishedAt) : null;
   const shareCount = typeof work.shareCount === 'number' ? work.shareCount : 0;
 
@@ -368,55 +371,63 @@ export default function WorkDetailPage() {
                 </div>
               )}
 
+              {isVideoOnly && (work.description || work.resultSummary) && (
+                <div className="mt-6 max-w-3xl text-base leading-relaxed text-gray-700">
+                  <p className="whitespace-pre-wrap">{work.resultSummary || work.description}</p>
+                </div>
+              )}
+
               {work.videoUrl && (
                 <div className="mt-8">
                   <VideoUrlPlayer url={work.videoUrl} className="w-full" />
                 </div>
               )}
 
-              <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                <div className="border-b bg-gray-50 px-4 py-3">
-                  <h2 className="text-base font-semibold text-gray-900">{t('workDetail.creativeProcess')}</h2>
-                  <p className="mt-0.5 text-xs leading-snug text-gray-600">
-                    {t('workDetail.processDesc', { name: work.lobsterName })}
-                  </p>
-                </div>
-                <div className="space-y-1 px-2 py-3">
-                  {work.messages.length === 0 ? (
-                    <div className="py-8 text-center text-sm text-gray-500">{t('workDetail.noMessages')}</div>
-                  ) : (
-                    work.messages.map((msg) => (
-                      <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-[min(98%,40rem)] rounded-lg px-2.5 py-1.5 ${
-                            msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-purple-100 text-gray-900'
-                          }`}
-                        >
-                          <div className="mb-0.5 flex flex-wrap items-baseline gap-1 leading-none">
-                            <span className="max-w-[10rem] truncate text-[10px] font-semibold opacity-90">
-                              {msg.sender === 'user' ? work.author.username : work.lobsterName}
-                            </span>
-                            <span className="shrink-0 text-[10px] tabular-nums opacity-70">
-                              {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-                          {msg.videoUrl && (
-                            <div className="mb-1 max-w-sm overflow-hidden rounded">
-                              <VideoUrlPlayer url={msg.videoUrl} />
+              {!isVideoOnly && (
+                <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                  <div className="border-b bg-gray-50 px-4 py-3">
+                    <h2 className="text-base font-semibold text-gray-900">{t('workDetail.creativeProcess')}</h2>
+                    <p className="mt-0.5 text-xs leading-snug text-gray-600">
+                      {t('workDetail.processDesc', { name: work.lobsterName })}
+                    </p>
+                  </div>
+                  <div className="space-y-1 px-2 py-3">
+                    {work.messages.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-gray-500">{t('workDetail.noMessages')}</div>
+                    ) : (
+                      work.messages.map((msg) => (
+                        <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div
+                            className={`max-w-[min(98%,40rem)] rounded-lg px-2.5 py-1.5 ${
+                              msg.sender === 'user' ? 'bg-blue-500 text-white' : 'bg-purple-100 text-gray-900'
+                            }`}
+                          >
+                            <div className="mb-0.5 flex flex-wrap items-baseline gap-1 leading-none">
+                              <span className="max-w-[10rem] truncate text-[10px] font-semibold opacity-90">
+                                {msg.sender === 'user' ? work.author.username : work.lobsterName}
+                              </span>
+                              <span className="shrink-0 text-[10px] tabular-nums opacity-70">
+                                {new Date(msg.timestamp).toLocaleTimeString('zh-CN', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
                             </div>
-                          )}
-                          {msg.content ? (
-                            <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">{msg.content}</p>
-                          ) : null}
+                            {msg.videoUrl && (
+                              <div className="mb-1 max-w-sm overflow-hidden rounded">
+                                <VideoUrlPlayer url={msg.videoUrl} />
+                              </div>
+                            )}
+                            {msg.content ? (
+                              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">{msg.content}</p>
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <WorkCommentsSection scope="work" workId={workId} onCountChange={setCommentCount} />
             </article>

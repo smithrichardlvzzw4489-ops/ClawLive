@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { BRAND_ZH } from '@/lib/brand';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -10,6 +11,9 @@ const ogBaseUrl =
 function buildOgUrl(base: string, summary: string) {
   return `${base}/og?summary=${encodeURIComponent(summary)}`;
 }
+
+const workOgLabel = `${BRAND_ZH} 作品`;
+const workOgDescription = `${BRAND_ZH} - 让AI帮你干活`;
 
 export async function generateMetadata({
   params,
@@ -24,27 +28,27 @@ export async function generateMetadata({
       next: { revalidate: 60 },
     });
     if (!res.ok) {
-      const ogImageUrl = buildOgUrl(base, '可唠 作品');
+      const ogImageUrl = buildOgUrl(base, workOgLabel);
       return {
-        title: '可唠 作品',
-        description: '可唠 - 让AI帮你干活',
+        title: workOgLabel,
+        description: workOgDescription,
         openGraph: {
-          title: '可唠 作品',
-          description: '可唠 - 让AI帮你干活',
+          title: workOgLabel,
+          description: workOgDescription,
           type: 'article',
           url: `${base}/works/${workId}`,
-          images: [{ url: ogImageUrl, width: 1200, height: 630, alt: '可唠 作品', type: 'image/png' }],
+          images: [{ url: ogImageUrl, width: 1200, height: 630, alt: workOgLabel, type: 'image/png' }],
         },
         twitter: {
           card: 'summary_large_image',
-          title: '可唠 作品',
-          description: '可唠 - 让AI帮你干活',
+          title: workOgLabel,
+          description: workOgDescription,
           images: [{ url: ogImageUrl, width: 1200, height: 630 }],
         },
       };
     }
     const work = await res.json();
-    const title = `${work.title} - 可唠 作品`;
+    const title = `${work.title} - ${BRAND_ZH} 作品`;
     const description =
       work.resultSummary || work.description ||
       `${work.lobsterName} 的创作作品 · 作者 ${work.author?.username || '未知'}`;
@@ -71,21 +75,21 @@ export async function generateMetadata({
       },
     };
   } catch {
-    const ogImageUrl = buildOgUrl(base, '可唠 作品');
+    const ogImageUrl = buildOgUrl(base, workOgLabel);
     return {
-      title: '可唠 作品',
-      description: '可唠 - 让AI帮你干活',
+      title: workOgLabel,
+      description: workOgDescription,
       openGraph: {
-        title: '可唠 作品',
-        description: '可唠 - 让AI帮你干活',
+        title: workOgLabel,
+        description: workOgDescription,
         type: 'article',
         url: `${base}/works/${workId}`,
-        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: '可唠 作品', type: 'image/png' }],
+        images: [{ url: ogImageUrl, width: 1200, height: 630, alt: workOgLabel, type: 'image/png' }],
       },
       twitter: {
         card: 'summary_large_image',
-        title: '可唠 作品',
-        description: '可唠 - 让AI帮你干活',
+        title: workOgLabel,
+        description: workOgDescription,
         images: [{ url: ogImageUrl, width: 1200, height: 630 }],
       },
     };

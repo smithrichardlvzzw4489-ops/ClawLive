@@ -22,6 +22,23 @@ import {
 } from '../../services/work-comments-store';
 import { getShareCount, incrementShareCount } from '../../services/work-share-stats';
 
+const MAX_COVER_BYTES = 5 * 1024 * 1024;
+
+function parseCoverDataUrl(dataUrl: string): { buf: Buffer; ext: string } | null {
+  if (!dataUrl.startsWith('data:')) return null;
+  const m = dataUrl.match(/^data:image\/([\w+.-]+);base64,(.+)$/i);
+  if (!m) return null;
+  const mime = m[1].toLowerCase();
+  let ext = 'png';
+  if (mime.includes('jpeg') || mime === 'jpg') ext = 'jpg';
+  else if (mime === 'png') ext = 'png';
+  else if (mime === 'gif') ext = 'gif';
+  else if (mime === 'webp') ext = 'webp';
+  const buf = Buffer.from(m[2], 'base64');
+  if (buf.length === 0 || buf.length > MAX_COVER_BYTES) return null;
+  return { buf, ext };
+}
+
 export function worksRoutes(io: Server): Router {
   const router = Router();
   // Force reload
@@ -56,6 +73,7 @@ export function worksRoutes(io: Server): Router {
           likeCount: work.likeCount,
           messageCount: work.messages.length,
           publishedAt: work.publishedAt,
+          contentKind: work.contentKind,
           author: author ? {
             id: author.id,
             username: author.username,
@@ -361,9 +379,21 @@ export function worksRoutes(io: Server): Router {
   router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
-      const { title, description, lobsterName } = req.body;
+      const { title, description, lobsterName, contentKind } = req.body as {
+        title?: string;
+        description?: string;
+        lobsterName?: string;
+        contentKind?: string;
+      };
 
-      if (!title || !lobsterName) {
+      const isVideo = contentKind === 'video';
+      const nameRaw = typeof lobsterName === 'string' ? lobsterName.trim() : '';
+      const effectiveLobster = nameRaw || (isVideo ? '小龙' : '');
+
+      if (!title || !String(title).trim()) {
+        return res.status(400).json({ error: 'Title and lobster name are required' });
+      }
+      if (!effectiveLobster) {
         return res.status(400).json({ error: 'Title and lobster name are required' });
       }
 
@@ -371,12 +401,13 @@ export function worksRoutes(io: Server): Router {
       const newWork = {
         id: workId,
         authorId: userId,
-        title,
+        title: String(title).trim(),
         description: description || '',
         resultSummary: undefined as string | undefined,
         skillMarkdown: undefined as string | undefined,
         partition: DEFAULT_PARTITION,
-        lobsterName,
+        lobsterName: effectiveLobster,
+        ...(isVideo ? { contentKind: 'video' as const } : {}),
         status: 'draft' as const,
         messages: [],
         tags: [],
@@ -448,12 +479,53 @@ export function worksRoutes(io: Server): Router {
     }
   });
 
+  // POST /api/works/:workId/upload-cover — 封面上传（data URL，用于视频投稿或自定义封面）
+  router.post('/:workId/upload-cover', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const { workId } = req.params;
+      const userId = req.user!.id;
+      const { image } = req.body as { image?: string };
+
+      if (!image || typeof image !== 'string') {
+        return res.status(400).json({ error: 'image data URL required' });
+      }
+
+      const work = works.get(workId);
+      if (!work) return res.status(404).json({ error: 'Work not found' });
+      if (work.authorId !== userId) return res.status(403).json({ error: 'Not authorized' });
+      if (work.status === 'published') return res.status(400).json({ error: 'Cannot edit published work' });
+
+      const parsed = parseCoverDataUrl(image);
+      if (!parsed) {
+        return res.status(400).json({ error: 'Invalid image or file too large (max 5MB)' });
+      }
+
+      const uploadDir = join(UPLOADS_DIR, 'works', workId);
+      if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
+      const filename = `cover-${uuidv4()}.${parsed.ext}`;
+      const filepath = join(uploadDir, filename);
+      writeFileSync(filepath, parsed.buf);
+
+      const url = `/uploads/works/${workId}/${filename}`;
+      work.coverImage = url;
+      work.updatedAt = new Date();
+      works.set(workId, work);
+      WorksPersistence.saveAll(works, workMessages);
+      res.json({ url });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error uploading cover:', error);
+      res.status(500).json({ error: `封面上传失败: ${msg}` });
+    }
+  });
+
   // PUT /api/works/:workId - 更新作品信息
   router.put('/:workId', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { workId } = req.params;
       const userId = req.user!.id;
-      const { title, description, resultSummary, skillMarkdown, partition, tags, coverImage, videoUrl } = req.body;
+      const { title, description, resultSummary, skillMarkdown, partition, tags, coverImage, videoUrl, contentKind } =
+        req.body;
 
       const work = works.get(workId);
       if (!work) {
@@ -462,6 +534,10 @@ export function worksRoutes(io: Server): Router {
 
       if (work.authorId !== userId) {
         return res.status(403).json({ error: 'Not authorized' });
+      }
+
+      if (work.status === 'draft' && contentKind === 'video') {
+        work.contentKind = 'video';
       }
 
       if (title) work.title = title;
@@ -531,6 +607,19 @@ export function worksRoutes(io: Server): Router {
 
       if (work.status === 'published') {
         return res.status(400).json({ error: 'Work already published' });
+      }
+
+      if (work.contentKind === 'video') {
+        const v = (videoUrl !== undefined && videoUrl !== null && String(videoUrl).trim() !== '')
+          ? String(videoUrl).trim()
+          : (work.videoUrl && String(work.videoUrl).trim()) || '';
+        const c = (work.coverImage && String(work.coverImage).trim()) || '';
+        if (!v) {
+          return res.status(400).json({ error: '请先上传视频后再发布' });
+        }
+        if (!c) {
+          return res.status(400).json({ error: '请设置封面图后再发布' });
+        }
       }
 
       const finalPartition = partition && isValidPartition(partition) ? partition : DEFAULT_PARTITION;

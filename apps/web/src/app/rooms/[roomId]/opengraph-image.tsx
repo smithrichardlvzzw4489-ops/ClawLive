@@ -1,7 +1,8 @@
 import { ImageResponse } from 'next/og';
+import { BRAND_ZH } from '@/lib/brand';
 
 export const runtime = 'edge';
-export const alt = '可唠 直播';
+export const alt = `${BRAND_ZH} 直播`;
 
 export default async function OgImage({
   params,
@@ -20,7 +21,7 @@ export default async function OgImage({
     room = null;
   }
 
-  const title = room?.title || '可唠 直播';
+  const title = room?.title || `${BRAND_ZH} 直播`;
   const lobsterName = room?.lobsterName || '龙虾';
   const hostName = room?.host?.username || '主播';
   const isLive = room?.isLive ?? false;
@@ -85,7 +86,7 @@ export default async function OgImage({
           </div>
         </div>
         <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)' }}>
-          可唠 · OpenClaw AI Agent 直播
+          {BRAND_ZH} · OpenClaw AI Agent 直播
         </div>
       </div>
     ),

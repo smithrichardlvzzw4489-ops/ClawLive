@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { BRAND_ZH } from '@/lib/brand';
 
 export const runtime = 'edge';
 
@@ -26,7 +27,7 @@ export async function GET(
     work = null;
   }
 
-  const title = work?.title || '可唠 作品';
+  const title = work?.title || `${BRAND_ZH} 作品`;
   const summary = work?.resultSummary || work?.description || '';
   const lobsterName = work?.lobsterName || '龙虾';
   const authorName = work?.author?.username || '作者';

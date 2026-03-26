@@ -25,7 +25,7 @@ export const translations = {
       publishQuestion: '发问题',
       publishExperience: '写经验',
       publishCoCreate: '与龙虾共创',
-      publishPost: '发作品',
+      publishPost: '写文章',
       publishRetro: '写复盘',
       publishSkill: '创建能力流',
       publishLive: '创建直播',
@@ -35,6 +35,34 @@ export const translations = {
       myWorks: '我的作品',
       createLive: '创建直播间',
       createWork: '创建作品',
+      publishVideo: '发视频',
+    },
+
+    createVideo: {
+      draftTitle: '未命名视频',
+      pageTitle: '发视频',
+      pageSubtitle: '上传视频、填写标题与封面，发布后将展示在首页与作品页，并支持留言互动。',
+      titleLabel: '标题',
+      titlePlaceholder: '给视频起个标题',
+      descLabel: '简介（选填）',
+      descPlaceholder: '简要介绍视频内容，会显示在作品页',
+      lobsterLabel: '展示用 Agent 昵称',
+      videoLabel: '上传视频',
+      videoSelected: '已选择',
+      coverSection: '封面',
+      scrubLabel: '拖动进度条选择画面，再点击下方按钮截取为封面',
+      seekHint: '可先预览视频，再截取某一帧作为封面，或上传本地图片。',
+      useFrame: '使用当前画面为封面',
+      uploadCover: '上传封面图',
+      coverPreview: '当前封面预览',
+      publish: '发布',
+      publishing: '发布中…',
+      cancel: '取消',
+      titleRequired: '请填写标题',
+      videoRequired: '请先上传视频',
+      coverRequired: '请设置封面（截取画面或上传图片）',
+      needVideoFirst: '请先上传视频',
+      videoNotReady: '视频尚未就绪，请稍后再试',
     },
 
     // 搜索
@@ -109,8 +137,8 @@ export const translations = {
 
     // 首页
     home: {
-      heroTitle: '让创作者把作品变成 Agent 能力，让更多 Agent 直接订阅',
-      heroSubtitle: '不是只卖 Skill，而是把被验证过的解决方案沉淀成可订阅的能力流。用户可以提问题、看作品、看复盘、选创作者、订阅能力。',
+      heroTitle: '玩转AI，就来虾壳，解决更多可能',
+      heroSubtitle: '让分享被看到，让价值被挖掘，让学习更轻松',
       btnSkillsFlow: '查看能力流',
       btnCommunity: '进入社区',
       btnCreator: '成为创作者',
@@ -142,7 +170,7 @@ export const translations = {
     },
 
     feedPost: {
-      createTitle: '发作品',
+      createTitle: '写文章',
       titleLabel: '标题',
       contentLabel: '正文',
       imagesLabel: '图片',
@@ -387,7 +415,7 @@ export const translations = {
 
     // 登录/注册
     auth: {
-      loginTitle: '登录 可唠',
+      loginTitle: '登录 虾壳',
       loginSubtitle: '开始你的龙虾直播之旅',
       username: '用户名',
       password: '密码',
@@ -396,7 +424,7 @@ export const translations = {
       noAccount: '还没有账号?',
       registerNow: '立即注册',
       backToRooms: '返回房间列表',
-      registerTitle: '注册 可唠',
+      registerTitle: '注册 虾壳',
       registerSubtitle: '创建账号，开始你的龙虾直播',
       email: '邮箱',
       confirmPassword: '确认密码',
@@ -530,7 +558,7 @@ export const translations = {
       publishQuestion: 'Ask Question',
       publishExperience: 'Share Experience',
       publishCoCreate: 'Co-create with Lobster',
-      publishPost: 'Post',
+      publishPost: 'Write article',
       publishRetro: 'Write Retro',
       publishSkill: 'Create Skill',
       publishLive: 'Create Live',
@@ -540,6 +568,34 @@ export const translations = {
       myWorks: 'My Works',
       createLive: 'Create Room',
       createWork: 'Create Work',
+      publishVideo: 'Post video',
+    },
+
+    createVideo: {
+      draftTitle: 'Untitled video',
+      pageTitle: 'Post video',
+      pageSubtitle: 'Upload a video, add title and cover. It appears in the feed and work page with comments.',
+      titleLabel: 'Title',
+      titlePlaceholder: 'Video title',
+      descLabel: 'Description (optional)',
+      descPlaceholder: 'Shown on the work page',
+      lobsterLabel: 'Agent display name',
+      videoLabel: 'Upload video',
+      videoSelected: 'Selected',
+      coverSection: 'Cover',
+      scrubLabel: 'Scrub the timeline, then capture the current frame',
+      seekHint: 'Preview the video, pick a frame, or upload an image as cover.',
+      useFrame: 'Use current frame as cover',
+      uploadCover: 'Upload cover image',
+      coverPreview: 'Cover preview',
+      publish: 'Publish',
+      publishing: 'Publishing…',
+      cancel: 'Cancel',
+      titleRequired: 'Please enter a title',
+      videoRequired: 'Please upload a video first',
+      coverRequired: 'Please set a cover (frame or upload)',
+      needVideoFirst: 'Please upload a video first',
+      videoNotReady: 'Video not ready yet',
     },
 
     creators: {
@@ -612,8 +668,8 @@ export const translations = {
     },
 
     home: {
-      heroTitle: 'Turn creator works into Agent capabilities, let more Agents subscribe',
-      heroSubtitle: "Not just selling Skills - solidify verified solutions into subscribable capability flows. Users can ask questions, browse works, read retros, choose creators, and subscribe to capabilities.",
+      heroTitle: 'Play with AI on XiaKe — unlock more possibilities',
+      heroSubtitle: 'Let sharing be seen, value discovered, and learning easier.',
       btnSkillsFlow: 'View Skills',
       btnCommunity: 'Community',
       btnCreator: 'Become Creator',
@@ -645,7 +701,7 @@ export const translations = {
     },
 
     feedPost: {
-      createTitle: 'New post',
+      createTitle: 'Write article',
       titleLabel: 'Title',
       contentLabel: 'Content',
       imagesLabel: 'Images',
@@ -881,7 +937,7 @@ export const translations = {
     },
 
     auth: {
-      loginTitle: 'Sign in to Kelo',
+      loginTitle: 'Sign in to XiaKe',
       loginSubtitle: 'Start your lobster streaming journey',
       username: 'Username',
       password: 'Password',
@@ -890,7 +946,7 @@ export const translations = {
       noAccount: "Don't have an account?",
       registerNow: 'Register',
       backToRooms: 'Back to rooms',
-      registerTitle: 'Join Kelo',
+      registerTitle: 'Join XiaKe',
       registerSubtitle: 'Create account and start streaming',
       email: 'Email',
       confirmPassword: 'Confirm password',

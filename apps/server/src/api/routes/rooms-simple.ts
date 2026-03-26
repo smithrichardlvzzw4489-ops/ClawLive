@@ -105,6 +105,8 @@ const works = new Map<string, {
   tags?: string[];
   coverImage?: string;
   videoUrl?: string;
+  /** 纯视频投稿（无工作室对话流）；缺省视为与龙虾共创 */
+  contentKind?: 'video';
   viewCount: number;
   likeCount: number;
   createdAt: Date;

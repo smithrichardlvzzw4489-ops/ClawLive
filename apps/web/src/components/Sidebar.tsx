@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { BRAND_ZH } from '@/lib/brand';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -41,7 +42,7 @@ export function Sidebar() {
       {/* Bottom Info */}
       <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-gray-50">
         <p className="text-xs text-gray-500 text-center">
-          可唠 v1.0
+          {BRAND_ZH} v1.0
           <br />
           MIT License
         </p>

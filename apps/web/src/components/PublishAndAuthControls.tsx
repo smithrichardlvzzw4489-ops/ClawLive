@@ -77,6 +77,13 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
                   📝 {t('nav.publishPost')}
                 </Link>
                 <Link
+                  href={user ? '/works/create-video' : '/login?redirect=/works/create-video'}
+                  className="block border-t px-4 py-3 text-gray-700 hover:bg-gray-50"
+                  onClick={() => setShowPublishMenu(false)}
+                >
+                  🎬 {t('nav.publishVideo')}
+                </Link>
+                <Link
                   href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
                   className="block border-t px-4 py-3 text-gray-700 hover:bg-gray-50"
                   onClick={() => setShowPublishMenu(false)}
@@ -163,6 +170,13 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
                   📝 {t('nav.publishPost')}
                 </Link>
                 <Link
+                  href={user ? '/works/create-video' : '/login?redirect=/works/create-video'}
+                  className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
+                  onClick={() => setShowPublishMenu(false)}
+                >
+                  🎬 {t('nav.publishVideo')}
+                </Link>
+                <Link
                   href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}
                   className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
                   onClick={() => setShowPublishMenu(false)}
@@ -247,6 +261,13 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
                 onClick={() => setShowPublishMenu(false)}
               >
                 📝 {t('nav.publishPost')}
+              </Link>
+              <Link
+                href={user ? '/works/create-video' : '/login?redirect=/works/create-video'}
+                className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
+                onClick={() => setShowPublishMenu(false)}
+              >
+                🎬 {t('nav.publishVideo')}
               </Link>
               <Link
                 href={user ? '/rooms/create' : '/login?redirect=/rooms/create'}

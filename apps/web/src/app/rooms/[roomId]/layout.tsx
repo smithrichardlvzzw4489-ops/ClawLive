@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { BRAND_ZH } from '@/lib/brand';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -14,7 +15,7 @@ export async function generateMetadata({
     if (!res.ok) return {};
     const room = await res.json();
 
-    const title = `${room.title} - 可唠 直播`;
+    const title = `${room.title} - ${BRAND_ZH} 直播`;
     const description =
       room.description ||
       `${room.lobsterName} 的直播 · 主播 ${room.host?.username || '未知'}`;
