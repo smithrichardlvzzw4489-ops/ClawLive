@@ -4,6 +4,8 @@ export interface User {
   username: string;
   email?: string;
   avatarUrl?: string;
+  /** 虾壳积分；未返回时视为 0 */
+  clawPoints?: number;
   createdAt: Date;
   updatedAt: Date;
 }

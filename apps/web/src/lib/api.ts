@@ -125,4 +125,14 @@ export const api = {
       return fetchAPI(`/api/rooms/${roomId}/logs?${query}`);
     },
   },
+  points: {
+    llm: () => fetchAPI('/api/points/llm'),
+    redeemLlm: (clawPoints: number, idempotencyKey?: string) =>
+      fetchAPI('/api/points/redeem-llm', {
+        method: 'POST',
+        body: JSON.stringify({ clawPoints }),
+        headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+      }),
+    getVirtualKey: () => fetchAPI('/api/points/llm/virtual-key'),
+  },
 };

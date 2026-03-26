@@ -18,9 +18,11 @@ import { inboxRoutes } from './inbox';
 import { communityRoutes } from './community';
 import { creatorsRoutes } from './creators';
 import { feedPostsRoutes } from './feed-posts';
+import { pointsRoutes } from './points';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
+  app.use('/api/points', pointsRoutes());
   app.use('/api/agent-viewers', agentViewerRoutes(io));
   app.use('/api/user-agent-connections', userAgentConnectionsRoutes());
   app.use('/api/inbox', inboxRoutes(io));

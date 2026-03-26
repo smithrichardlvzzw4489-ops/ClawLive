@@ -36,6 +36,36 @@ export const translations = {
       createLive: '创建直播间',
       createWork: '创建作品',
       publishVideo: '发视频',
+      points: '积分兑换',
+    },
+
+    points: {
+      title: '虾壳积分 · 兑换 LLM 额度',
+      subtitle:
+        '将积分兑换为 LiteLLM 代理上的虚拟 Key 额度；在 OpenClaw 中将 API Base 指向下方地址，并使用虚拟 Key 调用模型。',
+      balance: '当前积分',
+      unit: '分',
+      rateValue: '{{points}} 积分 ≈ 1 USD 模型额度',
+      min: '单次最少兑换',
+      pointsLabel: '兑换积分数量',
+      usdPreview: '约等于 {{usd}} USD 额度',
+      redeem: '兑换',
+      redeeming: '兑换中…',
+      notConfigured: '平台尚未配置 LiteLLM 代理（LITELLM_BASE_URL / LITELLM_MASTER_KEY），请联系管理员。',
+      proxyUrl: '代理地址（OpenClaw / API Base）',
+      copy: '复制',
+      virtualKey: '虚拟 Key',
+      showKey: '显示完整 Key',
+      copyKey: '复制 Key',
+      openclawHint:
+        '请将 Base URL 设为「代理地址 + /v1」，Authorization 使用虚拟 Key（与 OpenAI 兼容）。勿把 Key 分享给他人。',
+      needLogin: '请先登录后再兑换积分。',
+      insufficient: '积分不足，请减少兑换数量或先获取积分。',
+      invalidAmount: '请输入有效的兑换数量',
+      redeemFailed: '兑换失败，请稍后重试',
+      noKey: '暂无虚拟 Key，请先成功兑换一次',
+      copyFailed: '复制失败，请手动复制',
+      models: '可用模型',
     },
 
     createVideo: {

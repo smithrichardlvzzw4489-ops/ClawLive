@@ -42,6 +42,7 @@ export function MainLeftNav() {
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/', t('nav.home'), '🏠')}
         {item('/rooms', t('nav.live'), '📺')}
+        {item('/points', t('nav.points'), '💎')}
         <PublishAndAuthControls variant="rail" />
         <AgentChatWidget variant="rail" />
       </nav>

@@ -8,23 +8,45 @@ datasource db {
 }
 
 model User {
-  id              String   @id @default(uuid())
-  telegramId      String?  @unique
-  username        String   @unique
-  email           String?  @unique
-  passwordHash    String?
-  avatarUrl       String?
-  bio             String?  @db.Text
-  openClawApiKey  String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  rooms           Room[]
-  comments        Comment[]
+  id                String   @id @default(uuid())
+  telegramId        String?  @unique
+  username          String   @unique
+  email             String?  @unique
+  passwordHash      String?
+  avatarUrl         String?
+  bio               String?  @db.Text
+  openClawApiKey    String?
+  /// 虾壳积分（可兑换 LiteLLM 代理额度等）
+  clawPoints        Int      @default(0)
+  /// LiteLLM 虚拟 Key；勿写入日志或下发给前端（除专用接口）
+  litellmVirtualKey String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  rooms        Room[]
+  comments     Comment[]
+  pointLedger  PointLedger[]
 
   @@index([username])
   @@index([telegramId])
   @@map("users")
+}
+
+model PointLedger {
+  id              String   @id @default(uuid())
+  userId          String
+  /// 正数为发放，负数为扣减
+  delta           Int
+  balanceAfter    Int
+  reason          String
+  metadata        Json?
+  idempotencyKey  String?  @unique
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("point_ledger")
 }
 
 model Room {

@@ -94,7 +94,7 @@ router.post('/register', async (req: Request, res: Response) => {
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
     const refreshToken = jwt.sign({ userId: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' } as jwt.SignOptions);
 
-    const { passwordHash: _, ...userWithoutPassword } = updated;
+    const { passwordHash: _, litellmVirtualKey: __vk, ...userWithoutPassword } = updated;
 
     res.status(201).json({
       user: userWithoutPassword,
@@ -132,7 +132,7 @@ router.post('/login', async (req: Request, res: Response) => {
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
     const refreshToken = jwt.sign({ userId: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' } as jwt.SignOptions);
 
-    const { passwordHash: _, ...userWithoutPassword } = user;
+    const { passwordHash: _, litellmVirtualKey: __vk, ...userWithoutPassword } = user;
 
     res.json({
       user: userWithoutPassword,
@@ -157,6 +157,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
         avatarUrl: true,
         bio: true,
         telegramId: true,
+        clawPoints: true,
         createdAt: true,
         updatedAt: true,
       },
