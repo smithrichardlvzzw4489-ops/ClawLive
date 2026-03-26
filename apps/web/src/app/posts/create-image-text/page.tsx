@@ -41,27 +41,34 @@ export default function CreateFeedImageTextPage() {
   );
 
   const onPickFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    e.target.value = '';
+    const input = e.target;
+    const files = input.files;
+    input.value = '';
     if (!files?.length) return;
     setError('');
-    const next = [...images];
+    const toAdd: string[] = [];
     for (const file of Array.from(files)) {
-      if (next.length >= MAX_IMAGES) break;
       if (!file.type.startsWith('image/')) continue;
       if (file.size > MAX_BYTES) {
         setError('单张图片不超过 5MB');
         return;
       }
       try {
-        const dataUrl = await readFileAsDataUrl(file);
-        next.push(dataUrl);
+        toAdd.push(await readFileAsDataUrl(file));
       } catch {
         setError('读取图片失败');
         return;
       }
     }
-    setImages(next);
+    if (toAdd.length === 0) return;
+    setImages((prev) => {
+      const next = [...prev];
+      for (const d of toAdd) {
+        if (next.length >= MAX_IMAGES) break;
+        next.push(d);
+      }
+      return next;
+    });
   };
 
   const removeAt = (i: number) => {
@@ -173,24 +180,26 @@ export default function CreateFeedImageTextPage() {
               <span className="text-sm font-medium text-gray-700">{t('feedImagePost.imagesLabel')}</span>
               <span className="text-xs text-gray-500">{t('feedImagePost.imagesHint')}</span>
             </div>
-            <div className="relative mt-2 inline-block max-w-full">
+            <label
+              className={`relative mt-2 inline-flex min-h-[44px] min-w-[10rem] max-w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm ${
+                images.length >= MAX_IMAGES
+                  ? 'pointer-events-none cursor-not-allowed opacity-50'
+                  : 'hover:bg-gray-50'
+              }`}
+            >
+              <span className="relative z-0 select-none">
+                {t('feedImagePost.addImage')} ({images.length}/{MAX_IMAGES})
+              </span>
               <input
                 type="file"
                 accept="image/*"
                 multiple
                 disabled={images.length >= MAX_IMAGES}
+                className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                 onChange={(e) => void onPickFiles(e)}
-                className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:pointer-events-none disabled:cursor-not-allowed"
                 aria-label={`${t('feedImagePost.addImage')} (${images.length}/${MAX_IMAGES})`}
               />
-              <div
-                className={`pointer-events-none flex min-h-[44px] min-w-[10rem] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm ${
-                  images.length >= MAX_IMAGES ? 'opacity-50' : ''
-                }`}
-              >
-                {t('feedImagePost.addImage')} ({images.length}/{MAX_IMAGES})
-              </div>
-            </div>
+            </label>
 
             {images.length > 0 && (
               <ul className="mt-4 space-y-3">
