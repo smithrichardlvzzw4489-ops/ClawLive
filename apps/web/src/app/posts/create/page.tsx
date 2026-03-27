@@ -13,7 +13,6 @@ import { compressImage } from '@/lib/image-compress';
 import {
   FEED_POST_MAX_CONTENT,
   FEED_POST_MAX_TITLE,
-  oneClickLayoutMarkdown,
 } from '@/lib/feed-post-markdown';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -57,7 +56,6 @@ export default function CreateFeedPostPage() {
   const [error, setError] = useState('');
   const [draftBanner, setDraftBanner] = useState(false);
   const [draftToast, setDraftToast] = useState<string | null>(null);
-  const [layoutToast, setLayoutToast] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [inlineImageBusy, setInlineImageBusy] = useState(false);
   const [bodyEditorKey, setBodyEditorKey] = useState(0);
@@ -101,12 +99,6 @@ export default function CreateFeedPostPage() {
     setBodyEditorKey((k) => k + 1);
   }, []);
 
-  const handleOneClickLayout = useCallback(() => {
-    setContent((c) => oneClickLayoutMarkdown(c));
-    setBodyEditorKey((k) => k + 1);
-    setLayoutToast(t('feedPost.layoutApplied'));
-    window.setTimeout(() => setLayoutToast(null), 2200);
-  }, [t]);
 
   const insertMarkdownAtCursor = useCallback((snippet: string) => {
     bodyEditorRef.current?.insertSnippet(snippet);
@@ -350,13 +342,6 @@ export default function CreateFeedPostPage() {
             </button>
             <button
               type="button"
-              onClick={handleOneClickLayout}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50"
-            >
-              {t('feedPost.oneClickLayout')}
-            </button>
-            <button
-              type="button"
               onClick={() => setPreviewOpen(true)}
               className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50"
             >
@@ -421,12 +406,6 @@ export default function CreateFeedPostPage() {
           {draftToast}
         </div>
       )}
-      {layoutToast && (
-        <div className="fixed bottom-6 left-1/2 z-40 max-w-sm -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2.5 text-center text-sm text-white shadow-lg">
-          {layoutToast}
-        </div>
-      )}
-
     </MainLayout>
   );
 }

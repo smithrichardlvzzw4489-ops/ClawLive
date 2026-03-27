@@ -1,12 +1,3 @@
-/** 一键排版：整理换行、合并多余空行、去除行尾空格 */
-export function oneClickLayoutMarkdown(text: string): string {
-  let s = text.replace(/\r\n/g, '\n');
-  const lines = s.split('\n').map((line) => line.trimEnd());
-  s = lines.join('\n');
-  s = s.replace(/\n{3,}/g, '\n\n');
-  return s.trim();
-}
-
 /** 摘要/卡片用：去掉常见 Markdown 标记 */
 export function stripMarkdownForExcerpt(raw: string): string {
   return raw
