@@ -126,9 +126,6 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
               <Link href="/my-profile" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
-              <Link href="/my-agent" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
-                🤖 {t('nav.myAgent')}
-              </Link>
               <Link href="/points" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
                 💎 {t('nav.points')}
               </Link>
@@ -232,9 +229,6 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
             <div className="absolute left-0 right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
               <Link href="/my-profile" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
                 👤 {t('nav.myProfile')}
-              </Link>
-              <Link href="/my-agent" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
-                🤖 {t('nav.myAgent')}
               </Link>
               <Link href="/points" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
                 💎 {t('nav.points')}
@@ -340,9 +334,6 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
           <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
             <Link href="/my-profile" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
               👤 {t('nav.myProfile')}
-            </Link>
-            <Link href="/my-agent" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
-              🤖 {t('nav.myAgent')}
             </Link>
             <Link href="/points" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
               💎 {t('nav.points')}
