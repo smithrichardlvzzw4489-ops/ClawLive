@@ -169,12 +169,14 @@ export function HomeFeedSections() {
             </p>
             {!activePartition && (
               <div className="flex flex-wrap justify-center gap-3">
+                {/* [FEATURE:CO_CREATE] 与龙虾共创入口（首页空状态按钮）— 已隐藏，恢复时删除此注释块 START
                 <Link
                   href="/works/create"
                   className="inline-block rounded-xl bg-lobster px-6 py-3 font-medium text-white"
                 >
                   {t('works.createFirst')}
                 </Link>
+                [FEATURE:CO_CREATE] END */}
                 <Link
                   href="/posts/create"
                   className="inline-block rounded-xl border border-lobster px-6 py-3 font-medium text-lobster hover:bg-lobster/5"

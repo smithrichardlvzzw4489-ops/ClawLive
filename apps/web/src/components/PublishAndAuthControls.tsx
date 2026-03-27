@@ -64,6 +64,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowPublishMenu(false)} />
               <div className={`absolute ${menuAlign} left-0 right-0 z-50 mt-1 rounded-xl border bg-white py-1 shadow-lg`}>
+                {/* [FEATURE:CO_CREATE] 与龙虾共创入口 — 已隐藏，恢复时删除此注释块 START
                 <Link
                   href={user ? '/works/create' : '/login?redirect=/works/create'}
                   className="block px-4 py-3 text-gray-700 hover:bg-gray-50"
@@ -71,6 +72,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
                 >
                   🦞 {t('nav.publishCoCreate')}
                 </Link>
+                [FEATURE:CO_CREATE] END */}
                 <Link
                   href={user ? '/posts/create' : '/login?redirect=/posts/create'}
                   className="block border-t px-4 py-3 text-gray-700 hover:bg-gray-50"
@@ -169,6 +171,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowPublishMenu(false)} />
               <div className={`absolute ${menuAlign} mt-1 w-56 bg-white rounded-lg shadow-lg border py-1 z-50`}>
+                {/* [FEATURE:CO_CREATE] 与龙虾共创入口 — 已隐藏，恢复时删除此注释块 START
                 <Link
                   href={user ? '/works/create' : '/login?redirect=/works/create'}
                   className="block px-4 py-3 hover:bg-gray-50 text-gray-700"
@@ -176,6 +179,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
                 >
                   🦞 {t('nav.publishCoCreate')}
                 </Link>
+                [FEATURE:CO_CREATE] END */}
                 <Link
                   href={user ? '/posts/create' : '/login?redirect=/posts/create'}
                   className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
@@ -274,6 +278,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowPublishMenu(false)} />
             <div className={`absolute ${menuAlign} mt-1 w-56 bg-white rounded-lg shadow-lg border py-1 z-50`}>
+              {/* [FEATURE:CO_CREATE] 与龙虾共创入口 — 已隐藏，恢复时删除此注释块 START
               <Link
                 href={user ? '/works/create' : '/login?redirect=/works/create'}
                 className="block px-4 py-3 hover:bg-gray-50 text-gray-700"
@@ -281,6 +286,7 @@ export function PublishAndAuthControls({ variant = 'nav' }: { variant?: Variant 
               >
                 🦞 {t('nav.publishCoCreate')}
               </Link>
+              [FEATURE:CO_CREATE] END */}
               <Link
                 href={user ? '/posts/create' : '/login?redirect=/posts/create'}
                 className="block px-4 py-3 hover:bg-gray-50 text-gray-700 border-t"
