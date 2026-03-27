@@ -52,8 +52,9 @@ export function pointsRoutes(): IRouter {
    * - useVirtualKey=true 时用当前用户已保存的虚拟 Key（需先兑换过）
    */
   router.post('/llm/test', authenticateToken, async (req: AuthRequest, res: Response) => {
-    const body = req.body as { message?: unknown; useVirtualKey?: unknown };
+    const body = req.body as { message?: unknown; useVirtualKey?: unknown; model?: unknown };
     const message = typeof body.message === 'string' ? body.message : undefined;
+    const model = typeof body.model === 'string' ? body.model : undefined;
     const useVirtualKey = body.useVirtualKey === true;
 
     if (!isLitellmConfigured()) {
@@ -70,10 +71,10 @@ export function pointsRoutes(): IRouter {
         if (!user?.litellmVirtualKey) {
           return res.status(400).json({ error: 'NO_VIRTUAL_KEY' });
         }
-        const result = await testLiteLLMWithVirtualKey(user.litellmVirtualKey, message);
+        const result = await testLiteLLMWithVirtualKey(user.litellmVirtualKey, message, model);
         return res.json({ ok: true, mode: 'virtual', ...result });
       }
-      const result = await testLiteLLMWithMasterKey(message);
+      const result = await testLiteLLMWithMasterKey(message, model);
       return res.json({ ok: true, mode: 'master', ...result });
     } catch (e) {
       console.error('POST /api/points/llm/test', e);

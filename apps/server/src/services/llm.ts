@@ -93,11 +93,12 @@ export type LlmTestResult = { reply: string; model: string };
 /**
  * 使用 Master Key 探测 LiteLLM 与上游模型（仅当已配置 LiteLLM）。
  */
-export async function testLiteLLMWithMasterKey(message?: string): Promise<LlmTestResult> {
+export async function testLiteLLMWithMasterKey(message?: string, modelOverride?: string): Promise<LlmTestResult> {
   if (!isLitellmConfigured()) {
     throw new Error('LITELLM_NOT_CONFIGURED');
   }
-  const { client, model } = getServerLlmClient();
+  const { client, model: defaultModel } = getServerLlmClient();
+  const model = modelOverride?.trim() || defaultModel;
   const userMsg = message?.trim() || '用一句话回复：连接成功。';
   const response = await client.chat.completions.create({
     model,
@@ -112,11 +113,11 @@ export async function testLiteLLMWithMasterKey(message?: string): Promise<LlmTes
 /**
  * 使用用户虚拟 Key 探测同一代理（验证兑换后的 Key 是否可用）。
  */
-export async function testLiteLLMWithVirtualKey(virtualKey: string, message?: string): Promise<LlmTestResult> {
+export async function testLiteLLMWithVirtualKey(virtualKey: string, message?: string, modelOverride?: string): Promise<LlmTestResult> {
   if (!isLitellmConfigured()) {
     throw new Error('LITELLM_NOT_CONFIGURED');
   }
-  const model = modelForLitellm();
+  const model = modelOverride?.trim() || modelForLitellm();
   const client = new OpenAI({
     apiKey: virtualKey,
     baseURL: litellmOpenAIBase(),

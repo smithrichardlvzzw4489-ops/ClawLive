@@ -28,6 +28,7 @@ export default function PointsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState('');
+  const [testModel, setTestModel] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ reply: string; model: string; mode: string } | null>(null);
   const [testErr, setTestErr] = useState<string | null>(null);
@@ -99,9 +100,11 @@ export default function PointsPage() {
     setTesting(true);
     try {
       const msg = testMessage.trim();
+      const mdl = testModel.trim();
       const data = (await api.points.testLlm({
         useVirtualKey,
         ...(msg ? { message: msg } : {}),
+        ...(mdl ? { model: mdl } : {}),
       })) as {
         ok?: boolean;
         reply?: string;
@@ -244,6 +247,17 @@ export default function PointsPage() {
                 <div className="border-t border-gray-100 pt-6">
                   <p className="text-sm font-medium text-gray-800">{t('points.testSection')}</p>
                   <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('points.testHint')}</p>
+                  <label className="mt-3 block text-xs font-medium text-gray-600">
+                    模型名（可选）
+                  </label>
+                  <input
+                    type="text"
+                    value={testModel}
+                    onChange={(e) => setTestModel(e.target.value)}
+                    placeholder="留空用默认，如 openrouter/anthropic/claude-3-5-sonnet"
+                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
+                    disabled={testing}
+                  />
                   <label className="mt-3 block text-xs font-medium text-gray-600">
                     {t('points.testMessageLabel')}
                   </label>
