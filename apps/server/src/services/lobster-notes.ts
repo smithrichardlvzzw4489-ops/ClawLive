@@ -1,5 +1,5 @@
 /**
- * 虾壳小龙虾 — 用户笔记存储（文件读写工具后端）
+ * 虾仔 — 用户笔记存储（文件读写工具后端）
  */
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { writeFile, readdir } from 'fs/promises';

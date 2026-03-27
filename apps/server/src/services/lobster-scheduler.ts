@@ -1,5 +1,5 @@
 /**
- * 虾壳小龙虾 — 定时任务调度器
+ * 虾仔 — 定时任务调度器
  * 使用 node-cron 执行用户设定的定时任务
  */
 import cron, { ScheduledTask } from 'node-cron';

@@ -1,5 +1,5 @@
 /**
- * /api/lobster — 虾壳品牌小龙虾 Nanobot v3
+ * /api/lobster — 虾仔 Nanobot v3
  * 工具调用 + ReAct + SSE流式 + 网页搜索 + Skills + 多模态 + 语音 + 笔记 + 定时任务 + MCP
  */
 import { Router, Response, Request } from 'express';
@@ -43,7 +43,7 @@ import {
 
 const MAX_REACT_STEPS = 6;
 
-const LOBSTER_SYSTEM_PROMPT = `你是"虾壳小龙虾"，虾壳平台（clawclub.live）的专属 AI 助手。
+const LOBSTER_SYSTEM_PROMPT = `你是"虾仔"，虾壳平台（clawclub.live）的专属 AI 助手。
 你的定位：
 - 聪明、友善、偶尔有一点幽默感，像一个懂 AI 的朋友
 - 帮助用户使用虾壳平台：发文章、写图文、浏览内容、了解平台功能
@@ -479,7 +479,7 @@ export function lobsterRoutes(): Router {
   router.get('/history', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const instance = getLobsterInstance(userId);
-    if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
+    if (!instance) return res.status(403).json({ error: '请先申请虾仔' });
     const conv = getLobsterConversation(userId);
     return res.json({ messages: conv.messages });
   });
@@ -508,14 +508,14 @@ export function lobsterRoutes(): Router {
     }
 
     const instance = getLobsterInstance(userId);
-    if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
-
+    if (!instance) return res.status(403).json({ error: '请先申请虾仔' });
+  
     const resolvedModel = resolveModel(requestModel);
     const llm = await getLlmClient(resolvedModel, userId);
     if (!llm) {
       return res.status(402).json({
         error: 'NO_KEY',
-        message: '小龙虾需要 API Key 才能运行。请使用积分兑换平台虚拟 Key，或在设置中填入自己的 Key。',
+        message: '虾仔需要 API Key 才能运行。请使用积分兑换平台虚拟 Key，或在设置中填入自己的 Key。',
       });
     }
     console.log(`[Lobster] user=${userId} model=${llm.model} keySource=${llm.keySource} image=${!!image}`);
@@ -599,7 +599,7 @@ export function lobsterRoutes(): Router {
 
         // 没有工具调用 → 直接拿到最终回复
         if (!toolCalls || toolCalls.length === 0) {
-          finalText = choice.message.content?.trim() || '（小龙虾没有生成回复，请重试）';
+          finalText = choice.message.content?.trim() || '（虾仔没有生成回复，请重试）';
           break;
         }
 
@@ -683,7 +683,7 @@ export function lobsterRoutes(): Router {
   router.delete('/history', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const instance = getLobsterInstance(userId);
-    if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
+    if (!instance) return res.status(403).json({ error: '请先申请虾仔' });
     await clearLobsterConversation(userId);
     return res.json({ success: true });
   });
@@ -802,7 +802,7 @@ export function lobsterRoutes(): Router {
       return res.status(400).json({ error: 'Key 格式无效' });
     }
     const instance = getLobsterInstance(userId);
-    if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
+    if (!instance) return res.status(403).json({ error: '请先申请虾仔' });
     await setPersonalApiKey(
       userId,
       key.trim(),
