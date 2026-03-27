@@ -9,7 +9,14 @@ const MAX_BEHAVIORS_PER_USER = 500;  // 单用户保留最近 N 条行为
 const INTEREST_DECAY_DAYS = 30;     // 兴趣衰减周期（天）
 const TOP_INTERESTS = 10;           // 取前 N 个兴趣维度参与个性化
 
-export type BehaviorType = 'work_view' | 'room_join' | 'history_view' | 'work_like';
+export type BehaviorType =
+  | 'work_view'
+  | 'room_join'
+  | 'history_view'
+  | 'work_like'
+  | 'feed_post_view'
+  | 'feed_post_like'
+  | 'feed_post_collect';
 
 interface UserBehavior {
   userId: string;
@@ -68,8 +75,12 @@ export function getUserInterestProfile(userId: string): UserInterestProfile {
     const daysAgo = (now - new Date(b.timestamp).getTime()) / (1000 * 60 * 60 * 24);
     const weight = decayFactor(daysAgo);
 
-    // 行为类型权重：like > view > join（点赞意愿最强）
-    const typeWeight = b.type === 'work_like' ? 2 : b.type === 'work_view' ? 1.2 : 1;
+    // 行为类型权重：收藏 > 点赞 > 浏览（收藏意愿最强）
+    const typeWeight =
+      b.type === 'feed_post_collect' ? 3
+      : b.type === 'feed_post_like' || b.type === 'work_like' ? 2
+      : b.type === 'work_view' || b.type === 'feed_post_view' ? 1.2
+      : 1;
     const score = weight * typeWeight;
 
     if (b.hostId) {
@@ -114,6 +125,22 @@ export function getLiveRoomPersonalizationBoost(
   const maxScore = Math.max(...topHosts.values(), 1);
   const boost = 0.5 * (hostScore / maxScore); // 最多 +50%
   return 1 + boost;
+}
+
+/**
+ * 计算 feed post 的个性化加成系数（基于作者偏好）
+ * 作者匹配最多 +40%，总加成上限 40%
+ */
+export function getFeedPostPersonalizationBoost(
+  authorId: string,
+  profile: UserInterestProfile,
+): number {
+  if (profile.behaviorCount < 3) return 1;
+  const topAuthors = getTopK(profile.preferredAuthors, TOP_INTERESTS);
+  const authorScore = topAuthors.get(authorId) || 0;
+  const maxAuthor = Math.max(...topAuthors.values(), 1);
+  const boost = 0.4 * (authorScore / maxAuthor);
+  return 1 + Math.min(boost, 0.4);
 }
 
 /**

@@ -6,7 +6,8 @@ import { getHostInfoBatch } from './rooms-simple';
 import { getFollowerCount } from '../../services/user-follows';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { works } from './rooms-simple';
-import { getFeedPostsSortedNewest } from '../../services/feed-posts-store';
+import { getFeedPostsScoredByCES } from '../../services/feed-posts-store';
+import { getUserInterestProfile, getFeedPostPersonalizationBoost } from '../../services/user-behavior';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
 
@@ -99,10 +100,41 @@ export function recommendationRoutes(): Router {
         };
       });
 
-      const feedSlice = getFeedPostsSortedNewest().slice(0, 12);
-      const feedAuthorIds = [...new Set(feedSlice.map((p) => p.authorId))];
+      // ── Feed posts：CES + 时间衰减 + 个性化 + 多样性 ───────────────────────
+      const FEED_CANDIDATES = 40; // 候选池
+      const FEED_RESULT = 12;     // 最终返回条数
+      const MAX_PER_AUTHOR = 2;   // 同作者最多出现次数（多样性控制）
+
+      const profile = userId ? getUserInterestProfile(userId) : null;
+      const hasEnoughBehavior = profile && profile.behaviorCount >= 3;
+
+      // 1. CES 打分排序（已含时间衰减 + 黄金时段）
+      const cesCandidates = getFeedPostsScoredByCES().slice(0, FEED_CANDIDATES);
+
+      // 2. 叠加个性化加成
+      const scored = cesCandidates.map(({ post, score }) => {
+        const personalBoost =
+          hasEnoughBehavior && profile
+            ? getFeedPostPersonalizationBoost(post.authorId, profile)
+            : 1;
+        return { post, finalScore: score * personalBoost };
+      });
+      scored.sort((a, b) => b.finalScore - a.finalScore);
+
+      // 3. 多样性去重：同一作者最多 MAX_PER_AUTHOR 条
+      const authorCount = new Map<string, number>();
+      const diverseSlice = scored
+        .filter(({ post }) => {
+          const cnt = authorCount.get(post.authorId) ?? 0;
+          if (cnt >= MAX_PER_AUTHOR) return false;
+          authorCount.set(post.authorId, cnt + 1);
+          return true;
+        })
+        .slice(0, FEED_RESULT);
+
+      const feedAuthorIds = [...new Set(diverseSlice.map(({ post }) => post.authorId))];
       const feedAuthorMap = await getHostInfoBatch(feedAuthorIds);
-      const feedPosts = feedSlice.map((p) => {
+      const feedPosts = diverseSlice.map(({ post: p }) => {
         const a = feedAuthorMap.get(p.authorId);
         return {
           id: p.id,
@@ -112,6 +144,7 @@ export function recommendationRoutes(): Router {
           imageUrls: p.imageUrls,
           viewCount: p.viewCount,
           likeCount: p.likeCount,
+          favoriteCount: p.favoriteCount ?? 0,
           commentCount: p.commentCount,
           createdAt: p.createdAt,
           author: a ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl } : { id: p.authorId, username: 'Unknown', avatarUrl: null },

@@ -15,6 +15,7 @@ import {
   toggleFavorite,
   toggleLike,
 } from '../../services/feed-post-reactions-store';
+import { recordBehavior } from '../../services/user-behavior';
 
 const MAX_IMAGES = 9;
 const MAX_BYTES_PER_IMAGE = 5 * 1024 * 1024;
@@ -197,6 +198,10 @@ export function feedPostsRoutes(): Router {
       const { liked } = toggleLike(postId, userId, p);
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
+      // 点赞时记录行为（取消点赞不记录）
+      if (liked) {
+        recordBehavior({ userId, type: 'feed_post_like', targetId: postId, authorId: p.authorId });
+      }
       res.json({ liked, likeCount: p.likeCount });
     } catch (e) {
       console.error(e);
@@ -213,6 +218,10 @@ export function feedPostsRoutes(): Router {
       const { favorited } = toggleFavorite(postId, userId, p);
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
+      // 收藏时记录行为（取消收藏不记录）
+      if (favorited) {
+        recordBehavior({ userId, type: 'feed_post_collect', targetId: postId, authorId: p.authorId });
+      }
       res.json({ favorited, favoriteCount: p.favoriteCount ?? 0 });
     } catch (e) {
       console.error(e);
@@ -251,6 +260,12 @@ export function feedPostsRoutes(): Router {
       p.viewCount += 1;
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
+
+      // 记录浏览行为，用于个性化推荐
+      const viewerId = getUserIdFromBearer(req);
+      if (viewerId && viewerId !== p.authorId) {
+        recordBehavior({ userId: viewerId, type: 'feed_post_view', targetId: p.id, authorId: p.authorId });
+      }
 
       const uid = getUserIdFromBearer(req);
       const reactions = getReactions(p.id);
