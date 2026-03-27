@@ -153,15 +153,19 @@ function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100 flex items-center justify-center p-4 relative">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+    <div className="relative min-h-screen overflow-hidden bg-[#06080f] flex items-center justify-center p-4">
+      {/* 科技感背景光晕 */}
+      <div className="pointer-events-none absolute -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/25 blur-[160px]" />
+      <div className="pointer-events-none absolute -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/25 blur-[160px]" />
+      <div className="pointer-events-none absolute top-1/2 left-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
+      {/* 细格网纹理 */}
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:48px_48px]" />
+
+      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800">
             {mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
           </h1>
-          <p className="text-gray-600 mt-2">
-            {mode === 'login' ? t('auth.loginSubtitle') : t('auth.registerSubtitle')}
-          </p>
         </div>
 
         {connStatus !== 'ok' && (
@@ -378,10 +382,10 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100 flex items-center justify-center">
+        <div className="min-h-screen bg-[#06080f] flex items-center justify-center">
           <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster" />
-            <p className="text-gray-600">加载中...</p>
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-violet-400" />
+            <p className="text-white/60">加载中...</p>
           </div>
         </div>
       }
