@@ -19,6 +19,7 @@ export interface PlatformModelsConfig {
 }
 
 const CONFIG_FILE = getDataFilePath('platform-models.json');
+const LOBSTER_KEY_FILE = getDataFilePath('lobster-virtual-key.json');
 
 /** 内置默认模型列表（未配置时显示） */
 const DEFAULT_MODELS: PlatformModel[] = [
@@ -60,4 +61,33 @@ export async function savePlatformModels(models: PlatformModel[]): Promise<void>
 export function getDefaultPlatformModel(): string | null {
   const { models } = loadPlatformModels();
   return models.find((m) => m.enabled)?.id ?? null;
+}
+
+// ─── 小龙虾虚拟 Key 自动管理 ──────────────────────────────────────────────────
+
+interface LobsterKeyStore {
+  key: string;
+  createdAt: string;
+}
+
+/** 读取已持久化的小龙虾虚拟 Key（内存缓存） */
+let _cachedLobsterKey: string | null = null;
+
+export function getStoredLobsterKey(): string | null {
+  if (_cachedLobsterKey) return _cachedLobsterKey;
+  if (!existsSync(LOBSTER_KEY_FILE)) return null;
+  try {
+    const store = JSON.parse(readFileSync(LOBSTER_KEY_FILE, 'utf-8')) as LobsterKeyStore;
+    _cachedLobsterKey = store.key;
+    return store.key;
+  } catch {
+    return null;
+  }
+}
+
+export async function storeLobsterKey(key: string): Promise<void> {
+  ensureDir(LOBSTER_KEY_FILE);
+  const store: LobsterKeyStore = { key, createdAt: new Date().toISOString() };
+  await writeFile(LOBSTER_KEY_FILE, JSON.stringify(store, null, 2), 'utf-8');
+  _cachedLobsterKey = key;
 }

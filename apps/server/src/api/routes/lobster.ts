@@ -19,7 +19,8 @@ import {
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { getFeedPostsMap } from '../../services/feed-posts-store';
-import { getDefaultPlatformModel } from '../../services/platform-models';
+import { getDefaultPlatformModel, getStoredLobsterKey, storeLobsterKey } from '../../services/platform-models';
+import { generateVirtualKey } from '../../services/litellm-budget';
 
 const MAX_REACT_STEPS = 5;
 
@@ -250,21 +251,47 @@ function resolveModel(requestModel?: string): string {
   );
 }
 
-function getLlmClient(model: string): { client: OpenAI; model: string } | null {
+/**
+ * 获取小龙虾专用虚拟 Key。
+ * 优先级：手动配置的 LOBSTER_VIRTUAL_KEY > 持久化文件中自动生成的 > 自动向 LiteLLM 申请新 Key
+ * Master Key 严禁用于用户请求。
+ */
+async function getLobsterApiKey(): Promise<string | null> {
+  // 1. 手动配置的最优先
+  if (process.env.LOBSTER_VIRTUAL_KEY) return process.env.LOBSTER_VIRTUAL_KEY;
+  // 2. 已自动生成并持久化的
+  const stored = getStoredLobsterKey();
+  if (stored) return stored;
+  // 3. 自动向 LiteLLM 生成一个专属虚拟 Key（$50/月预算上限）
+  try {
+    const { key } = await generateVirtualKey({
+      userId: 'platform-lobster',
+      maxBudgetUsd: 50,
+      models: [],  // 空数组 = 访问所有模型
+    });
+    await storeLobsterKey(key);
+    console.log('[Lobster] Auto-generated virtual key for lobster service');
+    return key;
+  } catch (err) {
+    console.error('[Lobster] Failed to auto-generate virtual key:', err);
+    return null;
+  }
+}
+
+async function getLlmClient(model: string): Promise<{ client: OpenAI; model: string } | null> {
   if (isLitellmConfigured()) {
     const base = config.litellm.baseUrl.replace(/\/$/, '');
-    const virtualKey = process.env.LOBSTER_VIRTUAL_KEY;
-    // Master Key 严禁用于用户请求，必须使用虚拟 Key
-    if (!virtualKey) {
-      console.error('[Lobster] LOBSTER_VIRTUAL_KEY is not set. Refusing to use LITELLM_MASTER_KEY for user requests.');
+    const apiKey = await getLobsterApiKey();
+    if (!apiKey) {
+      console.error('[Lobster] No virtual key available. Master Key is forbidden for user requests.');
       return null;
     }
     return {
-      client: new OpenAI({ apiKey: virtualKey, baseURL: `${base}/v1` }),
+      client: new OpenAI({ apiKey, baseURL: `${base}/v1` }),
       model,
     };
   }
-  // 未配置 LiteLLM 时，使用 OpenRouter（用户侧 API Key）
+  // 未配置 LiteLLM，走 OpenRouter
   const key = process.env.OPENROUTER_API_KEY;
   if (key) {
     return {
@@ -349,7 +376,7 @@ export function lobsterRoutes(): Router {
     if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
 
     const resolvedModel = resolveModel(requestModel);
-    const llm = getLlmClient(resolvedModel);
+    const llm = await getLlmClient(resolvedModel);
     if (!llm) {
       return res.status(503).json({
         error: '小龙虾暂时无法使用，请联系管理员配置 LOBSTER_VIRTUAL_KEY（LiteLLM 虚拟 Key）或 OPENROUTER_API_KEY',
