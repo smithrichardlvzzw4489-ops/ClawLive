@@ -88,6 +88,8 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
   ) {
     const [parts, setParts] = useState<MdPart[]>(() => splitAndNormalize(initialContent));
     const containerRef = useRef<HTMLDivElement>(null);
+    // 记录最后一次 textarea 的焦点位置，避免点按钮后 activeElement 变成按钮导致插入失败
+    const lastSelRef = useRef<{ partIndex: number; start: number; end: number } | null>(null);
 
     /** 首段 textarea 行数：随内容增高，避免仅两行字却占满 18 行导致与图片距离过大 */
     /** 行数按「非末尾空行」计，避免尾部 \n 撑高；再留 1 行余量 */
@@ -135,17 +137,12 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
     const insertSnippet = useCallback(
       (snippet: string) => {
         setParts((prev) => {
-          const ta = document.activeElement;
-          if (
-            ta instanceof HTMLTextAreaElement &&
-            containerRef.current?.contains(ta) &&
-            ta.dataset.partIndex !== undefined
-          ) {
-            const idx = parseInt(ta.dataset.partIndex, 10);
+          // 优先用保存的光标位置（防止点按钮后 activeElement 变成按钮）
+          const sel = lastSelRef.current;
+          if (sel) {
+            const { partIndex: idx, start, end } = sel;
             if (idx >= 0 && idx < prev.length && prev[idx].type === 'text') {
-              const partText = prev[idx].text;
-              const start = ta.selectionStart;
-              const end = ta.selectionEnd;
+              const partText = (prev[idx] as MdPart & { type: 'text' }).text;
               const before = joinRange(prev, 0, idx) + partText.slice(0, start);
               const after = partText.slice(end) + joinRange(prev, idx + 1, prev.length);
               const merged = (before + snippet + after).slice(0, maxLength);
@@ -153,6 +150,7 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
               return splitAndNormalize(merged);
             }
           }
+          // 兜底：拼到末尾
           const base = joinMarkdownParts(prev);
           const merged = (base + snippet).slice(0, maxLength);
           onChange(merged);
@@ -192,6 +190,14 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
                 data-part-index={i}
                 value={part.text}
                 onChange={(e) => updateTextPart(i, e.target.value)}
+                onSelect={(e) => {
+                  const ta = e.currentTarget;
+                  lastSelRef.current = { partIndex: i, start: ta.selectionStart, end: ta.selectionEnd };
+                }}
+                onFocus={(e) => {
+                  const ta = e.currentTarget;
+                  lastSelRef.current = { partIndex: i, start: ta.selectionStart, end: ta.selectionEnd };
+                }}
                 rows={rowsForTextPart(part, i)}
                 placeholder={i === 0 ? placeholder : undefined}
                 className="w-full resize-y bg-transparent font-mono text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none"
