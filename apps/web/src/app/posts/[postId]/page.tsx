@@ -404,21 +404,15 @@ export default function FeedPostDetailPage() {
               </div>
 
               {post.kind === 'imageText' ? (
-                <>
-                  {post.imageUrls?.length > 0 && (
-                    <div className="mt-8">
-                      <FeedPostImageCarousel imageUrls={post.imageUrls} />
-                    </div>
-                  )}
-                  <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-                    <div className="border-b bg-gray-50 px-4 py-3">
-                      <h2 className="text-base font-semibold text-gray-900">{t('feedImagePost.bodySectionTitle')}</h2>
-                    </div>
-                    <div className="px-4 py-4">
-                      <p className="whitespace-pre-wrap text-base leading-relaxed text-gray-800">{post.content}</p>
-                    </div>
+                <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+                  <div className="flex flex-col gap-3 border-b bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h2 className="text-base font-semibold text-gray-900">{t('feedImagePost.bodySectionTitle')}</h2>
+                    <ArticleFontPicker className="sm:justify-end" />
                   </div>
-                </>
+                  <div className="px-4 py-4">
+                    <MarkdownBody content={post.content} />
+                  </div>
+                </div>
               ) : (
                 <div className="mt-10 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
                   <div className="flex flex-col gap-3 border-b bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

@@ -303,11 +303,8 @@ export function feedPostsRoutes(): Router {
         if (!c || c.length > FEED_IMAGE_TEXT_MAX) {
           return res.status(400).json({ error: `正文必填且不超过${FEED_IMAGE_TEXT_MAX}字` });
         }
-        if (!isPlainTextNoEmbeddedImages(c)) {
-          return res.status(400).json({ error: '正文不可插入图片' });
-        }
         if (imgs.length < 1 || imgs.length > MAX_IMAGES) {
-          return res.status(400).json({ error: `请上传1～${MAX_IMAGES}张图片，第一张为封面` });
+          return res.status(400).json({ error: `请上传1～${MAX_IMAGES}张封面图片` });
         }
       } else {
         if (!c || c.length > 20000) return res.status(400).json({ error: '正文必填且不超过20000字' });
