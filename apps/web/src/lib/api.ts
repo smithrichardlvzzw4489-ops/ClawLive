@@ -149,6 +149,14 @@ export const api = {
         body: JSON.stringify(body ?? {}),
       }),
   },
+  lobster: {
+    me: () => fetchAPI('/api/lobster/me'),
+    apply: () => fetchAPI('/api/lobster/apply', { method: 'POST' }),
+    history: () => fetchAPI('/api/lobster/history'),
+    chat: (message: string) =>
+      fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message }) }),
+    clearHistory: () => fetchAPI('/api/lobster/history', { method: 'DELETE' }),
+  },
   feedPosts: {
     get: (postId: string) => fetchAPI(`/api/feed-posts/${postId}`),
     update: (
