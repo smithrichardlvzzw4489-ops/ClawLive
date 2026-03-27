@@ -9,6 +9,7 @@ import { ArticleFontPicker } from '@/components/ArticleFontPicker';
 import { FeedPostBodyEditor, type FeedPostBodyEditorHandle } from '@/components/FeedPostBodyEditor';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
+import { compressImage } from '@/lib/image-compress';
 import {
   FEED_POST_MAX_CONTENT,
   FEED_POST_MAX_TITLE,
@@ -17,15 +18,6 @@ import {
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const DRAFT_KEY = 'clawlive:feed-post-draft-v1';
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(new Error('read failed'));
-    r.readAsDataURL(file);
-  });
-}
 
 type DraftPayload = { title: string; content: string; savedAt: string };
 
@@ -136,7 +128,7 @@ export default function CreateFeedPostPage() {
     setInlineImageBusy(true);
     setError('');
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 });
       const res = await fetch(`${API_BASE_URL}/api/feed-posts/inline-image`, {
         method: 'POST',
         headers: {
@@ -173,7 +165,7 @@ export default function CreateFeedPostPage() {
     }
     setError('');
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.85 });
       setCoverDataUrl(dataUrl);
     } catch {
       setError('读取图片失败');

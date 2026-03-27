@@ -7,6 +7,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { FeedPostBodyEditor, type FeedPostBodyEditorHandle } from '@/components/FeedPostBodyEditor';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, api } from '@/lib/api';
+import { compressImage } from '@/lib/image-compress';
 import {
   FEED_IMAGE_TEXT_MAX_CONTENT,
   FEED_POST_MAX_CONTENT,
@@ -15,15 +16,6 @@ import {
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES = 9;
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(new Error('read failed'));
-    r.readAsDataURL(file);
-  });
-}
 
 interface PostDetail {
   id: string;
@@ -124,7 +116,7 @@ export default function EditFeedPostPage() {
     setInlineImageBusy(true);
     setError('');
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 });
       const res = await fetch(`${API_BASE_URL}/api/feed-posts/inline-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -142,7 +134,7 @@ export default function EditFeedPostPage() {
     e.target.value = '';
     if (!file || !file.type.startsWith('image/')) return;
     if (file.size > MAX_BYTES) { setError('单张图片不超过 5MB'); return; }
-    try { setCoverDataUrl(await readFileAsDataUrl(file)); setCoverExisting(null); }
+    try { setCoverDataUrl(await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.85 })); setCoverExisting(null); }
     catch { setError('读取图片失败'); }
   };
 
@@ -156,7 +148,7 @@ export default function EditFeedPostPage() {
     for (const file of fileArray) {
       if (!file.type.startsWith('image/')) continue;
       if (file.size > MAX_BYTES) { setError('单张图片不超过 5MB'); return; }
-      try { toAdd.push(await readFileAsDataUrl(file)); }
+      try { toAdd.push(await compressImage(file, { maxWidth: 1920, maxHeight: 1920, quality: 0.85 })); }
       catch { setError('读取图片失败'); return; }
     }
     if (!toAdd.length) return;

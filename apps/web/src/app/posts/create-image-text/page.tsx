@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
+import { compressImage } from '@/lib/image-compress';
 import { FEED_IMAGE_TEXT_MAX_CONTENT, FEED_POST_MAX_TITLE } from '@/lib/feed-post-markdown';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -33,14 +34,6 @@ function clearDraft() {
   try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(new Error('read failed'));
-    r.readAsDataURL(file);
-  });
-}
 
 export default function CreateFeedImageTextPage() {
   const { t } = useLocale();
@@ -98,7 +91,7 @@ export default function CreateFeedImageTextPage() {
         return;
       }
       try {
-        toAdd.push(await readFileAsDataUrl(file));
+        toAdd.push(await compressImage(file, { maxWidth: 1920, maxHeight: 1920, quality: 0.85 }));
       } catch {
         setError('读取图片失败');
         return;
