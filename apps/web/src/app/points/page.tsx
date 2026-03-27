@@ -129,7 +129,10 @@ export default function PointsPage() {
   }, [authLoading, isAuthenticated, load]);
 
   useEffect(() => {
-    if (info?.hasVirtualKey) void loadStats();
+    if (info?.hasVirtualKey) {
+      void loadStats();
+      void api.points.fixKeyModels().catch(() => {});
+    }
   }, [info?.hasVirtualKey, loadStats]);
 
   const onRedeem = async () => {

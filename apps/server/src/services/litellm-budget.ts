@@ -180,6 +180,23 @@ export async function increaseVirtualKeyBudget(virtualKey: string, addUsd: numbe
   }
 }
 
+/** 清除虚拟 Key 的模型限制，使其可访问所有模型 */
+export async function clearVirtualKeyModelRestrictions(virtualKey: string): Promise<void> {
+  const { base, masterKey } = requireLitellm();
+  const res = await fetch(`${base}/key/update`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${masterKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ key: virtualKey, models: [] }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`LiteLLM /key/update (clear models) ${res.status}: ${text.slice(0, 300)}`);
+  }
+}
+
 export function isLitellmConfigured(): boolean {
   return Boolean(config.litellm.baseUrl && config.litellm.masterKey);
 }

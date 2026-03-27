@@ -142,6 +142,7 @@ export const api = {
       }),
     getVirtualKey: () => fetchAPI('/api/points/llm/virtual-key'),
     keyStats: () => fetchAPI('/api/points/llm/key-stats'),
+    fixKeyModels: () => fetchAPI('/api/points/llm/fix-key-models', { method: 'POST' }),
     testLlm: (body?: { message?: string; useVirtualKey?: boolean; model?: string }) =>
       fetchAPI('/api/points/llm/test', {
         method: 'POST',

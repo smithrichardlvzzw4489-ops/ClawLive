@@ -9,6 +9,7 @@ import {
   isLitellmConfigured,
   LitellmNotConfiguredError,
   fetchKeyStats,
+  clearVirtualKeyModelRestrictions,
 } from '../../services/litellm-budget';
 import { testLiteLLMWithMasterKey, testLiteLLMWithVirtualKey } from '../../services/llm';
 
@@ -83,6 +84,28 @@ export function pointsRoutes(): IRouter {
       return res.status(502).json({
         error: `LLM_TEST_FAILED: ${detail}`,
       });
+    }
+  });
+
+  /** 清除虚拟 Key 的模型限制 */
+  router.post('/llm/fix-key-models', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { litellmVirtualKey: true },
+      });
+      if (!user?.litellmVirtualKey) {
+        return res.status(404).json({ error: 'NO_VIRTUAL_KEY' });
+      }
+      if (!isLitellmConfigured()) {
+        return res.status(503).json({ error: 'LITELLM_NOT_CONFIGURED' });
+      }
+      await clearVirtualKeyModelRestrictions(user.litellmVirtualKey);
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('POST /api/points/llm/fix-key-models', e);
+      res.status(500).json({ error: 'Failed to fix key models' });
     }
   });
 
