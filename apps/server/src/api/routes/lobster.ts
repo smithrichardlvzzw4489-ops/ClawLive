@@ -253,16 +253,18 @@ function resolveModel(requestModel?: string): string {
 function getLlmClient(model: string): { client: OpenAI; model: string } | null {
   if (isLitellmConfigured()) {
     const base = config.litellm.baseUrl.replace(/\/$/, '');
-    // 优先用专属虚拟 Key（有预算上限），没有则降级到 Master Key
-    const apiKey = process.env.LOBSTER_VIRTUAL_KEY || config.litellm.masterKey;
-    if (!process.env.LOBSTER_VIRTUAL_KEY) {
-      console.warn('[Lobster] Using LITELLM_MASTER_KEY — consider setting LOBSTER_VIRTUAL_KEY for budget control');
+    const virtualKey = process.env.LOBSTER_VIRTUAL_KEY;
+    // Master Key 严禁用于用户请求，必须使用虚拟 Key
+    if (!virtualKey) {
+      console.error('[Lobster] LOBSTER_VIRTUAL_KEY is not set. Refusing to use LITELLM_MASTER_KEY for user requests.');
+      return null;
     }
     return {
-      client: new OpenAI({ apiKey, baseURL: `${base}/v1` }),
+      client: new OpenAI({ apiKey: virtualKey, baseURL: `${base}/v1` }),
       model,
     };
   }
+  // 未配置 LiteLLM 时，使用 OpenRouter（用户侧 API Key）
   const key = process.env.OPENROUTER_API_KEY;
   if (key) {
     return {
@@ -349,7 +351,9 @@ export function lobsterRoutes(): Router {
     const resolvedModel = resolveModel(requestModel);
     const llm = getLlmClient(resolvedModel);
     if (!llm) {
-      return res.status(503).json({ error: '小龙虾暂时睡着了，请先配置 LLM 服务（LiteLLM 或 OpenRouter）' });
+      return res.status(503).json({
+        error: '小龙虾暂时无法使用，请联系管理员配置 LOBSTER_VIRTUAL_KEY（LiteLLM 虚拟 Key）或 OPENROUTER_API_KEY',
+      });
     }
     console.log(`[Lobster] model=${llm.model}`);
 
