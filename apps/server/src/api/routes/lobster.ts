@@ -384,7 +384,8 @@ export function lobsterRoutes(): Router {
 
         for (const toolCall of toolCalls) {
           if (toolCall.type !== 'function') continue;
-          const tc = toolCall as OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const tc = toolCall as any as { id: string; type: 'function'; function: { name: string; arguments: string } };
           const toolName = tc.function.name;
           let toolArgs: Record<string, unknown> = {};
           try {
