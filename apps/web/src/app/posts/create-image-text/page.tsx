@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
@@ -30,6 +30,7 @@ export default function CreateFeedImageTextPage() {
   const [images, setImages] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const titleLen = title.length;
   const bodyLen = content.length;
@@ -39,13 +40,14 @@ export default function CreateFeedImageTextPage() {
   /* ── 选图 ── */
   const onPickFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
-    const files = input.files;
+    // Array.from 先把 FileList 固定下来，再重置 input，避免部分浏览器清空 FileList
+    const fileArray = Array.from(input.files ?? []);
     input.value = '';
-    if (!files?.length) return;
+    if (!fileArray.length) return;
     setError('');
 
     const toAdd: string[] = [];
-    for (const file of Array.from(files)) {
+    for (const file of fileArray) {
       if (!file.type.startsWith('image/')) continue;
       if (file.size > MAX_BYTES) {
         setError('单张图片不超过 5MB');
@@ -170,21 +172,24 @@ export default function CreateFeedImageTextPage() {
               <span className="text-xs text-gray-400">{images.length}/{MAX_IMAGES} 张 · 第一张为封面</span>
             </div>
 
+            {/* 隐藏的 file input，由按钮触发 */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => void onPickFiles(e)}
+            />
             {/* 上传按钮 */}
-            <label
-              className={`relative inline-flex min-h-[44px] min-w-[9rem] cursor-pointer items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition
-                ${images.length >= MAX_IMAGES ? 'pointer-events-none opacity-40' : 'hover:bg-gray-50'}`}
+            <button
+              type="button"
+              disabled={images.length >= MAX_IMAGES}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex min-h-[44px] min-w-[9rem] items-center justify-center rounded-xl border border-dashed border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <span className="select-none">＋ 添加图片</span>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                disabled={images.length >= MAX_IMAGES}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                onChange={(e) => void onPickFiles(e)}
-              />
-            </label>
+              ＋ 添加图片
+            </button>
 
             {/* 图片列表 */}
             {images.length > 0 && (
