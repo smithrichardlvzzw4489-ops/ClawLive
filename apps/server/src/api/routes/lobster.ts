@@ -383,10 +383,12 @@ export function lobsterRoutes(): Router {
         });
 
         for (const toolCall of toolCalls) {
-          const toolName = toolCall.function.name;
+          if (toolCall.type !== 'function') continue;
+          const tc = toolCall as OpenAI.Chat.Completions.ChatCompletionMessageToolCall;
+          const toolName = tc.function.name;
           let toolArgs: Record<string, unknown> = {};
           try {
-            toolArgs = JSON.parse(toolCall.function.arguments || '{}');
+            toolArgs = JSON.parse(tc.function.arguments || '{}');
           } catch {
             toolArgs = {};
           }
