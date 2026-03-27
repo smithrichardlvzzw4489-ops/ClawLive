@@ -231,13 +231,37 @@ async function executeTool(
 
 // ─── LLM 客户端 ───────────────────────────────────────────────────────────────
 
-function getLlmClient(): { client: OpenAI; model: string } | null {
+/** 查询 LiteLLM 已部署的第一个模型 ID（失败时返回 null） */
+async function fetchFirstLitellmModel(base: string, masterKey: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${base}/models`, {
+      headers: { Authorization: `Bearer ${masterKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { data?: Array<{ id: string }> };
+    const first = data.data?.[0]?.id;
+    return first ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function getLlmClient(): Promise<{ client: OpenAI; model: string } | null> {
   if (isLitellmConfigured()) {
     const base = config.litellm.baseUrl.replace(/\/$/, '');
-    return {
-      client: new OpenAI({ apiKey: config.litellm.masterKey, baseURL: `${base}/v1` }),
-      model: process.env.LOBSTER_MODEL || config.litellm.models[0] || 'gpt-4o-mini',
-    };
+    const client = new OpenAI({ apiKey: config.litellm.masterKey, baseURL: `${base}/v1` });
+
+    // 优先：手动指定 > LITELLM_MODELS 配置 > 动态查询第一个已部署模型
+    let model = process.env.LOBSTER_MODEL || config.litellm.models[0] || '';
+    if (!model) {
+      model = (await fetchFirstLitellmModel(base, config.litellm.masterKey)) ?? '';
+    }
+    if (!model) {
+      console.error('[Lobster] LiteLLM configured but no model found. Set LOBSTER_MODEL or LITELLM_MODELS.');
+      return null;
+    }
+    return { client, model };
   }
   const key = process.env.OPENROUTER_API_KEY;
   if (key) {
@@ -322,9 +346,9 @@ export function lobsterRoutes(): Router {
     const instance = getLobsterInstance(userId);
     if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
 
-    const llm = getLlmClient();
+    const llm = await getLlmClient();
     if (!llm) {
-      return res.status(503).json({ error: '小龙虾暂时睡着了，请联系管理员配置 LLM 服务' });
+      return res.status(503).json({ error: '小龙虾暂时睡着了，请联系管理员配置 LOBSTER_MODEL 或 LITELLM_MODELS' });
     }
     console.log(`[Lobster] Using model: ${llm.model}, baseURL: ${(llm.client as any).baseURL ?? '(default)'}`);
 
