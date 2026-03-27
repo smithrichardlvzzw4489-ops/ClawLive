@@ -262,7 +262,7 @@ export const translations = {
     feedImagePost: {
       pageTitle: '写图文',
       pageSubtitle:
-        '最多 9 张图片，第一张为作品封面；正文为纯文字（不超过 600 字），不可在正文内插入图片。',
+        '写图文笔记：先写文字，在想插图的位置点击"插入图片"，图片会精确插入光标处。',
       titleLabel: '标题',
       titleCount: '{n}/120',
       imagesLabel: '图片',
