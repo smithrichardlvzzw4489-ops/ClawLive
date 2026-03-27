@@ -19,7 +19,8 @@ import { recordBehavior } from '../../services/user-behavior';
 
 const MAX_IMAGES = 9;
 const MAX_BYTES_PER_IMAGE = 5 * 1024 * 1024;
-const FEED_IMAGE_TEXT_MAX = 800;
+const FEED_IMAGE_TEXT_MAX = 1000;
+const FEED_IMAGE_TEXT_MAX_TITLE = 20;
 
 function isPlainTextNoEmbeddedImages(content: string): boolean {
   if (/\!\[/.test(content)) return false;
@@ -320,7 +321,11 @@ export function feedPostsRoutes(): Router {
 
       const t = typeof title === 'string' ? title.trim() : post.title;
       const c = typeof content === 'string' ? content.trim() : post.content;
-      if (!t || t.length > 120) return res.status(400).json({ error: '标题必填且不超过120字' });
+      const kind = post.kind ?? 'article';
+      const maxTitleLen = kind === 'imageText' ? FEED_IMAGE_TEXT_MAX_TITLE : 120;
+      if (!t || t.length > maxTitleLen) {
+        return res.status(400).json({ error: `标题必填且不超过${maxTitleLen}字` });
+      }
 
       const kind = post.kind ?? 'article';
       if (kind === 'imageText') {
@@ -398,7 +403,10 @@ export function feedPostsRoutes(): Router {
 
       const t = typeof title === 'string' ? title.trim() : '';
       const c = typeof content === 'string' ? content.trim() : '';
-      if (!t || t.length > 120) return res.status(400).json({ error: '标题必填且不超过120字' });
+      const maxTitleLen = kind === 'imageText' ? FEED_IMAGE_TEXT_MAX_TITLE : 120;
+      if (!t || t.length > maxTitleLen) {
+        return res.status(400).json({ error: `标题必填且不超过${maxTitleLen}字` });
+      }
 
       const imgs = Array.isArray(images) ? images : [];
 

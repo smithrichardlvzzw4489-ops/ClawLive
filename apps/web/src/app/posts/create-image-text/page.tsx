@@ -7,7 +7,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
 import { compressImage } from '@/lib/image-compress';
-import { FEED_IMAGE_TEXT_MAX_CONTENT, FEED_POST_MAX_TITLE } from '@/lib/feed-post-markdown';
+import { FEED_IMAGE_TEXT_MAX_CONTENT, FEED_IMAGE_TEXT_MAX_TITLE } from '@/lib/feed-post-markdown';
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES = 9;
@@ -71,7 +71,7 @@ export default function CreateFeedImageTextPage() {
 
   const titleLen = title.length;
   const bodyLen = content.length;
-  const titleCountLabel = useMemo(() => `${titleLen}/${FEED_POST_MAX_TITLE}`, [titleLen]);
+  const titleCountLabel = useMemo(() => `${titleLen}/${FEED_IMAGE_TEXT_MAX_TITLE}`, [titleLen]);
   const bodyCountLabel = useMemo(() => `${bodyLen}/${FEED_IMAGE_TEXT_MAX_CONTENT}`, [bodyLen]);
 
   /* ── 选图 ── */
@@ -142,7 +142,7 @@ export default function CreateFeedImageTextPage() {
     const token = localStorage.getItem('token');
     if (!token) { router.push('/login?redirect=/posts/create-image-text'); return; }
     if (!title.trim()) { setError('请填写标题'); return; }
-    if (title.length > FEED_POST_MAX_TITLE) { setError('标题过长'); return; }
+    if (title.length > FEED_IMAGE_TEXT_MAX_TITLE) { setError(`标题不超过 ${FEED_IMAGE_TEXT_MAX_TITLE} 字`); return; }
     if (images.length < 1) { setError('请至少上传一张图片'); return; }
     if (coverIdx === null) { setError('请选择一张图片作为封面'); return; }
     if (!content.trim()) { setError('请填写正文'); return; }
@@ -223,16 +223,25 @@ export default function CreateFeedImageTextPage() {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">标题</label>
-              <span className="text-xs tabular-nums text-gray-400">{titleCountLabel}</span>
+              <span className={`text-xs tabular-nums ${titleLen > FEED_IMAGE_TEXT_MAX_TITLE ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+                {titleCountLabel}
+              </span>
             </div>
             <input
               type="text"
               value={title}
-              maxLength={FEED_POST_MAX_TITLE}
+              maxLength={FEED_IMAGE_TEXT_MAX_TITLE}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
-              placeholder="输入标题"
+              className={`w-full rounded-xl border px-4 py-3 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${
+                titleLen > FEED_IMAGE_TEXT_MAX_TITLE
+                  ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+                  : 'border-gray-200 focus:border-lobster/40 focus:ring-lobster/20'
+              }`}
+              placeholder="输入标题（最多20字）"
             />
+            {titleLen > FEED_IMAGE_TEXT_MAX_TITLE && (
+              <p className="mt-1 text-xs text-red-600">标题不超过 {FEED_IMAGE_TEXT_MAX_TITLE} 字</p>
+            )}
           </div>
 
           {/* 图片区 */}

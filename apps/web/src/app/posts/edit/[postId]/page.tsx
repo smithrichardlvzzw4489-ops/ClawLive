@@ -10,6 +10,7 @@ import { API_BASE_URL, api } from '@/lib/api';
 import { compressImage } from '@/lib/image-compress';
 import {
   FEED_IMAGE_TEXT_MAX_CONTENT,
+  FEED_IMAGE_TEXT_MAX_TITLE,
   FEED_POST_MAX_CONTENT,
   FEED_POST_MAX_TITLE,
 } from '@/lib/feed-post-markdown';
@@ -95,7 +96,8 @@ export default function EditFeedPostPage() {
   const kind = post?.kind ?? 'article';
   const titleLen = title.length;
   const bodyLen = content.length;
-  const titleCountLabel = useMemo(() => `${titleLen}/${FEED_POST_MAX_TITLE}`, [titleLen]);
+  const maxTitle = kind === 'imageText' ? FEED_IMAGE_TEXT_MAX_TITLE : FEED_POST_MAX_TITLE;
+  const titleCountLabel = useMemo(() => `${titleLen}/${maxTitle}`, [titleLen, maxTitle]);
   const bodyCountLabel = useMemo(
     () => `${bodyLen}/${kind === 'imageText' ? FEED_IMAGE_TEXT_MAX_CONTENT : FEED_POST_MAX_CONTENT}`,
     [bodyLen, kind],
@@ -190,7 +192,7 @@ export default function EditFeedPostPage() {
     const token = localStorage.getItem('token');
     if (!token) { router.push(`/login?redirect=/posts/edit/${postId}`); return; }
     if (!title.trim()) { setError('请填写标题'); return; }
-    if (title.length > FEED_POST_MAX_TITLE) { setError('标题过长'); return; }
+    if (title.length > maxTitle) { setError(`标题不超过 ${maxTitle} 字`); return; }
 
     const body: Parameters<typeof api.feedPosts.update>[1] = {
       title: title.trim(),
@@ -271,15 +273,24 @@ export default function EditFeedPostPage() {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">标题</label>
-              <span className="text-xs tabular-nums text-gray-400">{titleCountLabel}</span>
+              <span className={`text-xs tabular-nums ${titleLen > maxTitle ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+                {titleCountLabel}
+              </span>
             </div>
             <input
               type="text"
               value={title}
-              maxLength={FEED_POST_MAX_TITLE}
+              maxLength={maxTitle}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
+              className={`w-full rounded-xl border px-4 py-3 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${
+                titleLen > maxTitle
+                  ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+                  : 'border-gray-200 focus:border-lobster/40 focus:ring-lobster/20'
+              }`}
             />
+            {titleLen > maxTitle && (
+              <p className="mt-1 text-xs text-red-600">标题不超过 {maxTitle} 字</p>
+            )}
           </div>
 
           {/* ── 文章编辑器 ── */}
