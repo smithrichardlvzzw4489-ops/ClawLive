@@ -130,6 +130,11 @@ export default function CreateFeedPostPage() {
         body: JSON.stringify({ image: dataUrl }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login?redirect=/posts/create');
+        return;
+      }
       if (!res.ok) {
         setError(typeof data.error === 'string' ? data.error : '图片上传失败');
         return;
@@ -200,6 +205,11 @@ export default function CreateFeedPostPage() {
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login?redirect=/posts/create');
+        return;
+      }
       if (!res.ok) {
         setError(data.error || '发布失败');
         return;
@@ -330,7 +340,15 @@ export default function CreateFeedPostPage() {
             )}
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            /登录/.test(error) ? (
+              <Link href="/login?redirect=/posts/create" className="block text-sm text-red-600 underline hover:text-red-800">
+                {error} →
+              </Link>
+            ) : (
+              <p className="text-sm text-red-600">{error}</p>
+            )
+          )}
 
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <button

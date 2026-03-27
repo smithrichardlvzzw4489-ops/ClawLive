@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { FeedPostBodyEditor, type FeedPostBodyEditorHandle } from '@/components/FeedPostBodyEditor';
 import { useLocale } from '@/lib/i18n/LocaleContext';
-import { API_BASE_URL, api } from '@/lib/api';
+import { API_BASE_URL, api, APIError } from '@/lib/api';
 import { compressImage } from '@/lib/image-compress';
 import {
   FEED_IMAGE_TEXT_MAX_CONTENT,
@@ -224,6 +224,11 @@ export default function EditFeedPostPage() {
         router.push(`/posts/${postId}`);
       }, 1200);
     } catch (err: unknown) {
+      if (err instanceof APIError && err.status === 401) {
+        localStorage.removeItem('token');
+        router.push(`/login?redirect=/posts/edit/${postId}`);
+        return;
+      }
       const msg = err instanceof Error ? err.message : '保存失败';
       setError(msg);
     } finally {
@@ -264,7 +269,13 @@ export default function EditFeedPostPage() {
         </h1>
 
         {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+          /登录/.test(error) ? (
+            <Link href={`/login?redirect=/posts/edit/${postId}`} className="mt-4 block rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 underline hover:bg-red-100">
+              {error} →
+            </Link>
+          ) : (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+          )
         )}
 
         <div className="mt-6 space-y-6">

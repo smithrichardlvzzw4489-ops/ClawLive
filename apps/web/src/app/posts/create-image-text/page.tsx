@@ -167,6 +167,11 @@ export default function CreateFeedImageTextPage() {
         }),
       });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        router.push('/login?redirect=/posts/create-image-text');
+        return;
+      }
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : '发布失败'); return; }
       if (data.id) {
         clearDraft();
@@ -212,9 +217,15 @@ export default function CreateFeedImageTextPage() {
         )}
 
         {error && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {error}
-          </div>
+          /登录/.test(error) ? (
+            <Link href="/login?redirect=/posts/create-image-text" className="mt-4 block rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 underline hover:bg-red-100">
+              {error} →
+            </Link>
+          ) : (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              {error}
+            </div>
+          )
         )}
 
         <div className="mt-8 space-y-8">

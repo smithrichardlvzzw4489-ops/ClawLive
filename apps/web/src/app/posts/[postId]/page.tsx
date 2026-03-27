@@ -179,7 +179,6 @@ export default function FeedPostDetailPage() {
       const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
       if (res.status === 401) {
         localStorage.removeItem('token');
-        window.alert(t('workDetail.followSessionExpired'));
         router.push(`/login?redirect=/posts/${encodeURIComponent(postId)}`);
         return;
       }
@@ -217,7 +216,6 @@ export default function FeedPostDetailPage() {
       const data = (await res.json().catch(() => ({}))) as { liked?: boolean; likeCount?: number; error?: string };
       if (res.status === 401) {
         localStorage.removeItem('token');
-        window.alert(t('workDetail.followSessionExpired'));
         router.push(`/login?redirect=/posts/${encodeURIComponent(postId)}`);
         return;
       }
@@ -258,7 +256,6 @@ export default function FeedPostDetailPage() {
       const data = (await res.json().catch(() => ({}))) as { favorited?: boolean; favoriteCount?: number; error?: string };
       if (res.status === 401) {
         localStorage.removeItem('token');
-        window.alert(t('workDetail.followSessionExpired'));
         router.push(`/login?redirect=/posts/${encodeURIComponent(postId)}`);
         return;
       }

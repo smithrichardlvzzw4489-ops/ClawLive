@@ -265,7 +265,6 @@ export default function WorkDetailPage() {
       const body = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
       if (res.status === 401) {
         localStorage.removeItem('token');
-        window.alert(t('workDetail.followSessionExpired'));
         router.push(`/login?redirect=/works/${encodeURIComponent(workId)}`);
         return;
       }
