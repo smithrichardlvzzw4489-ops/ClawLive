@@ -376,7 +376,17 @@ export default function FeedPostDetailPage() {
                   ← {t('feedPost.backHome')}
                 </Link>
               </div>
-              <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">{post.title}</h1>
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="text-2xl font-bold leading-tight text-gray-900 sm:text-3xl">{post.title}</h1>
+                {String(currentUserId) === String(post.author.id) && (
+                  <Link
+                    href={`/posts/edit/${postId}`}
+                    className="mt-1 shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                  >
+                    编辑
+                  </Link>
+                )}
+              </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600">
                 <Link href={`/host/${post.author.id}`} className="flex items-center gap-1.5 hover:text-lobster">
@@ -487,12 +497,7 @@ export default function FeedPostDetailPage() {
                 <span className="truncate font-medium text-gray-900">{post.author.username}</span>
               </Link>
               {String(currentUserId) === String(post.author.id) ? (
-                <Link
-                  href={`/posts/edit/${postId}`}
-                  className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-                >
-                  编辑
-                </Link>
+                <span className="shrink-0 text-xs text-gray-400">{t('workDetail.followIsSelf')}</span>
               ) : (
                 <button
                   type="button"
