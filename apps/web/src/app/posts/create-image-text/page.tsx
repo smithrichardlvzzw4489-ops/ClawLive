@@ -26,8 +26,9 @@ export default function CreateFeedImageTextPage() {
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  // images 列表，index=0 是封面
   const [images, setImages] = useState<string[]>([]);
+  // coverIdx: 用户手动选定的封面下标，null = 尚未选择
+  const [coverIdx, setCoverIdx] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,27 +75,28 @@ export default function CreateFeedImageTextPage() {
   /* ── 删除 ── */
   const removeAt = (i: number) => {
     setImages((prev) => prev.filter((_, j) => j !== i));
+    setCoverIdx((prev) => {
+      if (prev === null) return null;
+      if (prev === i) return null;          // 删的就是封面，取消封面
+      if (prev > i) return prev - 1;        // 封面下标需要前移
+      return prev;
+    });
   };
 
   /* ── 上移/下移 ── */
   const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
     setImages((prev) => {
-      const j = i + dir;
       if (j < 0 || j >= prev.length) return prev;
       const copy = [...prev];
       [copy[i], copy[j]] = [copy[j], copy[i]];
       return copy;
     });
-  };
-
-  /* ── 设为封面（移到第0位）── */
-  const setCover = (i: number) => {
-    if (i === 0) return;
-    setImages((prev) => {
-      const copy = [...prev];
-      const [item] = copy.splice(i, 1);
-      copy.unshift(item);
-      return copy;
+    // 跟随交换更新 coverIdx
+    setCoverIdx((prev) => {
+      if (prev === i) return j;
+      if (prev === j) return i;
+      return prev;
     });
   };
 
@@ -106,8 +108,15 @@ export default function CreateFeedImageTextPage() {
     if (!title.trim()) { setError('请填写标题'); return; }
     if (title.length > FEED_POST_MAX_TITLE) { setError('标题过长'); return; }
     if (images.length < 1) { setError('请至少上传一张图片'); return; }
+    if (coverIdx === null) { setError('请选择一张图片作为封面'); return; }
     if (!content.trim()) { setError('请填写正文'); return; }
     if (content.length > FEED_IMAGE_TEXT_MAX_CONTENT) { setError(`正文不超过 ${FEED_IMAGE_TEXT_MAX_CONTENT} 字`); return; }
+
+    // 封面排到第一位，其余保持顺序
+    const orderedImages = [
+      images[coverIdx],
+      ...images.filter((_, i) => i !== coverIdx),
+    ];
 
     setSubmitting(true);
     try {
@@ -118,7 +127,7 @@ export default function CreateFeedImageTextPage() {
           kind: 'imageText',
           title: title.trim(),
           content: content.trim(),
-          images,
+          images: orderedImages,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -169,7 +178,13 @@ export default function CreateFeedImageTextPage() {
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">图片</label>
-              <span className="text-xs text-gray-400">{images.length}/{MAX_IMAGES} 张 · 第一张为封面</span>
+              <span className="text-xs text-gray-400">
+                {images.length}/{MAX_IMAGES} 张
+                {coverIdx !== null
+                  ? <span className="ml-2 text-lobster font-medium">· 已选第 {coverIdx + 1} 张为封面</span>
+                  : <span className="ml-2 text-amber-500">· 请点击「设为封面」</span>
+                }
+              </span>
             </div>
 
             {/* 隐藏的 file input，由按钮触发 */}
@@ -194,62 +209,65 @@ export default function CreateFeedImageTextPage() {
             {/* 图片列表 */}
             {images.length > 0 && (
               <ul className="mt-4 space-y-3">
-                {images.map((src, i) => (
-                  <li
-                    key={`${i}-${src.slice(0, 20)}`}
-                    className={`flex flex-wrap items-center gap-3 rounded-xl border bg-white p-3 shadow-sm transition
-                      ${i === 0 ? 'border-lobster/40 ring-1 ring-lobster/20' : 'border-gray-100'}`}
-                  >
-                    {/* 预览 */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
+                {images.map((src, i) => {
+                  const isCover = coverIdx === i;
+                  return (
+                    <li
+                      key={`${i}-${src.slice(0, 20)}`}
+                      className={`flex flex-wrap items-center gap-3 rounded-xl border bg-white p-3 shadow-sm transition
+                        ${isCover ? 'border-lobster/40 ring-1 ring-lobster/20' : 'border-gray-100'}`}
+                    >
+                      {/* 预览 */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt="" className="h-20 w-20 shrink-0 rounded-lg object-cover" />
 
-                    {/* 信息 */}
-                    <div className="min-w-0 flex-1">
-                      {i === 0 ? (
-                        <span className="inline-block rounded-full bg-lobster px-2 py-0.5 text-xs font-semibold text-white">封面</span>
-                      ) : (
-                        <span className="text-xs text-gray-400">第 {i + 1} 张</span>
-                      )}
-                    </div>
+                      {/* 封面标记 */}
+                      <div className="min-w-0 flex-1">
+                        {isCover ? (
+                          <span className="inline-block rounded-full bg-lobster px-2 py-0.5 text-xs font-semibold text-white">封面</span>
+                        ) : (
+                          <span className="text-xs text-gray-400">第 {i + 1} 张</span>
+                        )}
+                      </div>
 
-                    {/* 操作按钮 */}
-                    <div className="flex flex-wrap gap-2">
-                      {i !== 0 && (
+                      {/* 操作按钮 */}
+                      <div className="flex flex-wrap gap-2">
+                        {!isCover && (
+                          <button
+                            type="button"
+                            onClick={() => setCoverIdx(i)}
+                            className="rounded-lg border border-lobster/40 px-2 py-1 text-xs text-lobster hover:bg-lobster/5"
+                          >
+                            设为封面
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => setCover(i)}
-                          className="rounded-lg border border-lobster/40 px-2 py-1 text-xs text-lobster hover:bg-lobster/5"
+                          disabled={i === 0}
+                          onClick={() => move(i, -1)}
+                          className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-30"
                         >
-                          设为封面
+                          上移
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={i === 0}
-                        onClick={() => move(i, -1)}
-                        className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-30"
-                      >
-                        上移
-                      </button>
-                      <button
-                        type="button"
-                        disabled={i === images.length - 1}
-                        onClick={() => move(i, 1)}
-                        className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-30"
-                      >
-                        下移
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeAt(i)}
-                        className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                      >
-                        删除
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                        <button
+                          type="button"
+                          disabled={i === images.length - 1}
+                          onClick={() => move(i, 1)}
+                          className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-30"
+                        >
+                          下移
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeAt(i)}
+                          className="rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                        >
+                          删除
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
