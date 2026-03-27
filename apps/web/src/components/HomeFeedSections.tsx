@@ -82,11 +82,12 @@ export function HomeFeedSections() {
       if (res.ok) {
         const data = await res.json();
         const recs: Work[] = data.recommendedWorks || [];
+        const totalWorks: number = data.totalWorks ?? recs.length;
         setRecommendedWorks(recs);
         setFeedPosts(data.feedPosts || []);
         recs.forEach((w) => shownWorkIdsRef.current.add(w.id));
-        // 乐观显示"加载更多"：推荐满 12 条说明可能还有更多
-        setHasMoreWorks(recs.length >= 12);
+        // 用服务端总数判断：只要还有未展示的作品就显示"加载更多"
+        setHasMoreWorks(recs.length < totalWorks);
       }
     } catch (e) {
       console.error('Error loading recommendations:', e);

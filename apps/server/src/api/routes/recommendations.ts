@@ -151,9 +151,14 @@ export function recommendationRoutes(): Router {
         };
       });
 
+      const totalPublishedWorks = Array.from(works.values()).filter(
+        (w) => w.status === 'published',
+      ).length;
+
       res.json({
         liveRooms: liveRooms.map(({ score, ...r }) => r),
         recommendedWorks: recommendedWorks.map(({ score, ...w }) => w),
+        totalWorks: totalPublishedWorks,
         recommendedSkills,
         latestQuestions: questionsWithAuthor,
         news: news.slice(0, 5),
