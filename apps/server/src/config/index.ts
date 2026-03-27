@@ -36,7 +36,7 @@ export const config = {
       /\/$/,
       ''
     ),
-    models: (process.env.LITELLM_MODELS || 'gpt-4o,gpt-4o-mini')
+    models: (process.env.LITELLM_MODELS ?? '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
