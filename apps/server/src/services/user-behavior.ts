@@ -5,9 +5,15 @@
  * 支持主播偏好、作者偏好、标签偏好，用于个性化推荐
  */
 
+import * as fs from 'fs';
+import { promises as fsp } from 'fs';
+import { getDataFilePath } from '../lib/data-path';
+
 const MAX_BEHAVIORS_PER_USER = 500;  // 单用户保留最近 N 条行为
 const INTEREST_DECAY_DAYS = 30;     // 兴趣衰减周期（天）
 const TOP_INTERESTS = 10;           // 取前 N 个兴趣维度参与个性化
+
+const FILE = getDataFilePath('user-behaviors.json');
 
 export type BehaviorType =
   | 'work_view'
@@ -33,6 +39,45 @@ interface UserBehavior {
 // userId -> 行为列表（按时间倒序，新的在前）
 const userBehaviors = new Map<string, UserBehavior[]>();
 
+// ── 持久化 ──────────────────────────────────────────────────────────────────
+
+type SerializedBehavior = Omit<UserBehavior, 'timestamp'> & { timestamp: string };
+
+function loadBehaviors(): void {
+  try {
+    if (!fs.existsSync(FILE)) return;
+    const raw = JSON.parse(fs.readFileSync(FILE, 'utf-8')) as Record<string, SerializedBehavior[]>;
+    for (const [userId, list] of Object.entries(raw)) {
+      userBehaviors.set(
+        userId,
+        list.map((b) => ({ ...b, timestamp: new Date(b.timestamp) })),
+      );
+    }
+  } catch (e) {
+    console.error('Failed to load user-behaviors:', e);
+  }
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleSave(): void {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    const obj: Record<string, SerializedBehavior[]> = {};
+    userBehaviors.forEach((list, userId) => {
+      obj[userId] = list.map((b) => ({ ...b, timestamp: b.timestamp.toISOString() }));
+    });
+    fsp.writeFile(FILE, JSON.stringify(obj, null, 2), 'utf-8').catch((e: unknown) => {
+      console.error('Failed to save user-behaviors:', e);
+    });
+  }, 5000); // 5 秒防抖，合并高频写操作
+}
+
+loadBehaviors();
+
+// ── 行为记录 ─────────────────────────────────────────────────────────────────
+
 /**
  * 记录用户行为（隐式反馈）
  */
@@ -44,6 +89,7 @@ export function recordBehavior(behavior: Omit<UserBehavior, 'timestamp'>): void 
     list.length = MAX_BEHAVIORS_PER_USER;
   }
   userBehaviors.set(behavior.userId, list);
+  scheduleSave();
 }
 
 /**
