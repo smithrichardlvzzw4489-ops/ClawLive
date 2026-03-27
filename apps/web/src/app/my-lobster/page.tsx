@@ -374,6 +374,15 @@ export default function MyLobsterPage() {
   const [selectedModel, setSelectedModel] = useState('');
   const [showModelPicker, setShowModelPicker] = useState(false);
 
+  // multimodal
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // voice
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -448,18 +457,66 @@ export default function MyLobsterPage() {
     }
   };
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPendingImage(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleVoice = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'audio.webm');
+        const token = localStorage.getItem('token');
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/lobster/transcribe`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          });
+          const data = await res.json();
+          if (data.text) setInput((prev) => prev + (prev ? ' ' : '') + data.text);
+        } catch {
+          setError('语音识别失败，请重试');
+        }
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setRecording(true);
+    } catch {
+      setError('无法访问麦克风，请检查权限');
+    }
+  };
+
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || sending) return;
+    if ((!text && !pendingImage) || sending) return;
 
+    const imageToSend = pendingImage;
     const userMsg: LobsterMessage = {
       id: `tmp-${Date.now()}`,
       role: 'user',
-      content: text,
+      content: imageToSend ? `🖼️ ${text || '（图片）'}` : text,
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setPendingImage(null);
     setSending(true);
     setError('');
 
@@ -487,7 +544,7 @@ export default function MyLobsterPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: text, model: selectedModel || undefined }),
+        body: JSON.stringify({ message: text || '请描述这张图片', model: selectedModel || undefined, image: imageToSend || undefined }),
         signal: ctrl.signal,
       });
 
@@ -751,15 +808,55 @@ export default function MyLobsterPage() {
         {/* Input */}
         <div className="shrink-0 border-t border-gray-200/60 bg-white px-4 py-3">
           {error && !sending && <p className="mb-2 text-xs text-red-500">{error}</p>}
+
+          {/* 图片预览 */}
+          {pendingImage && (
+            <div className="mb-2 flex items-center gap-2">
+              <img src={pendingImage} alt="待发送图片" className="h-16 w-16 rounded-xl object-cover ring-1 ring-gray-200" />
+              <button onClick={() => setPendingImage(null)} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-red-400">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          )}
+
           <div className="flex items-end gap-2">
+            {/* 图片上传 */}
+            <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              disabled={sending}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
+              title="发送图片"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+
+            {/* 语音录制 */}
+            <button
+              onClick={handleVoice}
+              disabled={sending}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-40 ${
+                recording ? 'animate-pulse bg-red-100 text-red-500' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+              }`}
+              title={recording ? '停止录音' : '语音输入'}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              </svg>
+            </button>
+
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="问我任何问题，我可以搜索网页、查看你的内容、调用技能... Enter 发送"
+              placeholder={pendingImage ? '描述这张图片，或直接发送...' : '问我任何问题... Enter 发送'}
               rows={1}
-              maxLength={1000}
+              maxLength={2000}
               disabled={sending}
               className="flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-lobster/40 focus:bg-white focus:ring-2 focus:ring-lobster/10 disabled:opacity-60"
               style={{ maxHeight: '120px', overflowY: input.split('\n').length > 3 ? 'auto' : 'hidden' }}
@@ -771,7 +868,7 @@ export default function MyLobsterPage() {
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim() || sending}
+              disabled={(!input.trim() && !pendingImage) || sending}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lobster text-white shadow transition hover:bg-lobster-dark disabled:opacity-40"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">

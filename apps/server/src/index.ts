@@ -13,6 +13,7 @@ import { setupSocketIO } from './socket/index-simple';
 import { setupRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/errorHandler';
 import { mtprotoService } from './services/telegram-mtproto';
+import { startScheduler, setTaskRunner } from './services/lobster-scheduler';
 
 // 捕获未处理异常，便于 Railway 等平台排查部署崩溃
 process.on('uncaughtException', (err) => {
@@ -82,6 +83,11 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
     setupRoutes(app, io);
     setupSocketIO(io);
     mtprotoService.setSocketIO(io);
+    // 定时任务调度器（定时提醒功能）
+    setTaskRunner(async (schedule) => {
+      console.log(`[Scheduler] Executing task for user ${schedule.userId}: ${schedule.task}`);
+    });
+    startScheduler();
     app.use(errorHandler);
     console.log(`[ClawLive] Socket.io ready for connections`);
   } catch (err) {
