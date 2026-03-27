@@ -2,6 +2,21 @@
 # Root Directory 必须为空，否则 pnpm-lock.yaml 不在上下文中
 FROM node:20-alpine
 
+# 系统依赖：openssl(Prisma) + Chromium(Playwright 浏览器工具)
+RUN apk add --no-cache \
+    openssl \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    font-noto-cjk
+
+# 告知 playwright-core 使用系统 Chromium，跳过内置浏览器下载
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV CHROMIUM_PATH=/usr/bin/chromium-browser
+
 WORKDIR /app
 
 COPY . .
