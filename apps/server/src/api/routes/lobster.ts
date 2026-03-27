@@ -21,7 +21,6 @@ import {
 } from '../../services/lobster-persistence';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
-import { getFeedPostsMap } from '../../services/feed-posts-store';
 import { getDefaultPlatformModel } from '../../services/platform-models';
 import { prisma } from '../../lib/prisma';
 import { saveNote, listNotes, readNote, readMemory, upsertMemory } from '../../services/lobster-notes';

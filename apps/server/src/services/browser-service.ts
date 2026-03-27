@@ -121,11 +121,13 @@ function checkUrl(url: string): void {
 /** 提取页面可读正文，去除脚本/样式 */
 async function extractText(page: Page): Promise<string> {
   return page.evaluate(() => {
-    const remove = document.querySelectorAll(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const doc = document as any;
+    const remove = doc.querySelectorAll(
       'script,style,nav,footer,header,aside,[role="navigation"],[aria-hidden="true"]',
     );
-    remove.forEach((el) => el.remove());
-    return (document.body?.innerText || '').replace(/\s{3,}/g, '\n\n').trim();
+    remove.forEach((el: any) => el.remove());
+    return (doc.body?.innerText || '').replace(/\s{3,}/g, '\n\n').trim();
   });
 }
 
@@ -220,12 +222,14 @@ export async function browserGetContent(userId: string): Promise<string> {
 export async function browserGetLinks(userId: string): Promise<string> {
   const { page } = await getSession(userId);
   try {
-    const links = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('a[href]'))
-        .map((a) => ({ text: (a as HTMLAnchorElement).innerText.trim().slice(0, 60), href: (a as HTMLAnchorElement).href }))
-        .filter((l) => l.href.startsWith('http') && l.text.length > 0)
-        .slice(0, 30),
-    );
+    const links = await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = document as any;
+      return Array.from(doc.querySelectorAll('a[href]') as any[])
+        .map((a: any) => ({ text: (a.innerText || '').trim().slice(0, 60), href: a.href as string }))
+        .filter((l: any) => l.href.startsWith('http') && l.text.length > 0)
+        .slice(0, 30);
+    });
     if (!links.length) return '当前页面没有找到链接。';
     return links.map((l, i) => `${i + 1}. [${l.text}](${l.href})`).join('\n');
   } catch (err) {
