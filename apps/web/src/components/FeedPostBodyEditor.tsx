@@ -3,6 +3,7 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -106,6 +107,8 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
     const lastFocusedIdxRef = useRef<number | null>(null);
     // 最后确认的光标位置（由事件持续更新，captureSelectionNow 做精确覆盖）
     const lastSelRef = useRef<{ partIndex: number; start: number; end: number } | null>(null);
+    // 插入图片后需要自动聚焦的 part 下标（图片后面紧跟的文字段）
+    const nextFocusPartIdxRef = useRef<number | null>(null);
 
     // ── 辅助：更新光标 ref（统一入口）────────────────────────────────────────
     const updateSel = useCallback((i: number, ta: HTMLTextAreaElement) => {
@@ -178,6 +181,10 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
     // 不依赖 document.activeElement 或 React 渲染时序。
     const insertSnippet = useCallback(
       (snippet: string) => {
+        // 提取本次要插入的图片 URL，用于插入后自动定位光标
+        const urlMatch = snippet.match(/!\[[^\]]*\]\(([^)]+)\)/);
+        const insertedUrl = urlMatch ? urlMatch[1] : null;
+
         setParts((prev) => {
           const sel = lastSelRef.current;
           let merged: string;
@@ -193,15 +200,26 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
               const after = partText.slice(e) + joinRange(prev, idx + 1, prev.length);
               merged = (before + snippet + after).slice(0, maxLength);
             } else {
-              // partIndex 已超出范围（结构变化），追加到末尾
               merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
             }
           } else {
             merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
           }
 
+          const newParts = splitAndNormalize(merged);
+
+          // 插入后把光标自动移到图片后面那段文字，避免下次插入定位错误
+          if (insertedUrl) {
+            const imgIdx = newParts.findIndex(
+              (p) => p.type === 'image' && (p as MdPart & { type: 'image' }).src === insertedUrl,
+            );
+            if (imgIdx >= 0 && imgIdx + 1 < newParts.length) {
+              nextFocusPartIdxRef.current = imgIdx + 1;
+            }
+          }
+
           onChange(merged);
-          return splitAndNormalize(merged);
+          return newParts;
         });
       },
       [maxLength, onChange],
@@ -211,6 +229,22 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
       insertSnippet,
       captureSelectionNow,
     ]);
+
+    // ── 插入图片后自动聚焦图片后的文字段 ────────────────────────────────────
+    // 每次渲染后消费 nextFocusPartIdxRef，把焦点和光标移到图片紧后的 textarea，
+    // 确保下一次"插入图片"能从正确位置开始，而不是停留在上一段文字里。
+    useEffect(() => {
+      if (nextFocusPartIdxRef.current === null) return;
+      const idx = nextFocusPartIdxRef.current;
+      nextFocusPartIdxRef.current = null;
+      const ta = textareaRefsMap.current.get(idx);
+      if (ta) {
+        ta.focus();
+        ta.setSelectionRange(0, 0);
+        lastFocusedIdxRef.current = idx;
+        lastSelRef.current = { partIndex: idx, start: 0, end: 0 };
+      }
+    });
 
     // ── 渲染 ──────────────────────────────────────────────────────────────────
 
