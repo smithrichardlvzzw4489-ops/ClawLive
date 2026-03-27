@@ -139,22 +139,44 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
         setParts((prev) => {
           // 优先用保存的光标位置（防止点按钮后 activeElement 变成按钮）
           const sel = lastSelRef.current;
+          let merged: string;
           if (sel) {
             const { partIndex: idx, start, end } = sel;
             if (idx >= 0 && idx < prev.length && prev[idx].type === 'text') {
               const partText = (prev[idx] as MdPart & { type: 'text' }).text;
               const before = joinRange(prev, 0, idx) + partText.slice(0, start);
               const after = partText.slice(end) + joinRange(prev, idx + 1, prev.length);
-              const merged = (before + snippet + after).slice(0, maxLength);
-              onChange(merged);
-              return splitAndNormalize(merged);
+              merged = (before + snippet + after).slice(0, maxLength);
+            } else {
+              merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
+            }
+          } else {
+            merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
+          }
+
+          const newParts = splitAndNormalize(merged);
+
+          // 插入后立即把 lastSelRef 指向新图片之后的文字块（位置0）
+          // 这样下次再插图时坐标仍然有效，而不是用旧的 partIndex
+          const imgSrcMatch = /!\[[^\]]*\]\(([^)]+)\)/.exec(snippet);
+          if (imgSrcMatch) {
+            const insertedSrc = imgSrcMatch[1];
+            const imgIdx = newParts.findIndex(
+              (p) => p.type === 'image' && (p as MdPart & { type: 'image' }).src === insertedSrc,
+            );
+            if (imgIdx >= 0) {
+              const afterIdx = imgIdx + 1;
+              if (afterIdx < newParts.length && newParts[afterIdx].type === 'text') {
+                lastSelRef.current = { partIndex: afterIdx, start: 0, end: 0 };
+              } else if (imgIdx > 0 && newParts[imgIdx - 1].type === 'text') {
+                const t = (newParts[imgIdx - 1] as MdPart & { type: 'text' }).text;
+                lastSelRef.current = { partIndex: imgIdx - 1, start: t.length, end: t.length };
+              }
             }
           }
-          // 兜底：拼到末尾
-          const base = joinMarkdownParts(prev);
-          const merged = (base + snippet).slice(0, maxLength);
+
           onChange(merged);
-          return splitAndNormalize(merged);
+          return newParts;
         });
       },
       [maxLength, onChange]
