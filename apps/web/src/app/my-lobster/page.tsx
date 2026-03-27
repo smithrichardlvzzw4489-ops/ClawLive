@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { api, APIError, API_BASE_URL } from '@/lib/api';
 
+// ─── Types ─────────────────────────────────────────────────────────────────
+
 interface LobsterMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
-  /** 正在流式输出中 */
   streaming?: boolean;
-  /** 工具调用状态文字（思考中） */
   statusText?: string;
 }
 
@@ -23,6 +23,14 @@ interface LobsterInstance {
   messageCount: number;
 }
 
+interface PlatformModel {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
 const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
@@ -30,6 +38,8 @@ const WELCOME_MESSAGE: LobsterMessage = {
     '你好！我是虾壳小龙虾 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？',
   timestamp: new Date().toISOString(),
 };
+
+// ─── Sub-components ─────────────────────────────────────────────────────────
 
 function LobsterAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const sizeClass =
@@ -50,7 +60,6 @@ function LobsterAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 function MessageBubble({ msg }: { msg: LobsterMessage }) {
   const isUser = msg.role === 'user';
 
-  // 状态气泡（工具调用进行时）
   if (!isUser && msg.statusText && !msg.content) {
     return (
       <div className="flex gap-3">
@@ -110,6 +119,195 @@ function TypingIndicator() {
   );
 }
 
+// ─── Admin Models Panel ──────────────────────────────────────────────────────
+
+function AdminModelsPanel({
+  models,
+  onSave,
+  onClose,
+}: {
+  models: PlatformModel[];
+  onSave: (models: PlatformModel[]) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [list, setList] = useState<PlatformModel[]>(() =>
+    models.map((m) => ({ ...m })),
+  );
+  const [adminSecret, setAdminSecret] = useState('');
+  const [newId, setNewId] = useState('');
+  const [newName, setNewName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  const toggle = (idx: number) =>
+    setList((prev) => prev.map((m, i) => (i === idx ? { ...m, enabled: !m.enabled } : m)));
+
+  const remove = (idx: number) =>
+    setList((prev) => prev.filter((_, i) => i !== idx));
+
+  const addModel = () => {
+    const id = newId.trim();
+    const name = newName.trim();
+    if (!id || !name) return;
+    if (list.some((m) => m.id === id)) {
+      setSaveMsg('该模型 ID 已存在');
+      return;
+    }
+    setList((prev) => [...prev, { id, name, enabled: true }]);
+    setNewId('');
+    setNewName('');
+    setSaveMsg('');
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      await onSave(list);
+      // store secret in session for convenience
+      if (adminSecret) sessionStorage.setItem('adminSecret', adminSecret);
+      setSaveMsg('✅ 保存成功');
+    } catch (err) {
+      setSaveMsg(`❌ ${err instanceof Error ? err.message : '保存失败'}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <div>
+            <h2 className="font-bold text-gray-900">平台模型配置</h2>
+            <p className="text-xs text-gray-500 mt-0.5">管理虾壳小龙虾可用的 AI 模型</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto px-5 py-4 space-y-4">
+          {/* Admin secret */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">管理员密钥</label>
+            <input
+              type="password"
+              value={adminSecret}
+              onChange={(e) => setAdminSecret(e.target.value)}
+              placeholder="输入 ADMIN_SECRET 或 LITELLM_MASTER_KEY"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
+            />
+          </div>
+
+          {/* Model list */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-2">模型列表</label>
+            <div className="space-y-2">
+              {list.map((m, i) => (
+                <div
+                  key={m.id}
+                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
+                    m.enabled
+                      ? 'border-green-200 bg-green-50'
+                      : 'border-gray-100 bg-gray-50 opacity-60'
+                  }`}
+                >
+                  {/* Toggle */}
+                  <button
+                    onClick={() => toggle(i)}
+                    className={`relative h-5 w-9 rounded-full transition-colors ${
+                      m.enabled ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                        m.enabled ? 'translate-x-4' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{m.id}</p>
+                  </div>
+                  <button
+                    onClick={() => remove(i)}
+                    className="shrink-0 rounded-lg p-1 text-gray-300 hover:bg-red-50 hover:text-red-400"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {list.length === 0 && (
+                <p className="text-center text-sm text-gray-400 py-4">暂无模型，请在下方添加</p>
+              )}
+            </div>
+          </div>
+
+          {/* Add model */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-2">添加自定义模型</label>
+            <div className="flex gap-2">
+              <input
+                value={newId}
+                onChange={(e) => setNewId(e.target.value)}
+                placeholder="模型 ID，如 openai/gpt-4o"
+                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
+              />
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="显示名称"
+                className="w-28 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
+              />
+              <button
+                onClick={addModel}
+                className="shrink-0 rounded-xl bg-gray-800 px-3 py-2 text-sm font-medium text-white hover:bg-gray-700"
+              >
+                添加
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-100 px-5 py-4">
+          {saveMsg && (
+            <p className={`mb-3 text-center text-sm ${saveMsg.startsWith('✅') ? 'text-green-600' : 'text-red-500'}`}>
+              {saveMsg}
+            </p>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex-1 rounded-xl bg-lobster py-2.5 text-sm font-semibold text-white hover:bg-lobster-dark disabled:opacity-60"
+            >
+              {saving ? '保存中...' : '保存配置'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ───────────────────────────────────────────────────────────────
+
 export default function MyLobsterPage() {
   const router = useRouter();
   const [applied, setApplied] = useState<boolean | null>(null);
@@ -120,6 +318,13 @@ export default function MyLobsterPage() {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  // model state
+  const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [showModelPicker, setShowModelPicker] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -139,7 +344,20 @@ export default function MyLobsterPage() {
       return;
     }
     loadStatus();
+    loadPlatformModels();
   }, [router]);
+
+  const loadPlatformModels = async () => {
+    try {
+      const data = await api.platform.getModels();
+      const models: PlatformModel[] = data.models || [];
+      setPlatformModels(models);
+      const first = models.find((m: PlatformModel) => m.enabled);
+      if (first && !selectedModel) setSelectedModel(first.id);
+    } catch {
+      // ignore
+    }
+  };
 
   const loadStatus = async () => {
     try {
@@ -185,7 +403,6 @@ export default function MyLobsterPage() {
     const text = input.trim();
     if (!text || sending) return;
 
-    // 添加用户消息
     const userMsg: LobsterMessage = {
       id: `tmp-${Date.now()}`,
       role: 'user',
@@ -197,7 +414,6 @@ export default function MyLobsterPage() {
     setSending(true);
     setError('');
 
-    // 占位助手消息（流式输出用）
     const assistantPlaceholderId = `assistant-${Date.now()}`;
     setMessages((prev) => [
       ...prev,
@@ -222,7 +438,7 @@ export default function MyLobsterPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: text, model: selectedModel || undefined }),
         signal: ctrl.signal,
       });
 
@@ -240,7 +456,6 @@ export default function MyLobsterPage() {
         return;
       }
 
-      // 解析 SSE 流
       const reader = response.body!.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -300,12 +515,7 @@ export default function MyLobsterPage() {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantPlaceholderId
-                  ? {
-                      ...m,
-                      content: `⚠️ ${event.message}`,
-                      streaming: false,
-                      statusText: undefined,
-                    }
+                  ? { ...m, content: `⚠️ ${event.message}`, streaming: false, statusText: undefined }
                   : m,
               ),
             );
@@ -345,6 +555,22 @@ export default function MyLobsterPage() {
     }
   };
 
+  const handleSaveModels = async (models: PlatformModel[]) => {
+    const secret = sessionStorage.getItem('adminSecret') || '';
+    await api.platform.saveModels(
+      models,
+      (document.querySelector('input[type=password]') as HTMLInputElement)?.value || secret,
+    );
+    setPlatformModels(models);
+    const first = models.find((m) => m.enabled);
+    if (first) setSelectedModel(first.id);
+    setShowAdminPanel(false);
+  };
+
+  const enabledModels = platformModels.filter((m) => m.enabled);
+  const selectedModelName = platformModels.find((m) => m.id === selectedModel)?.name || selectedModel || '默认模型';
+
+  // ── Loading ──
   if (applied === null) {
     return (
       <MainLayout>
@@ -355,6 +581,7 @@ export default function MyLobsterPage() {
     );
   }
 
+  // ── Apply screen ──
   if (!applied) {
     return (
       <MainLayout>
@@ -367,22 +594,10 @@ export default function MyLobsterPage() {
           <p className="mb-8 text-sm text-gray-500">搜索网页 · 查看内容 · 调用技能 · 多步推理</p>
 
           <div className="mb-8 grid grid-cols-4 gap-3 rounded-2xl bg-gray-50 p-4 text-center text-xs">
-            <div>
-              <p className="text-xl">🔍</p>
-              <p className="mt-1 text-gray-600">网页搜索</p>
-            </div>
-            <div>
-              <p className="text-xl">📄</p>
-              <p className="mt-1 text-gray-600">平台内容</p>
-            </div>
-            <div>
-              <p className="text-xl">🧩</p>
-              <p className="mt-1 text-gray-600">Skills 技能</p>
-            </div>
-            <div>
-              <p className="text-xl">🤔</p>
-              <p className="mt-1 text-gray-600">多步推理</p>
-            </div>
+            <div><p className="text-xl">🔍</p><p className="mt-1 text-gray-600">网页搜索</p></div>
+            <div><p className="text-xl">📄</p><p className="mt-1 text-gray-600">平台内容</p></div>
+            <div><p className="text-xl">🧩</p><p className="mt-1 text-gray-600">Skills 技能</p></div>
+            <div><p className="text-xl">🤔</p><p className="mt-1 text-gray-600">多步推理</p></div>
           </div>
 
           {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
@@ -399,9 +614,11 @@ export default function MyLobsterPage() {
     );
   }
 
+  // ── Chat screen ──
   return (
     <MainLayout>
       <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-2xl flex-col">
+
         {/* Header */}
         <div className="flex shrink-0 items-center gap-3 border-b border-gray-200/60 bg-white/80 px-4 py-3 backdrop-blur-sm">
           <LobsterAvatar size="md" />
@@ -409,6 +626,56 @@ export default function MyLobsterPage() {
             <p className="font-semibold text-gray-900">虾壳小龙虾</p>
             <p className="text-xs text-green-500">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
+
+          {/* Model picker */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowModelPicker((v) => !v)}
+              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100"
+            >
+              <span className="max-w-[90px] truncate">{selectedModelName}</span>
+              <svg className="h-3 w-3 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {showModelPicker && (
+              <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+                {enabledModels.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-gray-400">暂无可用模型</p>
+                ) : (
+                  enabledModels.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                        selectedModel === m.id ? 'font-semibold text-lobster' : 'text-gray-700'
+                      }`}
+                    >
+                      {selectedModel === m.id && (
+                        <svg className="h-3.5 w-3.5 shrink-0 text-lobster" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                        </svg>
+                      )}
+                      <span className={selectedModel === m.id ? '' : 'ml-5'}>{m.name}</span>
+                    </button>
+                  ))
+                )}
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={() => { setShowModelPicker(false); setShowAdminPanel(true); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-400 hover:bg-gray-50"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  管理模型配置
+                </button>
+              </div>
+            )}
+          </div>
+
           {instance && (
             <p className="shrink-0 text-xs text-gray-400">已发送 {instance.messageCount} 条</p>
           )}
@@ -421,7 +688,10 @@ export default function MyLobsterPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4">
+        <div
+          className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4"
+          onClick={() => setShowModelPicker(false)}
+        >
           <div className="space-y-4">
             {messages.map((msg) => (
               <MessageBubble key={msg.id} msg={msg} />
@@ -459,12 +729,7 @@ export default function MyLobsterPage() {
               disabled={!input.trim() || sending}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lobster text-white shadow transition hover:bg-lobster-dark disabled:opacity-40"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-5 w-5"
-              >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
                 <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
               </svg>
             </button>
@@ -499,6 +764,15 @@ export default function MyLobsterPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Admin models panel */}
+      {showAdminPanel && (
+        <AdminModelsPanel
+          models={platformModels}
+          onSave={handleSaveModels}
+          onClose={() => setShowAdminPanel(false)}
+        />
       )}
     </MainLayout>
   );

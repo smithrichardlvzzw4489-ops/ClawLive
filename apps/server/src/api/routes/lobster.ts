@@ -19,6 +19,7 @@ import {
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { getFeedPostsMap } from '../../services/feed-posts-store';
+import { getDefaultPlatformModel } from '../../services/platform-models';
 
 const MAX_REACT_STEPS = 5;
 
@@ -231,43 +232,37 @@ async function executeTool(
 
 // ─── LLM 客户端 ───────────────────────────────────────────────────────────────
 
-/** 查询 LiteLLM 已部署的第一个模型 ID（失败时返回 null） */
-async function fetchFirstLitellmModel(base: string, masterKey: string): Promise<string | null> {
-  try {
-    const res = await fetch(`${base}/models`, {
-      headers: { Authorization: `Bearer ${masterKey}` },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { data?: Array<{ id: string }> };
-    const first = data.data?.[0]?.id;
-    return first ?? null;
-  } catch {
-    return null;
-  }
+/**
+ * 解析要使用的模型 ID，优先级：
+ * 1. 请求指定的 model 参数
+ * 2. LOBSTER_MODEL 环境变量
+ * 3. 平台前端配置的第一个 enabled 模型
+ * 4. LITELLM_MODELS 第一个
+ * 5. OpenRouter 默认 deepseek/deepseek-chat
+ */
+function resolveModel(requestModel?: string): string {
+  return (
+    requestModel ||
+    process.env.LOBSTER_MODEL ||
+    getDefaultPlatformModel() ||
+    config.litellm.models[0] ||
+    'deepseek/deepseek-chat'
+  );
 }
 
-async function getLlmClient(): Promise<{ client: OpenAI; model: string } | null> {
+function getLlmClient(model: string): { client: OpenAI; model: string } | null {
   if (isLitellmConfigured()) {
     const base = config.litellm.baseUrl.replace(/\/$/, '');
-    const client = new OpenAI({ apiKey: config.litellm.masterKey, baseURL: `${base}/v1` });
-
-    // 优先：手动指定 > LITELLM_MODELS 配置 > 动态查询第一个已部署模型
-    let model = process.env.LOBSTER_MODEL || config.litellm.models[0] || '';
-    if (!model) {
-      model = (await fetchFirstLitellmModel(base, config.litellm.masterKey)) ?? '';
-    }
-    if (!model) {
-      console.error('[Lobster] LiteLLM configured but no model found. Set LOBSTER_MODEL or LITELLM_MODELS.');
-      return null;
-    }
-    return { client, model };
+    return {
+      client: new OpenAI({ apiKey: config.litellm.masterKey, baseURL: `${base}/v1` }),
+      model,
+    };
   }
   const key = process.env.OPENROUTER_API_KEY;
   if (key) {
     return {
       client: new OpenAI({ apiKey: key, baseURL: 'https://openrouter.ai/api/v1' }),
-      model: process.env.LOBSTER_MODEL || 'deepseek/deepseek-chat',
+      model,
     };
   }
   return null;
@@ -334,7 +329,7 @@ export function lobsterRoutes(): Router {
    */
   router.post('/chat', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
-    const { message } = req.body as { message?: string };
+    const { message, model: requestModel } = req.body as { message?: string; model?: string };
 
     if (!message || !message.trim()) {
       return res.status(400).json({ error: '消息不能为空' });
@@ -346,11 +341,12 @@ export function lobsterRoutes(): Router {
     const instance = getLobsterInstance(userId);
     if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
 
-    const llm = await getLlmClient();
+    const resolvedModel = resolveModel(requestModel);
+    const llm = getLlmClient(resolvedModel);
     if (!llm) {
-      return res.status(503).json({ error: '小龙虾暂时睡着了，请联系管理员配置 LOBSTER_MODEL 或 LITELLM_MODELS' });
+      return res.status(503).json({ error: '小龙虾暂时睡着了，请先配置 LLM 服务（LiteLLM 或 OpenRouter）' });
     }
-    console.log(`[Lobster] Using model: ${llm.model}, baseURL: ${(llm.client as any).baseURL ?? '(default)'}`);
+    console.log(`[Lobster] model=${llm.model}`);
 
 
     // 保存用户消息

@@ -153,9 +153,18 @@ export const api = {
     me: () => fetchAPI('/api/lobster/me'),
     apply: () => fetchAPI('/api/lobster/apply', { method: 'POST' }),
     history: () => fetchAPI('/api/lobster/history'),
-    chat: (message: string) =>
-      fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message }) }),
+    chat: (message: string, model?: string) =>
+      fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message, model }) }),
     clearHistory: () => fetchAPI('/api/lobster/history', { method: 'DELETE' }),
+  },
+  platform: {
+    getModels: () => fetchAPI('/api/platform/models'),
+    saveModels: (models: { id: string; name: string; enabled: boolean }[], adminSecret: string) =>
+      fetchAPI('/api/platform/models', {
+        method: 'POST',
+        headers: { 'x-admin-secret': adminSecret },
+        body: JSON.stringify({ models }),
+      }),
   },
   feedPosts: {
     get: (postId: string) => fetchAPI(`/api/feed-posts/${postId}`),

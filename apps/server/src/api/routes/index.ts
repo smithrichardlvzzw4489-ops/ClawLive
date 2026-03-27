@@ -20,10 +20,12 @@ import { creatorsRoutes } from './creators';
 import { feedPostsRoutes } from './feed-posts';
 import { pointsRoutes } from './points';
 import { lobsterRoutes } from './lobster';
+import { platformRoutes } from './platform';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
   app.use('/api/points', pointsRoutes());
+  app.use('/api/platform', platformRoutes());
   app.use('/api/lobster', lobsterRoutes());
   app.use('/api/agent-viewers', agentViewerRoutes(io));
   app.use('/api/user-agent-connections', userAgentConnectionsRoutes());
