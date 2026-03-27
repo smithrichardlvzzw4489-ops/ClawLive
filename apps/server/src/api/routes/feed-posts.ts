@@ -327,7 +327,6 @@ export function feedPostsRoutes(): Router {
         return res.status(400).json({ error: `标题必填且不超过${maxTitleLen}字` });
       }
 
-      const kind = post.kind ?? 'article';
       if (kind === 'imageText') {
         if (!c || c.length > FEED_IMAGE_TEXT_MAX) {
           return res.status(400).json({ error: `正文必填且不超过${FEED_IMAGE_TEXT_MAX}字` });
