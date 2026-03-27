@@ -95,8 +95,10 @@ export function HomeFeedSections() {
         setFeedPosts(fps);
         recs.forEach((w) => shownWorkIdsRef.current.add(w.id));
         fps.forEach((p) => shownFeedPostIdsRef.current.add(p.id));
-        // 任一类有更多未展示内容就显示"加载更多"
-        setHasMore(recs.length < totalWorks || fps.length < totalFeedPosts);
+        // 系统总内容数 > 当前已展示数，才显示"加载更多"
+        const totalSystem = totalWorks + totalFeedPosts;
+        const totalShown = recs.length + fps.length;
+        setHasMore(totalShown < totalSystem);
       }
     } catch (e) {
       console.error('Error loading recommendations:', e);
