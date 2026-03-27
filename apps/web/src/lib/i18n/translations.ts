@@ -184,7 +184,7 @@ export const translations = {
 
     // 首页
     home: {
-      heroTitle: '玩转AI，就来虾壳，解锁更多玩法',
+      heroTitle: '玩转AI，就来虾壳',
       heroSubtitle: '让分享被看到，让价值被挖掘，让学习更轻松',
       btnSkillsFlow: '查看能力流',
       btnCommunity: '进入社区',
