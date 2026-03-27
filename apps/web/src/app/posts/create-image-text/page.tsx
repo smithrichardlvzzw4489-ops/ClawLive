@@ -223,7 +223,7 @@ export default function CreateFeedImageTextPage() {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">标题</label>
-              <span className={`text-xs tabular-nums ${titleLen > FEED_IMAGE_TEXT_MAX_TITLE ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+              <span className={`text-xs tabular-nums ${titleLen >= FEED_IMAGE_TEXT_MAX_TITLE ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
                 {titleCountLabel}
               </span>
             </div>
@@ -233,14 +233,14 @@ export default function CreateFeedImageTextPage() {
               maxLength={FEED_IMAGE_TEXT_MAX_TITLE}
               onChange={(e) => setTitle(e.target.value)}
               className={`w-full rounded-xl border px-4 py-3 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${
-                titleLen > FEED_IMAGE_TEXT_MAX_TITLE
+                titleLen >= FEED_IMAGE_TEXT_MAX_TITLE
                   ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
                   : 'border-gray-200 focus:border-lobster/40 focus:ring-lobster/20'
               }`}
               placeholder="输入标题（最多20字）"
             />
-            {titleLen > FEED_IMAGE_TEXT_MAX_TITLE && (
-              <p className="mt-1 text-xs text-red-600">标题不超过 {FEED_IMAGE_TEXT_MAX_TITLE} 字</p>
+            {titleLen >= FEED_IMAGE_TEXT_MAX_TITLE && (
+              <p className="mt-1 text-xs text-red-600">已达到标题字数上限（{FEED_IMAGE_TEXT_MAX_TITLE} 字），无法继续输入</p>
             )}
           </div>
 
@@ -346,7 +346,7 @@ export default function CreateFeedImageTextPage() {
           <div>
             <div className="mb-1 flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700">正文</label>
-              <span className={`text-xs tabular-nums ${bodyLen > FEED_IMAGE_TEXT_MAX_CONTENT ? 'text-red-600' : 'text-gray-400'}`}>
+              <span className={`text-xs tabular-nums ${bodyLen >= FEED_IMAGE_TEXT_MAX_CONTENT ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
                 {bodyCountLabel}
               </span>
             </div>
@@ -355,9 +355,16 @@ export default function CreateFeedImageTextPage() {
               onChange={(e) => setContent(e.target.value)}
               maxLength={FEED_IMAGE_TEXT_MAX_CONTENT}
               rows={10}
-              className="w-full resize-y rounded-xl border border-gray-200 px-4 py-3 text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
+              className={`w-full resize-y rounded-xl border px-4 py-3 text-gray-900 shadow-sm focus:outline-none focus:ring-2 ${
+                bodyLen >= FEED_IMAGE_TEXT_MAX_CONTENT
+                  ? 'border-red-400 focus:border-red-400 focus:ring-red-200'
+                  : 'border-gray-200 focus:border-lobster/40 focus:ring-lobster/20'
+              }`}
               placeholder="写下你的图文正文…"
             />
+            {bodyLen >= FEED_IMAGE_TEXT_MAX_CONTENT && (
+              <p className="mt-1 text-xs text-red-600">已达到正文字数上限（{FEED_IMAGE_TEXT_MAX_CONTENT} 字），无法继续输入</p>
+            )}
           </div>
 
           {/* 操作栏 */}
