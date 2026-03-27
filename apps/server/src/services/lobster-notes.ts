@@ -43,3 +43,18 @@ export function readNote(userId: string, filename: string): string | null {
   if (!existsSync(filepath)) return null;
   return readFileSync(filepath, 'utf-8');
 }
+
+/** 读取用户的永久记忆文件 MEMORY.md，不存在则返回 null */
+export function readMemory(userId: string): string | null {
+  return readNote(userId, 'MEMORY.md');
+}
+
+/**
+ * 覆盖写用户的永久记忆文件 MEMORY.md。
+ * 与 saveNote 不同，不加时间戳头，内容完全由 AI 控制。
+ */
+export async function upsertMemory(userId: string, content: string): Promise<void> {
+  const dir = notesDir(userId);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  await writeFile(path.join(dir, 'MEMORY.md'), content, 'utf-8');
+}
