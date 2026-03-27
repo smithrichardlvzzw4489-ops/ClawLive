@@ -11,12 +11,12 @@ import {
 } from '../../services/platform-models';
 
 function isAdminRequest(req: Request): boolean {
-  const adminSecret =
-    process.env.ADMIN_SECRET || process.env.LITELLM_MASTER_KEY || '';
-  if (!adminSecret) return true; // 未配置密钥时放行（开发模式）
+  // 只使用独立的 ADMIN_SECRET，绝不暴露 LITELLM_MASTER_KEY
+  const adminSecret = process.env.ADMIN_SECRET || '';
+  if (!adminSecret) return true; // 未配置时开发模式放行
   const provided =
-    req.headers['x-admin-secret'] ||
-    req.headers['authorization']?.replace(/^Bearer\s+/i, '');
+    req.headers['x-admin-secret'] as string | undefined ||
+    (req.headers['authorization'] as string | undefined)?.replace(/^Bearer\s+/i, '');
   return provided === adminSecret;
 }
 

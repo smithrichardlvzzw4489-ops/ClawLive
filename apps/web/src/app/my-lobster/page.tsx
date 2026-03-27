@@ -127,7 +127,7 @@ function AdminModelsPanel({
   onClose,
 }: {
   models: PlatformModel[];
-  onSave: (models: PlatformModel[]) => Promise<void>;
+  onSave: (models: PlatformModel[], secret: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [list, setList] = useState<PlatformModel[]>(() =>
@@ -163,9 +163,7 @@ function AdminModelsPanel({
     setSaving(true);
     setSaveMsg('');
     try {
-      await onSave(list);
-      // store secret in session for convenience
-      if (adminSecret) sessionStorage.setItem('adminSecret', adminSecret);
+      await onSave(list, adminSecret);
       setSaveMsg('✅ 保存成功');
     } catch (err) {
       setSaveMsg(`❌ ${err instanceof Error ? err.message : '保存失败'}`);
@@ -196,12 +194,12 @@ function AdminModelsPanel({
         <div className="max-h-[60vh] overflow-y-auto px-5 py-4 space-y-4">
           {/* Admin secret */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">管理员密钥</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">管理员密码</label>
             <input
               type="password"
               value={adminSecret}
               onChange={(e) => setAdminSecret(e.target.value)}
-              placeholder="输入 ADMIN_SECRET 或 LITELLM_MASTER_KEY"
+              placeholder="输入平台管理员密码（ADMIN_SECRET）"
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
             />
           </div>
@@ -555,12 +553,8 @@ export default function MyLobsterPage() {
     }
   };
 
-  const handleSaveModels = async (models: PlatformModel[]) => {
-    const secret = sessionStorage.getItem('adminSecret') || '';
-    await api.platform.saveModels(
-      models,
-      (document.querySelector('input[type=password]') as HTMLInputElement)?.value || secret,
-    );
+  const handleSaveModels = async (models: PlatformModel[], secret: string) => {
+    await api.platform.saveModels(models, secret);
     setPlatformModels(models);
     const first = models.find((m) => m.enabled);
     if (first) setSelectedModel(first.id);
