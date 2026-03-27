@@ -149,4 +149,15 @@ export const api = {
         body: JSON.stringify(body ?? {}),
       }),
   },
+  feedPosts: {
+    get: (postId: string) => fetchAPI(`/api/feed-posts/${postId}`),
+    update: (
+      postId: string,
+      body: { title?: string; content?: string; images?: string[]; coverIdx?: number },
+    ) =>
+      fetchAPI(`/api/feed-posts/${postId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+  },
 };

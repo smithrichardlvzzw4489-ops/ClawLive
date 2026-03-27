@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
@@ -10,6 +10,28 @@ import { FEED_IMAGE_TEXT_MAX_CONTENT, FEED_POST_MAX_TITLE } from '@/lib/feed-pos
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGES = 9;
+const DRAFT_KEY = 'clawlive:feed-image-text-draft-v1';
+
+type DraftPayload = { title: string; content: string; savedAt: string };
+
+function loadDraft(): DraftPayload | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as DraftPayload;
+    if (typeof d.title !== 'string' || typeof d.content !== 'string') return null;
+    return d;
+  } catch { return null; }
+}
+function saveDraft(title: string, content: string) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ title, content, savedAt: new Date().toISOString() }));
+  } catch { /* storage full */ }
+}
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+}
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -31,7 +53,28 @@ export default function CreateFeedImageTextPage() {
   const [coverIdx, setCoverIdx] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [draftBanner, setDraftBanner] = useState(false);
+  const [draftToast, setDraftToast] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 挂载时恢复草稿
+  useEffect(() => {
+    const d = loadDraft();
+    if (d && (d.title.trim() || d.content.trim())) {
+      setTitle(d.title);
+      setContent(d.content);
+      setDraftBanner(true);
+    }
+  }, []);
+
+  // 防抖自动存草稿（仅存文字，图片不存）
+  useEffect(() => {
+    const tid = window.setTimeout(() => {
+      if (!title.trim() && !content.trim()) return;
+      saveDraft(title, content);
+    }, 1500);
+    return () => window.clearTimeout(tid);
+  }, [title, content]);
 
   const titleLen = title.length;
   const bodyLen = content.length;
@@ -132,12 +175,28 @@ export default function CreateFeedImageTextPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(typeof data.error === 'string' ? data.error : '发布失败'); return; }
-      if (data.id) router.push(`/posts/${data.id}`);
+      if (data.id) {
+        clearDraft();
+        router.push(`/posts/${data.id}`);
+      }
     } catch {
       setError('网络错误，请重试');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleSaveDraft = () => {
+    saveDraft(title, content);
+    setDraftToast('草稿已保存（仅文字）');
+    window.setTimeout(() => setDraftToast(null), 2200);
+  };
+
+  const handleDiscardDraft = () => {
+    clearDraft();
+    setDraftBanner(false);
+    setTitle('');
+    setContent('');
   };
 
   return (
@@ -149,6 +208,15 @@ export default function CreateFeedImageTextPage() {
 
         <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('feedImagePost.pageTitle')}</h1>
         <p className="mt-2 text-sm leading-relaxed text-gray-600">{t('feedImagePost.pageSubtitle')}</p>
+
+        {draftBanner && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span>已恢复上次草稿（图片不在草稿中）</span>
+            <button type="button" onClick={handleDiscardDraft} className="font-medium text-amber-800 underline hover:text-amber-950">
+              丢弃草稿
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -290,18 +358,33 @@ export default function CreateFeedImageTextPage() {
             />
           </div>
 
-          {/* 发布 */}
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => void submit()}
-            className="w-full rounded-full bg-lobster py-3 font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-50 sm:w-auto sm:px-10"
-          >
-            {submitting ? '发布中…' : '发布'}
-          </button>
+          {/* 操作栏 */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-50"
+            >
+              保存草稿
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => void submit()}
+              className="rounded-full bg-lobster px-10 py-2.5 font-semibold text-white shadow-sm transition hover:opacity-95 disabled:opacity-50"
+            >
+              {submitting ? '发布中…' : '发布'}
+            </button>
+          </div>
 
         </div>
       </div>
+
+      {draftToast && (
+        <div className="fixed bottom-6 left-1/2 z-40 max-w-sm -translate-x-1/2 rounded-lg bg-gray-900 px-4 py-2.5 text-center text-sm text-white shadow-lg">
+          {draftToast}
+        </div>
+      )}
     </MainLayout>
   );
 }

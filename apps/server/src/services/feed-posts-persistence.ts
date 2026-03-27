@@ -17,6 +17,7 @@ export type FeedPostRecord = {
   favoriteCount: number;
   commentCount: number;
   createdAt: string;
+  updatedAt?: string;
 };
 
 function reviveDates(obj: unknown): FeedPostRecord {

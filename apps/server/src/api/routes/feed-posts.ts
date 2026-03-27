@@ -281,6 +281,84 @@ export function feedPostsRoutes(): Router {
     }
   });
 
+  // ── 编辑帖子（仅作者）─────────────────────────────────────────────────────
+  router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { id } = req.params;
+      const post = feedPostsMap.get(id);
+      if (!post) return res.status(404).json({ error: '帖子不存在' });
+      if (String(post.authorId) !== String(userId)) return res.status(403).json({ error: '无权编辑' });
+
+      const { title, content, images, coverIdx } = req.body as {
+        title?: string;
+        content?: string;
+        images?: string[];
+        coverIdx?: number;
+      };
+
+      const t = typeof title === 'string' ? title.trim() : post.title;
+      const c = typeof content === 'string' ? content.trim() : post.content;
+      if (!t || t.length > 120) return res.status(400).json({ error: '标题必填且不超过120字' });
+
+      const kind = post.kind ?? 'article';
+      if (kind === 'imageText') {
+        if (!c || c.length > FEED_IMAGE_TEXT_MAX) {
+          return res.status(400).json({ error: `正文必填且不超过${FEED_IMAGE_TEXT_MAX}字` });
+        }
+        if (!isPlainTextNoEmbeddedImages(c)) {
+          return res.status(400).json({ error: '正文不可插入图片' });
+        }
+      } else {
+        if (!c || c.length > 20000) return res.status(400).json({ error: '正文必填且不超过20000字' });
+      }
+
+      // 处理图片：已有 URL 保留，新 base64 上传
+      let newImageUrls = post.imageUrls;
+      if (Array.isArray(images) && images.length > 0) {
+        if (images.length > MAX_IMAGES) return res.status(400).json({ error: `最多${MAX_IMAGES}张图片` });
+        const uploadDir = join(UPLOADS_DIR, 'feed-posts', id);
+        if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
+
+        const resolved: string[] = [];
+        for (let i = 0; i < images.length; i++) {
+          const raw = images[i];
+          if (typeof raw !== 'string') continue;
+          if (raw.startsWith('/uploads/')) {
+            resolved.push(raw);
+          } else {
+            const parsed = parseDataUrl(raw);
+            if (!parsed) return res.status(400).json({ error: `第${i + 1}张图片格式无效或过大` });
+            const name = `${uuidv4()}.${parsed.ext}`;
+            writeFileSync(join(uploadDir, name), parsed.buf);
+            resolved.push(`/uploads/feed-posts/${id}/${name}`);
+          }
+        }
+
+        // 图文：把用户选的封面排到第一位
+        if (kind === 'imageText' && typeof coverIdx === 'number' && coverIdx >= 0 && coverIdx < resolved.length) {
+          const cover = resolved.splice(coverIdx, 1)[0];
+          resolved.unshift(cover);
+        }
+
+        if (resolved.length === 0) return res.status(400).json({ error: '请上传封面图片' });
+        if (kind === 'article' && resolved.length === 0) return res.status(400).json({ error: '请上传封面图片' });
+        newImageUrls = resolved;
+      }
+
+      post.title = t;
+      post.content = c;
+      post.imageUrls = newImageUrls;
+      post.updatedAt = new Date().toISOString();
+      feedPostsMap.set(id, post);
+      saveFeedPosts();
+      return res.json(post);
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({ error: '更新失败' });
+    }
+  });
+
   router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;

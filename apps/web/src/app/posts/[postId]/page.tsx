@@ -487,7 +487,12 @@ export default function FeedPostDetailPage() {
                 <span className="truncate font-medium text-gray-900">{post.author.username}</span>
               </Link>
               {String(currentUserId) === String(post.author.id) ? (
-                <span className="shrink-0 text-xs text-gray-400">{t('workDetail.followIsSelf')}</span>
+                <Link
+                  href={`/posts/edit/${postId}`}
+                  className="shrink-0 rounded-full border border-gray-200 bg-white px-3 py-1 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+                >
+                  编辑
+                </Link>
               ) : (
                 <button
                   type="button"
