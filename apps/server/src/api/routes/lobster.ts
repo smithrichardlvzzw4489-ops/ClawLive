@@ -16,12 +16,14 @@ import {
   getLobsterConversation,
   appendLobsterMessage,
   clearLobsterConversation,
+  setPersonalApiKey,
+  clearPersonalApiKey,
 } from '../../services/lobster-persistence';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { getFeedPostsMap } from '../../services/feed-posts-store';
-import { getDefaultPlatformModel, getStoredLobsterKey, storeLobsterKey } from '../../services/platform-models';
-import { generateVirtualKey } from '../../services/litellm-budget';
+import { getDefaultPlatformModel } from '../../services/platform-models';
+import { prisma } from '../../lib/prisma';
 import { saveNote, listNotes, readNote } from '../../services/lobster-notes';
 import {
   getUserSchedules,
@@ -387,53 +389,47 @@ function resolveModel(requestModel?: string): string {
 }
 
 /**
- * 获取小龙虾专用虚拟 Key。
- * 优先级：手动配置的 LOBSTER_VIRTUAL_KEY > 持久化文件中自动生成的 > 自动向 LiteLLM 申请新 Key
- * Master Key 严禁用于用户请求。
+ * 获取用户可用的 LLM 客户端。
+ *
+ * 优先级（Master Key 严禁用于用户请求）：
+ * 1. 用户平台虚拟 Key（通过积分兑换，存于数据库 user.litellmVirtualKey）
+ * 2. 用户自带个人 Key（存于 LobsterInstance.personalApiKey）
  */
-async function getLobsterApiKey(): Promise<string | null> {
-  // 1. 手动配置的最优先
-  if (process.env.LOBSTER_VIRTUAL_KEY) return process.env.LOBSTER_VIRTUAL_KEY;
-  // 2. 已自动生成并持久化的
-  const stored = getStoredLobsterKey();
-  if (stored) return stored;
-  // 3. 自动向 LiteLLM 生成一个专属虚拟 Key（$50/月预算上限）
-  try {
-    const { key } = await generateVirtualKey({
-      userId: 'platform-lobster',
-      maxBudgetUsd: 50,
-      models: [],  // 空数组 = 访问所有模型
-    });
-    await storeLobsterKey(key);
-    console.log('[Lobster] Auto-generated virtual key for lobster service');
-    return key;
-  } catch (err) {
-    console.error('[Lobster] Failed to auto-generate virtual key:', err);
-    return null;
-  }
-}
-
-async function getLlmClient(model: string): Promise<{ client: OpenAI; model: string } | null> {
+async function getLlmClient(
+  model: string,
+  userId: string,
+): Promise<{ client: OpenAI; model: string; keySource: string } | null> {
+  // ── 1. 平台虚拟 Key（积分兑换）──────────────────────────────────────────────
   if (isLitellmConfigured()) {
-    const base = config.litellm.baseUrl.replace(/\/$/, '');
-    const apiKey = await getLobsterApiKey();
-    if (!apiKey) {
-      console.error('[Lobster] No virtual key available. Master Key is forbidden for user requests.');
-      return null;
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { litellmVirtualKey: true },
+      });
+      if (user?.litellmVirtualKey) {
+        const base = config.litellm.baseUrl.replace(/\/$/, '');
+        return {
+          client: new OpenAI({ apiKey: user.litellmVirtualKey, baseURL: `${base}/v1` }),
+          model,
+          keySource: 'platform-virtual-key',
+        };
+      }
+    } catch (err) {
+      console.error('[Lobster] Failed to fetch user virtual key:', err);
     }
+  }
+
+  // ── 2. 用户自带个人 Key ──────────────────────────────────────────────────────
+  const instance = getLobsterInstance(userId);
+  if (instance?.personalApiKey) {
+    const baseURL = instance.personalApiBaseUrl || 'https://openrouter.ai/api/v1';
     return {
-      client: new OpenAI({ apiKey, baseURL: `${base}/v1` }),
+      client: new OpenAI({ apiKey: instance.personalApiKey, baseURL }),
       model,
+      keySource: 'personal-key',
     };
   }
-  // 未配置 LiteLLM，走 OpenRouter
-  const key = process.env.OPENROUTER_API_KEY;
-  if (key) {
-    return {
-      client: new OpenAI({ apiKey: key, baseURL: 'https://openrouter.ai/api/v1' }),
-      model,
-    };
-  }
+
   return null;
 }
 
@@ -515,13 +511,14 @@ export function lobsterRoutes(): Router {
     if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
 
     const resolvedModel = resolveModel(requestModel);
-    const llm = await getLlmClient(resolvedModel);
+    const llm = await getLlmClient(resolvedModel, userId);
     if (!llm) {
-      return res.status(503).json({
-        error: '小龙虾暂时无法使用，请联系管理员配置 LOBSTER_VIRTUAL_KEY（LiteLLM 虚拟 Key）或 OPENROUTER_API_KEY',
+      return res.status(402).json({
+        error: 'NO_KEY',
+        message: '小龙虾需要 API Key 才能运行。请使用积分兑换平台虚拟 Key，或在设置中填入自己的 Key。',
       });
     }
-    console.log(`[Lobster] model=${llm.model} image=${!!image}`);
+    console.log(`[Lobster] user=${userId} model=${llm.model} keySource=${llm.keySource} image=${!!image}`);
 
     // 保存用户消息
     const userMsg = {
@@ -759,6 +756,68 @@ export function lobsterRoutes(): Router {
     if (!Array.isArray(servers)) return res.status(400).json({ error: 'servers 必须是数组' });
     await saveMcpServers(servers);
     return res.json({ success: true, servers });
+  });
+
+  /**
+   * GET /api/lobster/key-status
+   * 返回当前用户的 Key 状态（有无平台虚拟 Key / 个人 Key）。
+   */
+  router.get('/key-status', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    try {
+      const [user, instance] = await Promise.all([
+        prisma.user.findUnique({ where: { id: userId }, select: { litellmVirtualKey: true, clawPoints: true } }),
+        Promise.resolve(getLobsterInstance(userId)),
+      ]);
+      const hasPlatformKey = Boolean(user?.litellmVirtualKey) && isLitellmConfigured();
+      const hasPersonalKey = Boolean(instance?.personalApiKey);
+      const personalKeyMasked = instance?.personalApiKey
+        ? `${instance.personalApiKey.slice(0, 6)}…${instance.personalApiKey.slice(-4)}`
+        : null;
+      const personalApiBaseUrl = instance?.personalApiBaseUrl ?? null;
+      return res.json({
+        hasPlatformKey,
+        hasPersonalKey,
+        personalKeyMasked,
+        personalApiBaseUrl,
+        clawPoints: user?.clawPoints ?? 0,
+        litellmConfigured: isLitellmConfigured(),
+      });
+    } catch (err) {
+      console.error('[Lobster] key-status error', err);
+      return res.status(500).json({ error: 'Failed to get key status' });
+    }
+  });
+
+  /**
+   * POST /api/lobster/personal-key
+   * 设置用户自己的个人 API Key。
+   * body: { key: string; baseUrl?: string }
+   */
+  router.post('/personal-key', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const { key, baseUrl } = req.body as { key?: string; baseUrl?: string };
+    if (!key || typeof key !== 'string' || key.trim().length < 8) {
+      return res.status(400).json({ error: 'Key 格式无效' });
+    }
+    const instance = getLobsterInstance(userId);
+    if (!instance) return res.status(403).json({ error: '请先申请小龙虾' });
+    await setPersonalApiKey(
+      userId,
+      key.trim(),
+      (baseUrl ?? 'https://openrouter.ai/api/v1').trim(),
+    );
+    return res.json({ success: true, keyMasked: `${key.trim().slice(0, 6)}…${key.trim().slice(-4)}` });
+  });
+
+  /**
+   * DELETE /api/lobster/personal-key
+   * 清除用户的个人 API Key。
+   */
+  router.delete('/personal-key', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    await clearPersonalApiKey(userId);
+    return res.json({ success: true });
   });
 
   return router;

@@ -12,6 +12,10 @@ export interface LobsterInstance {
   appliedAt: string;
   lastActiveAt: string;
   messageCount: number;
+  /** 用户自带的个人 API Key（OpenRouter 或 OpenAI 兼容），加密明文存储 */
+  personalApiKey?: string;
+  /** 个人 Key 对应的 base URL（如 https://openrouter.ai/api/v1） */
+  personalApiBaseUrl?: string;
 }
 
 export interface LobsterMessage {
@@ -116,6 +120,26 @@ export async function appendLobsterMessage(userId: string, message: LobsterMessa
 export async function clearLobsterConversation(userId: string): Promise<void> {
   conversations.delete(userId);
   await saveConversations();
+}
+
+export async function setPersonalApiKey(
+  userId: string,
+  key: string,
+  baseUrl: string,
+): Promise<void> {
+  const inst = instances.get(userId);
+  if (!inst) throw new Error('请先申请小龙虾');
+  inst.personalApiKey = key;
+  inst.personalApiBaseUrl = baseUrl;
+  await saveInstances();
+}
+
+export async function clearPersonalApiKey(userId: string): Promise<void> {
+  const inst = instances.get(userId);
+  if (!inst) return;
+  delete inst.personalApiKey;
+  delete inst.personalApiBaseUrl;
+  await saveInstances();
 }
 
 loadLobsterData();
