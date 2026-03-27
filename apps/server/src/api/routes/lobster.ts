@@ -253,8 +253,13 @@ function resolveModel(requestModel?: string): string {
 function getLlmClient(model: string): { client: OpenAI; model: string } | null {
   if (isLitellmConfigured()) {
     const base = config.litellm.baseUrl.replace(/\/$/, '');
+    // 优先用专属虚拟 Key（有预算上限），没有则降级到 Master Key
+    const apiKey = process.env.LOBSTER_VIRTUAL_KEY || config.litellm.masterKey;
+    if (!process.env.LOBSTER_VIRTUAL_KEY) {
+      console.warn('[Lobster] Using LITELLM_MASTER_KEY — consider setting LOBSTER_VIRTUAL_KEY for budget control');
+    }
     return {
-      client: new OpenAI({ apiKey: config.litellm.masterKey, baseURL: `${base}/v1` }),
+      client: new OpenAI({ apiKey, baseURL: `${base}/v1` }),
       model,
     };
   }
