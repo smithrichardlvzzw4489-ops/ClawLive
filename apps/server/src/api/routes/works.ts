@@ -46,7 +46,7 @@ export function worksRoutes(io: Server): Router {
   // GET /api/works - 获取所有已发布的作品
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { authorId, tag, search, partition } = req.query;
+      const { authorId, tag, search, partition, offset, limit } = req.query;
       
       let publishedWorks = Array.from(works.values()).filter(work => work.status === 'published');
 
@@ -111,9 +111,14 @@ export function worksRoutes(io: Server): Router {
         return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
       });
 
+      const total = worksList.length;
+      const offsetNum = Math.max(0, parseInt(offset as string) || 0);
+      const limitNum = Math.min(Math.max(1, parseInt(limit as string) || 100), 100);
+      worksList = worksList.slice(offsetNum, offsetNum + limitNum);
+
       res.json({
         works: worksList,
-        total: worksList.length,
+        total,
       });
     } catch (error) {
       console.error('Error fetching works:', error);

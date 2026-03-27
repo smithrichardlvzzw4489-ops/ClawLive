@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { HomeFeedMasonry, type MasonryItem } from '@/components/HomeFeedMasonry';
 import { WorkCard } from '@/components/WorkCard';
@@ -8,6 +8,8 @@ import { FeedPostCard, type FeedPostCardItem } from '@/components/FeedPostCard';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { HOME_FEED_PARTITIONS } from '@/lib/work-partitions';
 import { API_BASE_URL } from '@/lib/api';
+
+const LOAD_MORE_SIZE = 12;
 
 interface Work {
   id: string;
@@ -52,13 +54,25 @@ function useFeedGridColumnCount(): number {
 export function HomeFeedSections() {
   const { t } = useLocale();
   const [recommendedWorks, setRecommendedWorks] = useState<Work[]>([]);
+  const [extraWorks, setExtraWorks] = useState<Work[]>([]);
   const [feedPosts, setFeedPosts] = useState<FeedPostCardItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreWorks, setHasMoreWorks] = useState(false);
   const [activePartition, setActivePartition] = useState<string | null>(null);
   const breakpointCols = useFeedGridColumnCount();
 
+  // 已展示的 work id 集合，用于加载更多时去重
+  const shownWorkIdsRef = useRef<Set<string>>(new Set());
+  // 下一次请求 /api/works 的 offset
+  const worksApiOffsetRef = useRef(0);
+
   const loadRecommendations = useCallback(async () => {
     setLoading(true);
+    shownWorkIdsRef.current = new Set();
+    worksApiOffsetRef.current = 0;
+    setExtraWorks([]);
+    setHasMoreWorks(false);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const headers: HeadersInit = {};
@@ -67,8 +81,12 @@ export function HomeFeedSections() {
       const res = await fetch(`${API_BASE_URL}/api/recommendations/home`, { headers });
       if (res.ok) {
         const data = await res.json();
-        setRecommendedWorks(data.recommendedWorks || []);
+        const recs: Work[] = data.recommendedWorks || [];
+        setRecommendedWorks(recs);
         setFeedPosts(data.feedPosts || []);
+        recs.forEach((w) => shownWorkIdsRef.current.add(w.id));
+        // 乐观显示"加载更多"：推荐满 12 条说明可能还有更多
+        setHasMoreWorks(recs.length >= 12);
       }
     } catch (e) {
       console.error('Error loading recommendations:', e);
@@ -81,10 +99,40 @@ export function HomeFeedSections() {
     void loadRecommendations();
   }, [loadRecommendations]);
 
+  const loadMoreWorks = useCallback(async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const offset = worksApiOffsetRef.current;
+      const res = await fetch(
+        `${API_BASE_URL}/api/works?offset=${offset}&limit=${LOAD_MORE_SIZE}`,
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as { works: Work[]; total: number };
+      const newWorks = (data.works || []).filter(
+        (w) => !shownWorkIdsRef.current.has(w.id),
+      );
+      newWorks.forEach((w) => shownWorkIdsRef.current.add(w.id));
+      setExtraWorks((prev) => [...prev, ...newWorks]);
+      const nextOffset = offset + LOAD_MORE_SIZE;
+      worksApiOffsetRef.current = nextOffset;
+      setHasMoreWorks(nextOffset < data.total);
+    } catch (e) {
+      console.error('Error loading more works:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore]);
+
+  const allWorks = useMemo(
+    () => [...recommendedWorks, ...extraWorks],
+    [recommendedWorks, extraWorks],
+  );
+
   const filteredWorks =
     activePartition === null
-      ? recommendedWorks
-      : recommendedWorks.filter((w) => w.partition === activePartition);
+      ? allWorks
+      : allWorks.filter((w) => w.partition === activePartition);
 
   const showFeedInGrid = activePartition === null;
   const hasWorks = filteredWorks.length > 0;
@@ -187,7 +235,28 @@ export function HomeFeedSections() {
             )}
           </div>
         ) : (
-          <HomeFeedMasonry items={feedItems} columnCount={columnCount} />
+          <>
+            <HomeFeedMasonry items={feedItems} columnCount={columnCount} />
+            {hasMoreWorks && (
+              <div className="mt-8 flex justify-center pb-4">
+                <button
+                  type="button"
+                  onClick={() => void loadMoreWorks()}
+                  disabled={loadingMore}
+                  className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-8 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-60"
+                >
+                  {loadingMore ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                      加载中...
+                    </>
+                  ) : (
+                    '加载更多'
+                  )}
+                </button>
+              </div>
+            )}
+          </>
         )}
       </section>
     </>
