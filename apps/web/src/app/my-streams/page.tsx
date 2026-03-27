@@ -219,7 +219,7 @@ export default function MyStreamsPage() {
                 >
                   <div className="relative aspect-video bg-gradient-to-br from-gray-400 to-gray-600">
                     <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-6xl opacity-50">🦞</span>
+                      <span className="text-6xl opacity-50">📺</span>
                     </div>
                     <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/60 text-white text-xs font-semibold rounded backdrop-blur-sm">
                       {session.startedAt && session.endedAt && (

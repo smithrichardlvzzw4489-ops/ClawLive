@@ -774,7 +774,7 @@ export default function CreateRoomPage() {
                   <div className="text-6xl mb-4 animate-bounce">🎉</div>
                   <p className="text-green-800 font-semibold text-xl mb-2">配置完成！</p>
                   <p className="text-gray-600">正在进入直播间...</p>
-                  <div className="mt-4 animate-spin text-4xl">🦞</div>
+                  <div className="mt-4 mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-lobster" />
                 </div>
               )}
 

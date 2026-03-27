@@ -156,7 +156,6 @@ function AuthForm() {
     <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100 flex items-center justify-center p-4 relative">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="text-6xl mb-4">🦞</div>
           <h1 className="text-3xl font-bold text-gray-800">
             {mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
           </h1>
@@ -381,7 +380,7 @@ export default function LoginPage() {
       fallback={
         <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin text-6xl mb-4">🦞</div>
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster" />
             <p className="text-gray-600">加载中...</p>
           </div>
         </div>

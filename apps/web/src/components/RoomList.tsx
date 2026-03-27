@@ -36,7 +36,7 @@ export function RoomList() {
   if (loading) {
     return (
       <div className="flex justify-center items-center py-20">
-        <div className="animate-spin text-6xl">🦞</div>
+        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-lobster" />
       </div>
     );
   }
@@ -45,7 +45,7 @@ export function RoomList() {
     <div>
       {rooms.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-xl">
-          <div className="text-6xl mb-4">🦞</div>
+          <div className="text-4xl mb-4">📺</div>
           <p className="text-xl text-gray-600">{t('rooms.noLive')}</p>
           <p className="text-gray-500 mt-2">{t('rooms.createAndStart')}</p>
         </div>

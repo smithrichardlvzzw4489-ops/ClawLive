@@ -59,7 +59,7 @@ export default function DashboardPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-spin">🦞</div>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster" />
           <p className="text-xl text-gray-600">加载中...</p>
         </div>
       </div>
@@ -73,7 +73,6 @@ export default function DashboardPage() {
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/rooms" className="flex items-center gap-2">
-            <span className="text-3xl">🦞</span>
             <span className="text-2xl font-bold text-lobster tracking-tight">{BRAND_ZH}</span>
           </Link>
           
@@ -94,7 +93,6 @@ export default function DashboardPage() {
 
         {myRooms.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-xl">
-            <div className="text-6xl mb-4">🦞</div>
             <p className="text-xl text-gray-600 mb-4">你还没有创建直播间</p>
             <Link
               href="/rooms/create"

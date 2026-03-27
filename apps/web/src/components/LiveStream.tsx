@@ -474,7 +474,7 @@ export function LiveStream({ roomId }: LiveStreamProps) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-spin">🦞</div>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster" />
           <p className="text-xl text-gray-600">加载中...</p>
         </div>
       </div>

@@ -16,7 +16,7 @@ function RegisterRedirect() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100 flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin text-6xl mb-4">🦞</div>
+        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster" />
         <p className="text-gray-600">跳转中...</p>
       </div>
     </div>
@@ -30,7 +30,7 @@ export default function RegisterPage() {
       fallback={
         <div className="min-h-screen bg-gradient-to-br from-lobster-light via-pink-100 to-purple-100 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin text-6xl mb-4">🦞</div>
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster" />
             <p className="text-gray-600">跳转中...</p>
           </div>
         </div>

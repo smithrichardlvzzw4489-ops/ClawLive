@@ -322,7 +322,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-8">
           <div className="text-center">
-            <div className="text-4xl animate-spin mb-4">🦞</div>
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-b-2 border-lobster" />
             <p>加载中...</p>
           </div>
         </div>
@@ -336,9 +336,8 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
         {/* Header */}
         <div className="border-b p-6 flex items-center justify-between sticky top-0 bg-white">
           <div>
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <span>🦞</span>
-              <span>{isPreLiveConfig ? '开始直播 - Agent 配置' : 'Agent 设置'}</span>
+            <h2 className="text-2xl font-bold">
+              {isPreLiveConfig ? '开始直播 - Agent 配置' : 'Agent 设置'}
             </h2>
             {isPreLiveConfig && (
               <p className="text-sm text-gray-600 mt-1">配置你的 Telegram Agent，完成后将自动开始直播</p>
