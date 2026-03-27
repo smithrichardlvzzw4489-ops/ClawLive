@@ -155,7 +155,7 @@ export default function CreateFeedPostPage() {
         setError('上传失败');
         return;
       }
-      insertMarkdownAtCursor(`\n![图片](${url})\n`);
+      insertMarkdownAtCursor(`\n[图片](${url})\n`);
     } catch {
       setError('网络错误');
     } finally {

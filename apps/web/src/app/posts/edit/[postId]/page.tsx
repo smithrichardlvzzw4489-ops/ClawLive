@@ -132,7 +132,7 @@ export default function EditFeedPostPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || '图片上传失败'); return; }
-      insertMarkdownAtCursor(`\n![图片](${String(data.url)})\n`);
+      insertMarkdownAtCursor(`\n[图片](${String(data.url)})\n`);
     } catch { setError('网络错误'); }
     finally { setInlineImageBusy(false); }
   };

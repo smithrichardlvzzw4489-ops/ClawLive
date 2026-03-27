@@ -40,6 +40,14 @@ const components: Components = {
   },
 };
 
+/**
+ * 将新格式图片 [alt](/uploads/…) 转为标准 Markdown ![alt](url)，
+ * 兼容旧帖子（原本就是 ![alt](url)）和新帖子（编辑器写入 [alt](url)）。
+ */
+function normalizeImageSyntax(md: string): string {
+  return md.replace(/\[([^\]]*)\]\((\/uploads\/[^)]+)\)/g, '![$1]($2)');
+}
+
 export function MarkdownBody({ content, className = '' }: { content: string; className?: string }) {
   const { preset } = useArticleFont();
   const fontClass = articleFontPresetClass[preset];
@@ -49,7 +57,7 @@ export function MarkdownBody({ content, className = '' }: { content: string; cla
       className={`markdown-body prose prose-gray max-w-none text-pretty antialiased ${fontClass} prose-headings:scroll-mt-24 prose-p:leading-[1.75] prose-li:leading-relaxed prose-blockquote:border-l-lobster/40 prose-blockquote:font-normal prose-a:font-medium prose-img:mx-auto ${className}`}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} urlTransform={markdownUrlTransform}>
-        {content || ''}
+        {normalizeImageSyntax(content || '')}
       </ReactMarkdown>
     </div>
   );
