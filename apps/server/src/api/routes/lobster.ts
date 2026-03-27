@@ -354,17 +354,33 @@ export function lobsterRoutes(): Router {
 
     let finalText = '';
 
+    // 检测模型是否支持工具调用（部分模型/代理不支持）
+    let toolsSupported = true;
+
     try {
       // ── ReAct 循环 ──────────────────────────────────────────────────────
       for (let step = 0; step < MAX_REACT_STEPS; step++) {
-        const response = await llm.client.chat.completions.create({
-          model: llm.model,
-          messages,
-          tools: TOOLS,
-          tool_choice: 'auto',
-          max_tokens: 800,
-          temperature: 0.7,
-        });
+        let response: OpenAI.Chat.Completions.ChatCompletion;
+        try {
+          response = await llm.client.chat.completions.create({
+            model: llm.model,
+            messages,
+            tools: toolsSupported ? TOOLS : undefined,
+            tool_choice: toolsSupported ? ('auto' as const) : undefined,
+            max_tokens: 800,
+            temperature: 0.7,
+          });
+        } catch (toolErr) {
+          // 模型不支持工具调用，降级为普通对话
+          toolsSupported = false;
+          console.warn('[Lobster] Tool calling failed, falling back to plain chat:', toolErr);
+          response = await llm.client.chat.completions.create({
+            model: llm.model,
+            messages,
+            max_tokens: 800,
+            temperature: 0.7,
+          });
+        }
 
         const choice = response.choices[0];
         const toolCalls = choice.message.tool_calls;
