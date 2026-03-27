@@ -101,8 +101,8 @@ export function recommendationRoutes(): Router {
       });
 
       // ── Feed posts：CES + 时间衰减 + 个性化 + 多样性 ───────────────────────
-      const FEED_CANDIDATES = 40; // 候选池
-      const FEED_RESULT = 12;     // 最终返回条数
+      const FEED_CANDIDATES = 100; // 候选池
+      const FEED_RESULT = 40;      // 最终返回条数
       const MAX_PER_AUTHOR = 2;   // 同作者最多出现次数（多样性控制）
 
       const profile = userId ? getUserInterestProfile(userId) : null;
