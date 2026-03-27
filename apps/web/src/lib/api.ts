@@ -159,6 +159,7 @@ export const api = {
   },
   platform: {
     getModels: () => fetchAPI('/api/platform/models'),
+    getLitellmModels: () => fetchAPI('/api/platform/litellm-models'),
     saveModels: (models: { id: string; name: string; enabled: boolean }[], adminSecret: string) =>
       fetchAPI('/api/platform/models', {
         method: 'POST',

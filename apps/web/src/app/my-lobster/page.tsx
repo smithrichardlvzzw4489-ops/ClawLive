@@ -138,12 +138,42 @@ function AdminModelsPanel({
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [importing, setImporting] = useState(false);
 
   const toggle = (idx: number) =>
     setList((prev) => prev.map((m, i) => (i === idx ? { ...m, enabled: !m.enabled } : m)));
 
   const remove = (idx: number) =>
     setList((prev) => prev.filter((_, i) => i !== idx));
+
+  const importFromLitellm = async () => {
+    setImporting(true);
+    setSaveMsg('');
+    try {
+      const data = await api.platform.getLitellmModels();
+      const fetched: Array<{ id: string; name: string }> = data.models || [];
+      if (!fetched.length) {
+        setSaveMsg('⚠️ LiteLLM 未返回任何模型，请检查 LITELLM_BASE_URL 配置');
+        return;
+      }
+      setList((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const newOnes = fetched
+          .filter((m) => !existingIds.has(m.id))
+          .map((m) => ({ id: m.id, name: m.name, enabled: true }));
+        // 同时把已有的同名模型标为 enabled
+        const updated = prev.map((m) =>
+          fetched.some((f) => f.id === m.id) ? { ...m, enabled: true } : m,
+        );
+        return [...updated, ...newOnes];
+      });
+      setSaveMsg(`✅ 已从 LiteLLM 导入 ${fetched.length} 个模型`);
+    } catch {
+      setSaveMsg('❌ 无法连接 LiteLLM，请确认服务器配置');
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const addModel = () => {
     const id = newId.trim();
@@ -204,9 +234,30 @@ function AdminModelsPanel({
             />
           </div>
 
+          {/* Import from LiteLLM */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-gray-500">模型列表</label>
+              <button
+                onClick={importFromLitellm}
+                disabled={importing}
+                className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+              >
+                {importing ? (
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
+                ) : (
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                )}
+                从 LiteLLM 自动导入
+              </button>
+            </div>
+          </div>
+
           {/* Model list */}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">模型列表</label>
+            <label className="block text-xs font-medium text-gray-500 mb-2"></label>
             <div className="space-y-2">
               {list.map((m, i) => (
                 <div

@@ -25,8 +25,30 @@ export function platformRoutes(): Router {
 
   /** GET /api/platform/models */
   router.get('/models', (_req: Request, res: Response) => {
-    const config = loadPlatformModels();
-    return res.json(config);
+    const cfg = loadPlatformModels();
+    return res.json(cfg);
+  });
+
+  /** GET /api/platform/litellm-models — 查询 LiteLLM 实际部署的模型列表 */
+  router.get('/litellm-models', async (_req: Request, res: Response) => {
+    const { config } = await import('../../config/index');
+    const base = config.litellm.baseUrl;
+    const masterKey = config.litellm.masterKey;
+    if (!base || !masterKey) {
+      return res.json({ models: [] });
+    }
+    try {
+      const resp = await fetch(`${base}/models`, {
+        headers: { Authorization: `Bearer ${masterKey}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!resp.ok) return res.json({ models: [] });
+      const data = (await resp.json()) as { data?: Array<{ id: string }> };
+      const models = (data.data || []).map((m) => ({ id: m.id, name: m.id }));
+      return res.json({ models });
+    } catch {
+      return res.json({ models: [] });
+    }
   });
 
   /** POST /api/platform/models */
