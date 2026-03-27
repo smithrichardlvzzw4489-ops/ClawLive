@@ -274,6 +274,7 @@ export default function CreateFeedPostPage() {
             <button
               type="button"
               disabled={inlineImageBusy}
+              onMouseDown={() => bodyEditorRef.current?.captureSelectionNow()}
               onClick={() => inlineImageInputRef.current?.click()}
               className="rounded-full border border-lobster/40 bg-rose-50 px-3 py-1 text-xs font-medium text-lobster transition hover:bg-rose-100 disabled:opacity-50"
               title={t('feedPost.insertBodyImageHint')}

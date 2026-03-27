@@ -69,7 +69,13 @@ function joinRange(parts: MdPart[], start: number, end: number): string {
 }
 
 export type FeedPostBodyEditorHandle = {
+  /** 在当前光标位置插入 markdown 片段 */
   insertSnippet: (snippet: string) => void;
+  /**
+   * 在父组件按钮 onMouseDown 时调用，此时光标还在 textarea 里。
+   * 把当前选区保存到内部 ref，供后续 insertSnippet 使用。
+   */
+  captureSelectionNow: () => void;
 };
 
 type Props = {
@@ -88,11 +94,17 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
   ) {
     const [parts, setParts] = useState<MdPart[]>(() => splitAndNormalize(initialContent));
     const containerRef = useRef<HTMLDivElement>(null);
-    // 记录最后一次 textarea 的焦点位置，避免点按钮后 activeElement 变成按钮导致插入失败
+
+    /**
+     * 记录「最近一次确认的」光标位置。
+     * 由两条路径写入：
+     *   1. textarea onFocus / onSelect（用户交互时实时更新）
+     *   2. captureSelectionNow()（父组件在按钮 onMouseDown 时主动调用，
+     *      此时焦点还没有离开 textarea，是最精确的时机）
+     */
     const lastSelRef = useRef<{ partIndex: number; start: number; end: number } | null>(null);
 
     /** 首段 textarea 行数：随内容增高，避免仅两行字却占满 18 行导致与图片距离过大 */
-    /** 行数按「非末尾空行」计，避免尾部 \n 撑高；再留 1 行余量 */
     const rowsForTextPart = useCallback(
       (part: MdPart, index: number) => {
         if (part.type !== 'text') return 4;
@@ -134,55 +146,58 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
       [maxLength, onChange]
     );
 
+    /**
+     * captureSelectionNow：从 DOM 实时读取当前 textarea 的光标。
+     * 父组件在插入图片按钮的 onMouseDown 里调用——此时焦点尚未从 textarea 离开，
+     * 所以 document.activeElement 一定是用户光标所在的 textarea。
+     */
+    const captureSelectionNow = useCallback(() => {
+      const ta = document.activeElement;
+      if (
+        ta instanceof HTMLTextAreaElement &&
+        containerRef.current?.contains(ta) &&
+        ta.dataset.partIndex !== undefined
+      ) {
+        lastSelRef.current = {
+          partIndex: parseInt(ta.dataset.partIndex, 10),
+          start: ta.selectionStart,
+          end: ta.selectionEnd,
+        };
+      }
+    }, []);
+
     const insertSnippet = useCallback(
       (snippet: string) => {
         setParts((prev) => {
-          // 优先用保存的光标位置（防止点按钮后 activeElement 变成按钮）
           const sel = lastSelRef.current;
           let merged: string;
+
           if (sel) {
             const { partIndex: idx, start, end } = sel;
             if (idx >= 0 && idx < prev.length && prev[idx].type === 'text') {
               const partText = (prev[idx] as MdPart & { type: 'text' }).text;
-              const before = joinRange(prev, 0, idx) + partText.slice(0, start);
-              const after = partText.slice(end) + joinRange(prev, idx + 1, prev.length);
+              // clamp start/end 防止 partText 在上次插入后已变短
+              const s = Math.min(start, partText.length);
+              const e = Math.min(end, partText.length);
+              const before = joinRange(prev, 0, idx) + partText.slice(0, s);
+              const after = partText.slice(e) + joinRange(prev, idx + 1, prev.length);
               merged = (before + snippet + after).slice(0, maxLength);
             } else {
+              // partIndex 已超出 parts 范围（结构变化），追加到末尾
               merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
             }
           } else {
             merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
           }
 
-          const newParts = splitAndNormalize(merged);
-
-          // 插入后立即把 lastSelRef 指向新图片之后的文字块（位置0）
-          // 这样下次再插图时坐标仍然有效，而不是用旧的 partIndex
-          const imgSrcMatch = /!\[[^\]]*\]\(([^)]+)\)/.exec(snippet);
-          if (imgSrcMatch) {
-            const insertedSrc = imgSrcMatch[1];
-            const imgIdx = newParts.findIndex(
-              (p) => p.type === 'image' && (p as MdPart & { type: 'image' }).src === insertedSrc,
-            );
-            if (imgIdx >= 0) {
-              const afterIdx = imgIdx + 1;
-              if (afterIdx < newParts.length && newParts[afterIdx].type === 'text') {
-                lastSelRef.current = { partIndex: afterIdx, start: 0, end: 0 };
-              } else if (imgIdx > 0 && newParts[imgIdx - 1].type === 'text') {
-                const t = (newParts[imgIdx - 1] as MdPart & { type: 'text' }).text;
-                lastSelRef.current = { partIndex: imgIdx - 1, start: t.length, end: t.length };
-              }
-            }
-          }
-
           onChange(merged);
-          return newParts;
+          return splitAndNormalize(merged);
         });
       },
       [maxLength, onChange]
     );
 
-    useImperativeHandle(ref, () => ({ insertSnippet }), [insertSnippet]);
+    useImperativeHandle(ref, () => ({ insertSnippet, captureSelectionNow }), [insertSnippet, captureSelectionNow]);
 
     return (
       <div
