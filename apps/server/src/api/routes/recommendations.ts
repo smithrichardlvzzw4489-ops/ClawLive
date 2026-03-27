@@ -6,7 +6,7 @@ import { getHostInfoBatch } from './rooms-simple';
 import { getFollowerCount } from '../../services/user-follows';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { works } from './rooms-simple';
-import { getFeedPostsScoredByCES } from '../../services/feed-posts-store';
+import { getFeedPostsScoredByCES, getFeedPostsMap } from '../../services/feed-posts-store';
 import { getUserInterestProfile, getFeedPostPersonalizationBoost } from '../../services/user-behavior';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
@@ -154,11 +154,13 @@ export function recommendationRoutes(): Router {
       const totalPublishedWorks = Array.from(works.values()).filter(
         (w) => w.status === 'published',
       ).length;
+      const totalFeedPosts = getFeedPostsMap().size;
 
       res.json({
         liveRooms: liveRooms.map(({ score, ...r }) => r),
         recommendedWorks: recommendedWorks.map(({ score, ...w }) => w),
         totalWorks: totalPublishedWorks,
+        totalFeedPosts,
         recommendedSkills,
         latestQuestions: questionsWithAuthor,
         news: news.slice(0, 5),

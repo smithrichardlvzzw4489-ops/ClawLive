@@ -46,14 +46,19 @@ export function feedPostsRoutes(): Router {
   const router = Router();
   const feedPostsMap = getFeedPostsMap();
 
-  router.get('/', async (_req: Request, res: Response) => {
+  router.get('/', async (req: Request, res: Response) => {
     try {
+      const { offset, limit } = req.query;
       const list = Array.from(feedPostsMap.values()).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      const authorIds = [...new Set(list.map((p) => p.authorId))];
+      const total = list.length;
+      const offsetNum = Math.max(0, parseInt(offset as string) || 0);
+      const limitNum = Math.min(Math.max(1, parseInt(limit as string) || 100), 100);
+      const page = list.slice(offsetNum, offsetNum + limitNum);
+      const authorIds = [...new Set(page.map((p) => p.authorId))];
       const authorMap = await getHostInfoBatch(authorIds);
-      const items = list.map((p) => {
+      const items = page.map((p) => {
         const author = authorMap.get(p.authorId);
         return {
           id: p.id,
@@ -71,7 +76,7 @@ export function feedPostsRoutes(): Router {
             : { id: p.authorId, username: 'Unknown', avatarUrl: null },
         };
       });
-      res.json({ posts: items });
+      res.json({ posts: items, total });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to list posts' });

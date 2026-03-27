@@ -56,23 +56,29 @@ export function HomeFeedSections() {
   const [recommendedWorks, setRecommendedWorks] = useState<Work[]>([]);
   const [extraWorks, setExtraWorks] = useState<Work[]>([]);
   const [feedPosts, setFeedPosts] = useState<FeedPostCardItem[]>([]);
+  const [extraFeedPosts, setExtraFeedPosts] = useState<FeedPostCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreWorks, setHasMoreWorks] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [activePartition, setActivePartition] = useState<string | null>(null);
   const breakpointCols = useFeedGridColumnCount();
 
-  // 已展示的 work id 集合，用于加载更多时去重
+  // 去重用：已展示的 id 集合
   const shownWorkIdsRef = useRef<Set<string>>(new Set());
-  // 下一次请求 /api/works 的 offset
+  const shownFeedPostIdsRef = useRef<Set<string>>(new Set());
+  // 各自的分页 offset
   const worksApiOffsetRef = useRef(0);
+  const feedPostsApiOffsetRef = useRef(0);
 
   const loadRecommendations = useCallback(async () => {
     setLoading(true);
     shownWorkIdsRef.current = new Set();
+    shownFeedPostIdsRef.current = new Set();
     worksApiOffsetRef.current = 0;
+    feedPostsApiOffsetRef.current = 0;
     setExtraWorks([]);
-    setHasMoreWorks(false);
+    setExtraFeedPosts([]);
+    setHasMore(false);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const headers: HeadersInit = {};
@@ -82,12 +88,15 @@ export function HomeFeedSections() {
       if (res.ok) {
         const data = await res.json();
         const recs: Work[] = data.recommendedWorks || [];
+        const fps: FeedPostCardItem[] = data.feedPosts || [];
         const totalWorks: number = data.totalWorks ?? recs.length;
+        const totalFeedPosts: number = data.totalFeedPosts ?? fps.length;
         setRecommendedWorks(recs);
-        setFeedPosts(data.feedPosts || []);
+        setFeedPosts(fps);
         recs.forEach((w) => shownWorkIdsRef.current.add(w.id));
-        // 用服务端总数判断：只要还有未展示的作品就显示"加载更多"
-        setHasMoreWorks(recs.length < totalWorks);
+        fps.forEach((p) => shownFeedPostIdsRef.current.add(p.id));
+        // 任一类有更多未展示内容就显示"加载更多"
+        setHasMore(recs.length < totalWorks || fps.length < totalFeedPosts);
       }
     } catch (e) {
       console.error('Error loading recommendations:', e);
@@ -100,26 +109,44 @@ export function HomeFeedSections() {
     void loadRecommendations();
   }, [loadRecommendations]);
 
-  const loadMoreWorks = useCallback(async () => {
+  const loadMore = useCallback(async () => {
     if (loadingMore) return;
     setLoadingMore(true);
     try {
-      const offset = worksApiOffsetRef.current;
-      const res = await fetch(
-        `${API_BASE_URL}/api/works?offset=${offset}&limit=${LOAD_MORE_SIZE}`,
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { works: Work[]; total: number };
-      const newWorks = (data.works || []).filter(
-        (w) => !shownWorkIdsRef.current.has(w.id),
-      );
-      newWorks.forEach((w) => shownWorkIdsRef.current.add(w.id));
-      setExtraWorks((prev) => [...prev, ...newWorks]);
-      const nextOffset = offset + LOAD_MORE_SIZE;
-      worksApiOffsetRef.current = nextOffset;
-      setHasMoreWorks(nextOffset < data.total);
+      const worksOffset = worksApiOffsetRef.current;
+      const feedOffset = feedPostsApiOffsetRef.current;
+
+      const [worksRes, feedRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/works?offset=${worksOffset}&limit=${LOAD_MORE_SIZE}`),
+        fetch(`${API_BASE_URL}/api/feed-posts?offset=${feedOffset}&limit=${LOAD_MORE_SIZE}`),
+      ]);
+
+      let moreWorks = false;
+      let moreFeed = false;
+
+      if (worksRes.ok) {
+        const data = (await worksRes.json()) as { works: Work[]; total: number };
+        const newWorks = (data.works || []).filter((w) => !shownWorkIdsRef.current.has(w.id));
+        newWorks.forEach((w) => shownWorkIdsRef.current.add(w.id));
+        setExtraWorks((prev) => [...prev, ...newWorks]);
+        const nextOffset = worksOffset + LOAD_MORE_SIZE;
+        worksApiOffsetRef.current = nextOffset;
+        moreWorks = nextOffset < data.total;
+      }
+
+      if (feedRes.ok) {
+        const data = (await feedRes.json()) as { posts: FeedPostCardItem[]; total: number };
+        const newPosts = (data.posts || []).filter((p) => !shownFeedPostIdsRef.current.has(p.id));
+        newPosts.forEach((p) => shownFeedPostIdsRef.current.add(p.id));
+        setExtraFeedPosts((prev) => [...prev, ...newPosts]);
+        const nextOffset = feedOffset + LOAD_MORE_SIZE;
+        feedPostsApiOffsetRef.current = nextOffset;
+        moreFeed = nextOffset < data.total;
+      }
+
+      setHasMore(moreWorks || moreFeed);
     } catch (e) {
-      console.error('Error loading more works:', e);
+      console.error('Error loading more:', e);
     } finally {
       setLoadingMore(false);
     }
@@ -130,6 +157,11 @@ export function HomeFeedSections() {
     [recommendedWorks, extraWorks],
   );
 
+  const allFeedPosts = useMemo(
+    () => [...feedPosts, ...extraFeedPosts],
+    [feedPosts, extraFeedPosts],
+  );
+
   const filteredWorks =
     activePartition === null
       ? allWorks
@@ -137,11 +169,11 @@ export function HomeFeedSections() {
 
   const showFeedInGrid = activePartition === null;
   const hasWorks = filteredWorks.length > 0;
-  const hasFeed = showFeedInGrid && feedPosts.length > 0;
+  const hasFeed = showFeedInGrid && allFeedPosts.length > 0;
   const hasAny = hasWorks || hasFeed;
 
   const totalItems =
-    filteredWorks.length + (showFeedInGrid ? feedPosts.length : 0);
+    filteredWorks.length + (showFeedInGrid ? allFeedPosts.length : 0);
   const columnCount = totalItems > 0 ? Math.min(breakpointCols, totalItems) : 1;
 
   const feedItems = useMemo((): MasonryItem[] => {
@@ -164,7 +196,7 @@ export function HomeFeedSections() {
       });
     }
     if (showFeedInGrid) {
-      for (const p of feedPosts) {
+      for (const p of allFeedPosts) {
         out.push({
           id: `p-${p.id}`,
           node: <FeedPostCard key={`p-${p.id}`} post={p} variant="xhs" />,
@@ -172,7 +204,7 @@ export function HomeFeedSections() {
       }
     }
     return out;
-  }, [filteredWorks, feedPosts, showFeedInGrid]);
+  }, [filteredWorks, allFeedPosts, showFeedInGrid]);
 
   return (
     <>
@@ -238,11 +270,11 @@ export function HomeFeedSections() {
         ) : (
           <>
             <HomeFeedMasonry items={feedItems} columnCount={columnCount} />
-            {hasMoreWorks && (
+            {hasMore && (
               <div className="mt-8 flex justify-center pb-4">
                 <button
                   type="button"
-                  onClick={() => void loadMoreWorks()}
+                  onClick={() => void loadMore()}
                   disabled={loadingMore}
                   className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-8 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-60"
                 >
