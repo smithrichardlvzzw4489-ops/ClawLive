@@ -326,6 +326,8 @@ export function lobsterRoutes(): Router {
     if (!llm) {
       return res.status(503).json({ error: '小龙虾暂时睡着了，请联系管理员配置 LLM 服务' });
     }
+    console.log(`[Lobster] Using model: ${llm.model}, baseURL: ${(llm.client as any).baseURL ?? '(default)'}`);
+
 
     // 保存用户消息
     const userMsg = {
@@ -450,8 +452,18 @@ export function lobsterRoutes(): Router {
 
       sseWrite(res, { type: 'done', id: assistantMsg.id });
     } catch (err) {
-      console.error('[Lobster Chat] error:', err);
-      sseWrite(res, { type: 'error', message: 'AI 服务暂时不可用，请稍后重试' });
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error('[Lobster Chat] error:', errMsg);
+      // 把具体错误原因透传给前端，方便调试
+      const userMsg2 =
+        errMsg.includes('API key') || errMsg.includes('401') || errMsg.includes('authentication')
+          ? 'LLM API Key 无效或未配置，请联系管理员'
+          : errMsg.includes('model') || errMsg.includes('404')
+            ? `模型不存在或不支持：${errMsg.slice(0, 120)}`
+            : errMsg.includes('timeout') || errMsg.includes('ETIMEDOUT')
+              ? 'AI 响应超时，请稍后重试'
+              : `AI 服务暂时不可用：${errMsg.slice(0, 120)}`;
+      sseWrite(res, { type: 'error', message: userMsg2 });
     }
 
     res.end();
