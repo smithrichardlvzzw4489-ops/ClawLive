@@ -2,12 +2,12 @@
  * 虾壳小龙虾 — 定时任务调度器
  * 使用 node-cron 执行用户设定的定时任务
  */
-import cron from 'node-cron';
+import cron, { ScheduledTask } from 'node-cron';
 import { loadSchedules, updateScheduleLastRun, LobsterSchedule } from './lobster-schedules';
 
 type TaskRunner = (schedule: LobsterSchedule) => Promise<void>;
 
-const _jobs = new Map<string, cron.ScheduledTask>();
+const _jobs = new Map<string, ScheduledTask>();
 let _runner: TaskRunner | null = null;
 
 export function setTaskRunner(runner: TaskRunner) {
