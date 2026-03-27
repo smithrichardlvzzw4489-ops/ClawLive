@@ -30,7 +30,7 @@ export const translations = {
       publishRetro: '写复盘',
       publishSkill: '创建能力流',
       publishLive: '创建直播',
-      myLobster: '我的虾仔',
+      myLobster: '虾仔',
       myAgent: '我的 Agent',
       myStreams: '我的直播',
       myProfile: '个人中心',
