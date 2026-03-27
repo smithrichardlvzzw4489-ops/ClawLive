@@ -695,7 +695,8 @@ export function lobsterRoutes(): Router {
   /** POST /api/lobster/transcribe — 语音转文字（Whisper） */
   router.post('/transcribe', authenticateToken, upload.single('audio'), async (req: AuthRequest, res: Response) => {
     if (!req.file) return res.status(400).json({ error: '请上传音频文件' });
-    const llm = await getLlmClient(resolveModel());
+    const userId = req.user!.id;
+    const llm = await getLlmClient(resolveModel(), userId);
     if (!llm) return res.status(503).json({ error: '语音服务未配置' });
     try {
       const { toFile } = await import('openai');
