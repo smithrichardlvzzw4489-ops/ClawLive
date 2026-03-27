@@ -3,9 +3,7 @@
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
-  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -33,23 +31,47 @@ export function splitMarkdownByImages(md: string): MdPart[] {
   return parts;
 }
 
-function escapeRegex(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** 首尾保证有可编辑文本块，图片两侧多余换行也会被清理 */
+function splitAndNormalize(md: string): MdPart[] {
+  const raw = splitMarkdownByImages(md);
+  if (raw.length === 0) return [{ type: 'text', text: '' }];
+  const out: MdPart[] = [...raw];
+  if (out[0].type === 'image') out.unshift({ type: 'text', text: '' });
+  if (out[out.length - 1].type === 'image') out.push({ type: 'text', text: '' });
+  for (let i = 0; i < out.length; i++) {
+    if (out[i].type !== 'text') continue;
+    const t = out[i] as MdPart & { type: 'text' };
+    if (i + 1 < out.length && out[i + 1].type === 'image') t.text = t.text.replace(/\n+$/g, '');
+    if (i > 0 && out[i - 1].type === 'image') t.text = t.text.replace(/^\n+/g, '');
+  }
+  return out;
 }
 
-// ── 编辑器 handle ────────────────────────────────────────────────────────────
+function joinMarkdownParts(parts: MdPart[]): string {
+  let out = '';
+  for (const p of parts) {
+    if (p.type === 'text') {
+      out += p.text;
+    } else {
+      if (out.length > 0 && !out.endsWith('\n')) out += '\n';
+      out += `![${p.alt}](${p.src})`;
+    }
+  }
+  return out;
+}
+
+function joinRange(parts: MdPart[], start: number, end: number): string {
+  return joinMarkdownParts(parts.slice(start, end));
+}
+
+// ── Handle ────────────────────────────────────────────────────────────────────
 
 export type FeedPostBodyEditorHandle = {
-  /** 在当前光标位置插入 markdown 片段（异步上传回调时调用） */
   insertSnippet: (snippet: string) => void;
-  /**
-   * 父组件在"插入图片"按钮 onMouseDown 时调用。
-   * 此时 textarea 仍有焦点，可精确读取光标位置。
-   */
   captureSelectionNow: () => void;
 };
 
-// ── 编辑器 Props ─────────────────────────────────────────────────────────────
+// ── Props ─────────────────────────────────────────────────────────────────────
 
 type Props = {
   initialContent: string;
@@ -63,68 +85,126 @@ type Props = {
 // ── 编辑器组件 ────────────────────────────────────────────────────────────────
 //
 // 设计原则：
-//   • 使用 **单个 <textarea>**，不再拆分成多个可编辑块。
-//   • 光标位置通过 insertPosRef 持续跟踪（onSelect / onKeyUp / onMouseUp / onFocus）。
-//   • captureSelectionNow() 在按钮 onMouseDown 时直接从 DOM 读取，100% 精确。
-//   • insertSnippet() 利用 insertPosRef 做字符串拼接，之后通过 nextCursorRef +
-//     useEffect 恢复焦点和光标。
-//   • 已插入的图片作为缩略图条显示在 textarea 下方，带「×」移除按钮。
+//   • 多段 textarea + 图片内联渲染（用户可直接看到已插入的图片）
+//   • 光标跟踪：用 textareaRefsMap（Map<partIndex, HTMLTextAreaElement>）存每个
+//     textarea 的 DOM ref；captureSelectionNow() 在按钮 onMouseDown 时直接从 DOM
+//     读取 selectionStart，不依赖 document.activeElement（该 API 在 mousedown 时
+//     焦点已切换到按钮，不可靠）
+//   • lastSelRef 由 onFocus / onSelect / onKeyUp / onMouseUp 持续更新，作为日常
+//     备份；captureSelectionNow() 在异步上传前做最终精确确认
 
 export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
   function FeedPostBodyEditor(
     { initialContent, onChange, maxLength, minRows = 14, className = '', placeholder = '' },
     ref,
   ) {
-    const [value, setValue] = useState(initialContent);
+    const [parts, setParts] = useState<MdPart[]>(() => splitAndNormalize(initialContent));
 
-    // 始终保持最新值，避免 insertSnippet 因闭包读到旧值
-    const valueRef = useRef(initialContent);
+    // partIndex -> 对应 textarea 的 DOM 节点
+    const textareaRefsMap = useRef<Map<number, HTMLTextAreaElement>>(new Map());
+    // 最后一次获得焦点的 textarea 的 part 下标
+    const lastFocusedIdxRef = useRef<number | null>(null);
+    // 最后确认的光标位置（由事件持续更新，captureSelectionNow 做精确覆盖）
+    const lastSelRef = useRef<{ partIndex: number; start: number; end: number } | null>(null);
 
-    // 最后一次确认的光标插入点（由事件持续更新）
-    const insertPosRef = useRef<number>(initialContent.length);
+    // ── 辅助：更新光标 ref（统一入口）────────────────────────────────────────
+    const updateSel = useCallback((i: number, ta: HTMLTextAreaElement) => {
+      lastFocusedIdxRef.current = i;
+      lastSelRef.current = { partIndex: i, start: ta.selectionStart, end: ta.selectionEnd };
+    }, []);
 
-    // 插入后需要恢复的光标位置（交给 useEffect 执行）
-    const nextCursorRef = useRef<number | null>(null);
+    // ── 行数自适应 ────────────────────────────────────────────────────────────
+    const rowsForTextPart = useCallback(
+      (part: MdPart, index: number) => {
+        if (part.type !== 'text') return 4;
+        const lines = part.text.split('\n');
+        let end = lines.length;
+        while (end > 0 && lines[end - 1] === '') end--;
+        const contentLines = Math.max(1, end);
+        const padded = contentLines + 1;
+        return index === 0
+          ? Math.max(3, Math.min(minRows, padded))
+          : Math.max(3, Math.min(14, padded));
+      },
+      [minRows],
+    );
 
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    // ── 内部工具 ──────────────────────────────────────────────────────────────
-
-    const syncValue = useCallback(
-      (v: string) => {
-        const t = v.slice(0, maxLength);
-        valueRef.current = t;
-        setValue(t);
-        onChange(t);
+    // ── 修改某段文字 ──────────────────────────────────────────────────────────
+    const updateTextPart = useCallback(
+      (index: number, text: string) => {
+        setParts((prev) => {
+          const next = prev.map((p, i) => (i === index && p.type === 'text' ? { ...p, text } : p));
+          const md = joinMarkdownParts(next).slice(0, maxLength);
+          onChange(md);
+          return splitAndNormalize(md);
+        });
       },
       [maxLength, onChange],
     );
 
-    const trackCursor = useCallback((ta: HTMLTextAreaElement) => {
-      insertPosRef.current = ta.selectionStart;
-    }, []);
+    // ── 移除某个图片 ──────────────────────────────────────────────────────────
+    const removeImageAt = useCallback(
+      (index: number) => {
+        setParts((prev) => {
+          const filtered = prev.filter((_, i) => i !== index);
+          const final = filtered.length ? filtered : [{ type: 'text' as const, text: '' }];
+          const md = joinMarkdownParts(final).slice(0, maxLength);
+          onChange(md);
+          return splitAndNormalize(md);
+        });
+      },
+      [maxLength, onChange],
+    );
 
-    // ── 对外暴露的 handle ─────────────────────────────────────────────────────
-
-    /** 在按钮 onMouseDown 时调用：此时 textarea 仍有焦点，直接从 DOM 读取 */
+    // ── captureSelectionNow ───────────────────────────────────────────────────
+    // 在父组件"插入图片"按钮的 onMouseDown 里调用。
+    // 此时浏览器的 mousedown 尚未完全处理（焦点还在 textarea），
+    // 可以从 textareaRefsMap 直接读到精确的 selectionStart。
     const captureSelectionNow = useCallback(() => {
-      const ta = textareaRef.current;
+      const idx = lastFocusedIdxRef.current;
+      if (idx === null) return;
+      const ta = textareaRefsMap.current.get(idx);
       if (ta) {
-        insertPosRef.current = ta.selectionStart;
+        lastSelRef.current = {
+          partIndex: idx,
+          start: ta.selectionStart,
+          end: ta.selectionEnd,
+        };
       }
     }, []);
 
-    /** 把 snippet 插入到 insertPosRef 指向的位置 */
+    // ── insertSnippet ─────────────────────────────────────────────────────────
+    // 用 lastSelRef 里保存的 partIndex + 偏移量做字符串拼接，
+    // 不依赖 document.activeElement 或 React 渲染时序。
     const insertSnippet = useCallback(
       (snippet: string) => {
-        const cur = valueRef.current;
-        const pos = Math.min(insertPosRef.current, cur.length);
-        const next = (cur.slice(0, pos) + snippet + cur.slice(pos)).slice(0, maxLength);
-        const cursorAfter = Math.min(pos + snippet.length, maxLength);
-        nextCursorRef.current = cursorAfter;
-        syncValue(next);
+        setParts((prev) => {
+          const sel = lastSelRef.current;
+          let merged: string;
+
+          if (sel) {
+            const { partIndex: idx, start, end } = sel;
+            if (idx >= 0 && idx < prev.length && prev[idx].type === 'text') {
+              const partText = (prev[idx] as MdPart & { type: 'text' }).text;
+              // clamp：防止上次插入后 partText 已变短而越界
+              const s = Math.min(start, partText.length);
+              const e = Math.min(end, partText.length);
+              const before = joinRange(prev, 0, idx) + partText.slice(0, s);
+              const after = partText.slice(e) + joinRange(prev, idx + 1, prev.length);
+              merged = (before + snippet + after).slice(0, maxLength);
+            } else {
+              // partIndex 已超出范围（结构变化），追加到末尾
+              merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
+            }
+          } else {
+            merged = (joinMarkdownParts(prev) + snippet).slice(0, maxLength);
+          }
+
+          onChange(merged);
+          return splitAndNormalize(merged);
+        });
       },
-      [maxLength, syncValue],
+      [maxLength, onChange],
     );
 
     useImperativeHandle(ref, () => ({ insertSnippet, captureSelectionNow }), [
@@ -132,84 +212,54 @@ export const FeedPostBodyEditor = forwardRef<FeedPostBodyEditorHandle, Props>(
       captureSelectionNow,
     ]);
 
-    // ── 插入后恢复焦点 & 光标 ────────────────────────────────────────────────
-    // 每次渲染后检查，一次性消费 nextCursorRef
-    useEffect(() => {
-      if (nextCursorRef.current !== null) {
-        const pos = nextCursorRef.current;
-        nextCursorRef.current = null;
-        const ta = textareaRef.current;
-        if (ta) {
-          ta.focus();
-          ta.setSelectionRange(pos, pos);
-          insertPosRef.current = pos;
-        }
-      }
-    });
-
-    // ── 底部缩略图条：解析正文中的图片 ──────────────────────────────────────
-    const embeddedImages = useMemo(() => {
-      const parts = splitMarkdownByImages(value);
-      return parts
-        .filter((p): p is Extract<MdPart, { type: 'image' }> => p.type === 'image')
-        .map((p) => ({ alt: p.alt, src: p.src }));
-    }, [value]);
-
-    const removeImage = useCallback(
-      (src: string) => {
-        const esc = escapeRegex(src);
-        const cleaned = valueRef.current
-          .replace(new RegExp(`\\n?!\\[[^\\]]*\\]\\(${esc}\\)\\n?`, 'g'), '\n')
-          .replace(/\n{3,}/g, '\n\n');
-        syncValue(cleaned);
-      },
-      [syncValue],
-    );
-
     // ── 渲染 ──────────────────────────────────────────────────────────────────
 
     return (
       <div
-        className={`rounded-lg border border-gray-300 bg-white focus-within:border-lobster focus-within:ring-2 focus-within:ring-lobster/30 ${className}`}
+        className={`rounded-lg border border-gray-300 bg-white px-4 py-3 focus-within:border-lobster focus-within:ring-2 focus-within:ring-lobster/30 ${className}`}
       >
-        <textarea
-          ref={textareaRef}
-          value={value}
-          rows={minRows}
-          placeholder={placeholder}
-          className="w-full resize-y bg-transparent px-4 py-3 font-mono text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none"
-          onChange={(e) => syncValue(e.target.value)}
-          onSelect={(e) => trackCursor(e.currentTarget)}
-          onKeyUp={(e) => trackCursor(e.currentTarget)}
-          onMouseUp={(e) => trackCursor(e.currentTarget)}
-          onFocus={(e) => trackCursor(e.currentTarget)}
-        />
-
-        {embeddedImages.length > 0 && (
-          <div className="border-t border-gray-100 px-3 py-2">
-            <p className="mb-1.5 text-xs text-gray-400">已插入图片（悬停后点击 × 可移除）</p>
-            <div className="flex flex-wrap gap-2">
-              {embeddedImages.map((img, idx) => (
-                <div key={`${idx}-${img.src.slice(-16)}`} className="group relative shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={resolveMediaUrl(img.src)}
-                    alt={img.alt}
-                    className="h-16 w-16 rounded-lg border border-gray-200 object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(img.src)}
-                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-gray-700 text-xs font-bold text-white shadow transition hover:bg-red-600 md:opacity-0 md:group-hover:opacity-100"
-                    title="移除此图片"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <div className="flex max-h-[min(70vh,36rem)] min-h-0 flex-col gap-2 overflow-y-auto">
+          {parts.map((part, i) =>
+            part.type === 'image' ? (
+              <figure
+                key={`img-${i}-${part.src.slice(-24)}`}
+                className="relative mx-auto max-w-full shrink-0"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveMediaUrl(part.src)}
+                  alt={part.alt}
+                  className="max-h-72 w-auto max-w-full rounded-lg border border-gray-100 object-contain shadow-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImageAt(i)}
+                  className="mt-1.5 text-xs text-gray-500 underline hover:text-red-600"
+                >
+                  移除图片
+                </button>
+              </figure>
+            ) : (
+              <textarea
+                key={`txt-${i}`}
+                ref={(el) => {
+                  if (el) textareaRefsMap.current.set(i, el);
+                  else textareaRefsMap.current.delete(i);
+                }}
+                data-part-index={i}
+                value={part.text}
+                onChange={(e) => updateTextPart(i, e.target.value)}
+                onFocus={(e) => updateSel(i, e.currentTarget)}
+                onSelect={(e) => updateSel(i, e.currentTarget)}
+                onKeyUp={(e) => updateSel(i, e.currentTarget)}
+                onMouseUp={(e) => updateSel(i, e.currentTarget)}
+                rows={rowsForTextPart(part, i)}
+                placeholder={i === 0 ? placeholder : undefined}
+                className="w-full resize-y bg-transparent font-mono text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none"
+              />
+            ),
+          )}
+        </div>
       </div>
     );
   },
