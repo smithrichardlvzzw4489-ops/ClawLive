@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { mkdirSync, existsSync } from 'fs';
+import { writeFile as writeFileAsync } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticateToken, AuthRequest, getUserIdFromBearer } from '../middleware/auth';
@@ -117,7 +118,7 @@ export function feedPostsRoutes(): Router {
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       const name = `${uuidv4()}.${parsed.ext}`;
       const rel = `/uploads/feed-posts/inline/${name}`;
-      writeFileSync(join(dir, name), parsed.buf);
+      await writeFileAsync(join(dir, name), parsed.buf);
       res.json({ url: rel });
     } catch (e) {
       console.error(e);
@@ -320,20 +321,24 @@ export function feedPostsRoutes(): Router {
         const uploadDir = join(UPLOADS_DIR, 'feed-posts', id);
         if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
 
-        const resolved: string[] = [];
+        const resolvedEntries: { idx: number; url: string; buf?: Buffer; path?: string }[] = [];
         for (let i = 0; i < images.length; i++) {
           const raw = images[i];
           if (typeof raw !== 'string') continue;
           if (raw.startsWith('/uploads/')) {
-            resolved.push(raw);
+            resolvedEntries.push({ idx: i, url: raw });
           } else {
             const parsed = parseDataUrl(raw);
             if (!parsed) return res.status(400).json({ error: `第${i + 1}张图片格式无效或过大` });
             const name = `${uuidv4()}.${parsed.ext}`;
-            writeFileSync(join(uploadDir, name), parsed.buf);
-            resolved.push(`/uploads/feed-posts/${id}/${name}`);
+            const filePath = join(uploadDir, name);
+            resolvedEntries.push({ idx: i, url: `/uploads/feed-posts/${id}/${name}`, buf: parsed.buf, path: filePath });
           }
         }
+        await Promise.all(
+          resolvedEntries.filter((e) => e.buf && e.path).map((e) => writeFileAsync(e.path!, e.buf!)),
+        );
+        const resolved = resolvedEntries.map((e) => e.url);
 
         // 图文：把用户选的封面排到第一位
         if (kind === 'imageText' && typeof coverIdx === 'number' && coverIdx >= 0 && coverIdx < resolved.length) {
@@ -397,19 +402,20 @@ export function feedPostsRoutes(): Router {
       const uploadDir = join(UPLOADS_DIR, 'feed-posts', id);
       if (!existsSync(uploadDir)) mkdirSync(uploadDir, { recursive: true });
 
-      const imageUrls: string[] = [];
+      const imageEntries: { url: string; buf: Buffer; path: string }[] = [];
       for (let i = 0; i < imgs.length; i++) {
         const raw = imgs[i];
         if (typeof raw !== 'string') continue;
         const parsed = parseDataUrl(raw);
         if (!parsed) return res.status(400).json({ error: `第${i + 1}张图片格式无效或过大` });
         const name = `${uuidv4()}.${parsed.ext}`;
-        writeFileSync(join(uploadDir, name), parsed.buf);
-        imageUrls.push(`/uploads/feed-posts/${id}/${name}`);
+        imageEntries.push({ url: `/uploads/feed-posts/${id}/${name}`, buf: parsed.buf, path: join(uploadDir, name) });
       }
-      if (imageUrls.length === 0) {
+      if (imageEntries.length === 0) {
         return res.status(400).json({ error: '请上传封面图片' });
       }
+      await Promise.all(imageEntries.map((e) => writeFileAsync(e.path, e.buf)));
+      const imageUrls = imageEntries.map((e) => e.url);
 
       const record: FeedPostRecord = {
         id,

@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { promises as fsp } from 'fs';
 import { getDataFilePath } from '../lib/data-path';
 
 const FILE = getDataFilePath('feed-posts.json');
@@ -44,14 +45,14 @@ export class FeedPostsPersistence {
   }
 
   static save(map: Map<string, FeedPostRecord>): void {
-    try {
-      const obj: Record<string, FeedPostRecord> = {};
-      map.forEach((v, k) => {
-        obj[k] = v;
-      });
-      fs.writeFileSync(FILE, JSON.stringify(obj, null, 2), 'utf-8');
-    } catch (e) {
+    const obj: Record<string, FeedPostRecord> = {};
+    map.forEach((v, k) => {
+      obj[k] = v;
+    });
+    const json = JSON.stringify(obj, null, 2);
+    // 异步写入，不阻塞 event loop
+    fsp.writeFile(FILE, json, 'utf-8').catch((e: unknown) => {
       console.error('Failed to save feed-posts:', e);
-    }
+    });
   }
 }

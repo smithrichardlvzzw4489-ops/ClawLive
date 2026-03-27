@@ -52,6 +52,7 @@ export default function FeedPostDetailPage() {
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
   const [following, setFollowing] = useState(false);
   const [followChecking, setFollowChecking] = useState(true);
@@ -63,6 +64,7 @@ export default function FeedPostDetailPage() {
 
   const loadPost = useCallback(async () => {
     if (!postId) return;
+    setLoadFailed(false);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`${API_BASE_URL}/api/feed-posts/${postId}`, {
@@ -72,7 +74,10 @@ export default function FeedPostDetailPage() {
         setNotFound(true);
         return;
       }
-      if (!res.ok) throw new Error('load failed');
+      if (!res.ok) {
+        setLoadFailed(true);
+        return;
+      }
       const data = (await res.json()) as PostDetail;
       setPost({
         ...data,
@@ -83,7 +88,7 @@ export default function FeedPostDetailPage() {
       });
       setCommentCount(typeof data.commentCount === 'number' ? data.commentCount : 0);
     } catch {
-      setNotFound(true);
+      setLoadFailed(true);
     } finally {
       setLoading(false);
     }
@@ -340,6 +345,30 @@ export default function FeedPostDetailPage() {
           <div className="text-center">
             <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-lobster"></div>
             <p className="text-gray-600">{t('loading')}</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (loadFailed) {
+    return (
+      <MainLayout {...layoutPost}>
+        <div className={articleContainerClass}>
+          <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-lobster">
+            ← {t('feedPost.backHome')}
+          </Link>
+        </div>
+        <div className="flex items-center justify-center py-16">
+          <div className="text-center">
+            <p className="mb-4 text-gray-600">加载失败，请稍后重试</p>
+            <button
+              type="button"
+              onClick={() => { setLoading(true); void loadPost(); }}
+              className="rounded-xl bg-lobster px-5 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              重试
+            </button>
           </div>
         </div>
       </MainLayout>

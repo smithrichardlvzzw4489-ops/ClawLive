@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { promises as fsp } from 'fs';
 import { getDataFilePath } from '../lib/data-path';
 import type { FeedPostRecord } from './feed-posts-persistence';
 
@@ -21,15 +22,13 @@ function load() {
 }
 
 function persist() {
-  try {
-    const o: Record<string, Reactions> = {};
-    byPost.forEach((v, k) => {
-      o[k] = { likes: [...v.likes], favorites: [...v.favorites] };
-    });
-    fs.writeFileSync(FILE, JSON.stringify(o, null, 2), 'utf-8');
-  } catch (e) {
+  const o: Record<string, Reactions> = {};
+  byPost.forEach((v, k) => {
+    o[k] = { likes: [...v.likes], favorites: [...v.favorites] };
+  });
+  fsp.writeFile(FILE, JSON.stringify(o, null, 2), 'utf-8').catch((e: unknown) => {
     console.error('Failed to save feed-post-reactions:', e);
-  }
+  });
 }
 
 load();

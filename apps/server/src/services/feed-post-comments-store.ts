@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import { promises as fsp } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { getDataFilePath } from '../lib/data-path';
 
@@ -25,11 +26,9 @@ function loadRaw(): Store {
 }
 
 function save(data: Store): void {
-  try {
-    fs.writeFileSync(FILE, JSON.stringify(data, null, 2));
-  } catch (e) {
+  fsp.writeFile(FILE, JSON.stringify(data, null, 2)).catch((e: unknown) => {
     console.error('Failed to save feed post comments:', e);
-  }
+  });
 }
 
 function revive(list: FeedPostCommentRecord[]): FeedPostCommentRecord[] {
