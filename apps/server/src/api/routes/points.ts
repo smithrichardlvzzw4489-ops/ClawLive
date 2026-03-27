@@ -8,6 +8,7 @@ import {
   increaseVirtualKeyBudget,
   isLitellmConfigured,
   LitellmNotConfiguredError,
+  fetchKeyStats,
 } from '../../services/litellm-budget';
 import { testLiteLLMWithMasterKey, testLiteLLMWithVirtualKey } from '../../services/llm';
 
@@ -82,6 +83,50 @@ export function pointsRoutes(): IRouter {
       return res.status(502).json({
         error: `LLM_TEST_FAILED: ${detail}`,
       });
+    }
+  });
+
+  /** Key 余额、使用记录、充值历史 */
+  router.get('/llm/key-stats', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { litellmVirtualKey: true },
+      });
+      if (!user?.litellmVirtualKey) {
+        return res.status(404).json({ error: 'NO_VIRTUAL_KEY' });
+      }
+      if (!isLitellmConfigured()) {
+        return res.status(503).json({ error: 'LITELLM_NOT_CONFIGURED' });
+      }
+
+      const [stats, ledger] = await Promise.allSettled([
+        fetchKeyStats(user.litellmVirtualKey),
+        prisma.pointLedger.findMany({
+          where: { userId, reason: { in: ['redeem_llm', 'redeem_llm_refund'] } },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: { createdAt: true, delta: true, balanceAfter: true, reason: true, metadata: true },
+        }),
+      ]);
+
+      res.json({
+        keyStats: stats.status === 'fulfilled' ? stats.value : null,
+        redeemHistory:
+          ledger.status === 'fulfilled'
+            ? ledger.value.map((r) => ({
+                createdAt: r.createdAt,
+                delta: r.delta,
+                balanceAfter: r.balanceAfter,
+                reason: r.reason,
+                usd: (r.metadata as Record<string, unknown>)?.usd ?? null,
+              }))
+            : [],
+      });
+    } catch (e) {
+      console.error('GET /api/points/llm/key-stats', e);
+      res.status(500).json({ error: 'Failed to load key stats' });
     }
   });
 

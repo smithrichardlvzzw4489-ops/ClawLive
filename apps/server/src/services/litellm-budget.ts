@@ -25,6 +25,55 @@ type KeyInfoShape = {
   };
 };
 
+export type SpendLog = {
+  request_id?: string;
+  model?: string;
+  spend?: number;
+  total_tokens?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  startTime?: string;
+  endTime?: string;
+};
+
+export type KeyStats = {
+  maxBudgetUsd: number | null;
+  spendUsd: number;
+  remainingUsd: number | null;
+  usageLogs: SpendLog[];
+};
+
+export async function fetchKeyStats(virtualKey: string): Promise<KeyStats> {
+  const { base, masterKey } = requireLitellm();
+
+  const [infoData, logsData] = await Promise.allSettled([
+    fetchKeyInfo(virtualKey),
+    (async () => {
+      const url = new URL(`${base}/spend/logs`);
+      url.searchParams.set('api_key', virtualKey);
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${masterKey}` },
+      });
+      if (!res.ok) return [];
+      const text = await res.text();
+      try {
+        const parsed = JSON.parse(text);
+        return Array.isArray(parsed) ? (parsed as SpendLog[]) : [];
+      } catch {
+        return [];
+      }
+    })(),
+  ]);
+
+  const info = infoData.status === 'fulfilled' ? infoData.value?.info : undefined;
+  const maxBudgetUsd = typeof info?.max_budget === 'number' ? info.max_budget : null;
+  const spendUsd = typeof info?.spend === 'number' ? info.spend : 0;
+  const remainingUsd = maxBudgetUsd !== null ? Math.max(0, maxBudgetUsd - spendUsd) : null;
+  const usageLogs = logsData.status === 'fulfilled' ? logsData.value : [];
+
+  return { maxBudgetUsd, spendUsd, remainingUsd, usageLogs };
+}
+
 export async function generateVirtualKey(params: {
   userId: string;
   maxBudgetUsd: number;

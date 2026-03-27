@@ -141,6 +141,7 @@ export const api = {
         headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
       }),
     getVirtualKey: () => fetchAPI('/api/points/llm/virtual-key'),
+    keyStats: () => fetchAPI('/api/points/llm/key-stats'),
     testLlm: (body?: { message?: string; useVirtualKey?: boolean; model?: string }) =>
       fetchAPI('/api/points/llm/test', {
         method: 'POST',
