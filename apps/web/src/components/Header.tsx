@@ -65,7 +65,6 @@ export function Header({ leftNav = true }: HeaderProps) {
           className={`flex min-w-0 items-center justify-between gap-2 md:justify-start md:gap-1 ${isHome ? 'md:flex-1' : 'shrink-0'}`}
         >
           <Link href="/" className="flex shrink-0 items-center gap-2">
-            <span className="text-3xl leading-none">🦞</span>
             <span className="text-xl font-bold tracking-tight text-lobster sm:text-2xl">{BRAND_ZH}</span>
           </Link>
 
