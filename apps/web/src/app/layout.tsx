@@ -52,7 +52,7 @@ export default function RootLayout({
       >
         <LocaleProvider>
           <ArticleFontProvider>{children}</ArticleFontProvider>
-          <AgentChatWidget />
+          {/* <AgentChatWidget /> */}
         </LocaleProvider>
       </body>
     </html>
