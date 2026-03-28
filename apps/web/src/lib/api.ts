@@ -167,6 +167,15 @@ export const api = {
     deleteFile: (fileId: string) =>
       fetchAPI(`/api/lobster/files/${fileId}`, { method: 'DELETE' }),
   },
+  agentKeys: {
+    list: () => fetchAPI('/api/open/agent/keys'),
+    create: (agentName: string, agentType?: string) =>
+      fetchAPI('/api/open/agent/register', {
+        method: 'POST',
+        body: JSON.stringify({ agentName, agentType: agentType || 'custom' }),
+      }),
+    revoke: (keyId: string) => fetchAPI(`/api/open/agent/keys/${keyId}`, { method: 'DELETE' }),
+  },
   publishedSkills: {
     list: (params?: { q?: string; tag?: string; page?: number }) => {
       const qs = new URLSearchParams();
