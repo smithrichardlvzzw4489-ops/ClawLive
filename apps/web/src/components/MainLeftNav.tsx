@@ -46,6 +46,7 @@ export function MainLeftNav() {
         {item('/', t('nav.home'), '🏠')}
         {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
         {item('/my-lobster', t('nav.myLobster'), '🦀')}
+        {item('/skills', t('nav.market'), '🧩')}
         <PublishAndAuthControls variant="rail" />
       </nav>
     </aside>
