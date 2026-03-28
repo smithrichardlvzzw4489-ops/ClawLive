@@ -157,12 +157,6 @@ export const api = {
       fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message, model, image }) }),
     clearHistory: () => fetchAPI('/api/lobster/history', { method: 'DELETE' }),
     keyStatus: () => fetchAPI('/api/lobster/key-status'),
-    setPersonalKey: (key: string, baseUrl?: string) =>
-      fetchAPI('/api/lobster/personal-key', {
-        method: 'POST',
-        body: JSON.stringify({ key, baseUrl }),
-      }),
-    deletePersonalKey: () => fetchAPI('/api/lobster/personal-key', { method: 'DELETE' }),
   },
   platform: {
     getModels: () => fetchAPI('/api/platform/models'),

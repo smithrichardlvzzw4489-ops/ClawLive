@@ -31,9 +31,6 @@ interface PlatformModel {
 
 interface KeyStatus {
   hasPlatformKey: boolean;
-  hasPersonalKey: boolean;
-  personalKeyMasked: string | null;
-  personalApiBaseUrl: string | null;
   clawPoints: number;
   litellmConfigured: boolean;
 }
@@ -133,54 +130,18 @@ function TypingIndicator() {
 function KeySetupSheet({
   keyStatus,
   onClose,
-  onSaved,
 }: {
   keyStatus: KeyStatus;
   onClose: () => void;
-  onSaved: () => void;
 }) {
-  const [tab, setTab] = useState<'platform' | 'personal'>(
-    keyStatus.hasPlatformKey || keyStatus.litellmConfigured ? 'platform' : 'personal',
-  );
-  const [personalKey, setPersonalKey] = useState('');
-  const [baseUrl, setBaseUrl] = useState(keyStatus.personalApiBaseUrl ?? 'https://openrouter.ai/api/v1');
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [deleting, setDeleting] = useState(false);
-
-  const handleSavePersonal = async () => {
-    if (!personalKey.trim()) return;
-    setSaving(true);
-    setMsg('');
-    try {
-      await api.lobster.setPersonalKey(personalKey.trim(), baseUrl.trim() || undefined);
-      setMsg('✅ 已保存');
-      setTimeout(onSaved, 800);
-    } catch (err) {
-      setMsg(`❌ ${err instanceof Error ? err.message : '保存失败'}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeletePersonal = async () => {
-    setDeleting(true);
-    try {
-      await api.lobster.deletePersonalKey();
-      onSaved();
-    } catch {
-      setDeleting(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div>
-            <h2 className="font-bold text-gray-900">配置 API Key</h2>
-            <p className="text-xs text-gray-500 mt-0.5">虾仔需要 Key 才能调用 AI</p>
+            <h2 className="font-bold text-gray-900">虾仔 · API Key 状态</h2>
+            <p className="text-xs text-gray-500 mt-0.5">使用平台积分兑换的虚拟 Key 调用 AI</p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -189,140 +150,44 @@ function KeySetupSheet({
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100">
-          <button
-            onClick={() => setTab('platform')}
-            className={`flex-1 py-3 text-sm font-medium transition ${
-              tab === 'platform'
-                ? 'border-b-2 border-lobster text-lobster'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            🦀 平台虚拟 Key
-          </button>
-          <button
-            onClick={() => setTab('personal')}
-            className={`flex-1 py-3 text-sm font-medium transition ${
-              tab === 'personal'
-                ? 'border-b-2 border-lobster text-lobster'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            🔑 自己的 Key
-          </button>
-        </div>
-
         <div className="px-5 py-5 space-y-4">
-          {tab === 'platform' && (
-            <div className="space-y-4">
-              {keyStatus.litellmConfigured ? (
-                keyStatus.hasPlatformKey ? (
-                  <div className="rounded-xl bg-green-50 border border-green-200 p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-green-500 text-lg">✅</span>
-                      <p className="font-semibold text-green-800 text-sm">平台虚拟 Key 已就绪</p>
-                    </div>
-                    <p className="text-xs text-green-700 ml-7">
-                      虾仔将使用你通过积分兑换的虚拟 Key，消耗 Key 余额。
-                    </p>
-                    <p className="text-xs text-green-600 ml-7 mt-1">
-                      当前积分余额：{keyStatus.clawPoints.toLocaleString()} 积分
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-500 text-lg">⚠️</span>
-                      <p className="font-semibold text-amber-800 text-sm">暂无平台虚拟 Key</p>
-                    </div>
-                    <p className="text-xs text-amber-700">
-                      平台虚拟 Key 通过积分兑换获得，可用于调用 AI 模型，每次对话消耗对应额度。
-                    </p>
-                    <p className="text-xs text-amber-600">
-                      当前积分余额：{keyStatus.clawPoints.toLocaleString()} 积分
-                    </p>
-                    <a
-                      href="/points"
-                      className="block w-full rounded-xl bg-lobster py-2.5 text-center text-sm font-semibold text-white hover:bg-lobster-dark"
-                    >
-                      前往积分中心兑换
-                    </a>
-                  </div>
-                )
-              ) : (
-                <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
-                  <p className="text-sm text-gray-600">
-                    平台暂未开启 LiteLLM 代理服务，无法使用平台虚拟 Key。
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">请切换至「自己的 Key」选项。</p>
+          {keyStatus.litellmConfigured ? (
+            keyStatus.hasPlatformKey ? (
+              <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-green-500 text-lg">✅</span>
+                  <p className="font-semibold text-green-800 text-sm">平台虚拟 Key 已就绪</p>
                 </div>
-              )}
-            </div>
-          )}
-
-          {tab === 'personal' && (
-            <div className="space-y-4">
-              <p className="text-xs text-gray-500">
-                填入 OpenRouter / OpenAI 兼容的 API Key，Key 直接从你的账户扣费，平台不收取额外费用。
-              </p>
-
-              {keyStatus.hasPersonalKey && (
-                <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-blue-800">当前已配置个人 Key</p>
-                    <p className="text-xs text-blue-600 font-mono mt-0.5">{keyStatus.personalKeyMasked}</p>
-                    {keyStatus.personalApiBaseUrl && (
-                      <p className="text-xs text-blue-500 mt-0.5">{keyStatus.personalApiBaseUrl}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleDeletePersonal}
-                    disabled={deleting}
-                    className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
-                  >
-                    {deleting ? '删除中...' : '删除'}
-                  </button>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">API Key</label>
-                <input
-                  type="password"
-                  value={personalKey}
-                  onChange={(e) => setPersonalKey(e.target.value)}
-                  placeholder="sk-..."
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  API Base URL <span className="font-normal text-gray-400">（可选，默认 OpenRouter）</span>
-                </label>
-                <input
-                  type="text"
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="https://openrouter.ai/api/v1"
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
-                />
-              </div>
-
-              {msg && (
-                <p className={`text-sm text-center ${msg.startsWith('✅') ? 'text-green-600' : 'text-red-500'}`}>
-                  {msg}
+                <p className="text-xs text-green-700 ml-7">
+                  虾仔将使用你通过积分兑换的虚拟 Key 调用 AI，消耗 Key 余额。
                 </p>
-              )}
-
-              <button
-                onClick={handleSavePersonal}
-                disabled={saving || !personalKey.trim()}
-                className="w-full rounded-xl bg-lobster py-2.5 text-sm font-semibold text-white hover:bg-lobster-dark disabled:opacity-50"
-              >
-                {saving ? '保存中...' : '保存 Key'}
-              </button>
+                <p className="text-xs text-green-600 ml-7 mt-1">
+                  当前积分余额：{keyStatus.clawPoints.toLocaleString()} 积分
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-500 text-lg">⚠️</span>
+                  <p className="font-semibold text-amber-800 text-sm">暂无平台虚拟 Key</p>
+                </div>
+                <p className="text-xs text-amber-700">
+                  虾仔需要平台虚拟 Key 才能调用 AI，前往积分中心用积分兑换后即可使用。
+                </p>
+                <p className="text-xs text-amber-600">
+                  当前积分余额：{keyStatus.clawPoints.toLocaleString()} 积分
+                </p>
+                <a
+                  href="/points"
+                  className="block w-full rounded-xl bg-lobster py-2.5 text-center text-sm font-semibold text-white hover:bg-lobster-dark"
+                >
+                  前往积分中心兑换
+                </a>
+              </div>
+            )
+          ) : (
+            <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+              <p className="text-sm text-gray-600">平台 AI 服务暂未开放，请稍后再试。</p>
             </div>
           )}
         </div>
@@ -977,14 +842,14 @@ export default function MyLobsterPage() {
           {/* Key 状态指示器 */}
           <button
             onClick={() => setShowKeySetup(true)}
-            title={keyStatus?.hasPlatformKey || keyStatus?.hasPersonalKey ? 'Key 已配置' : '点击配置 Key'}
+            title={keyStatus?.hasPlatformKey ? 'Key 已配置' : '点击查看 Key 状态'}
             className={`shrink-0 flex items-center gap-1 rounded-xl px-2 py-1 text-xs font-medium transition ${
-              keyStatus?.hasPlatformKey || keyStatus?.hasPersonalKey
+              keyStatus?.hasPlatformKey
                 ? 'bg-green-50 text-green-600 hover:bg-green-100'
                 : 'bg-amber-50 text-amber-600 hover:bg-amber-100 animate-pulse'
             }`}
           >
-            {keyStatus?.hasPlatformKey || keyStatus?.hasPersonalKey ? (
+            {keyStatus?.hasPlatformKey ? (
               <>
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
                 Key
@@ -1127,10 +992,6 @@ export default function MyLobsterPage() {
         <KeySetupSheet
           keyStatus={keyStatus}
           onClose={() => setShowKeySetup(false)}
-          onSaved={() => {
-            setShowKeySetup(false);
-            loadKeyStatus();
-          }}
         />
       )}
     </MainLayout>
