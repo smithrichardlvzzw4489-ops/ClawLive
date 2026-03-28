@@ -464,7 +464,7 @@ function SkillDetailModal({
         )}
 
         <p className="mt-4 text-xs text-gray-400">
-          在虾米对话框中说"帮我安装技能 {skill.id}"，虾米会自动安装并使用此技能。
+          在虾米对话框中说&ldquo;帮我安装技能 {skill.id}&rdquo;，虾米会自动安装并使用此技能。
         </p>
       </div>
     </div>
