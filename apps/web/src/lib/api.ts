@@ -157,6 +157,7 @@ export const api = {
   lobster: {
     me: () => fetchAPI('/api/lobster/me'),
     apply: (name?: string) => fetchAPI('/api/lobster/apply', { method: 'POST', body: JSON.stringify({ name }) }),
+    rename: (name: string) => fetchAPI('/api/lobster/name', { method: 'PATCH', body: JSON.stringify({ name }) }),
     history: () => fetchAPI('/api/lobster/history'),
     chat: (message: string, image?: string, pageContext?: string, pageUrl?: string) =>
       fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message, image, pageContext, pageUrl }) }),

@@ -13,6 +13,7 @@ import {
   getLobsterInstance,
   getAllInstances,
   applyLobster,
+  renameLobster,
   getLobsterConversation,
   appendLobsterMessage,
   clearLobsterConversation,
@@ -1365,6 +1366,25 @@ export function lobsterRoutes(): Router {
     } catch (err) {
       console.error('[Lobster] Apply error:', err);
       return res.status(500).json({ error: '申请失败，请稍后重试' });
+    }
+  });
+
+  /** PATCH /api/lobster/name */
+  router.patch('/name', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const { name } = req.body as { name?: string };
+    if (typeof name !== 'string') {
+      return res.status(400).json({ error: 'name 必须是字符串' });
+    }
+    const trimmed = name.trim();
+    if (trimmed.length > 20) {
+      return res.status(400).json({ error: '名字最长 20 个字' });
+    }
+    try {
+      const instance = await renameLobster(userId, trimmed);
+      return res.json({ success: true, instance });
+    } catch (err) {
+      return res.status(400).json({ error: (err as Error).message });
     }
   });
 

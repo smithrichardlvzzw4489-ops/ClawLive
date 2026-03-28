@@ -622,6 +622,10 @@ export default function MyLobsterPage() {
   const [sending, setSending] = useState(false);
   const [applying, setApplying] = useState(false);
   const [lobsterNameInput, setLobsterNameInput] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [nameEditValue, setNameEditValue] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -689,6 +693,28 @@ export default function MyLobsterPage() {
       setMessages(msgs.length > 0 ? msgs : [WELCOME_MESSAGE]);
     } catch {
       setMessages([WELCOME_MESSAGE]);
+    }
+  };
+
+  const handleStartEditName = () => {
+    setNameEditValue(instance?.name || '');
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.focus(), 30);
+  };
+
+  const handleSaveName = async () => {
+    if (nameSaving) return;
+    setNameSaving(true);
+    try {
+      const data = await api.lobster.rename(nameEditValue);
+      if (data.success) {
+        setInstance(data.instance);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setNameSaving(false);
+      setEditingName(false);
     }
   };
 
@@ -963,7 +989,34 @@ export default function MyLobsterPage() {
         <div className="flex shrink-0 items-center gap-3 border-b border-gray-200/60 bg-white/80 px-4 py-3 backdrop-blur-sm">
           <LobsterAvatar size="md" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900">{instance?.name || '虾米'}</p>
+            {editingName ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  ref={nameInputRef}
+                  value={nameEditValue}
+                  onChange={(e) => setNameEditValue(e.target.value.slice(0, 20))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSaveName();
+                    if (e.key === 'Escape') setEditingName(false);
+                  }}
+                  onBlur={handleSaveName}
+                  placeholder="虾米"
+                  className="w-32 rounded-lg border border-lobster/40 bg-white px-2 py-0.5 text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-lobster/20"
+                />
+                {nameSaving && <span className="text-xs text-gray-400">保存中…</span>}
+              </div>
+            ) : (
+              <button
+                onClick={handleStartEditName}
+                className="group flex items-center gap-1 text-left"
+                title="点击修改名字"
+              >
+                <span className="font-semibold text-gray-900">{instance?.name || '虾米'}</span>
+                <svg className="h-3 w-3 text-gray-300 opacity-0 transition group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
+                </svg>
+              </button>
+            )}
             <p className="text-xs text-green-500">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
 

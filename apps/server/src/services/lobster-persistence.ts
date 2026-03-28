@@ -125,6 +125,14 @@ export async function clearLobsterConversation(userId: string): Promise<void> {
   await saveConversations();
 }
 
+export async function renameLobster(userId: string, name: string): Promise<LobsterInstance> {
+  const inst = instances.get(userId);
+  if (!inst) throw new Error('请先申请虾米');
+  inst.name = name.trim() || undefined;
+  await saveInstances();
+  return inst;
+}
+
 export async function setPersonalApiKey(
   userId: string,
   key: string,
