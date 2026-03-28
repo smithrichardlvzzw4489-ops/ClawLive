@@ -147,10 +147,12 @@ async function fetchLitellmModels(): Promise<string[]> {
 
 /** 轻量模型关键词（优先级排列） */
 const SIMPLE_MODEL_KEYWORDS = [
-  'gemini-2.0-flash', 'gemini-flash', 'gemini-2.5-flash',
-  'gpt-4o-mini', 'gpt-5-nano', 'gpt-5-mini',
-  'claude-haiku', 'deepseek-chat', 'deepseek-v3',
-  'llama', 'qwen', 'mistral',
+  'gpt-4o-mini', 'gpt-5-nano', 'gpt-5-mini', 'gpt-4.1-mini', 'gpt-4.1-nano',
+  'gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-lite',
+  'claude-haiku', 'claude-3-5-haiku',
+  'deepseek-chat', 'deepseek-v3',
+  'ministral', 'mistral-small', 'mistral-7b',
+  'llama', 'qwen',
 ];
 
 /** 强模型关键词（优先级排列） */
