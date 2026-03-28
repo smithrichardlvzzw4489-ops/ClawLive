@@ -117,20 +117,14 @@ function isSimpleRequest(message: string): boolean {
 }
 
 /**
- * 双模型路由：根据任务复杂度选择最合适的模型
- * 简单：DeepSeek-V3（便宜快）
- * 复杂：DeepSeek-R1 / Claude / GPT-4o（强但贵）
+ * 双模型路由：根据任务复杂度选择最合适的模型。
+ * baseModel 是已通过 resolveModel() 解析出的配置模型（强模型兜底）。
+ * 仅当 LOBSTER_MODEL_SIMPLE 明确配置时才对简单任务降级，否则始终使用 baseModel。
  */
-function routeModel(message: string): string {
-  const simpleModel =
-    process.env.LOBSTER_MODEL_SIMPLE ||
-    process.env.LOBSTER_MODEL ||
-    'deepseek/deepseek-chat';
-  const strongModel =
-    process.env.LOBSTER_MODEL_STRONG ||
-    process.env.LOBSTER_MODEL ||
-    'deepseek/deepseek-chat';
-  return isSimpleRequest(message) ? simpleModel : strongModel;
+function routeModel(message: string, baseModel: string): string {
+  const simpleModel = process.env.LOBSTER_MODEL_SIMPLE;
+  if (simpleModel && isSimpleRequest(message)) return simpleModel;
+  return process.env.LOBSTER_MODEL_STRONG || baseModel;
 }
 
 // ─── 动态 max_tokens ──────────────────────────────────────────────────────────
@@ -1314,8 +1308,8 @@ export function lobsterRoutes(): Router {
       systemContent += `\n\n---\n[用户自定义技能 — 你还拥有以下额外安装的技能]\n\n${skillsBlock}`;
     }
 
-    // 双模型路由
-    const routedModel = routeModel(message);
+    // 双模型路由：以 llm.model 为强模型兜底，仅在配置 LOBSTER_MODEL_SIMPLE 时才降级
+    const routedModel = routeModel(message, llm.model);
     // 动态 max_tokens
     const dynamicMaxTokens = calcMaxTokens(message);
 
