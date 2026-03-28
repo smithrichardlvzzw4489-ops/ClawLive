@@ -116,45 +116,19 @@ function isSimpleRequest(message: string): boolean {
   return msg.length < 60; // 短消息默认简单
 }
 
-/**
- * 已知"强模型"关键词（按优先级排列）
- * 匹配到的 enabled 模型将作为复杂任务首选
- */
-const STRONG_MODEL_KEYWORDS = [
-  'deepseek-r1', 'deepseek-reasoner',
-  'claude-3-7', 'claude-3-5-sonnet', 'claude-opus',
-  'gpt-4o', 'o1', 'o3',
-  'gemini-2.0-pro', 'gemini-pro',
-];
+/** 平台默认轻量模型：快且便宜，处理日常对话 */
+const PLATFORM_SIMPLE_MODEL = 'openrouter/google/gemini-2.0-flash-001';
+/** 平台默认强模型：复杂推理/写作/工具调用 */
+const PLATFORM_STRONG_MODEL = 'openrouter/anthropic/claude-sonnet-4.6';
 
 /**
- * 已知"轻量模型"关键词（按优先级排列）
- * 匹配到的 enabled 模型将作为简单任务首选
- */
-const SIMPLE_MODEL_KEYWORDS = [
-  'gpt-4o-mini', 'gemini-flash', 'gemini-2.0-flash',
-  'claude-haiku', 'deepseek-chat', 'deepseek-v3',
-  'llama', 'qwen', 'mistral',
-];
-
-/**
- * 双模型路由：从平台已启用模型中自动选出"强"和"轻量"模型，按任务复杂度路由。
- * baseModel 作为兜底（始终可用）。
+ * 双模型路由：简单任务用轻量模型，复杂任务用强模型。
+ * 无需任何配置，模型已内置。baseModel 仅作最终兜底。
  */
 function routeModel(message: string, baseModel: string): string {
-  const enabledModels = loadPlatformModels().models
-    .filter((m: { enabled: boolean }) => m.enabled)
-    .map((m: { id: string }) => m.id);
-
-  if (enabledModels.length < 2) return baseModel; // 只有一个模型，无需路由
-
-  const findModel = (keywords: string[]) =>
-    keywords.flatMap((kw) => enabledModels.filter((id: string) => id.toLowerCase().includes(kw))).at(0);
-
-  const strongModel = findModel(STRONG_MODEL_KEYWORDS) ?? baseModel;
-  const simpleModel = findModel(SIMPLE_MODEL_KEYWORDS) ?? baseModel;
-
-  return isSimpleRequest(message) ? simpleModel : strongModel;
+  return isSimpleRequest(message)
+    ? PLATFORM_SIMPLE_MODEL
+    : PLATFORM_STRONG_MODEL;
 }
 
 // ─── 动态 max_tokens ──────────────────────────────────────────────────────────
