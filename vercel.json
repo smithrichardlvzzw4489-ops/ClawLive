@@ -1,4 +1,8 @@
 {
   "buildCommand": "pnpm exec turbo build --filter=@clawlive/web",
-  "installCommand": "pnpm install"
+  "installCommand": "pnpm install",
+  "functions": {
+    "apps/web/app/**": { "maxDuration": 300 },
+    "apps/web/**/*.js": { "maxDuration": 300 }
+  }
 }

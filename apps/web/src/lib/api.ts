@@ -1,10 +1,15 @@
 const _BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 /**
- * Client-side: empty string → requests go through Next.js rewrites (Vercel proxy).
- * Server-side: actual backend URL for SSR / API routes.
+ * Client-side: use NEXT_PUBLIC_API_URL directly to call Railway backend,
+ * bypassing Vercel's serverless proxy (which has a 10-60s timeout that kills SSE streams).
+ * Falls back to '' (relative URL via Next.js rewrite) only in local dev without env var.
+ * Server-side: always use the full backend URL.
  */
-export const API_BASE_URL = typeof window === 'undefined' ? _BACKEND_URL : '';
+export const API_BASE_URL =
+  typeof window === 'undefined'
+    ? _BACKEND_URL
+    : process.env.NEXT_PUBLIC_API_URL || '';
 
 /** Actual backend origin for server-only contexts (e.g. video-proxy, OG images). */
 export const SERVER_API_URL = _BACKEND_URL;
