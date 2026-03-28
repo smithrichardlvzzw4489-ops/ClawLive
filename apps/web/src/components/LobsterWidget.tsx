@@ -98,9 +98,6 @@ export function LobsterWidget() {
   /** 记录上次注入的路径，路径变化时重置 */
   const lastInjectedPathRef = useRef('');
 
-  // /my-lobster 页面自身不显示 Widget
-  if (pathname === '/my-lobster') return null;
-
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -310,9 +307,9 @@ export function LobsterWidget() {
     }
   };
 
-  // 不登录不显示
+  // /my-lobster 页面自身不显示 Widget；未登录不显示
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  if (!token) return null;
+  if (pathname === '/my-lobster' || !token) return null;
 
   return (
     <>
