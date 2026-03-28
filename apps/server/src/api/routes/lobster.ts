@@ -65,7 +65,7 @@ import { writeFile as writeFileAsync } from 'fs/promises';
 import { join } from 'path';
 import { UPLOADS_DIR } from '../../lib/data-path';
 
-const MAX_REACT_STEPS = 6;
+const MAX_REACT_STEPS = 100;
 
 // ─── web_search 结果缓存（TTL 10 分钟） ──────────────────────────────────────
 const searchCache = new Map<string, { result: string; expiry: number }>();
@@ -188,11 +188,9 @@ async function routeModel(message: string, baseModel: string): Promise<string> {
       .at(0);
 
   const simpleModel = find(SIMPLE_MODEL_KEYWORDS) ?? baseModel;
-  const strongModel = find(STRONG_MODEL_KEYWORDS) ?? baseModel;
 
-  const chosen = isSimpleRequest(message) ? simpleModel : strongModel;
-  console.log(`[Lobster] route: ${isSimpleRequest(message) ? 'simple' : 'complex'} → ${chosen}`);
-  return chosen;
+  console.log(`[Lobster] route: simple → ${simpleModel}`);
+  return simpleModel;
 }
 
 // ─── 动态 max_tokens ──────────────────────────────────────────────────────────
