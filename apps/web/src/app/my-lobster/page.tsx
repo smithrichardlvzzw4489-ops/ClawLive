@@ -577,10 +577,8 @@ export default function MyLobsterPage() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showFilesPanel, setShowFilesPanel] = useState(false);
 
-  // model state
+  // admin model config (hidden from users, accessible to admins only)
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [showModelPicker, setShowModelPicker] = useState(false);
 
   // key state
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
@@ -609,7 +607,6 @@ export default function MyLobsterPage() {
       return;
     }
     loadStatus();
-    loadPlatformModels();
     loadKeyStatus();
   }, [router]);
 
@@ -617,18 +614,6 @@ export default function MyLobsterPage() {
     try {
       const data = await api.lobster.keyStatus();
       setKeyStatus(data as KeyStatus);
-    } catch {
-      // ignore
-    }
-  };
-
-  const loadPlatformModels = async () => {
-    try {
-      const data = await api.platform.getModels();
-      const models: PlatformModel[] = data.models || [];
-      setPlatformModels(models);
-      const first = models.find((m: PlatformModel) => m.enabled);
-      if (first && !selectedModel) setSelectedModel(first.id);
     } catch {
       // ignore
     }
@@ -724,7 +709,7 @@ export default function MyLobsterPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message: text || '请描述这张图片', model: selectedModel || undefined, image: imageToSend || undefined }),
+        body: JSON.stringify({ message: text || '请描述这张图片', image: imageToSend || undefined }),
         signal: ctrl.signal,
       });
 
@@ -856,13 +841,9 @@ export default function MyLobsterPage() {
   const handleSaveModels = async (models: PlatformModel[], secret: string) => {
     await api.platform.saveModels(models, secret);
     setPlatformModels(models);
-    const first = models.find((m) => m.enabled);
-    if (first) setSelectedModel(first.id);
     setShowAdminPanel(false);
   };
 
-  const enabledModels = platformModels.filter((m) => m.enabled);
-  const selectedModelName = platformModels.find((m) => m.id === selectedModel)?.name || selectedModel || '默认模型';
 
   // ── Loading ──
   if (applied === null) {
@@ -921,54 +902,17 @@ export default function MyLobsterPage() {
             <p className="text-xs text-green-500">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
 
-          {/* Model picker */}
-          <div className="relative shrink-0">
-            <button
-              onClick={() => setShowModelPicker((v) => !v)}
-              className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-100"
-            >
-              <span className="max-w-[90px] truncate">{selectedModelName}</span>
-              <svg className="h-3 w-3 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {showModelPicker && (
-              <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-                {enabledModels.length === 0 ? (
-                  <p className="px-3 py-2 text-xs text-gray-400">暂无可用模型</p>
-                ) : (
-                  enabledModels.map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }}
-                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                        selectedModel === m.id ? 'font-semibold text-lobster' : 'text-gray-700'
-                      }`}
-                    >
-                      {selectedModel === m.id && (
-                        <svg className="h-3.5 w-3.5 shrink-0 text-lobster" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-                        </svg>
-                      )}
-                      <span className={selectedModel === m.id ? '' : 'ml-5'}>{m.name}</span>
-                    </button>
-                  ))
-                )}
-                <div className="my-1 border-t border-gray-100" />
-                <button
-                  onClick={() => { setShowModelPicker(false); setShowAdminPanel(true); }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-400 hover:bg-gray-50"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  管理模型配置
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Admin: model config (hidden button, admin-only access) */}
+          <button
+            onClick={() => setShowAdminPanel(true)}
+            title="管理模型配置"
+            className="shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-gray-100 hover:text-gray-500"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
 
           {/* Key 状态指示器 */}
           <button
@@ -1017,7 +961,7 @@ export default function MyLobsterPage() {
         {/* Messages */}
         <div
           className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4"
-          onClick={() => setShowModelPicker(false)}
+          onClick={() => { /* close any open panels */ }}
         >
           <div className="space-y-4">
             {messages.map((msg) => (

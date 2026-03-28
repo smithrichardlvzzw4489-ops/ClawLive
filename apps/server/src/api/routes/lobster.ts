@@ -67,6 +67,83 @@ import { UPLOADS_DIR } from '../../lib/data-path';
 
 const MAX_REACT_STEPS = 6;
 
+// ─── web_search 结果缓存（TTL 10 分钟） ──────────────────────────────────────
+const searchCache = new Map<string, { result: string; expiry: number }>();
+const SEARCH_CACHE_TTL = 10 * 60 * 1000;
+
+function getCachedSearch(query: string): string | null {
+  const cached = searchCache.get(query.toLowerCase().trim());
+  if (!cached) return null;
+  if (Date.now() > cached.expiry) { searchCache.delete(query.toLowerCase().trim()); return null; }
+  return cached.result;
+}
+function setCachedSearch(query: string, result: string): void {
+  if (searchCache.size > 200) {
+    const oldest = Array.from(searchCache.entries()).sort((a, b) => a[1].expiry - b[1].expiry)[0];
+    if (oldest) searchCache.delete(oldest[0]);
+  }
+  searchCache.set(query.toLowerCase().trim(), { result, expiry: Date.now() + SEARCH_CACHE_TTL });
+}
+
+// ─── 双模型路由：判断任务复杂度 ───────────────────────────────────────────────
+
+/** 简单任务关键词 */
+const SIMPLE_PATTERNS = [
+  /^(你好|hi|hello|嗨|在吗|在不|谢谢|好的|ok|👍)/i,
+  /^.{0,30}[？?]$/,   // 短句问句
+  /^(今天|现在|几点|日期|天气|什么是|解释下|简单说)/,
+];
+/** 复杂任务关键词 → 需要强模型 */
+const COMPLEX_PATTERNS = [
+  /写(代码|程序|脚本|爬虫|算法|函数)/,
+  /做(PPT|ppt|幻灯|演示文稿)/,
+  /分析(数据|报告|竞品|市场|趋势)/,
+  /生成(图片|图像|封面)/,
+  /(周报|月报|总结|汇报|方案|规划)/,
+  /(帮我写|帮我做|帮我生成|帮我分析)/,
+  /执行(代码|python|程序)/i,
+];
+
+/**
+ * 判断是否为简单请求（用小模型即可）
+ * 返回 true = 简单，false = 复杂（需强模型）
+ */
+function isSimpleRequest(message: string): boolean {
+  const msg = message.trim();
+  if (msg.length > 200) return false; // 长消息通常是复杂任务
+  if (COMPLEX_PATTERNS.some((p) => p.test(msg))) return false;
+  if (SIMPLE_PATTERNS.some((p) => p.test(msg))) return true;
+  return msg.length < 60; // 短消息默认简单
+}
+
+/**
+ * 双模型路由：根据任务复杂度选择最合适的模型
+ * 简单：DeepSeek-V3（便宜快）
+ * 复杂：DeepSeek-R1 / Claude / GPT-4o（强但贵）
+ */
+function routeModel(message: string): string {
+  const simpleModel =
+    process.env.LOBSTER_MODEL_SIMPLE ||
+    process.env.LOBSTER_MODEL ||
+    'deepseek/deepseek-chat';
+  const strongModel =
+    process.env.LOBSTER_MODEL_STRONG ||
+    process.env.LOBSTER_MODEL ||
+    'deepseek/deepseek-chat';
+  return isSimpleRequest(message) ? simpleModel : strongModel;
+}
+
+// ─── 动态 max_tokens ──────────────────────────────────────────────────────────
+
+function calcMaxTokens(message: string, isToolStep = false): number {
+  if (isToolStep) return 800;
+  const msg = message.toLowerCase();
+  if (/写(代码|函数|脚本|程序)|create_ppt|生成.*文章|长文|详细/.test(msg)) return 2000;
+  if (/(分析|报告|总结|方案|计划|ppt|幻灯)/.test(msg) || msg.length > 150) return 1500;
+  if (isSimpleRequest(message)) return 600;
+  return 1000; // 默认
+}
+
 const LOBSTER_SYSTEM_PROMPT = `你是"虾米"，虾米平台（clawclub.live）的专属 AI 助手。
 你的定位：
 - 聪明、友善、偶尔有一点幽默感，像一个懂 AI 的朋友
@@ -596,6 +673,12 @@ async function executeTool(
       if (!apiKey) {
         return '⚠️ 网页搜索功能暂未启用（需配置 TAVILY_API_KEY）。将根据已有知识回答。';
       }
+      // 命中缓存直接返回
+      const cached = getCachedSearch(query);
+      if (cached) {
+        const creditInfo = args.__creditInfo__ ? `\n\n${args.__creditInfo__}` : '';
+        return cached + creditInfo;
+      }
       try {
         const resp = await fetch('https://api.tavily.com/search', {
           method: 'POST',
@@ -619,6 +702,7 @@ async function executeTool(
               `[${i + 1}] ${r.title}\n${r.content.slice(0, 300)}\n来源：${r.url}`,
           )
           .join('\n\n');
+        setCachedSearch(query, searchResult);
         const creditInfo = args.__creditInfo__ ? `\n\n${args.__creditInfo__}` : '';
         return searchResult + creditInfo;
       } catch (err) {
@@ -1215,14 +1299,14 @@ export function lobsterRoutes(): Router {
       const safeUrl = pageUrl ? ` (${pageUrl})` : '';
       systemContent += `\n\n---\n[当前页面上下文${safeUrl}]\n用户正在浏览以下页面，请结合此内容理解用户问题：\n${pageContext.slice(0, 3000)}`;
     }
-    // 注入所有官方技能
+    // 注入官方技能索引（标题 + 描述摘要，节省 tokens）
     if (officialSkillsAll.length > 0) {
-      const officialBlock = officialSkillsAll
-        .map((s) => `### ${s.title}\n${s.skillMarkdown}`)
-        .join('\n\n---\n\n');
-      systemContent += `\n\n---\n[平台官方技能 — 你默认拥有以下全部能力，可直接使用]\n\n${officialBlock}`;
+      const officialIndex = officialSkillsAll
+        .map((s) => `- **${s.title}**: ${s.skillMarkdown.split('\n').find((l) => l.trim() && !l.startsWith('#'))?.slice(0, 120) ?? s.skillMarkdown.slice(0, 120)}`)
+        .join('\n');
+      systemContent += `\n\n---\n[平台官方技能索引 — 你默认拥有以下全部能力，可直接使用]\n${officialIndex}`;
     }
-    // 注入用户额外安装的技能
+    // 用户自安装技能注入完整内容（安装数量少，价值高）
     if (installedSkills.length > 0) {
       const skillsBlock = installedSkills
         .map((s) => `### ${s.title}\n${s.skillMarkdown}`)
@@ -1230,9 +1314,15 @@ export function lobsterRoutes(): Router {
       systemContent += `\n\n---\n[用户自定义技能 — 你还拥有以下额外安装的技能]\n\n${skillsBlock}`;
     }
 
+    // 双模型路由
+    const routedModel = routeModel(message);
+    // 动态 max_tokens
+    const dynamicMaxTokens = calcMaxTokens(message);
+
+    // 压缩历史：仅保留最近 6 条，减少 token 消耗
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: 'system', content: systemContent },
-      ...conv.messages.slice(-20).map((m) => ({
+      ...conv.messages.slice(-6).map((m) => ({
         role: m.role as 'user' | 'assistant',
         content: m.content,
       })),
@@ -1257,20 +1347,20 @@ export function lobsterRoutes(): Router {
         let response: OpenAI.Chat.Completions.ChatCompletion;
         try {
           response = await llm.client.chat.completions.create({
-            model: llm.model,
+            model: routedModel,
             messages,
             tools: toolsSupported ? allTools : undefined,
             tool_choice: toolsSupported ? ('auto' as const) : undefined,
-            max_tokens: 1200,
+            max_tokens: step === 0 ? dynamicMaxTokens : calcMaxTokens(message, true),
             temperature: 0.7,
           });
         } catch (toolErr) {
           toolsSupported = false;
           console.warn('[Lobster] Tool calling failed, falling back to plain chat:', toolErr);
           response = await llm.client.chat.completions.create({
-            model: llm.model,
+            model: routedModel,
             messages,
-            max_tokens: 1200,
+            max_tokens: step === 0 ? dynamicMaxTokens : calcMaxTokens(message, true),
             temperature: 0.7,
           });
         }
@@ -1338,7 +1428,7 @@ export function lobsterRoutes(): Router {
         // 如果已经是最后一步还有工具调用，强制让模型给出最终回复
         if (step === MAX_REACT_STEPS - 1) {
           const finalResp = await llm.client.chat.completions.create({
-            model: llm.model,
+            model: routedModel,
             messages,
             max_tokens: 800,
             temperature: 0.7,

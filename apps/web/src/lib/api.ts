@@ -153,8 +153,8 @@ export const api = {
     me: () => fetchAPI('/api/lobster/me'),
     apply: () => fetchAPI('/api/lobster/apply', { method: 'POST' }),
     history: () => fetchAPI('/api/lobster/history'),
-    chat: (message: string, model?: string, image?: string, pageContext?: string, pageUrl?: string) =>
-      fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message, model, image, pageContext, pageUrl }) }),
+    chat: (message: string, image?: string, pageContext?: string, pageUrl?: string) =>
+      fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message, image, pageContext, pageUrl }) }),
     clearHistory: () => fetchAPI('/api/lobster/history', { method: 'DELETE' }),
     keyStatus: () => fetchAPI('/api/lobster/key-status'),
     listFiles: () => fetchAPI('/api/lobster/files'),
