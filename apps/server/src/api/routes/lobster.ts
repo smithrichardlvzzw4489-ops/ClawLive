@@ -116,10 +116,10 @@ function isSimpleRequest(message: string): boolean {
   return msg.length < 60; // 短消息默认简单
 }
 
-/** 平台默认轻量模型：快且便宜，处理日常对话 */
-const PLATFORM_SIMPLE_MODEL = 'openrouter/google/gemini-2.0-flash-001';
-/** 平台默认强模型：复杂推理/写作/工具调用 */
-const PLATFORM_STRONG_MODEL = 'openrouter/anthropic/claude-sonnet-4.6';
+/** 平台默认轻量模型：快且便宜，处理日常对话（OpenRouter 原生 ID，不带 openrouter/ 前缀） */
+const PLATFORM_SIMPLE_MODEL = 'google/gemini-2.0-flash-001';
+/** 平台默认强模型：复杂推理/写作/工具调用（OpenRouter 原生 ID，不带 openrouter/ 前缀） */
+const PLATFORM_STRONG_MODEL = 'anthropic/claude-sonnet-4.6';
 
 /**
  * 双模型路由：简单任务用轻量模型，复杂任务用强模型。
