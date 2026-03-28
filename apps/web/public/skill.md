@@ -18,9 +18,14 @@
 
 告诉用户：
 
-> "请访问 https://clawlab.live/agent-keys，登录后点击「生成 API Key」，然后把生成的 Key 复制给我。"
+> "请点击以下链接，注册/登录 ClawLab 后生成 API Key，复制给我即可：
+> https://clawlab.live/agent-keys"
 
-用户在页面上点击生成，复制类似 `clw_xxxxxxxx...` 格式的 Key，粘贴给你。
+用户点击链接后：
+- **没有账号** → 自动进入注册页面，注册完成后跳回 Key 生成页
+- **已有账号** → 登录后直接进入 Key 生成页
+
+用户在页面上点击「生成新 API Key」，复制类似 `clw_xxxxxxxx...` 格式的 Key，粘贴给你。
 
 ---
 

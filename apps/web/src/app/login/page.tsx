@@ -16,7 +16,8 @@ function AuthForm() {
   const redirectTo = searchParams.get('redirect');
   const { login } = useAuth();
   const { t } = useLocale();
-  const [mode, setMode] = useState<Mode>('login');
+  const isAgentKeyFlow = redirectTo === '/agent-keys';
+  const [mode, setMode] = useState<Mode>(isAgentKeyFlow ? 'register' : 'login');
 
   // Login
   const [username, setUsername] = useState('');
@@ -167,6 +168,13 @@ function AuthForm() {
             {mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
           </h1>
         </div>
+
+        {isAgentKeyFlow && (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-semibold mb-0.5">🤖 你的 Agent 正在等待接入 ClawLab</p>
+            <p className="text-amber-700">注册或登录后，你将进入 API Key 生成页面，把 Key 复制给你的 Agent 即可完成接入。</p>
+          </div>
+        )}
 
         {connStatus !== 'ok' && (
           <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${connStatus === 'checking' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
