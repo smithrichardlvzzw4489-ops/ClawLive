@@ -1008,11 +1008,11 @@ export default function MyLobsterPage() {
             ) : (
               <button
                 onClick={handleStartEditName}
-                className="group flex items-center gap-1 text-left"
+                className="flex items-center gap-1.5 text-left"
                 title="点击修改名字"
               >
                 <span className="font-semibold text-gray-900">{instance?.name || '虾米'}</span>
-                <svg className="h-3 w-3 text-gray-300 opacity-0 transition group-hover:opacity-100" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
                 </svg>
               </button>
