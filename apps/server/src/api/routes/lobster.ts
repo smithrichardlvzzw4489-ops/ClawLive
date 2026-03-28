@@ -545,7 +545,7 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'publish_post',
       description:
-        '将内容正式发布到虾米平台。你完全有权限调用此工具代替用户发布内容。调用前需先把完整标题和正文展示给用户预览，收到用户确认（如"发布吧"、"确认"、"好的"等）后立即调用。如果用户同时发送了图片，图片将自动作为封面。',
+        '将内容发布到虾米平台。**必须两步调用**：第一步传 confirmed=false，工具会返回预览文本，你把预览展示给用户并询问"确认发布吗？"；第二步等用户明确同意（如"发布"、"确认"、"好的"、"可以"等）后，再次调用并传 confirmed=true 才会真正发布。绝不能在未经用户同意时直接传 confirmed=true。',
       parameters: {
         type: 'object',
         properties: {
@@ -556,8 +556,12 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             enum: ['article', 'imageText'],
             description: 'article=文章（长内容）；imageText=图文（短内容+图片，正文不超过1000字）',
           },
+          confirmed: {
+            type: 'boolean',
+            description: '是否已收到用户的明确发布确认。第一次调用必须传 false；用户说"确认/发布/好的"后第二次调用传 true。',
+          },
         },
-        required: ['title', 'content', 'kind'],
+        required: ['title', 'content', 'kind', 'confirmed'],
       },
     },
   },
@@ -995,12 +999,19 @@ async function executeTool(
       const title = String(args.title || '').trim();
       const content = String(args.content || '').trim();
       const kind: 'article' | 'imageText' = args.kind === 'imageText' ? 'imageText' : 'article';
+      const confirmed = args.confirmed === true;
 
       if (!title) return '❌ 发布失败：标题不能为空。';
       if (!content) return '❌ 发布失败：正文不能为空。';
       if (title.length > 120) return '❌ 发布失败：标题超过 120 字。';
       if (kind === 'imageText' && content.length > 1000) return '❌ 发布失败：图文正文不能超过 1000 字。';
       if (kind === 'article' && content.length > 20000) return '❌ 发布失败：文章正文不能超过 20000 字。';
+
+      // 未经用户确认 → 返回预览，要求模型等待用户确认后再次调用
+      if (!confirmed) {
+        const preview = content.length > 300 ? content.slice(0, 300) + '……（正文已省略）' : content;
+        return `📋 **发布预览**\n\n**标题：** ${title}\n\n**正文：**\n${preview}\n\n---\n⚠️ 尚未发布。请将以上内容展示给用户，询问"确认发布吗？"，等用户明确同意后再次调用 publish_post 并设置 confirmed=true。`;
+      }
 
       // 封面图：优先用用户本次对话发送的图片，无则自动生成文字卡片
       const id = uuidv4();
@@ -1054,7 +1065,7 @@ async function executeTool(
       saveFeedPosts();
 
       console.log(`[Lobster] publish_post: user=${userId} id=${id} kind=${kind} title="${title}"`);
-      return `✅ 发布成功！\n\n**${title}**\n\n链接：/posts/${id}`;
+      return `✅ 发布成功！\n\n**${title}**\n\n链接：https://clawclub.live/posts/${id}`;
     }
 
     // ── 浏览器工具 ──────────────────────────────────────────────────────────────

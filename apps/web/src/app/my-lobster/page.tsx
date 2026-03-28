@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { api, APIError, API_BASE_URL } from '@/lib/api';
@@ -63,6 +63,40 @@ function LobsterAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   );
 }
 
+/** 将文本中的 Markdown 链接 [text](url) 和裸 URL 转换为可点击的 React 节点数组 */
+function renderTextWithLinks(text: string, isUser: boolean): React.ReactNode[] {
+  const linkColor = isUser ? 'text-white underline decoration-white/60' : 'text-lobster underline decoration-lobster/40';
+  const parts: React.ReactNode[] = [];
+  // 匹配 Markdown 链接 [text](url) 或裸 URL
+  const pattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s，。！？、\]）)]+)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    if (match[1] && match[2]) {
+      // Markdown 链接
+      parts.push(
+        <a key={key++} href={match[2]} target="_blank" rel="noopener noreferrer" className={linkColor}>
+          {match[1]}
+        </a>
+      );
+    } else if (match[3]) {
+      // 裸 URL
+      parts.push(
+        <a key={key++} href={match[3]} target="_blank" rel="noopener noreferrer" className={linkColor}>
+          {match[3]}
+        </a>
+      );
+    }
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
 function MessageBubble({ msg }: { msg: LobsterMessage }) {
   const isUser = msg.role === 'user';
 
@@ -78,6 +112,15 @@ function MessageBubble({ msg }: { msg: LobsterMessage }) {
     );
   }
 
+  // 将内容按换行拆分，逐段渲染链接
+  const renderContent = (text: string) =>
+    text.split('\n').map((line, i, arr) => (
+      <React.Fragment key={i}>
+        {renderTextWithLinks(line, isUser)}
+        {i < arr.length - 1 && <br />}
+      </React.Fragment>
+    ));
+
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isUser && <LobsterAvatar size="sm" />}
@@ -88,7 +131,7 @@ function MessageBubble({ msg }: { msg: LobsterMessage }) {
             : 'rounded-tl-sm bg-white text-gray-800 shadow-sm ring-1 ring-gray-100'
         }`}
       >
-        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+        <p className="whitespace-pre-wrap break-words">{renderContent(msg.content)}</p>
         {msg.streaming && (
           <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-current opacity-70" />
         )}
