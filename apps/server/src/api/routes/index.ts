@@ -22,9 +22,11 @@ import { pointsRoutes } from './points';
 import { lobsterRoutes } from './lobster';
 import { platformRoutes } from './platform';
 import { publishedSkillsRoutes } from './published-skills';
+import { openApiRoutes } from './open';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
+  app.use('/api/open', openApiRoutes());
   app.use('/api/points', pointsRoutes());
   app.use('/api/platform', platformRoutes());
   app.use('/api/lobster', lobsterRoutes());

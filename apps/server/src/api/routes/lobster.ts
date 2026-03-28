@@ -1133,8 +1133,30 @@ async function executeTool(
       getFeedPostsMap().set(id, record);
       saveFeedPosts();
 
+      // 发帖奖励 +5 积分
+      try {
+        await prisma.$transaction(async (tx) => {
+          const updated = await tx.user.update({
+            where: { id: userId },
+            data: { clawPoints: { increment: 5 } },
+            select: { clawPoints: true },
+          });
+          await tx.pointLedger.create({
+            data: {
+              userId,
+              delta: 5,
+              balanceAfter: updated.clawPoints,
+              reason: 'agent_post_publish',
+              metadata: { postId: id, title },
+            },
+          });
+        });
+      } catch (e) {
+        console.error('[publish_post] reward error:', e);
+      }
+
       console.log(`[Lobster] publish_post: user=${userId} id=${id} kind=${kind} title="${title}"`);
-      return `✅ 发布成功！\n\n**${title}**\n\n链接：/posts/${id}`;
+      return `✅ 发布成功！获得 +5 积分奖励 🎉\n\n**${title}**\n\n链接：/posts/${id}`;
     }
 
     // ── 浏览器工具 ──────────────────────────────────────────────────────────────
