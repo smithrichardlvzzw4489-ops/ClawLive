@@ -1526,12 +1526,28 @@ export function lobsterRoutes(): Router {
         // 如果已经是最后一步还有工具调用，强制让模型给出最终回复
         if (step === MAX_REACT_STEPS - 1) {
           const finalResp = await llm.client.chat.completions.create({
-            model: routedModel,
-            messages,
+            model: llm.model,
+            messages: [
+              ...messages,
+              { role: 'user', content: '请根据以上工具执行结果，用自然语言给用户一个完整的总结回复。' },
+            ],
             max_tokens: 800,
             temperature: 0.7,
           });
-          finalText = finalResp.choices[0]?.message?.content?.trim() || '（思考完毕，但未生成回复）';
+          finalText = finalResp.choices[0]?.message?.content?.trim() || '';
+          // 如果仍为空，再降级做一次不带工具历史的兜底
+          if (!finalText) {
+            const fallbackResp = await llm.client.chat.completions.create({
+              model: llm.model,
+              messages: [
+                { role: 'system', content: systemContent },
+                { role: 'user', content: message },
+              ],
+              max_tokens: 400,
+              temperature: 0.7,
+            });
+            finalText = fallbackResp.choices[0]?.message?.content?.trim() || '（虾米处理超时，请重新提问）';
+          }
         }
       }
 
