@@ -26,8 +26,12 @@ const OFFICIAL_PREFIX = 'official-';
 
 function getConfigPaths(): string[] {
   const dataPath = getDataFilePath('official-skills.json');
-  const repoPath = path.join(process.cwd(), 'data', 'official-skills.json');
-  return [dataPath, repoPath];
+  // __dirname in compiled output = apps/server/dist/services/
+  // Going up 4 levels reaches the repo root where data/ lives
+  const repoRootPath = path.join(__dirname, '../../../../data', 'official-skills.json');
+  // Fallback: process.cwd()-based (works in local dev where cwd = apps/server)
+  const cwdPath = path.join(process.cwd(), 'data', 'official-skills.json');
+  return [dataPath, repoRootPath, cwdPath];
 }
 
 export function loadOfficialSkills(): OfficialSkillItem[] {
