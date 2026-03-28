@@ -33,6 +33,7 @@
     "node-cron": "^4.2.1",
     "openai": "^6.32.0",
     "playwright-core": "^1.58.2",
+    "pptxgenjs": "^4.0.1",
     "redis": "^4.6.12",
     "sharp": "^0.33.2",
     "socket.io": "^4.6.1",
