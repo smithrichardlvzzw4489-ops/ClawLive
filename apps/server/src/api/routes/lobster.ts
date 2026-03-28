@@ -958,17 +958,27 @@ export function lobsterRoutes(): Router {
 
     // 读取永久记忆，注入到系统提示
     const memoryContent = readMemory(userId);
-    // 读取用户已安装的技能，注入技能说明
+    // 官方技能对所有用户默认开放，无需安装
+    const officialSkillsAll = loadOfficialSkills();
+    // 用户额外安装的自定义技能
     const installedSkills = getUserInstalledSkills(userId);
     let systemContent = LOBSTER_SYSTEM_PROMPT;
     if (memoryContent) {
       systemContent += `\n\n---\n[用户记忆]\n${memoryContent}`;
     }
+    // 注入所有官方技能
+    if (officialSkillsAll.length > 0) {
+      const officialBlock = officialSkillsAll
+        .map((s) => `### ${s.title}\n${s.skillMarkdown}`)
+        .join('\n\n---\n\n');
+      systemContent += `\n\n---\n[平台官方技能 — 你默认拥有以下全部能力，可直接使用]\n\n${officialBlock}`;
+    }
+    // 注入用户额外安装的技能
     if (installedSkills.length > 0) {
       const skillsBlock = installedSkills
         .map((s) => `### ${s.title}\n${s.skillMarkdown}`)
         .join('\n\n---\n\n');
-      systemContent += `\n\n---\n[已安装技能 — 你可以直接使用以下技能完成任务]\n\n${skillsBlock}`;
+      systemContent += `\n\n---\n[用户自定义技能 — 你还拥有以下额外安装的技能]\n\n${skillsBlock}`;
     }
 
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
