@@ -86,7 +86,7 @@ export async function generateCover(
       (line, i) =>
         `<text x="50%" y="${summaryStartY + i * summaryLineHeight}"
            dominant-baseline="auto" text-anchor="middle"
-           font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif"
+           font-family="'Noto Sans CJK SC','Noto Sans SC','WenQuanYi Zen Hei','PingFang SC','Microsoft YaHei',sans-serif"
            font-size="${summaryFontSize}" fill="${theme.text}" font-weight="400"
            letter-spacing="2">${escapeXml(line)}</text>`,
     )
@@ -101,7 +101,7 @@ export async function generateCover(
       (line, i) =>
         `<text x="50%" y="${titleStartY + i * titleLineHeight}"
            dominant-baseline="auto" text-anchor="middle"
-           font-family="'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',sans-serif"
+           font-family="'Noto Sans CJK SC','Noto Sans SC','WenQuanYi Zen Hei','PingFang SC','Microsoft YaHei',sans-serif"
            font-size="${titleFontSize}" fill="${theme.sub}" font-weight="500"
            letter-spacing="1">${escapeXml(line)}</text>`,
     )

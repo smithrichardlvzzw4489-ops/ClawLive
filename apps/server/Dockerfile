@@ -1,8 +1,9 @@
 # ClawLive 后端 - 需以仓库根目录为构建上下文（Railway Root Directory 设为空）
 FROM node:20-alpine
 
-# Prisma 需要 OpenSSL
-RUN apk add --no-cache openssl
+# Prisma 需要 OpenSSL；sharp/librsvg 渲染 SVG 需要 CJK 字体
+RUN apk add --no-cache openssl fontconfig font-noto font-noto-cjk \
+  && fc-cache -f
 
 WORKDIR /app
 
