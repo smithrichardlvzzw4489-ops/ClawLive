@@ -1143,10 +1143,12 @@ export function lobsterRoutes(): Router {
    */
   router.post('/chat', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
-    const { message, model: requestModel, image } = req.body as {
+    const { message, model: requestModel, image, pageContext, pageUrl } = req.body as {
       message?: string;
       model?: string;
-      image?: string; // base64 data URL 或公开图片 URL（多模态）
+      image?: string;       // base64 data URL 或公开图片 URL（多模态）
+      pageContext?: string; // 当前页面 DOM 文本（由悬浮 Widget 抓取）
+      pageUrl?: string;     // 当前页面路径
     };
 
     if (!message || !message.trim()) {
@@ -1207,6 +1209,11 @@ export function lobsterRoutes(): Router {
     let systemContent = LOBSTER_SYSTEM_PROMPT;
     if (memoryContent) {
       systemContent += `\n\n---\n[用户记忆]\n${memoryContent}`;
+    }
+    // 注入页面上下文（来自悬浮 Widget）
+    if (pageContext && pageContext.trim()) {
+      const safeUrl = pageUrl ? ` (${pageUrl})` : '';
+      systemContent += `\n\n---\n[当前页面上下文${safeUrl}]\n用户正在浏览以下页面，请结合此内容理解用户问题：\n${pageContext.slice(0, 3000)}`;
     }
     // 注入所有官方技能
     if (officialSkillsAll.length > 0) {

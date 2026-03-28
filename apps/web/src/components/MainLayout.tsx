@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { Header } from './Header';
 import { MainLeftNav } from './MainLeftNav';
+import { LobsterWidget } from './LobsterWidget';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -38,6 +39,9 @@ export function MainLayout({
         {!noLeftRail && <MainLeftNav />}
         <main className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''}`}>{children}</main>
       </div>
+
+      {/* 虾仔悬浮入口（/my-lobster 页面自动隐藏） */}
+      <LobsterWidget />
     </div>
   );
 }
