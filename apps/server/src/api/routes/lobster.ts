@@ -157,8 +157,8 @@ const SIMPLE_MODEL_KEYWORDS = [
 
 /** 强模型关键词（优先级排列） */
 const STRONG_MODEL_KEYWORDS = [
-  'claude-3-7', 'claude-3.7',     // claude-3.7-sonnet 系列，已确认 OpenRouter 上有效
-  'claude-opus-4',                 // opus-4 系列
+  'claude-3.5-sonnet', 'claude-3-5-sonnet', // claude-3.5-sonnet — OpenRouter 已确认有效
+  'claude-opus-4',                            // opus-4 系列
   'claude-sonnet', 'claude-opus', 'claude-3-5',
   'deepseek-r1', 'deepseek-reasoner',
   'gpt-4o', 'gpt-5', 'o1', 'o3',
@@ -166,16 +166,25 @@ const STRONG_MODEL_KEYWORDS = [
 ];
 
 /**
+ * 运行时坏模型黑名单：遇到 "not a valid model ID" 的模型会被加入，
+ * 避免重复路由到无效模型（容器重启后自动清空）。
+ */
+const _badModels = new Set<string>();
+
+/**
  * 双模型路由：从 LiteLLM 实际已注册模型中选最合适的轻量/强模型。
+ * 会过滤通配符条目（openrouter/*）和已知无效模型。
  * baseModel 作为兜底（始终可用）。
  */
 async function routeModel(message: string, baseModel: string): Promise<string> {
   const available = await fetchLitellmModels();
-  if (available.length < 2) return baseModel;
+  // 过滤通配符条目（如 openrouter/*）和运行时已知无效模型
+  const usable = available.filter((id) => !id.includes('*') && !_badModels.has(id));
+  if (usable.length < 2) return baseModel;
 
   const find = (keywords: string[]) =>
     keywords
-      .flatMap((kw) => available.filter((id) => id.toLowerCase().includes(kw)))
+      .flatMap((kw) => usable.filter((id) => id.toLowerCase().includes(kw)))
       .at(0);
 
   const simpleModel = find(SIMPLE_MODEL_KEYWORDS) ?? baseModel;
@@ -1428,14 +1437,30 @@ export function lobsterRoutes(): Router {
             temperature: 0.7,
           });
         } catch (toolErr) {
-          toolsSupported = false;
-          console.warn('[Lobster] Tool calling failed, falling back to plain chat:', toolErr);
-          response = await llm.client.chat.completions.create({
-            model: routedModel,
-            messages,
-            max_tokens: step === 0 ? dynamicMaxTokens : calcMaxTokens(message, true),
-            temperature: 0.7,
-          });
+          const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+          const isInvalidModelId = toolErrMsg.includes('is not a valid model ID') ||
+            (toolErrMsg.includes('400') && toolErrMsg.includes('model ID'));
+
+          if (isInvalidModelId && routedModel !== llm.model) {
+            // 模型 ID 在 OpenRouter 上不存在，加入黑名单，本次降级到基础模型
+            _badModels.add(routedModel);
+            console.warn(`[Lobster] Model "${routedModel}" is invalid on OpenRouter — blacklisted, retrying with base model "${llm.model}"`);
+            response = await llm.client.chat.completions.create({
+              model: llm.model,
+              messages,
+              max_tokens: step === 0 ? dynamicMaxTokens : calcMaxTokens(message, true),
+              temperature: 0.7,
+            });
+          } else {
+            toolsSupported = false;
+            console.warn('[Lobster] Tool calling failed, falling back to plain chat:', toolErr);
+            response = await llm.client.chat.completions.create({
+              model: routedModel,
+              messages,
+              max_tokens: step === 0 ? dynamicMaxTokens : calcMaxTokens(message, true),
+              temperature: 0.7,
+            });
+          }
         }
 
         const choice = response.choices[0];
