@@ -18,6 +18,7 @@ interface LobsterMessage {
 
 interface LobsterInstance {
   userId: string;
+  name?: string;
   appliedAt: string;
   lastActiveAt: string;
   messageCount: number;
@@ -620,6 +621,7 @@ export default function MyLobsterPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [lobsterNameInput, setLobsterNameInput] = useState('');
   const [error, setError] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -694,7 +696,7 @@ export default function MyLobsterPage() {
     setApplying(true);
     setError('');
     try {
-      const data = await api.lobster.apply();
+      const data = await api.lobster.apply(lobsterNameInput.trim() || undefined);
       if (data.success) {
         setApplied(true);
         setInstance(data.instance);
@@ -923,6 +925,21 @@ export default function MyLobsterPage() {
             <div><p className="text-xl">🤔</p><p className="mt-1 text-gray-600">多步推理</p></div>
           </div>
 
+          <div className="mb-6 text-left">
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              给你的虾米起个名字 <span className="text-gray-400 font-normal">（选填，默认叫"虾米"）</span>
+            </label>
+            <input
+              type="text"
+              value={lobsterNameInput}
+              onChange={(e) => setLobsterNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !applying && handleApply()}
+              placeholder="例如：小助手、阿米、我的小虾..."
+              maxLength={20}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-lobster/40 focus:bg-white focus:ring-2 focus:ring-lobster/10"
+            />
+          </div>
+
           {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
 
           <button
@@ -930,7 +947,7 @@ export default function MyLobsterPage() {
             disabled={applying}
             className="w-full rounded-2xl bg-lobster py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-lobster-dark disabled:opacity-60"
           >
-            {applying ? '申请中...' : '申请我的虾米'}
+            {applying ? '申请中...' : `申请${lobsterNameInput.trim() ? `"${lobsterNameInput.trim()}"` : '我的虾米'}`}
           </button>
         </div>
       </MainLayout>
@@ -946,7 +963,7 @@ export default function MyLobsterPage() {
         <div className="flex shrink-0 items-center gap-3 border-b border-gray-200/60 bg-white/80 px-4 py-3 backdrop-blur-sm">
           <LobsterAvatar size="md" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-gray-900">虾米</p>
+            <p className="font-semibold text-gray-900">{instance?.name || '虾米'}</p>
             <p className="text-xs text-green-500">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
 

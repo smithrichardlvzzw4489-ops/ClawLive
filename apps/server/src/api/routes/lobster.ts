@@ -1357,9 +1357,10 @@ export function lobsterRoutes(): Router {
   /** POST /api/lobster/apply */
   router.post('/apply', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
+    const { name } = req.body as { name?: string };
     try {
-      const instance = await applyLobster(userId);
-      console.log(`[Lobster] User ${userId} applied. Total: ${getAllInstances().length}`);
+      const instance = await applyLobster(userId, name);
+      console.log(`[Lobster] User ${userId} applied (name="${instance.name ?? '虾米'}"). Total: ${getAllInstances().length}`);
       return res.json({ success: true, instance });
     } catch (err) {
       console.error('[Lobster] Apply error:', err);
@@ -1449,7 +1450,11 @@ export function lobsterRoutes(): Router {
     const officialSkillsAll = loadOfficialSkills();
     // 用户额外安装的自定义技能
     const installedSkills = getUserInstalledSkills(userId);
-    let systemContent = LOBSTER_SYSTEM_PROMPT;
+    // 用户给虾米起的名字（如有）
+    const lobsterName = instance.name?.trim() || '虾米';
+    let systemContent = lobsterName !== '虾米'
+      ? LOBSTER_SYSTEM_PROMPT.replace(/你是"虾米"/, `你是"${lobsterName}"（昵称，本质上你是虾米）`)
+      : LOBSTER_SYSTEM_PROMPT;
     if (memoryContent) {
       systemContent += `\n\n---\n[用户记忆]\n${memoryContent}`;
     }

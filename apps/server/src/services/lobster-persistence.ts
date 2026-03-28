@@ -9,6 +9,8 @@ import { getDataFilePath } from '../lib/data-path';
 
 export interface LobsterInstance {
   userId: string;
+  /** 用户给虾米起的名字 */
+  name?: string;
   appliedAt: string;
   lastActiveAt: string;
   messageCount: number;
@@ -80,11 +82,12 @@ export function getAllInstances(): LobsterInstance[] {
   return Array.from(instances.values());
 }
 
-export async function applyLobster(userId: string): Promise<LobsterInstance> {
+export async function applyLobster(userId: string, name?: string): Promise<LobsterInstance> {
   const existing = instances.get(userId);
   if (existing) return existing;
   const instance: LobsterInstance = {
     userId,
+    name: name?.trim() || undefined,
     appliedAt: new Date().toISOString(),
     lastActiveAt: new Date().toISOString(),
     messageCount: 0,
