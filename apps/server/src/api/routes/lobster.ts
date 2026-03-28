@@ -19,7 +19,7 @@ import {
 } from '../../services/lobster-persistence';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
-import { getDefaultPlatformModel } from '../../services/platform-models';
+import { getDefaultPlatformModel, loadPlatformModels } from '../../services/platform-models';
 import { prisma } from '../../lib/prisma';
 import { saveNote, listNotes, readNote, readMemory, upsertMemory } from '../../services/lobster-notes';
 import {
@@ -117,14 +117,44 @@ function isSimpleRequest(message: string): boolean {
 }
 
 /**
- * 双模型路由：根据任务复杂度选择最合适的模型。
- * baseModel 是已通过 resolveModel() 解析出的配置模型（强模型兜底）。
- * 仅当 LOBSTER_MODEL_SIMPLE 明确配置时才对简单任务降级，否则始终使用 baseModel。
+ * 已知"强模型"关键词（按优先级排列）
+ * 匹配到的 enabled 模型将作为复杂任务首选
+ */
+const STRONG_MODEL_KEYWORDS = [
+  'deepseek-r1', 'deepseek-reasoner',
+  'claude-3-7', 'claude-3-5-sonnet', 'claude-opus',
+  'gpt-4o', 'o1', 'o3',
+  'gemini-2.0-pro', 'gemini-pro',
+];
+
+/**
+ * 已知"轻量模型"关键词（按优先级排列）
+ * 匹配到的 enabled 模型将作为简单任务首选
+ */
+const SIMPLE_MODEL_KEYWORDS = [
+  'gpt-4o-mini', 'gemini-flash', 'gemini-2.0-flash',
+  'claude-haiku', 'deepseek-chat', 'deepseek-v3',
+  'llama', 'qwen', 'mistral',
+];
+
+/**
+ * 双模型路由：从平台已启用模型中自动选出"强"和"轻量"模型，按任务复杂度路由。
+ * baseModel 作为兜底（始终可用）。
  */
 function routeModel(message: string, baseModel: string): string {
-  const simpleModel = process.env.LOBSTER_MODEL_SIMPLE;
-  if (simpleModel && isSimpleRequest(message)) return simpleModel;
-  return process.env.LOBSTER_MODEL_STRONG || baseModel;
+  const enabledModels = loadPlatformModels().models
+    .filter((m: { enabled: boolean }) => m.enabled)
+    .map((m: { id: string }) => m.id);
+
+  if (enabledModels.length < 2) return baseModel; // 只有一个模型，无需路由
+
+  const findModel = (keywords: string[]) =>
+    keywords.flatMap((kw) => enabledModels.filter((id: string) => id.toLowerCase().includes(kw))).at(0);
+
+  const strongModel = findModel(STRONG_MODEL_KEYWORDS) ?? baseModel;
+  const simpleModel = findModel(SIMPLE_MODEL_KEYWORDS) ?? baseModel;
+
+  return isSimpleRequest(message) ? simpleModel : strongModel;
 }
 
 // ─── 动态 max_tokens ──────────────────────────────────────────────────────────
