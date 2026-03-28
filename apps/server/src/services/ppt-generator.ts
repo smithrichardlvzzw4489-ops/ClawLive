@@ -33,6 +33,7 @@ function splitBullets(raw: string): string[] {
 export async function generatePptx(
   slides: SlideInput[],
   presentationTitle = '演示文稿',
+  userId?: string,
 ): Promise<{ filePath: string; downloadUrl: string; slideCount: number }> {
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
@@ -163,20 +164,40 @@ export async function generatePptx(
     }
   }
 
-  // ─── 保存文件 ──────────────────────────────────────────────────────
+  // ─── 保存文件（先写到临时 ppt 目录） ─────────────────────────────────
   const pptDir = path.join(UPLOADS_DIR, 'ppt');
   if (!fs.existsSync(pptDir)) {
     fs.mkdirSync(pptDir, { recursive: true });
   }
 
-  const filename = `ppt-${uuidv4().slice(0, 8)}.pptx`;
-  const filePath = path.join(pptDir, filename);
+  const tmpFilename = `ppt-${uuidv4().slice(0, 8)}.pptx`;
+  const tmpFilePath = path.join(pptDir, tmpFilename);
 
-  await pptx.writeFile({ fileName: filePath });
+  await pptx.writeFile({ fileName: tmpFilePath });
+
+  // 如果提供了 userId，注册到用户文件柜
+  let downloadUrl = `/uploads/ppt/${tmpFilename}`;
+  if (userId) {
+    try {
+      const { registerFile } = await import('./lobster-user-files');
+      const userFile = registerFile({
+        userId,
+        existingPath: tmpFilePath,
+        displayName: `${presentationTitle}.pptx`,
+        type: 'ppt',
+        mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        source: 'generated',
+        toolName: 'create_ppt',
+      });
+      downloadUrl = userFile.downloadPath;
+    } catch (e) {
+      console.error('[PPT] Failed to register to user files:', e);
+    }
+  }
 
   return {
-    filePath,
-    downloadUrl: `/uploads/ppt/${filename}`,
+    filePath: tmpFilePath,
+    downloadUrl,
     slideCount: slides.length,
   };
 }

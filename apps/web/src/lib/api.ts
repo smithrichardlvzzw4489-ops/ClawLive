@@ -157,6 +157,9 @@ export const api = {
       fetchAPI('/api/lobster/chat', { method: 'POST', body: JSON.stringify({ message, model, image }) }),
     clearHistory: () => fetchAPI('/api/lobster/history', { method: 'DELETE' }),
     keyStatus: () => fetchAPI('/api/lobster/key-status'),
+    listFiles: () => fetchAPI('/api/lobster/files'),
+    deleteFile: (fileId: string) =>
+      fetchAPI(`/api/lobster/files/${fileId}`, { method: 'DELETE' }),
   },
   publishedSkills: {
     list: (params?: { q?: string; tag?: string; page?: number }) => {

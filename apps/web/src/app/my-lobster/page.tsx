@@ -432,6 +432,136 @@ function AdminModelsPanel({
   );
 }
 
+// ─── Files Panel ─────────────────────────────────────────────────────────────
+
+interface UserFile {
+  id: string;
+  filename: string;
+  displayName: string;
+  type: string;
+  sizeBytes: number;
+  createdAt: string;
+  downloadPath: string;
+}
+
+function FilesPanel({ onClose }: { onClose: () => void }) {
+  const [files, setFiles] = useState<UserFile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.lobster.listFiles().then((data: { files: UserFile[] }) => {
+      setFiles(data.files || []);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  const handleDelete = async (file: UserFile) => {
+    if (!confirm(`确定要删除「${file.displayName}」吗？`)) return;
+    setDeletingId(file.id);
+    try {
+      await api.lobster.deleteFile(file.id);
+      setFiles((prev) => prev.filter((f) => f.id !== file.id));
+    } catch {
+      alert('删除失败，请稍后重试');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const typeEmoji: Record<string, string> = {
+    ppt: '📊', pdf: '📄', image: '🖼️', document: '📝', data: '📈', note: '🗒️', other: '📎',
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">📁 我的文件柜</h2>
+            <p className="text-xs text-gray-500 mt-0.5">虾仔生成的文件都在这里</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-lobster" />
+            </div>
+          ) : files.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-4xl mb-3">📂</p>
+              <p className="text-gray-500 text-sm font-medium">文件柜还是空的</p>
+              <p className="text-gray-400 text-xs mt-1">让虾仔帮你做 PPT 或生成图片，文件会自动保存在这里</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {files.map((file) => (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 hover:bg-gray-100 transition"
+                >
+                  <span className="text-2xl flex-shrink-0">{typeEmoji[file.type] ?? '📎'}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{file.displayName}</p>
+                    <p className="text-xs text-gray-400">
+                      {formatSize(file.sizeBytes)} · {new Date(file.createdAt).toLocaleDateString('zh-CN')}
+                    </p>
+                  </div>
+                  <a
+                    href={`${API_BASE_URL}${file.downloadPath}`}
+                    download={file.displayName}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-white hover:text-lobster transition"
+                    title="下载"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </a>
+                  <button
+                    onClick={() => handleDelete(file)}
+                    disabled={deletingId === file.id}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-300 hover:bg-red-50 hover:text-red-400 transition disabled:opacity-40"
+                    title="删除"
+                  >
+                    {deletingId === file.id ? (
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-300 border-t-red-400 inline-block" />
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t border-gray-100 text-center">
+          <p className="text-xs text-gray-400">文件保存在平台服务器，重装浏览器不会丢失</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function MyLobsterPage() {
@@ -445,6 +575,7 @@ export default function MyLobsterPage() {
   const [error, setError] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showFilesPanel, setShowFilesPanel] = useState(false);
 
   // model state
   const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
@@ -866,6 +997,16 @@ export default function MyLobsterPage() {
             <p className="shrink-0 text-xs text-gray-400">已发送 {instance.messageCount} 条</p>
           )}
           <button
+            onClick={() => setShowFilesPanel(true)}
+            className="shrink-0 flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition"
+            title="我的文件柜"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            文件
+          </button>
+          <button
             onClick={() => setShowClearConfirm(true)}
             className="shrink-0 rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
           >
@@ -993,6 +1134,11 @@ export default function MyLobsterPage() {
           keyStatus={keyStatus}
           onClose={() => setShowKeySetup(false)}
         />
+      )}
+
+      {/* Files panel */}
+      {showFilesPanel && (
+        <FilesPanel onClose={() => setShowFilesPanel(false)} />
       )}
     </MainLayout>
   );

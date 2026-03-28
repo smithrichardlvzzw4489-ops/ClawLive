@@ -38,6 +38,7 @@ import {
 import { checkAndChargeCredits, getRemainingFreeQuota, TOOL_CREDIT_CONFIG } from '../../services/skill-credits';
 import { generatePptx, SlideInput } from '../../services/ppt-generator';
 import { executeCode, formatExecutionResult } from '../../services/code-executor';
+import { listUserFiles, deleteUserFile, formatFileSize, fileTypeEmoji } from '../../services/lobster-user-files';
 import { registerJob, unregisterJob } from '../../services/lobster-scheduler';
 import {
   loadMcpServers,
@@ -97,6 +98,8 @@ const LOBSTER_SYSTEM_PROMPT = `你是"虾仔"，虾壳平台（clawclub.live）�
 |- run_code：在安全沙盒中执行 Python 代码，用于数据分析、计算、批量处理。用户不需要懂编程，你负责写代码并执行。
 |- create_ppt：根据大纲生成 .pptx 文件，用户直接下载使用。用户说“帮我做PPT”时直接调用。
 |- generate_image：根据文字描述生成图片，返回图片链接。需要配图、封面、示意图时使用。
+|- list_files：列出用户文件柜中所有文件（PPT、图片等生成或上传的文件）。用户说“我的文件”时调用。
+|- delete_file：删除用户文件柜中的指定文件，删除前必须向用户确认。
 
 ## 发布内容规则（重要）
 你**可以且应该**帮用户发布文章和图文，流程如下：
@@ -487,6 +490,28 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'list_files',
+      description: '列出用户文件柜中保存的所有文件（PPT、图片、文档等生成或上传的文件）。与 list_notes 不同，此工具显示的是二进制文件，不是文本笔记。',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_file',
+      description: '从用户文件柜中删除一个文件。需先用 list_files 获取文件 ID，再调用此工具。删除前必须向用户确认。',
+      parameters: {
+        type: 'object',
+        properties: {
+          fileId: { type: 'string', description: '文件 ID（从 list_files 获取）' },
+        },
+        required: ['fileId'],
+      },
+    },
+  },
 ];
 
 // 每个工具调用时展示给用户的状态文字
@@ -532,6 +557,8 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
   run_code: (a) => `正在执行 ${a.language ?? 'python'} 代码...`,
   create_ppt: (a) => `正在生成 PPT「${a.title}」...`,
   generate_image: () => '正在生成图片...',
+  list_files: () => '正在查看你的文件柜...',
+  delete_file: (a) => `正在删除文件 ${a.fileId}...`,
 };
 
 // ─── Tool 执行 ────────────────────────────────────────────────────────────────
@@ -892,6 +919,34 @@ async function executeTool(
       return dataUrl; // 错误消息
     }
 
+  // ─── 文件柜 ──────────────────────────────────────────────────────────────────
+  case 'list_files': {
+    const files = listUserFiles(userId);
+    if (!files.length) {
+      return '你的文件柜还是空的。当虾仔帮你生成 PPT、图片等文件时，它们会自动保存在这里。';
+    }
+    return (
+      `📁 **你的文件柜**（共 ${files.length} 个文件）\n\n` +
+      files
+        .map(
+          (f, i) =>
+            `${i + 1}. ${fileTypeEmoji(f.type)} **${f.displayName}**\n` +
+            `   大小：${formatFileSize(f.sizeBytes)} · 创建：${new Date(f.createdAt).toLocaleDateString('zh-CN')}\n` +
+            `   下载：${process.env.SERVER_PUBLIC_URL || ''}${f.downloadPath}\n` +
+            `   ID：\`${f.id}\``,
+        )
+        .join('\n\n')
+    );
+  }
+
+  case 'delete_file': {
+    const fileId = String(args.fileId || '').trim();
+    if (!fileId) return '请提供要删除的文件 ID（先用 list_files 查询）。';
+    const success = deleteUserFile(userId, fileId);
+    if (!success) return `未找到文件 ${fileId}，请先用 list_files 查看正确的文件 ID。`;
+    return `✅ 文件已删除。`;
+  }
+
   // ─── 代码执行 ────────────────────────────────────────────────────────────────
   case 'run_code': {
     const language = String(args.language || 'python').toLowerCase();
@@ -915,7 +970,7 @@ async function executeTool(
       };
     });
     try {
-      const { downloadUrl, slideCount } = await generatePptx(slides, pptTitle);
+      const { downloadUrl, slideCount } = await generatePptx(slides, pptTitle, userId);
       return `✅ PPT 已生成！\n\n**《${pptTitle}》**\n- 共 ${slideCount} 页\n- 下载链接：${process.env.SERVER_PUBLIC_URL || ''}${downloadUrl}\n\n> 提示：下载后可在 Microsoft PowerPoint 或 WPS 中打开并进一步美化。`;
     } catch (e) {
       console.error('[Lobster] create_ppt error:', e);
@@ -1409,6 +1464,34 @@ export function lobsterRoutes(): Router {
       console.error('[Lobster] key-status error', err);
       return res.status(500).json({ error: 'Failed to get key status' });
     }
+  });
+
+  /** GET /api/lobster/files — 列出用户文件柜 */
+  router.get('/files', authenticateToken, (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const files = listUserFiles(userId);
+    return res.json({ files });
+  });
+
+  /** DELETE /api/lobster/files/:fileId — 删除文件 */
+  router.delete('/files/:fileId', authenticateToken, (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const { fileId } = req.params;
+    const ok = deleteUserFile(userId, fileId);
+    if (!ok) return res.status(404).json({ error: '文件不存在' });
+    return res.json({ success: true });
+  });
+
+  /**
+   * GET /api/lobster/files/:userId/:filename — 下载文件
+   * 公开端点（链接即可下载），通过随机文件名保护隐私
+   */
+  router.get('/files/:userId/:filename', (req, res: Response) => {
+    const { getUserFilePath } = require('../../services/lobster-user-files');
+    const { userId, filename } = req.params;
+    const filePath = getUserFilePath(userId, filename);
+    if (!filePath) return res.status(404).json({ error: '文件不存在' });
+    return res.download(filePath, filename);
   });
 
   return router;
