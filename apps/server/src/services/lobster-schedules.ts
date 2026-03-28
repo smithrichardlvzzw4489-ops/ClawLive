@@ -1,5 +1,5 @@
 /**
- * 虾仔 — 定时任务持久化
+ * 虾米 — 定时任务持久化
  */
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { writeFile } from 'fs/promises';

@@ -1,6 +1,6 @@
 /**
- * 虾仔 Nanobot — 持久化层
- * 每位用户分配一只虾仔实例，对话历史独立存储。
+ * 虾米 Nanobot — 持久化层
+ * 每位用户分配一只虾米实例，对话历史独立存储。
  */
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { writeFile as writeFileAsync } from 'fs/promises';
@@ -128,7 +128,7 @@ export async function setPersonalApiKey(
   baseUrl: string,
 ): Promise<void> {
   const inst = instances.get(userId);
-  if (!inst) throw new Error('请先申请虾仔');
+  if (!inst) throw new Error('请先申请虾米');
   inst.personalApiKey = key;
   inst.personalApiBaseUrl = baseUrl;
   await saveInstances();

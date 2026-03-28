@@ -16,7 +16,7 @@ export interface SlideInput {
 
 const THEME = {
   background: '1A1A2E',   // 深蓝黑
-  primary: 'E94560',      // 亮红（虾壳色）
+  primary: 'E94560',      // 亮红（虾米色）
   text: 'EAEAEA',         // 浅灰文字
   subtext: 'A0A0B0',      // 次要文字
   accent: '0F3460',       // 深蓝强调
@@ -39,7 +39,7 @@ export async function generatePptx(
   pptx.layout = 'LAYOUT_WIDE';
   pptx.title = presentationTitle;
   pptx.subject = presentationTitle;
-  pptx.author = 'ClawClub 虾仔';
+  pptx.author = 'ClawClub 虾米';
 
   // 定义 master slide 背景
   pptx.defineSlideMaster({
@@ -82,7 +82,7 @@ export async function generatePptx(
   }
 
   // 底部品牌标识
-  coverSlide.addText('ClawClub · 虾仔生成', {
+  coverSlide.addText('ClawClub · 虾米生成', {
     x: 0, y: 6.8, w: '100%', h: 0.4,
     fontSize: 11,
     color: THEME.subtext,

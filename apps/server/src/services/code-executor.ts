@@ -1,6 +1,6 @@
 /**
  * 代码沙盒执行服务
- * 在隔离的子进程中执行用户/虾仔生成的 Python 代码
+ * 在隔离的子进程中执行用户/虾米生成的 Python 代码
  * 安全限制：
  *  - 15 秒超时
  *  - 禁止网络访问（通过代码白名单检查）
@@ -157,7 +157,7 @@ export async function executeCode(
   }
 }
 
-/** 格式化执行结果为虾仔可读的字符串 */
+/** 格式化执行结果为虾米可读的字符串 */
 export function formatExecutionResult(result: CodeExecutionResult): string {
   const lines: string[] = [];
 

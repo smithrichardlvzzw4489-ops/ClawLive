@@ -1,6 +1,6 @@
 /**
  * 平台可用模型配置
- * 存储管理员在前端配置的模型列表，供虾仔等服务使用。
+ * 存储管理员在前端配置的模型列表，供虾米等服务使用。
  */
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { writeFile } from 'fs/promises';
@@ -57,20 +57,20 @@ export async function savePlatformModels(models: PlatformModel[]): Promise<void>
   await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
 }
 
-/** 获取第一个 enabled 的模型 ID，用于虾仔默认模型 */
+/** 获取第一个 enabled 的模型 ID，用于虾米默认模型 */
 export function getDefaultPlatformModel(): string | null {
   const { models } = loadPlatformModels();
   return models.find((m) => m.enabled)?.id ?? null;
 }
 
-// ─── 虾仔虚拟 Key 自动管理 ──────────────────────────────────────────────────
+// ─── 虾米虚拟 Key 自动管理 ──────────────────────────────────────────────────
 
 interface LobsterKeyStore {
   key: string;
   createdAt: string;
 }
 
-/** 读取已持久化的虾仔虚拟 Key（内存缓存） */
+/** 读取已持久化的虾米虚拟 Key（内存缓存） */
 let _cachedLobsterKey: string | null = null;
 
 export function getStoredLobsterKey(): string | null {

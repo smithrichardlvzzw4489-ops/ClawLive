@@ -1,5 +1,5 @@
 /**
- * 虾仔浏览器服务 — Playwright-Core + 系统 Chromium
+ * 虾米浏览器服务 — Playwright-Core + 系统 Chromium
  *
  * 每位用户独立的 BrowserContext，10 分钟无操作自动销毁。
  * 安全沙箱：阻断内网 IP / localhost 访问，强制超时。

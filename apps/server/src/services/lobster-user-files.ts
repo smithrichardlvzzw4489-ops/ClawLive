@@ -1,5 +1,5 @@
 /**
- * 虾仔用户文件柜
+ * 虾米用户文件柜
  * 统一管理每位用户的所有文件：生成的 PPT/PDF、上传的图片/文档、导出的报告等
  *
  * 存储结构：
@@ -29,7 +29,7 @@ export interface UserFile {
   mimeType?: string;
   sizeBytes: number;
   source: 'generated' | 'uploaded';
-  /** 虾仔生成时记录是通过哪个工具产生的 */
+  /** 虾米生成时记录是通过哪个工具产生的 */
   toolName?: string;
   downloadPath: string;    // /api/lobster/files/:userId/:filename
   createdAt: string;

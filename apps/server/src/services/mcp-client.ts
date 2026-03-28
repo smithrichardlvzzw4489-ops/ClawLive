@@ -1,6 +1,6 @@
 /**
  * MCP (Model Context Protocol) 客户端
- * 支持通过 HTTP/SSE 连接远程 MCP 服务器，将其工具暴露给虾仔使用。
+ * 支持通过 HTTP/SSE 连接远程 MCP 服务器，将其工具暴露给虾米使用。
  */
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { writeFile } from 'fs/promises';

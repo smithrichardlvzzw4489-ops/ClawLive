@@ -16,7 +16,7 @@ model User {
   avatarUrl         String?
   bio               String?  @db.Text
   openClawApiKey    String?
-  /// 虾壳积分（可兑换 LiteLLM 代理额度等）
+  /// 虾米积分（可兑换 LiteLLM 代理额度等）
   clawPoints        Int      @default(0)
   /// LiteLLM 虚拟 Key；勿写入日志或下发给前端（除专用接口）
   litellmVirtualKey String?

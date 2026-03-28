@@ -132,7 +132,7 @@
 1. 检查 `REDIS_URL` 是否正确（多实例时）
 2. 检查 `NEXT_PUBLIC_API_URL`、`NEXT_PUBLIC_SOCKET_URL` 是否指向正确后端
 
-### 直播端/观众端收不到虾仔（Agent）消息
+### 直播端/观众端收不到虾米（Agent）消息
 
 1. **Telegram 配置**：检查 Bot Token、Chat ID 是否正确
 2. **Agent 用同一 Bot 回复**：在 Railway 设置 `AGENT_SAME_AS_BOT=true`

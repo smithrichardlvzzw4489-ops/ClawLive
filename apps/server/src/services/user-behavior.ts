@@ -1,8 +1,8 @@
 /**
- * 用户行为采集与兴趣画像服务
- * 
- * 参考抖音/快手：基于隐式反馈（浏览、进入直播间、观看历史）构建用户兴趣，
- * 支持主播偏好、作者偏好、标签偏好，用于个性化推荐
+ * 用户行为采集与兴趣画像服务（双轨版）
+ *
+ * 人轨：基于隐式反馈（浏览、点赞、收藏）构建用户兴趣画像，用于个性化推荐
+ * Agent轨：记录虾米行为（安装技能、引用内容、完成任务），计算内容"实用热度"
  */
 
 import * as fs from 'fs';
@@ -12,6 +12,148 @@ import { getDataFilePath } from '../lib/data-path';
 const MAX_BEHAVIORS_PER_USER = 500;  // 单用户保留最近 N 条行为
 const INTEREST_DECAY_DAYS = 30;     // 兴趣衰减周期（天）
 const TOP_INTERESTS = 10;           // 取前 N 个兴趣维度参与个性化
+
+// ─── Agent 行为层 ─────────────────────────────────────────────────────────────
+
+/** Agent 行为类型 */
+export type AgentBehaviorType =
+  | 'agent_skill_install'       // 虾米安装了某技能（skillId）
+  | 'agent_skill_used'          // 虾米用某技能完成任务（skillId）
+  | 'agent_content_referenced'  // 虾米搜索平台并实际引用某文章（postId）
+  | 'agent_search_query';       // 虾米在平台搜索了某关键词（query）
+
+interface AgentBehavior {
+  /** 行为所属用户（即该虾米的主人） */
+  ownerUserId: string;
+  type: AgentBehaviorType;
+  /** skillId / postId / query 字符串 */
+  targetId: string;
+  /** 附加信息（如 query 文本、技能名称等） */
+  extra?: string;
+  timestamp: string;
+}
+
+const AGENT_FILE = getDataFilePath('agent-behaviors.json');
+const MAX_AGENT_RECORDS = 10000; // 全局最近 N 条
+
+/** 全局 agent 行为列表（新的在前） */
+let agentBehaviorList: AgentBehavior[] = [];
+let agentSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function loadAgentBehaviors(): void {
+  try {
+    if (!fs.existsSync(AGENT_FILE)) return;
+    agentBehaviorList = JSON.parse(fs.readFileSync(AGENT_FILE, 'utf-8')) as AgentBehavior[];
+  } catch { /* ignore */ }
+}
+
+function scheduleAgentSave(): void {
+  if (agentSaveTimer) clearTimeout(agentSaveTimer);
+  agentSaveTimer = setTimeout(() => {
+    agentSaveTimer = null;
+    fsp.writeFile(AGENT_FILE, JSON.stringify(agentBehaviorList, null, 2), 'utf-8').catch(() => {});
+  }, 5000);
+}
+
+loadAgentBehaviors();
+
+/** 记录虾米行为（公开 API） */
+export function recordAgentBehavior(
+  ownerUserId: string,
+  type: AgentBehaviorType,
+  targetId: string,
+  extra?: string,
+): void {
+  agentBehaviorList.unshift({ ownerUserId, type, targetId, extra, timestamp: new Date().toISOString() });
+  if (agentBehaviorList.length > MAX_AGENT_RECORDS) {
+    agentBehaviorList.length = MAX_AGENT_RECORDS;
+  }
+  scheduleAgentSave();
+}
+
+// ─── Agent 热度查询 ───────────────────────────────────────────────────────────
+
+export interface SkillAgentHeat {
+  installCount: number;    // 被安装次数
+  usedCount: number;       // 被使用次数
+  uniqueAgents: number;    // 不同用户虾米安装/使用数
+}
+
+export interface PostAgentHeat {
+  referenceCount: number;  // 被虾米引用次数
+  uniqueAgents: number;    // 不同用户虾米引用数
+  /** 综合实用热度分（0-100） */
+  utilityScore: number;
+}
+
+/** 获取某技能的 Agent 热度 */
+export function getSkillAgentHeat(skillId: string): SkillAgentHeat {
+  const installs = agentBehaviorList.filter(
+    (b) => b.targetId === skillId && b.type === 'agent_skill_install',
+  );
+  const uses = agentBehaviorList.filter(
+    (b) => b.targetId === skillId && b.type === 'agent_skill_used',
+  );
+  const uniqueInstall = new Set(installs.map((b) => b.ownerUserId)).size;
+  const uniqueUse = new Set(uses.map((b) => b.ownerUserId)).size;
+  return {
+    installCount: installs.length,
+    usedCount: uses.length,
+    uniqueAgents: Math.max(uniqueInstall, uniqueUse),
+  };
+}
+
+/** 获取某 feed post 的 Agent 热度 */
+export function getPostAgentHeat(postId: string): PostAgentHeat {
+  const refs = agentBehaviorList.filter(
+    (b) => b.targetId === postId && b.type === 'agent_content_referenced',
+  );
+  const uniqueAgents = new Set(refs.map((b) => b.ownerUserId)).size;
+  // 实用热度：总引用 × 0.4 + 独立用户数 × 5（去重更可信）
+  const utilityScore = Math.min(100, refs.length * 0.4 + uniqueAgents * 5);
+  return { referenceCount: refs.length, uniqueAgents, utilityScore };
+}
+
+/** 获取全平台技能的 Agent 热度排行（按 uniqueAgents 降序） */
+export function getTopSkillsByAgentHeat(limit = 20): Array<{ skillId: string; heat: SkillAgentHeat }> {
+  const skillIds = new Set(
+    agentBehaviorList
+      .filter((b) => b.type === 'agent_skill_install' || b.type === 'agent_skill_used')
+      .map((b) => b.targetId),
+  );
+  return Array.from(skillIds)
+    .map((skillId) => ({ skillId, heat: getSkillAgentHeat(skillId) }))
+    .sort((a, b) => b.heat.uniqueAgents - a.heat.uniqueAgents)
+    .slice(0, limit);
+}
+
+/** 获取全平台 feed post 的实用热度排行（按 utilityScore 降序） */
+export function getTopPostsByAgentHeat(limit = 20): Array<{ postId: string; heat: PostAgentHeat }> {
+  const postIds = new Set(
+    agentBehaviorList
+      .filter((b) => b.type === 'agent_content_referenced')
+      .map((b) => b.targetId),
+  );
+  return Array.from(postIds)
+    .map((postId) => ({ postId, heat: getPostAgentHeat(postId) }))
+    .sort((a, b) => b.heat.utilityScore - a.heat.utilityScore)
+    .slice(0, limit);
+}
+
+/** Agent 最近搜索的热门关键词（平台内容缺口洞察） */
+export function getAgentTopSearchKeywords(limit = 10): Array<{ keyword: string; count: number }> {
+  const freq = new Map<string, number>();
+  agentBehaviorList
+    .filter((b) => b.type === 'agent_search_query' && b.extra)
+    .forEach((b) => {
+      const kw = (b.extra || '').toLowerCase().trim();
+      if (kw) freq.set(kw, (freq.get(kw) || 0) + 1);
+    });
+  return Array.from(freq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([keyword, count]) => ({ keyword, count }));
+}
 
 const FILE = getDataFilePath('user-behaviors.json');
 

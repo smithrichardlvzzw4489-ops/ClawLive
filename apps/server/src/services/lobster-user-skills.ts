@@ -1,5 +1,5 @@
 /**
- * 虾仔 — 用户级 Skill 安装（每位用户独立的技能扩展）
+ * 虾米 — 用户级 Skill 安装（每位用户独立的技能扩展）
  *
  * 存储位置：DATA_DIR/lobster-user-skills/<userId>/skills.json
  * 每个用户可以安装平台 Skills 市场中的技能，也可以保存从网络上学习到的技能。

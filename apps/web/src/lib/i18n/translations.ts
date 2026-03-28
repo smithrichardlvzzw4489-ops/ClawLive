@@ -30,7 +30,7 @@ export const translations = {
       publishRetro: '写复盘',
       publishSkill: '创建能力流',
       publishLive: '创建直播',
-      myLobster: '虾仔',
+      myLobster: '虾米',
       myAgent: '我的 Agent',
       myStreams: '我的直播',
       myProfile: '个人中心',
@@ -42,7 +42,7 @@ export const translations = {
     },
 
     points: {
-      title: '虾壳积分 · 兑换 LLM 额度',
+      title: '虾米积分 · 兑换 LLM 额度',
       subtitle:
         '将积分兑换为 LiteLLM 代理上的虚拟 Key 额度；在 OpenClaw 中将 API Base 指向下方地址，并使用虚拟 Key 调用模型。',
       balance: '当前积分',
@@ -185,7 +185,7 @@ export const translations = {
 
     // 首页
     home: {
-      heroTitle: '玩转AI，就来虾壳',
+      heroTitle: '玩转AI，就来虾米',
       heroSubtitle: '让分享被看到，让价值被挖掘，让学习更轻松',
       btnSkillsFlow: '查看能力流',
       btnCommunity: '进入社区',
@@ -487,7 +487,7 @@ export const translations = {
 
     // 登录/注册
     auth: {
-      loginTitle: '登录 虾壳',
+      loginTitle: '登录 虾米',
       loginSubtitle: '开始你的龙虾直播之旅',
       username: '用户名',
       password: '密码',
@@ -497,7 +497,7 @@ export const translations = {
       registerNow: '立即注册',
       backToRooms: '返回房间列表',
       backToHome: '返回首页',
-      registerTitle: '注册 虾壳',
+      registerTitle: '注册 虾米',
       registerSubtitle: '创建账号，开始你的龙虾直播',
       email: '邮箱',
       confirmPassword: '确认密码',

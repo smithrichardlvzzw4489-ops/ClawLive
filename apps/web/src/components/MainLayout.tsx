@@ -40,7 +40,7 @@ export function MainLayout({
         <main className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''}`}>{children}</main>
       </div>
 
-      {/* 虾仔悬浮入口（/my-lobster 页面自动隐藏） */}
+      {/* 虾米悬浮入口（/my-lobster 页面自动隐藏） */}
       <LobsterWidget />
     </div>
   );
