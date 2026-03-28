@@ -23,9 +23,10 @@ model User {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  rooms        Room[]
-  comments     Comment[]
-  pointLedger  PointLedger[]
+  rooms           Room[]
+  comments        Comment[]
+  pointLedger     PointLedger[]
+  publishedSkills PublishedSkill[]
 
   @@index([username])
   @@index([telegramId])
@@ -47,6 +48,31 @@ model PointLedger {
 
   @@index([userId, createdAt])
   @@map("point_ledger")
+}
+
+/// 用户发布的付费社区技能
+model PublishedSkill {
+  id                String   @id @default(uuid())
+  authorId          String
+  title             String
+  description       String?  @db.Text
+  skillMarkdown     String   @db.Text
+  tags              String[]
+  /// 每次被调用时向调用方扣除的积分（0 = 免费）
+  creditCostPerCall Int      @default(0)
+  /// 平台抽成比例 0-1，默认 0.2（20%）
+  platformFeeRate   Float    @default(0.2)
+  installCount      Int      @default(0)
+  /// pending / approved / rejected
+  status            String   @default("pending")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@index([status, createdAt])
+  @@map("published_skills")
 }
 
 model Room {

@@ -35,6 +35,7 @@ import {
   removeSchedule,
   LobsterSchedule,
 } from '../../services/lobster-schedules';
+import { checkAndChargeCredits, getRemainingFreeQuota, TOOL_CREDIT_CONFIG } from '../../services/skill-credits';
 import { registerJob, unregisterJob } from '../../services/lobster-scheduler';
 import {
   loadMcpServers,
@@ -410,8 +411,15 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 ];
 
 // 每个工具调用时展示给用户的状态文字
-const TOOL_STATUS: Record<string, (args: Record<string, unknown>) => string> = {
-  web_search: (a) => `正在搜索「${a.query}」...`,
+const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: string) => string> = {
+  web_search: (a, userId) => {
+    const remaining = userId ? getRemainingFreeQuota(userId, 'web_search') : 0;
+    const cfg = TOOL_CREDIT_CONFIG['web_search'];
+    const costHint = remaining > 0
+      ? `（今日剩余免费 ${remaining} 次）`
+      : `（消耗 ${cfg?.costPerCall ?? 2} 积分）`;
+    return `正在搜索「${a.query}」... ${costHint}`;
+  },
   get_my_posts: () => '正在获取你的发布记录...',
   list_skills: (a) => (a.keyword ? `正在查找「${a.keyword}」相关技能...` : '正在查询技能市场...'),
   get_skill_detail: (a) => `正在加载技能详情 (${a.skillId})...`,
@@ -425,12 +433,22 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>) => string> = {
   read_note: (a) => `正在读取笔记 ${a.filename}...`,
   create_reminder: (a) => `正在创建定时任务「${a.description}」...`,
   list_reminders: () => '正在查看你的定时任务...',
-  browser_open: (a) => `正在打开 ${a.url}...`,
+  browser_open: (a, userId) => {
+    const remaining = userId ? getRemainingFreeQuota(userId, 'browser_open') : 0;
+    const cfg = TOOL_CREDIT_CONFIG['browser_open'];
+    const costHint = remaining > 0 ? '' : `（消耗 ${cfg?.costPerCall ?? 1} 积分）`;
+    return `正在打开 ${a.url}... ${costHint}`.trim();
+  },
   browser_click: (a) => `正在点击「${a.selector}」...`,
   browser_type: (a) => `正在输入文字到「${a.selector}」...`,
   browser_get_content: () => '正在读取页面内容...',
   browser_get_links: () => '正在获取页面链接...',
-  browser_screenshot: () => '正在截图...',
+  browser_screenshot: (_, userId) => {
+    const remaining = userId ? getRemainingFreeQuota(userId, 'browser_screenshot') : 0;
+    const cfg = TOOL_CREDIT_CONFIG['browser_screenshot'];
+    const costHint = remaining > 0 ? '' : `（消耗 ${cfg?.costPerCall ?? 2} 积分）`;
+    return `正在截图... ${costHint}`.trim();
+  },
   publish_post: (a) => `正在发布「${a.title}」...`,
 };
 
@@ -443,6 +461,22 @@ async function executeTool(
   /** 用户本次对话中发送的图片 base64 data URL，用于 publish_post 封面 */
   pendingImage?: string,
 ): Promise<string> {
+  // ── 积分前置检查 ──────────────────────────────────────────────────────────────
+  if (TOOL_CREDIT_CONFIG[name]) {
+    const creditCheck = await checkAndChargeCredits(userId, name);
+    if (!creditCheck.allowed) {
+      return `⚠️ ${creditCheck.reason}`;
+    }
+    // 如果使用了免费额度，悄悄记录；如果扣了积分，稍后会在响应里提示
+    if (creditCheck.charged > 0) {
+      // 把积分消耗信息附加到工具结果末尾（由调用方拼接）
+      const remaining = getRemainingFreeQuota(userId, name);
+      (args as Record<string, unknown>).__creditInfo__ =
+        `（消耗 ${creditCheck.charged} 积分，剩余免费次数：${remaining}/今日）`;
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
+
   switch (name) {
     case 'web_search': {
       const query = String(args.query || '').trim();
@@ -468,12 +502,14 @@ async function executeTool(
           results?: Array<{ title: string; url: string; content: string }>;
         };
         if (!data.results?.length) return '未找到相关搜索结果，请换个关键词试试。';
-        return data.results
+        const searchResult = data.results
           .map(
             (r, i) =>
               `[${i + 1}] ${r.title}\n${r.content.slice(0, 300)}\n来源：${r.url}`,
           )
           .join('\n\n');
+        const creditInfo = args.__creditInfo__ ? `\n\n${args.__creditInfo__}` : '';
+        return searchResult + creditInfo;
       } catch (err) {
         console.error('[Lobster] web_search error:', err);
         return '搜索请求失败，请稍后重试。';
@@ -1057,7 +1093,7 @@ export function lobsterRoutes(): Router {
           const statusFn = TOOL_STATUS[toolName];
           sseWrite(res, {
             type: 'status',
-            text: statusFn ? statusFn(toolArgs) : `正在调用 ${toolName}...`,
+            text: statusFn ? statusFn(toolArgs, userId) : `正在调用 ${toolName}...`,
           });
 
           const result = await executeTool(toolName, toolArgs, userId, image || undefined);

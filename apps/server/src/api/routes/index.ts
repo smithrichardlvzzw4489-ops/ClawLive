@@ -21,6 +21,7 @@ import { feedPostsRoutes } from './feed-posts';
 import { pointsRoutes } from './points';
 import { lobsterRoutes } from './lobster';
 import { platformRoutes } from './platform';
+import { publishedSkillsRoutes } from './published-skills';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/auth', authRoutes);
@@ -40,6 +41,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/agent-config', agentConfigSimpleRoutes(io));
   app.use('/api/work-agent-config', workAgentConfigRoutes(io));
   app.use('/api/skills', skillsRoutes());
+  app.use('/api/published-skills', publishedSkillsRoutes());
   app.use('/api/works', worksRoutes(io));
   app.use('/api/community', communityRoutes());
   app.use('/api/creators', creatorsRoutes());

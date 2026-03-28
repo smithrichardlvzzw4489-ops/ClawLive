@@ -158,6 +158,31 @@ export const api = {
     clearHistory: () => fetchAPI('/api/lobster/history', { method: 'DELETE' }),
     keyStatus: () => fetchAPI('/api/lobster/key-status'),
   },
+  publishedSkills: {
+    list: (params?: { q?: string; tag?: string; page?: number }) => {
+      const qs = new URLSearchParams();
+      if (params?.q) qs.set('q', params.q);
+      if (params?.tag) qs.set('tag', params.tag);
+      if (params?.page) qs.set('page', String(params.page));
+      return fetchAPI(`/api/published-skills?${qs.toString()}`);
+    },
+    my: () => fetchAPI('/api/published-skills/my'),
+    get: (id: string) => fetchAPI(`/api/published-skills/${id}`),
+    publish: (data: {
+      title: string;
+      description?: string;
+      skillMarkdown: string;
+      tags?: string[];
+      creditCostPerCall?: number;
+    }) =>
+      fetchAPI('/api/published-skills', { method: 'POST', body: JSON.stringify(data) }),
+    update: (
+      id: string,
+      data: { title?: string; description?: string; skillMarkdown?: string; tags?: string[]; creditCostPerCall?: number },
+    ) => fetchAPI(`/api/published-skills/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id: string) => fetchAPI(`/api/published-skills/${id}`, { method: 'DELETE' }),
+    creditTable: () => fetchAPI('/api/published-skills/credit-table'),
+  },
   platform: {
     getModels: () => fetchAPI('/api/platform/models'),
     getLitellmModels: () => fetchAPI('/api/platform/litellm-models'),

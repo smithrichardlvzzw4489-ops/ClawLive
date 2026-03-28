@@ -16,6 +16,10 @@ export interface OfficialSkillItem {
   partition: string;
   tags?: string[];
   sortOrder?: number;
+  /** 每次调用此技能扣除的积分（0 或未设置 = 免费） */
+  creditCostPerCall?: number;
+  /** 每用户每天的免费调用次数 */
+  freeDailyQuota?: number;
 }
 
 const OFFICIAL_PREFIX = 'official-';
@@ -51,6 +55,8 @@ export function loadOfficialSkills(): OfficialSkillItem[] {
             partition: isValidPartition(item.partition) ? item.partition : DEFAULT_PARTITION,
             tags: Array.isArray(item.tags) ? item.tags.filter((t: unknown) => typeof t === 'string') : [],
             sortOrder: typeof item.sortOrder === 'number' ? item.sortOrder : i,
+            creditCostPerCall: typeof item.creditCostPerCall === 'number' ? item.creditCostPerCall : 0,
+            freeDailyQuota: typeof item.freeDailyQuota === 'number' ? item.freeDailyQuota : undefined,
           });
         }
         console.log(`📂 Loaded ${skills.length} official skills from ${p}`);
