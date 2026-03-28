@@ -59,6 +59,7 @@ import {
   closeSession as closeBrowserSession,
 } from '../../services/browser-service';
 import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store';
+import { getUserInterestProfile, getFeedPostPersonalizationBoost } from '../../services/user-behavior';
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
 import { existsSync, mkdirSync } from 'fs';
 import { writeFile as writeFileAsync } from 'fs/promises';
@@ -193,6 +194,66 @@ async function routeModel(message: string, baseModel: string): Promise<string> {
   return simpleModel;
 }
 
+// ─── 今日推荐构建 ─────────────────────────────────────────────────────────────
+
+/**
+ * 基于用户兴趣画像 × 时效 × 热度打分，为用户挑选最多 3 篇推荐帖子。
+ * 冷启动（行为 < 3 条）退化为全局最新热门。
+ * 返回可直接追加到 system prompt 的文本，无内容时返回空字符串。
+ */
+async function buildRecommendationBlock(userId: string): Promise<string> {
+  try {
+    const posts = Array.from(getFeedPostsMap().values());
+    if (posts.length === 0) return '';
+
+    const profile = getUserInterestProfile(userId);
+    const now = Date.now();
+
+    // 排除用户自己发的内容
+    const candidates = posts.filter((p) => p.authorId !== userId);
+    if (candidates.length === 0) return '';
+
+    const scored = candidates.map((p) => {
+      // 时效分：14 天半衰期指数衰减
+      const ageDays = (now - new Date(p.createdAt).getTime()) / 86400000;
+      const recency = Math.exp(-ageDays / 14);
+
+      // 热度分（归一化到 0-1）
+      const pop = Math.min(
+        (p.viewCount * 0.3 + p.likeCount * 0.5 + (p.favoriteCount || 0) * 0.8 + p.commentCount * 0.4) / 100,
+        1,
+      );
+
+      // 个性化加成（冷启动时 boost = 1）
+      const boost = getFeedPostPersonalizationBoost(p.authorId, profile);
+
+      return { post: p, score: (recency * 0.5 + pop * 0.3) * boost };
+    });
+
+    const top3 = scored
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map(({ post }) => post);
+
+    if (top3.length === 0) return '';
+
+    const lines = top3
+      .map((p) => {
+        const excerpt = p.content
+          .replace(/[#*`\[\]!]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .slice(0, 50);
+        return `- 《${p.title}》：${excerpt}…（链接：/posts/${p.id}）`;
+      })
+      .join('\n');
+
+    return `\n\n---\n[今日为你推荐 — 平台精选内容，供你在合适时机自然提及]\n${lines}`;
+  } catch {
+    return '';
+  }
+}
+
 // ─── 动态 max_tokens ──────────────────────────────────────────────────────────
 
 function calcMaxTokens(message: string, isToolStep = false): number {
@@ -287,7 +348,14 @@ update_memory 接收完整的记忆文本，你需要将已有记忆与新信息
 - 回复简洁自然，一般控制在 300 字以内
 - 不讨论政治、不传播未经证实的信息
 - 你代表虾米品牌，保持专业友善的基调
-- 不推荐用户使用竞品`;
+- 不推荐用户使用竞品
+
+## 主动推荐规则
+system 消息中如果有"[今日为你推荐]"块，说明你提前为用户挑选了平台内容。
+- 当用户打招呼（你好、嗨、在吗等）、闲聊、或明确问"有什么推荐"时，**自然地提一篇推荐**，用一句话带出标题和链接，不要生硬列清单
+- 当用户有明确任务时，**不要插入推荐**，专注完成任务
+- 推荐语要口语化，比如："对了，最近平台有篇文章讲XX，你可能感兴趣：[链接]"，而不是"为您推荐以下内容"
+- 每次对话最多提一篇，不要连续推荐`;
 
 // ─── Tool 定义 ────────────────────────────────────────────────────────────────
 
@@ -1404,6 +1472,10 @@ export function lobsterRoutes(): Router {
         .join('\n\n---\n\n');
       systemContent += `\n\n---\n[用户自定义技能 — 你还拥有以下额外安装的技能]\n\n${skillsBlock}`;
     }
+
+    // 今日推荐注入
+    const recommendBlock = await buildRecommendationBlock(userId);
+    if (recommendBlock) systemContent += recommendBlock;
 
     // 双模型路由：从 LiteLLM 实际可用模型中自动选择
     const routedModel = await routeModel(message, llm.model);
