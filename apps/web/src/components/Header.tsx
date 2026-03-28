@@ -50,7 +50,7 @@ export function Header({ leftNav = true }: HeaderProps) {
     </Link>
   );
 
-  const isHome = pathname === '/';
+  const isHome = pathname === '/my-lobster';
   const searchInputClass =
     'w-full rounded-full border border-gray-200/80 bg-white/90 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 shadow-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-lobster/20';
 
@@ -64,7 +64,7 @@ export function Header({ leftNav = true }: HeaderProps) {
         <div
           className={`flex min-w-0 items-center justify-between gap-2 md:justify-start md:gap-1 ${isHome ? 'md:flex-1' : 'shrink-0'}`}
         >
-          <Link href="/" className="flex shrink-0 items-center gap-2">
+          <Link href="/my-lobster" className="flex shrink-0 items-center gap-2">
             <span className="text-xl font-bold tracking-tight text-lobster sm:text-2xl">{BRAND_ZH}</span>
           </Link>
 

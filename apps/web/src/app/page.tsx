@@ -1,14 +1,5 @@
-'use client';
-
-import { MainLayout } from '@/components/MainLayout';
-import { HomeFeedSections } from '@/components/HomeFeedSections';
+import { redirect } from 'next/navigation';
 
 export default function HomePage() {
-  return (
-    <MainLayout flatBackground spaciousHeader>
-      <div className="w-full min-h-[calc(100vh-5rem)] bg-[#f5f5f5] px-3 pb-8 pt-3 sm:px-4 lg:px-6">
-        <HomeFeedSections />
-      </div>
-    </MainLayout>
-  );
+  redirect('/my-lobster');
 }
