@@ -63,12 +63,12 @@ function LobsterAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   );
 }
 
-/** 将文本中的 Markdown 链接 [text](url) 和裸 URL 转换为可点击的 React 节点数组 */
+/** 将文本中的 Markdown 链接 [text](url)、裸 URL、/posts/ 相对路径转换为可点击的 React 节点数组 */
 function renderTextWithLinks(text: string, isUser: boolean): React.ReactNode[] {
   const linkColor = isUser ? 'text-white underline decoration-white/60' : 'text-lobster underline decoration-lobster/40';
   const parts: React.ReactNode[] = [];
-  // 匹配 Markdown 链接 [text](url) 或裸 URL
-  const pattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s，。！？、\]）)]+)/g;
+  // group1+2: Markdown 链接；group3: 绝对 URL；group4: /posts/ 相对路径
+  const pattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s，。！？、\]）)]+)|(\/posts\/[a-zA-Z0-9_-]+)/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -77,17 +77,22 @@ function renderTextWithLinks(text: string, isUser: boolean): React.ReactNode[] {
       parts.push(text.slice(last, match.index));
     }
     if (match[1] && match[2]) {
-      // Markdown 链接
       parts.push(
         <a key={key++} href={match[2]} target="_blank" rel="noopener noreferrer" className={linkColor}>
           {match[1]}
         </a>
       );
     } else if (match[3]) {
-      // 裸 URL
       parts.push(
         <a key={key++} href={match[3]} target="_blank" rel="noopener noreferrer" className={linkColor}>
           {match[3]}
+        </a>
+      );
+    } else if (match[4]) {
+      // 相对路径：在新标签打开，浏览器会用当前域名补全
+      parts.push(
+        <a key={key++} href={match[4]} target="_blank" rel="noopener noreferrer" className={linkColor}>
+          {match[4]}
         </a>
       );
     }

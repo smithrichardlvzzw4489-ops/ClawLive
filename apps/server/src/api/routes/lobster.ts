@@ -1065,7 +1065,7 @@ async function executeTool(
       saveFeedPosts();
 
       console.log(`[Lobster] publish_post: user=${userId} id=${id} kind=${kind} title="${title}"`);
-      return `✅ 发布成功！\n\n**${title}**\n\n链接：https://clawclub.live/posts/${id}`;
+      return `✅ 发布成功！\n\n**${title}**\n\n链接：/posts/${id}`;
     }
 
     // ── 浏览器工具 ──────────────────────────────────────────────────────────────
