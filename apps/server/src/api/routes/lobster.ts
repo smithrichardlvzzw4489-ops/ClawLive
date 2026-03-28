@@ -157,6 +157,7 @@ const SIMPLE_MODEL_KEYWORDS = [
 
 /** 强模型关键词（优先级排列） */
 const STRONG_MODEL_KEYWORDS = [
+  'claude-sonnet-4.', 'claude-sonnet-4-', // prefer versioned sonnet-4 (e.g. 4.5, 4.6) over plain claude-sonnet-4 which is invalid on OpenRouter
   'claude-sonnet', 'claude-opus', 'claude-3-7', 'claude-3-5',
   'deepseek-r1', 'deepseek-reasoner',
   'gpt-4o', 'gpt-5', 'o1', 'o3',
