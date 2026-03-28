@@ -116,19 +116,70 @@ function isSimpleRequest(message: string): boolean {
   return msg.length < 60; // 短消息默认简单
 }
 
-/** 平台默认轻量模型：快且便宜，处理日常对话（OpenRouter 原生 ID，不带 openrouter/ 前缀） */
-const PLATFORM_SIMPLE_MODEL = 'google/gemini-2.0-flash-001';
-/** 平台默认强模型：复杂推理/写作/工具调用（OpenRouter 原生 ID，不带 openrouter/ 前缀） */
-const PLATFORM_STRONG_MODEL = 'anthropic/claude-sonnet-4.6';
+// ─── LiteLLM 实际可用模型缓存（5 分钟刷新） ───────────────────────────────────
+
+let _litellmModelsCache: string[] = [];
+let _litellmModelsFetchedAt = 0;
+
+async function fetchLitellmModels(): Promise<string[]> {
+  const now = Date.now();
+  if (_litellmModelsCache.length > 0 && now - _litellmModelsFetchedAt < 5 * 60 * 1000) {
+    return _litellmModelsCache;
+  }
+  try {
+    const base = config.litellm.baseUrl;
+    const masterKey = config.litellm.masterKey;
+    if (!base || !masterKey) return [];
+    const resp = await fetch(`${base}/models`, {
+      headers: { Authorization: `Bearer ${masterKey}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!resp.ok) return _litellmModelsCache;
+    const data = (await resp.json()) as { data?: Array<{ id: string }> };
+    _litellmModelsCache = (data.data || []).map((m: { id: string }) => m.id);
+    _litellmModelsFetchedAt = now;
+    console.log('[Lobster] LiteLLM available models:', _litellmModelsCache);
+    return _litellmModelsCache;
+  } catch {
+    return _litellmModelsCache; // 返回旧缓存，不中断服务
+  }
+}
+
+/** 轻量模型关键词（优先级排列） */
+const SIMPLE_MODEL_KEYWORDS = [
+  'gemini-2.0-flash', 'gemini-flash', 'gemini-2.5-flash',
+  'gpt-4o-mini', 'gpt-5-nano', 'gpt-5-mini',
+  'claude-haiku', 'deepseek-chat', 'deepseek-v3',
+  'llama', 'qwen', 'mistral',
+];
+
+/** 强模型关键词（优先级排列） */
+const STRONG_MODEL_KEYWORDS = [
+  'claude-sonnet', 'claude-opus', 'claude-3-7', 'claude-3-5',
+  'deepseek-r1', 'deepseek-reasoner',
+  'gpt-4o', 'gpt-5', 'o1', 'o3',
+  'gemini-2.5-pro', 'gemini-pro',
+];
 
 /**
- * 双模型路由：简单任务用轻量模型，复杂任务用强模型。
- * 无需任何配置，模型已内置。baseModel 仅作最终兜底。
+ * 双模型路由：从 LiteLLM 实际已注册模型中选最合适的轻量/强模型。
+ * baseModel 作为兜底（始终可用）。
  */
-function routeModel(message: string, baseModel: string): string {
-  return isSimpleRequest(message)
-    ? PLATFORM_SIMPLE_MODEL
-    : PLATFORM_STRONG_MODEL;
+async function routeModel(message: string, baseModel: string): Promise<string> {
+  const available = await fetchLitellmModels();
+  if (available.length < 2) return baseModel;
+
+  const find = (keywords: string[]) =>
+    keywords
+      .flatMap((kw) => available.filter((id) => id.toLowerCase().includes(kw)))
+      .at(0);
+
+  const simpleModel = find(SIMPLE_MODEL_KEYWORDS) ?? baseModel;
+  const strongModel = find(STRONG_MODEL_KEYWORDS) ?? baseModel;
+
+  const chosen = isSimpleRequest(message) ? simpleModel : strongModel;
+  console.log(`[Lobster] route: ${isSimpleRequest(message) ? 'simple' : 'complex'} → ${chosen}`);
+  return chosen;
 }
 
 // ─── 动态 max_tokens ──────────────────────────────────────────────────────────
@@ -1312,8 +1363,8 @@ export function lobsterRoutes(): Router {
       systemContent += `\n\n---\n[用户自定义技能 — 你还拥有以下额外安装的技能]\n\n${skillsBlock}`;
     }
 
-    // 双模型路由：以 llm.model 为强模型兜底，仅在配置 LOBSTER_MODEL_SIMPLE 时才降级
-    const routedModel = routeModel(message, llm.model);
+    // 双模型路由：从 LiteLLM 实际可用模型中自动选择
+    const routedModel = await routeModel(message, llm.model);
     // 动态 max_tokens
     const dynamicMaxTokens = calcMaxTokens(message);
 
