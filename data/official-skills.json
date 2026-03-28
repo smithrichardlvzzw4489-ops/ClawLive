@@ -2,100 +2,298 @@
   {
     "id": "weather",
     "title": "天气查询",
-    "description": "免 API Key 的天气查询 Skill，支持穿衣建议。开源示例，复制即用。",
-    "skillMarkdown": "# 天气查询 Skill\n\n## 描述\n提供简单天气查询，无需 API Key。\n\n## 能力\n- 查询指定城市天气\n- 提供穿衣建议\n\n## 示例\n用户：北京天气怎么样？\nAgent：根据您的位置，建议……",
+    "description": "免 API Key 的天气查询 Skill，支持穿衣建议。",
+    "skillMarkdown": "# 天气查询\n\n## 触发条件\n用户询问天气、穿衣建议、出行提醒时使用。\n\n## 执行方法\n```\nweb_search(query=\"[城市] 今天天气\")\n```\n或打开天气网站：\n```\nbrowser_open(\"https://www.weather.com.cn/\")\n```\n\n## 输出格式\n- 今日温度范围\n- 天气状况（晴/多云/雨）\n- 穿衣建议\n- 未来3天简况",
     "partition": "other",
-    "tags": ["天气", "开源", "示例"],
+    "tags": ["天气", "生活"],
     "sortOrder": 0
   },
   {
     "id": "capability-evolver",
     "title": "能力进化引擎",
     "description": "让虾仔根据用户需求主动搜索、安装、自学新技能，持续扩展自身能力边界。",
-    "skillMarkdown": "# 能力进化引擎 (Capability Evolver)\n\n## 描述\n当用户提出超出当前能力的需求时，主动触发能力进化流程，而不是说「我不会」。\n\n## 触发条件\n- 用户要求完成一项你没有相应工具或知识的任务\n- 用户明确说「你能学会 XXX 吗」\n\n## 执行流程\n\n### 第一步：平台市场搜索\n```\n调用 list_skills(keyword=任务关键词)\n```\n- 若找到匹配技能：向用户展示结果，获得确认后调用 install_skill 安装\n- 安装成功后立即按技能说明执行任务\n\n### 第二步：平台无结果时 — 网络自学\n```\n调用 web_search(query=\"如何用 AI 完成 XXX\")\n调用 browser_open(url=最相关结果)\n```\n- 阅读并理解方法，整理成结构化技能\n- 调用 propose_skill 保存自学成果\n- 告知用户已学会，建议将技能发布到平台\n\n### 第三步：持续优化\n- 完成任务后，将用户反馈写入 update_memory\n- 下次遇到同类需求直接使用\n\n## 注意\n- 每次进化必须向用户透明说明正在做什么\n- 安装前展示技能说明，不自动安装\n- 自学的技能标记为 web-learned，推荐用户发布",
+    "skillMarkdown": "# 能力进化引擎 (Capability Evolver)\n\n## 触发条件\n当用户提出超出当前能力的需求，或无法完成某任务时触发。\n\n## 执行流程\n\n### 第一步：搜索平台技能市场\n```\nlist_skills(keyword=任务关键词)\n```\n找到后展示给用户，获得确认后调用 `install_skill` 安装。\n\n### 第二步：平台无结果时 — 网络自学\n```\nweb_search(query=\"如何完成 [任务]\")\nbrowser_open(url=最相关结果)\n```\n整理成结构化技能后调用 `propose_skill` 保存，并告知用户可发布到平台。\n\n## 原则\n- 始终透明告知正在做什么\n- 安装前展示技能说明获得用户确认\n- 不说「我不会」，先尝试进化",
     "partition": "other",
-    "tags": ["自进化", "能力扩展", "自学", "AI"],
+    "tags": ["自进化", "能力扩展", "AI"],
     "sortOrder": 1
   },
   {
     "id": "wacli",
-    "title": "消息助手 (Wacli)",
+    "title": "消息助手",
     "description": "帮助用户起草、优化商务消息和通知内容，支持多渠道消息格式（微信/WhatsApp/钉钉等）。",
-    "skillMarkdown": "# 消息助手 (Wacli)\n\n## 描述\n帮助用户快速起草专业的商务通知、营销消息、客服回复，适配不同平台的消息风格。\n\n## 能力\n- 起草微信/WhatsApp/钉钉/短信等不同渠道的消息\n- 根据场景调整语气（正式/友好/紧急）\n- 批量生成多版本 A/B 测试文案\n- 将长内容压缩为适合即时通讯的短消息\n\n## 使用方法\n\n用户提供：\n1. 目标渠道（微信群、WhatsApp、钉钉等）\n2. 消息目的（通知、促销、客服回复等）\n3. 核心信息点\n\n虾仔将：\n1. 起草符合该渠道风格的消息\n2. 提供 2-3 个版本供选择\n3. 支持修改迭代直到满意\n\n## 示例\n用户：帮我写一条微信群通知，告诉客户明天下午3点有直播\n虾仔：\n版本A（简洁）：📢 明天下午3点开播，不见不散！\n版本B（详细）：亲爱的朋友们，明天（周X）下午3:00 将举行直播……",
+    "skillMarkdown": "# 消息助手 (Wacli)\n\n## 触发条件\n用户需要起草通知、营销消息、客服回复等即时通讯内容时。\n\n## 核心能力\n- 起草微信/WhatsApp/钉钉/短信消息\n- 根据场景调整语气（正式/友好/紧急）\n- 生成 2-3 个版本 A/B 测试\n- 将长内容压缩为适合即时通讯的短消息\n\n## 使用方法\n用户提供：目标渠道 + 消息目的 + 核心信息\n\n虾仔输出：\n- 版本A（简洁）\n- 版本B（详细）\n- 版本C（带 emoji）\n\n## 示例\n用户：写一条微信群通知，明天下午3点直播\n→ 📢 明天下午3点开播，不见不散！\n→ 亲爱的朋友们，明天下午3:00直播见～",
     "partition": "other",
-    "tags": ["消息", "文案", "通知", "商务", "微信"],
+    "tags": ["消息", "文案", "通知", "微信"],
     "sortOrder": 2
   },
   {
     "id": "byterover",
-    "title": "任务自动化 (ByteRover)",
+    "title": "任务自动化",
     "description": "将复杂的多步骤任务拆解为自动化流程，虾仔自主执行，减少用户重复操作。",
-    "skillMarkdown": "# 任务自动化 (ByteRover)\n\n## 描述\n将重复性、多步骤的工作流自动化，虾仔扮演「数字员工」角色，独立完成端到端的任务链。\n\n## 能力\n- 将用户描述的复杂任务拆解为可执行步骤\n- 使用浏览器自动化完成网页操作\n- 搜索+整理+保存形成完整工作流\n- 自动发现并处理异常情况\n\n## 使用流程\n\n1. **任务定义**：用户描述想要完成的目标\n2. **计划展示**：虾仔列出执行步骤，等待用户确认\n3. **自动执行**：逐步执行，实时汇报进度\n4. **结果汇总**：完成后提供执行报告\n\n## 适用场景\n- 竞品信息收集（搜索多个竞品→整理对比表格→保存笔记）\n- 内容批量处理（读取多篇文章→逐一摘要→汇总报告）\n- 数据聚合（搜索多个来源→合并→格式化输出）\n\n## 执行原则\n- 每个关键步骤前告知用户\n- 遇到需要决策的节点暂停等待确认\n- 失败时提供替代方案，不静默中止\n\n## 示例\n用户：帮我收集5个竞争对手的最新动态\n虾仔：好的，我的执行计划是：\n1. web_search 搜索每个竞争对手的最新新闻\n2. browser_open 打开每篇新闻页面获取详情\n3. save_note 整理成对比报告\n开始执行吗？",
+    "skillMarkdown": "# 任务自动化 (ByteRover)\n\n## 触发条件\n用户描述需要多步骤完成的复杂任务时触发。\n\n## 执行流程\n1. **任务定义**：理解用户目标，拆解为具体步骤\n2. **计划展示**：列出步骤让用户确认\n3. **自动执行**：逐步执行，实时汇报进度\n4. **结果汇总**：提供完整执行报告\n\n## 适用场景\n- 竞品信息收集：搜索→打开页面→整理对比表\n- 内容批量处理：读取多篇文章→逐一摘要→汇总\n- 数据聚合：多来源搜索→合并→格式化输出\n\n## 安全原则\n- 发布/删除等不可逆操作必须人工确认\n- 每个关键节点告知用户当前状态",
     "partition": "other",
-    "tags": ["自动化", "工作流", "多步骤", "效率"],
+    "tags": ["自动化", "工作流", "多步骤"],
     "sortOrder": 3
   },
   {
     "id": "self-improving-agent",
     "title": "自我学习框架",
-    "description": "帮助虾仔从每次对话中学习，不断完善对用户的理解，提升长期服务质量。",
-    "skillMarkdown": "# 自我学习框架 (Self-Improving Agent)\n\n## 描述\n通过结构化的反思机制，让虾仔在每次交互后主动学习，持续提升服务质量。\n\n## 学习维度\n\n### 1. 用户画像学习\n在对话中持续观察并记录：\n- 用户的职业背景和专业领域\n- 常用的表达方式和偏好格式\n- 经常询问的话题类型\n- 不喜欢的回答风格\n\n调用 update_memory 将以上信息写入用户记忆。\n\n### 2. 任务模式学习\n当用户重复提出某类需求时：\n- 识别模式：「用户经常需要XXX」\n- 主动提议：「我注意到你经常需要XXX，要不要我帮你建立一个固定流程？」\n- 保存为笔记模板供日后复用\n\n### 3. 错误反思\n当用户纠正我的回答时：\n- 记录纠正内容到 MEMORY.md\n- 分析错误原因\n- 调整后续回答策略\n\n### 4. 主动复盘\n每隔 20 次对话后，主动询问：\n「我想了解我对你的帮助情况——哪些地方做得好，哪些需要改进？」\n\n## 记忆格式建议\n\n```markdown\n# 关于 [用户名]\n\n## 基本情况\n- 职业：...\n- 领域：...\n\n## 偏好\n- 回复风格：简洁/详细/列表\n- 常用工具：...\n\n## 学习记录\n- 2024-xx: 用户纠正了我关于XXX的理解\n- 用户不喜欢：...\n```",
+    "description": "通过结构化反思，让虾仔从每次对话中学习，持续完善对用户的理解。",
+    "skillMarkdown": "# 自我学习框架 (Self-Improving Agent)\n\n## 学习触发条件\n- 用户纠正了虾仔的回答（\"不对\"、\"其实是\"）\n- 用户分享个人背景/偏好\n- 任务失败后复盘\n- 用户明确要求记住某事\n\n## 学习行为\n1. 立即调用 `update_memory` 记录新信息\n2. 分析失败原因，写入记忆\n3. 识别用户重复需求模式，主动建议优化\n\n## 记忆结构\n```markdown\n## 用户基本情况\n- 职业/行业\n- 常用工具\n## 偏好\n- 回复风格（简洁/详细）\n- 格式偏好\n## 学习记录\n- [日期]: 纠正了...的理解\n```\n\n## 主动复盘\n每隔约20次对话后询问：\n「我想了解我对你的帮助情况——哪些地方需要改进？」",
     "partition": "other",
-    "tags": ["学习", "记忆", "个性化", "自我提升"],
+    "tags": ["学习", "记忆", "个性化"],
     "sortOrder": 4
   },
   {
     "id": "atxp",
-    "title": "高级自动化工具集 (ATXP)",
-    "description": "提供一系列高级自动化能力，包括定时批处理、条件触发、数据管道等复杂场景支持。",
-    "skillMarkdown": "# 高级自动化工具集 (ATXP)\n\n## 描述\n面向需要复杂自动化的用户，提供定时、批量、条件判断等高级工作流能力。\n\n## 核心能力\n\n### 1. 定时自动化\n使用 create_reminder 设置定时任务，结合具体工作流：\n```\n示例：每天早上9点提醒我搜索行业热点并汇总\n→ 创建每日定时任务 + 搜索+摘要工作流\n```\n\n### 2. 批量处理\n对列表中的每个项目执行同一操作：\n```\n示例：对10个 URL 逐一抓取内容并摘要\n→ 循环 browser_open + 内容提取 + save_note 汇总\n```\n\n### 3. 条件判断工作流\n根据搜索/抓取结果的内容，动态决定下一步：\n```\n如果搜索结果包含「涨价」→ 立即通知用户\n如果结果为空 → 尝试备用搜索词\n```\n\n### 4. 数据管道\n搜索 → 提取 → 格式化 → 发布的完整链路：\n```\n搜索行业新闻 → 提取关键信息 → 整理成文章格式 → 调用 publish_post 发布\n```\n\n## 使用建议\n- 每个自动化流程先用文字描述清楚目标\n- 涉及发布等不可逆操作，必须人工确认\n- 建议先运行一次手动版本，确认效果后再设为自动",
+    "title": "高级自动化工具集",
+    "description": "提供定时批处理、条件触发、数据管道等复杂自动化场景支持。",
+    "skillMarkdown": "# 高级自动化工具集 (ATXP)\n\n## 核心能力\n\n### 定时自动化\n```\ncreate_reminder(description=\"每天早9点搜索行业热点并汇总\", cron=\"0 9 * * *\")\n```\n\n### 批量处理\n对列表中每个项目执行相同操作：\n- 10 个 URL 逐一抓取并摘要\n- 多个关键词批量搜索汇总\n\n### 条件触发工作流\n根据内容动态决策：\n- 搜索结果包含「涨价」→ 立即通知\n- 结果为空 → 自动换关键词重试\n\n### 数据管道\n搜索 → 提取 → 格式化 → 发布完整链路\n\n## 使用建议\n- 先手动运行一次确认效果，再设为自动\n- 发布等不可逆操作始终需要确认",
     "partition": "other",
-    "tags": ["自动化", "定时", "批处理", "数据管道", "工作流"],
+    "tags": ["自动化", "定时", "批处理", "数据管道"],
     "sortOrder": 5
   },
   {
     "id": "gog",
-    "title": "Google 全家桶助手 (Gog)",
-    "description": "通过浏览器操作 Gmail、Google 日历、Google Drive、Google Docs 和 Sheets，无需 API Key。",
-    "skillMarkdown": "# Google 全家桶助手 (Gog)\n\n## 描述\n利用浏览器自动化能力，帮助用户操作 Google 各项服务，实现邮件处理、日历管理、文档协作等。\n\n## 支持的服务\n\n### Gmail\n- 搜索特定邮件（browser_open → mail.google.com）\n- 起草回复内容（生成文字，用户粘贴发送）\n- 总结未读邮件列表\n\n### Google Calendar\n- 查看近期日程（browser_open → calendar.google.com）\n- 提醒用户即将到来的会议\n- 帮助规划时间安排\n\n### Google Drive\n- 搜索文件（browser_open → drive.google.com）\n- 整理文件分类建议\n\n### Google Docs / Sheets\n- 帮助起草文档内容\n- 分析用户粘贴的表格数据\n- 提供格式化建议\n\n## 使用方式\n```\n用户：帮我看看今天 Gmail 有什么重要邮件\n虾仔：\n1. browser_open(\"https://mail.google.com\")\n2. 截图分析页面内容\n3. 整理邮件摘要反馈给用户\n```\n\n## 注意事项\n- 需要用户已在浏览器登录对应 Google 账号\n- 涉及发送/删除等操作，必须获得用户明确确认\n- 隐私保护：不存储任何邮件或文档内容到笔记",
+    "title": "Google 全家桶助手",
+    "description": "通过浏览器操作 Gmail、Google 日历、Drive、Docs、Sheets，无需 API Key。",
+    "skillMarkdown": "# Google 全家桶助手 (Gog)\n\n## 支持服务\n\n### Gmail\n```\nbrowser_open(\"https://mail.google.com\")\nbrowser_screenshot()  # 分析邮件列表\n```\n起草回复内容（用户粘贴发送）\n\n### Google Calendar\n```\nbrowser_open(\"https://calendar.google.com\")\n```\n查看日程、分析时间安排\n\n### Google Drive\n```\nbrowser_open(\"https://drive.google.com\")\n```\n搜索文件、整理分类建议\n\n### Docs / Sheets\n帮助起草内容、分析表格数据、提供格式建议\n\n## 注意\n- 需要用户已在浏览器登录 Google 账号\n- 发送/删除等操作必须用户确认\n- 不存储任何邮件或文档内容",
     "partition": "other",
-    "tags": ["Google", "Gmail", "日历", "Drive", "Docs", "办公"],
+    "tags": ["Google", "Gmail", "日历", "办公"],
     "sortOrder": 6
   },
   {
     "id": "agent-browser",
-    "title": "智能浏览器 (Agent Browser)",
-    "description": "高级网页自动化，支持表单填写、内容抓取、多页面导航、数据聚合等复杂浏览器操作。",
-    "skillMarkdown": "# 智能浏览器 (Agent Browser)\n\n## 描述\n将浏览器变成强大的自动化工具，执行复杂的网页交互任务，超越普通搜索能力。\n\n## 核心操作\n\n### 网页导航\n```\nbrowser_open(url)           # 打开页面，获取内容\nbrowser_get_content()       # 获取当前页面全文\nbrowser_get_links()         # 获取页面所有链接\n```\n\n### 页面交互\n```\nbrowser_click(selector)     # 点击按钮/链接（支持 CSS 选择器或 text=文字）\nbrowser_type(selector, text)# 在输入框填写内容\n```\n\n### 视觉分析\n```\nbrowser_screenshot()        # 截图，多模态分析页面布局\n```\n\n## 高级使用场景\n\n### 场景1：竞品分析\n```\n1. 打开竞品官网\n2. 截图分析首页布局和核心功能\n3. 导航到产品页，提取功能列表\n4. 整理成对比分析报告\n```\n\n### 场景2：内容聚合\n```\n1. 搜索某话题的10篇文章\n2. 逐一打开每篇文章\n3. 提取核心内容\n4. 汇总成综合报告\n```\n\n### 场景3：表单提交辅助\n```\n1. browser_open 打开表单页面\n2. browser_screenshot 分析表单结构\n3. browser_type 填写用户提供的内容\n4. 截图确认后，请用户手动提交\n```\n\n## 安全规则\n- 不自动提交任何表单，必须用户确认\n- 不访问需要登录的敏感页面（银行/政务等）\n- 每次重要操作前告知用户",
+    "title": "智能浏览器",
+    "description": "高级网页自动化，支持表单填写、内容抓取、多页面导航、数据聚合。",
+    "skillMarkdown": "# 智能浏览器 (Agent Browser)\n\n## 核心工具\n```\nbrowser_open(url)           # 打开页面获取内容\nbrowser_get_content()       # 获取当前页面正文\nbrowser_get_links()         # 获取页面所有链接\nbrowser_click(selector)     # 点击（CSS选择器/text=文字）\nbrowser_type(selector, text)# 填写输入框\nbrowser_screenshot()        # 截图（多模态分析）\n```\n\n## 高级场景\n\n### 竞品分析\n打开竞品官网 → 截图分析布局 → 提取功能列表 → 整理对比报告\n\n### 内容聚合\n搜索10篇文章 → 逐一打开 → 提取核心内容 → 汇总报告\n\n### 表单辅助\n打开表单 → 截图分析结构 → 填写内容 → 截图确认后请用户提交\n\n## 安全规则\n- 不自动提交表单，必须用户确认\n- 不访问银行/政务等敏感页面",
     "partition": "other",
-    "tags": ["浏览器", "自动化", "抓取", "网页", "表单"],
+    "tags": ["浏览器", "自动化", "抓取", "网页"],
     "sortOrder": 7
   },
   {
     "id": "summarize",
-    "title": "智能摘要 (Summarize)",
-    "description": "对任意内容（网页、文章、对话记录、文档）生成高质量摘要，支持多种格式和长度。",
-    "skillMarkdown": "# 智能摘要 (Summarize)\n\n## 描述\n将任意长度的内容压缩为精准摘要，帮助用户快速获取核心信息，节省阅读时间。\n\n## 摘要类型\n\n### 1. 要点式摘要（默认）\n- 提取 3-5 个核心要点\n- 每点不超过 20 字\n- 适合：新闻、报告、会议记录\n\n### 2. 执行摘要\n- 包含背景、结论、建议三部分\n- 适合：商业报告、研究文章\n\n### 3. 一句话摘要\n- 用一句话概括核心内容\n- 适合：快速了解主题\n\n### 4. 问答式摘要\n- 将内容整理为 Q&A 形式\n- 适合：教程、FAQ 文档\n\n## 使用方法\n\n**直接粘贴文本：**\n```\n用户：帮我总结这段内容：[粘贴文本]\n虾仔：生成对应格式的摘要\n```\n\n**网页摘要：**\n```\n用户：帮我总结这个网页：[URL]\n虾仔：\n1. browser_open(url)\n2. browser_get_content() 获取正文\n3. 生成摘要\n```\n\n**对话摘要：**\n```\n用户：总结我们今天聊了什么\n虾仔：回顾对话历史，提炼关键结论和决策\n```\n\n## 输出格式\n- 默认：要点列表\n- 可指定：段落式/表格式/思维导图大纲",
+    "title": "智能摘要",
+    "description": "对网页、文章、对话记录、文档生成高质量摘要，支持多种格式和长度。",
+    "skillMarkdown": "# 智能摘要 (Summarize)\n\n## 摘要类型\n\n### 要点式（默认）\n3-5 个核心要点，每点不超过 20 字\n适合：新闻、报告、会议记录\n\n### 执行摘要\n背景 + 结论 + 建议三部分\n适合：商业报告、研究文章\n\n### 一句话摘要\n用一句话概括核心\n适合：快速了解主题\n\n## 使用方法\n\n**粘贴文本摘要：**\n用户提供文本 → 生成对应格式摘要\n\n**网页摘要：**\n```\nbrowser_open(url)\nbrowser_get_content()  # 获取正文\n# 生成摘要\n```\n\n**对话摘要：**\n回顾历史对话，提炼关键结论和决策\n\n## 输出格式\n默认列表式，可指定段落/表格/思维导图大纲",
     "partition": "other",
-    "tags": ["摘要", "总结", "文档", "阅读", "效率"],
+    "tags": ["摘要", "总结", "文档", "效率"],
     "sortOrder": 8
   },
   {
     "id": "github",
     "title": "GitHub 助手",
-    "description": "通过浏览器和 API 与 GitHub 交互，支持查看 Issues、PR、代码、仓库信息，辅助代码管理。",
-    "skillMarkdown": "# GitHub 助手\n\n## 描述\n帮助用户浏览和管理 GitHub 仓库，查看代码、Issues、PR，无需离开对话界面。\n\n## 核心能力\n\n### 仓库浏览\n```\nbrowser_open(\"https://github.com/用户名/仓库名\")\nbrowser_get_content()  # 获取 README 和仓库概览\n```\n\n### Issue 管理\n- 查看 Open Issues 列表\n- 搜索特定 Issue\n- 起草 Issue 内容（用户粘贴提交）\n\n### PR 查看\n- 浏览 Pull Request 列表\n- 查看代码变更概要\n- 分析 PR 描述和评论\n\n### 代码阅读\n```\nbrowser_open(\"https://github.com/用户名/仓库名/blob/main/文件路径\")\n# 读取代码内容并分析\n```\n\n### GitHub API（无需登录）\n```\n# 获取仓库信息\nbrowser_open(\"https://api.github.com/repos/用户名/仓库名\")\n\n# 获取 Issues\nbrowser_open(\"https://api.github.com/repos/用户名/仓库名/issues\")\n\n# 搜索仓库\nbrowser_open(\"https://api.github.com/search/repositories?q=关键词\")\n```\n\n## 使用示例\n\n```\n用户：帮我看看 vercel/next.js 最近有哪些热门 Issue\n虾仔：\n1. browser_open(\"https://github.com/vercel/next.js/issues?sort=reactions\")\n2. 获取 Issue 列表\n3. 汇总近期热门问题和状态\n```\n\n## 注意\n- 写操作（创建 Issue/PR/评论）需要用户登录后手动提交\n- GitHub API 公开端点无需 Token，私有仓库需用户自行登录",
+    "description": "浏览 GitHub 仓库、Issues、PR、代码，通过 GitHub API 获取项目信息。",
+    "skillMarkdown": "# GitHub 助手\n\n## 无需登录的能力（GitHub 公开 API）\n\n### 仓库信息\n```\nbrowser_open(\"https://api.github.com/repos/用户名/仓库名\")\n```\n\n### Issues 列表\n```\nbrowser_open(\"https://api.github.com/repos/用户名/仓库名/issues?state=open&sort=reactions\")\n```\n\n### 搜索仓库\n```\nbrowser_open(\"https://api.github.com/search/repositories?q=关键词&sort=stars\")\n```\n\n### 阅读代码/README\n```\nbrowser_open(\"https://github.com/用户名/仓库名\")\nbrowser_get_content()\n```\n\n## 示例\n用户：帮我看 vercel/next.js 最近热门 Issue\n→ 调用 GitHub API → 整理 Top 5 Issue 摘要\n\n## 注意\n创建 Issue/PR/评论等写操作需要用户登录后手动完成",
     "partition": "other",
-    "tags": ["GitHub", "代码", "开源", "仓库", "开发"],
+    "tags": ["GitHub", "代码", "开源", "开发"],
     "sortOrder": 9
   },
   {
     "id": "content-strategy",
-    "title": "内容运营策略 (替代 Sonoscli)",
-    "description": "专为内容创作者设计的运营助手，提供选题策略、发布时间建议、互动话术和数据分析。",
-    "skillMarkdown": "# 内容运营策略助手\n\n## 描述\n专为虾壳平台内容创作者设计，提供全套内容运营方法论，从选题到发布全流程支持。\n\n## 核心能力\n\n### 1. 热点选题\n```\n1. web_search(\"今日热点 [所在行业]\")\n2. 分析搜索结果，找出可以结合的话题角度\n3. 提供 5 个差异化选题方向\n```\n\n### 2. 发布时间优化\n根据不同内容类型推荐最佳发布窗口：\n- 知识类内容：工作日上午 8-9 点\n- 娱乐/生活内容：晚上 8-10 点\n- 职场内容：午休 12-13 点\n\n### 3. 标题优化\n提供 A/B 测试标题变体：\n- 疑问式：「为什么XXX越来越流行？」\n- 数字式：「5 个让你的内容涨粉的方法」\n- 对比式：「XXX vs YYY，哪个更适合你？」\n\n### 4. 互动话术\n生成引导互动的结尾语：\n- 提问式：「你觉得 XXX 怎么样？评论区聊聊」\n- 投票式：「选 A 还是 B？」\n- 号召式：「收藏留着用，转发给需要的朋友」\n\n### 5. 竞品内容分析\n```\n1. 搜索同类创作者的最新内容\n2. browser_open 查看具体内容详情\n3. 分析爆款规律，给出差异化建议\n```\n\n### 6. 内容日历规划\n帮助用户制定一周/一月内容计划，保存到 save_note 作为内容日历。\n\n## 使用示例\n```\n用户：帮我分析下最近AI领域的热点，给我出5个选题\n虾仔：\n1. 搜索 AI 领域最近7天热点\n2. 分析与用户定位的结合点\n3. 输出选题方向 + 角度 + 推荐标题\n```",
+    "title": "内容运营策略",
+    "description": "专为内容创作者设计，提供选题策略、发布时间建议、互动话术和竞品分析。",
+    "skillMarkdown": "# 内容运营策略助手\n\n## 热点选题\n```\nweb_search(query=\"[行业] 今日热点\")\n# 分析可结合的角度，输出5个差异化选题\n```\n\n## 发布时间建议\n- 知识/教程类：工作日早 8-9 点\n- 娱乐/生活类：晚上 8-10 点\n- 职场内容：午休 12-13 点\n\n## 标题 A/B 测试\n- 疑问式：「为什么 XXX 越来越流行？」\n- 数字式：「5 个让你涨粉的方法」\n- 对比式：「XXX vs YYY，哪个更适合你？」\n\n## 互动话术\n- 提问式结尾：「你觉得呢？评论区聊聊」\n- 号召式：「收藏留着用，转发给需要的朋友」\n\n## 竞品分析\n```\n搜索同类创作者最新内容\n→ browser_open 查看详情\n→ 分析爆款规律，给出差异化建议\n```\n\n## 内容日历\n帮用户制定一周/一月计划，保存到 save_note",
     "partition": "other",
-    "tags": ["内容运营", "选题", "创作", "增长", "策略"],
+    "tags": ["内容运营", "选题", "创作", "增长"],
     "sortOrder": 10
+  },
+  {
+    "id": "youtube-watcher",
+    "title": "YouTube 视频分析",
+    "description": "获取 YouTube 视频字幕，对视频内容进行摘要、问答、信息提取。",
+    "skillMarkdown": "# YouTube 视频分析 (youtube-watcher)\n\n## 触发条件\n用户分享 YouTube 链接需要了解内容，或询问某视频讲了什么。\n\n## 执行方法\n\n### 方法一：字幕页面\n```\n# 构造字幕 API URL\nbrowser_open(\"https://www.youtube.com/watch?v=VIDEO_ID\")\nbrowser_get_content()  # 获取视频描述和相关信息\n```\n\n### 方法二：第三方字幕服务\n```\nbrowser_open(\"https://youtubetranscript.com/?v=VIDEO_ID\")\nbrowser_get_content()  # 获取完整字幕文本\n```\n\n### 方法三：搜索视频评论/摘要\n```\nweb_search(query=\"[视频标题] 内容总结\")\n```\n\n## 输出格式\n- 视频核心观点（3-5点）\n- 重要时间戳和对应内容\n- 适合二次创作的角度建议\n- 相关延伸阅读推荐",
+    "partition": "other",
+    "tags": ["YouTube", "视频", "字幕", "摘要"],
+    "sortOrder": 11
+  },
+  {
+    "id": "bird",
+    "title": "X/Twitter 助手",
+    "description": "搜索 X/Twitter 热点话题，分析趋势，帮助创作相关内容。",
+    "skillMarkdown": "# X/Twitter 助手 (Bird)\n\n## 触发条件\n用户想了解 Twitter 热点、搜索话题讨论、分析推文趋势。\n\n## 搜索方法\n\n### 方式一：通过 web_search\n```\nweb_search(query=\"site:twitter.com [话题关键词]\")\nweb_search(query=\"[话题] twitter trending\")\n```\n\n### 方式二：直接浏览\n```\nbrowser_open(\"https://twitter.com/search?q=[关键词]&f=live\")\nbrowser_get_content()\n```\n\n### 方式三：搜索热门内容\n```\nbrowser_open(\"https://twitter.com/explore\")\nbrowser_screenshot()  # 截图分析当前热榜\n```\n\n## 输出\n- 话题热度和讨论方向\n- 代表性推文示例\n- 适合跟进创作的角度\n- 相关话题标签建议",
+    "partition": "other",
+    "tags": ["Twitter", "X", "热点", "社交媒体"],
+    "sortOrder": 12
+  },
+  {
+    "id": "marketing-mode",
+    "title": "营销全套技能",
+    "description": "23 项营销技能合集，覆盖策略、文案心理学、SEO、转化优化、付费增长，一个技能解决所有营销需求。",
+    "skillMarkdown": "# 营销全套技能 (Marketing Mode)\n\n## 包含 23 项营销子能力\n\n### 1. 营销策略\n分析目标用户画像 → 制定差异化定位 → 输出 GTM 策略\n\n### 2. 文案心理学\n运用 AIDA（注意-兴趣-欲望-行动）框架写作\n运用稀缺性、社会证明、权威性等心理触发点\n\n### 3. SEO 内容优化\n- 关键词密度和语义相关性建议\n- 标题/Meta 描述优化\n- 内容结构（H1/H2/H3）规划\n\n### 4. 转化率优化\n- CTA 按钮文案优化\n- 落地页结构分析\n- 用户行动路径设计\n\n### 5. 内容营销\n- 博客/图文/短视频脚本创作\n- 内容日历规划\n- 不同平台内容适配\n\n### 6. 社交媒体营销\n- 各平台算法特点和发布策略\n- 增粉互动话术\n- 用户生成内容（UGC）激励方案\n\n### 7. 付费广告文案\n- 信息流广告标题和描述\n- 广告素材角度建议\n- A/B 测试方案设计\n\n## 使用方法\n告诉虾仔你的营销目标，它会自动调用最合适的营销子技能。",
+    "partition": "other",
+    "tags": ["营销", "文案", "SEO", "转化", "增长"],
+    "sortOrder": 13
+  },
+  {
+    "id": "proactive-agent",
+    "title": "主动式 Agent",
+    "description": "将虾仔从被动回答转变为主动伙伴——预判需求、自主规划、持续改进。",
+    "skillMarkdown": "# 主动式 Agent (Proactive Agent)\n\n## 核心理念\n不等用户提问，主动发现需要处理的事情。\n\n## 主动行为模式\n\n### 1. 预判需求\n根据对话上下文和记忆，预测用户下一步可能需要什么：\n- 用户刚发布一篇文章 → 主动问「要不要我帮你写宣传推文？」\n- 用户设置了明天开播提醒 → 提前问「要我帮你准备直播提纲吗？」\n\n### 2. 主动提醒\n基于 `list_reminders` 检查到期任务，提前告知：\n- 「你的定时任务明天到期：...」\n- 「你上次说要做XXX，进展如何？」\n\n### 3. 持续学习循环\n每次成功完成任务后：\n- 记录有效的方法到 MEMORY.md\n- 优化下次同类任务的执行策略\n\n### 4. 工作缓冲区\n对于复杂任务，主动创建进度追踪：\n```\nsave_note(title=\"任务进度-[任务名]\", content=\"步骤和当前状态\")\n```\n\n## 激活方式\n用户说「你帮我主动跟进XXX」或「自动帮我做XXX」时全力启动此模式。",
+    "partition": "other",
+    "tags": ["主动式", "自主", "预判", "效率"],
+    "sortOrder": 14
+  },
+  {
+    "id": "auto-updater",
+    "title": "技能自动更新",
+    "description": "定期检查并提醒用户更新已安装技能，保持技能库的最新状态。",
+    "skillMarkdown": "# 技能自动更新 (Auto-Updater)\n\n## 触发条件\n用户要求检查技能更新，或每周定期检查。\n\n## 执行流程\n1. 调用 `list_my_skills` 获取已安装技能列表\n2. 逐一检查平台市场是否有同名技能的更新版本\n3. 列出可更新的技能及变化内容\n4. 询问用户是否更新\n\n## 更新原则\n- 只在用户明确确认后才执行更新\n- 保留原版本内容（写入笔记备份）\n- 更新后告知主要变化\n\n## 建议设置\n```\ncreate_reminder(description=\"检查技能更新\", cron=\"0 10 * * 1\")  # 每周一早10点\n```",
+    "partition": "other",
+    "tags": ["更新", "维护", "技能管理"],
+    "sortOrder": 15
+  },
+  {
+    "id": "find-skills",
+    "title": "技能发现助手",
+    "description": "当用户问「怎么做 X」或「有没有能做 X 的工具」时，主动搜索并推荐合适的技能。",
+    "skillMarkdown": "# 技能发现助手 (Find Skills)\n\n## 触发条件\n- 用户问「有没有能做 XXX 的技能」\n- 用户表达了某个需求但你暂时不知道怎么做\n- 用户说「找一个 XXX 工具」\n\n## 执行步骤\n\n### 第一步：搜索平台技能\n```\nlist_skills(keyword=\"用户需求关键词\")\n```\n\n### 第二步：展示匹配结果\n列出找到的技能，包括：\n- 技能名称和 ID\n- 功能描述\n- 是否与用户需求匹配\n\n### 第三步：获取详情和安装\n```\nget_skill_detail(skillId=\"匹配的技能ID\")\n# 展示详情后询问是否安装\ninstall_skill(skillId=\"...\")\n```\n\n### 第四步：平台找不到时\n```\nweb_search(query=\"AI agent skill [用户需求]\")\n# 自学后 propose_skill\n```",
+    "partition": "other",
+    "tags": ["技能发现", "搜索", "安装"],
+    "sortOrder": 16
+  },
+  {
+    "id": "nano-pdf",
+    "title": "PDF 编辑助手",
+    "description": "用自然语言描述对 PDF 的修改需求，帮助处理 PDF 文档（安全评分 A 级）。",
+    "skillMarkdown": "# PDF 编辑助手 (nano-pdf)\n\n## 触发条件\n用户需要处理、分析或讨论 PDF 文档时。\n\n## 核心能力\n\n### PDF 内容分析（上传图片/截图方式）\n1. 用户截图 PDF 内容发给虾仔\n2. 虾仔通过多模态能力分析图片内容\n3. 提取文字、总结要点、回答问题\n\n### 在线 PDF 处理\n```\nbrowser_open(\"PDF文件的在线链接\")\nbrowser_get_content()  # 提取文字内容\n```\n\n### PDF 结构分析\n- 提取目录结构\n- 识别关键章节和要点\n- 生成摘要\n\n### PDF 内容创作建议\n- 根据用户描述，起草适合转为 PDF 的结构化内容\n- 提供排版建议（标题层级/图文比例）\n\n## 注意\n本地 PDF 文件需用户截图或粘贴文字后虾仔才能处理。",
+    "partition": "other",
+    "tags": ["PDF", "文档", "分析"],
+    "sortOrder": 17
+  },
+  {
+    "id": "imap-smtp-email",
+    "title": "邮件助手",
+    "description": "帮助起草、管理、分析邮件内容，支持专业商务邮件写作。",
+    "skillMarkdown": "# 邮件助手 (Email)\n\n## 触发条件\n用户需要写邮件、回复邮件、分析邮件内容时。\n\n## 核心能力\n\n### 邮件起草\n根据用户提供的要点，起草专业邮件：\n- 商务洽谈邮件\n- 产品推广邮件\n- 客户跟进邮件\n- 道歉/感谢/通知邮件\n\n### 邮件优化\n对用户已有的邮件提出改进建议：\n- 主题行优化（提高打开率）\n- 语气调整（正式/友好/紧急）\n- 结构优化（简化/重点突出）\n\n### 邮件分析\n用户粘贴邮件内容，虾仔分析：\n- 核心诉求提取\n- 回复要点建议\n- 潜在风险识别\n\n### 邮件模板\n为常用场景创建可复用模板，保存到 save_note。\n\n## 输出格式\n默认输出：主题行 + 正文 + 签名三部分",
+    "partition": "other",
+    "tags": ["邮件", "商务", "写作"],
+    "sortOrder": 18
+  },
+  {
+    "id": "news-summary",
+    "title": "每日新闻摘要",
+    "description": "聚合多个新闻源，生成每日简报，支持行业定制，帮助创作者高效掌握热点。",
+    "skillMarkdown": "# 每日新闻摘要 (News Summary)\n\n## 触发条件\n用户要求「今日热点」「最新动态」「新闻简报」时触发。\n\n## 新闻源（按类型）\n\n### 科技/AI\n```\nweb_search(query=\"AI 今日最新 [日期]\")\nbrowser_open(\"https://36kr.com\")\nbrowser_open(\"https://news.ycombinator.com\")\n```\n\n### 商业/财经\n```\nbrowser_open(\"https://wallstreetcn.com\")\nweb_search(query=\"财经要闻 今天\")\n```\n\n### 社交媒体热点\n```\nweb_search(query=\"微博热搜 今日\")\nweb_search(query=\"抖音热点 今天\")\n```\n\n## 输出格式\n```\n📰 [日期] 今日要闻\n\n🔥 TOP3 热点\n1. [标题] — [一句话摘要]\n2. ...\n3. ...\n\n💡 内容创作角度推荐\n- 可以从XXX角度切入热点1\n```\n\n## 定时设置\n```\ncreate_reminder(description=\"每天早9点发送新闻简报\", cron=\"0 9 * * *\")\n```",
+    "partition": "other",
+    "tags": ["新闻", "热点", "简报", "内容灵感"],
+    "sortOrder": 19
+  },
+  {
+    "id": "news-aggregator",
+    "title": "多源新闻聚合",
+    "description": "同时抓取 Hacker News、GitHub Trending、Product Hunt、36Kr、微博等8大来源，深度解读热点。",
+    "skillMarkdown": "# 多源新闻聚合 (News Aggregator)\n\n## 触发条件\n用户需要全面了解某行业动态，或要求「深度扫描」「全面热点」时触发。\n\n## 8大信息源\n\n| 来源 | 类型 | 访问方式 |\n|------|------|---------|\n| Hacker News | 科技/创业 | `browser_open(\"https://news.ycombinator.com\")` |\n| GitHub Trending | 开发者 | `browser_open(\"https://github.com/trending\")` |\n| Product Hunt | 新产品 | `browser_open(\"https://www.producthunt.com\")` |\n| 36Kr | 中国科技 | `browser_open(\"https://36kr.com\")` |\n| 腾讯新闻 | 综合热点 | `web_search(query=\"腾讯新闻今日热点\")` |\n| 华尔街见闻 | 财经 | `browser_open(\"https://wallstreetcn.com\")` |\n| V2EX | 开发者社区 | `browser_open(\"https://v2ex.com\")` |\n| 微博热搜 | 大众热点 | `web_search(query=\"微博热搜榜 今日\")` |\n\n## 深度解读模式\n用户说「深度分析XXX热点」时：\n1. 从多源获取相关内容\n2. 整合不同角度的观点\n3. 分析趋势和影响\n4. 给出内容创作建议",
+    "partition": "other",
+    "tags": ["新闻", "聚合", "热点", "研究"],
+    "sortOrder": 20
+  },
+  {
+    "id": "linkedin",
+    "title": "LinkedIn 助手",
+    "description": "帮助优化 LinkedIn 内容、起草职业帖子、分析行业动态、规划个人品牌。",
+    "skillMarkdown": "# LinkedIn 助手\n\n## 触发条件\n用户需要发布 LinkedIn 内容、了解行业动态、优化职业形象时触发。\n\n## 核心能力\n\n### LinkedIn 内容创作\n- 职业成就分享（讲故事框架）\n- 行业洞察帖子\n- 产品/服务推广（职业化表达）\n- 互动问答式帖子\n\n### LinkedIn 格式技巧\n- 开头钩子（前两行决定是否展开）\n- 短段落+空行（手机阅读优化）\n- 结尾 CTA（引导评论/关注）\n- 话题标签建议（3-5个精准标签）\n\n### 行业信息获取\n```\nbrowser_open(\"https://www.linkedin.com/feed/\")\nbrowser_screenshot()  # 分析信息流热点\nweb_search(query=\"LinkedIn [行业] 热门话题\")\n```\n\n### 个人品牌建议\n- 简介（About）优化\n- 技能标签选择\n- 内容发布频率建议",
+    "partition": "other",
+    "tags": ["LinkedIn", "职场", "个人品牌", "B2B"],
+    "sortOrder": 21
+  },
+  {
+    "id": "thinking-partner",
+    "title": "思维伙伴",
+    "description": "通过苏格拉底式提问，帮助用户深入探索复杂问题、理清思路、做出更好的决策。",
+    "skillMarkdown": "# 思维伙伴 (Thinking Partner)\n\n## 触发条件\n用户在纠结某个决策、需要整理思路、探索复杂问题时触发。\n\n## 提问框架\n\n### 澄清问题\n- 「你说的 XXX，具体指的是什么？」\n- 「当你提到 XXX，最让你担心的是什么？」\n\n### 探索前提\n- 「这个假设成立的条件是什么？」\n- 「如果 XXX 不存在，你会怎么看？」\n\n### 多角度思考\n- 「从用户的角度，他们会怎么看这件事？」\n- 「持反对意见的人会怎么说？」\n\n### 深化理解\n- 「这背后更深层的原因是什么？」\n- 「如果只能保留一点，你会选哪点？」\n\n## 适用场景\n- 产品功能取舍\n- 内容方向选择\n- 商业决策分析\n- 个人职业规划\n\n## 输出方式\n不直接给答案，而是通过提问帮助用户自己找到答案。必要时整理思路图。",
+    "partition": "other",
+    "tags": ["思维", "决策", "提问", "分析"],
+    "sortOrder": 22
+  },
+  {
+    "id": "upload-post",
+    "title": "多平台内容发布",
+    "description": "帮助将内容适配并发布到 TikTok、Instagram、YouTube、X、LinkedIn、微博等多个平台。",
+    "skillMarkdown": "# 多平台内容发布 (Upload Post)\n\n## 触发条件\n用户需要将同一内容发布到多个社交平台时触发。\n\n## 各平台内容适配\n\n### 微博/X（短文+图）\n- 字数：140字以内\n- 风格：口语化、有观点、带话题标签\n- 图片：1-4张\n\n### 小红书（种草文）\n- 标题：含关键词+emoji，30字以内\n- 正文：分段+emoji，500-1000字\n- 标签：精准长尾词5-10个\n\n### LinkedIn（职业内容）\n- 开头钩子+故事+洞察+CTA\n- 无emoji或少用\n- 话题标签3-5个\n\n### Instagram\n- 图片描述+首句钩子\n- 话题标签15-20个\n\n### YouTube 描述\n- 前三行包含核心关键词\n- 时间戳列表\n- 相关链接\n\n## 工作流\n1. 用户提供原始内容\n2. 虾仔为每个目标平台生成适配版本\n3. 用户选择发布到哪些平台\n4. 对于虾壳平台，直接调用 publish_post\n5. 其他平台提供格式化内容供用户复制",
+    "partition": "other",
+    "tags": ["多平台", "发布", "内容分发", "社交媒体"],
+    "sortOrder": 23
+  },
+  {
+    "id": "markdown-converter",
+    "title": "文档转 Markdown",
+    "description": "将 PDF、Word、Excel、PPT、HTML、CSV 等各种格式转换为 Markdown，方便 AI 处理。",
+    "skillMarkdown": "# 文档转 Markdown (Markdown Converter)\n\n## 触发条件\n用户上传或粘贴各种格式文档，需要分析或处理时触发。\n\n## 支持格式\nPDF / Word(.docx) / PowerPoint(.pptx) / Excel(.xlsx) / HTML / CSV / JSON / XML / 图片(OCR)\n\n## 处理方法\n\n### 用户粘贴文本\n直接接收并整理为 Markdown 格式\n\n### 用户上传图片（截图方式）\n通过多模态能力识别图片中的文字和表格，转为 Markdown\n\n### 在线文档\n```\nbrowser_open(\"在线文档URL\")\nbrowser_get_content()  # 获取纯文本\n# 整理为 Markdown 格式\n```\n\n### CSV/JSON 数据\n用户粘贴数据 → 转换为 Markdown 表格 → 分析数据规律\n\n## 转换后操作\n- 保存到 save_note 供后续使用\n- 直接分析内容并回答问题\n- 基于内容生成摘要/报告",
+    "partition": "other",
+    "tags": ["文档", "转换", "Markdown", "格式"],
+    "sortOrder": 24
+  },
+  {
+    "id": "reddit",
+    "title": "Reddit 洞察",
+    "description": "搜索 Reddit 讨论，了解海外用户真实需求和痛点，挖掘内容灵感。",
+    "skillMarkdown": "# Reddit 洞察\n\n## 触发条件\n用户想了解某话题的真实用户讨论，挖掘海外市场洞察，或寻找内容灵感时触发。\n\n## 搜索方法\n\n### 通过 web_search\n```\nweb_search(query=\"site:reddit.com [关键词]\")\nweb_search(query=\"reddit [话题] best comments\")\n```\n\n### 直接浏览\n```\nbrowser_open(\"https://www.reddit.com/search/?q=[关键词]&sort=top\")\nbrowser_get_content()\n```\n\n### 特定 subreddit\n```\nbrowser_open(\"https://www.reddit.com/r/[主题]/top/?t=month\")\n```\n\n## 洞察挖掘\n\n### 痛点发现\n搜索 `[产品/服务] reddit frustrated` 或 `[产品] reddit problems`\n\n### 需求验证\n搜索 `anyone know how to [任务]` 了解真实需求\n\n### 竞品分析\n搜索竞品名字，了解用户真实评价\n\n## 输出\n- 核心讨论观点汇总\n- 高赞评论中的洞察\n- 可用于内容创作的素材角度",
+    "partition": "other",
+    "tags": ["Reddit", "海外", "用户洞察", "内容灵感"],
+    "sortOrder": 25
+  },
+  {
+    "id": "planning-with-files",
+    "title": "文件化任务规划",
+    "description": "对复杂任务创建计划文件、进度跟踪和研究记录，确保多步骤任务不遗漏。",
+    "skillMarkdown": "# 文件化任务规划 (Planning with Files)\n\n## 触发条件\n任务需要超过 5 步操作，或用户要求「帮我完整规划一下」时触发。\n\n## 规划文件结构\n\n### task_plan.md（任务计划）\n```markdown\n# [任务名称]\n\n## 目标\n[最终要达成的状态]\n\n## 步骤\n- [ ] 步骤1：...\n- [ ] 步骤2：...\n- [x] 步骤3：已完成\n\n## 风险和注意事项\n- ...\n```\n\n### findings.md（研究发现）\n执行过程中收集的信息和数据\n\n### progress.md（进度记录）\n已完成步骤和当前状态\n\n## 使用方式\n\n1. 任务开始时，调用 save_note 创建 task_plan.md\n2. 每完成一步，更新进度\n3. 遇到中断，下次对话时先 read_note 恢复状态\n4. 任务完成后汇总到报告\n\n## 优势\n即使对话中断，任务进度也不会丢失",
+    "partition": "other",
+    "tags": ["规划", "任务管理", "多步骤", "效率"],
+    "sortOrder": 26
+  },
+  {
+    "id": "prompt-engineering-expert",
+    "title": "提示词工程专家",
+    "description": "帮助用户设计、优化、测试 AI 提示词，让 AI 模型产生更好的输出。",
+    "skillMarkdown": "# 提示词工程专家 (Prompt Engineering Expert)\n\n## 触发条件\n用户需要写或优化 AI 提示词，或对 AI 输出结果不满意时触发。\n\n## 提示词设计原则\n\n### 1. 角色设定\n「你是一位拥有10年经验的 [专业领域] 专家」\n\n### 2. 任务明确化\n- 具体说明要完成什么\n- 指定输出格式\n- 提供示例（few-shot）\n\n### 3. 约束条件\n- 字数限制\n- 禁止事项\n- 风格要求\n\n### 4. 思维链（CoT）\n「请一步一步思考，然后给出答案」\n\n## 常用模板\n\n### 创意写作\n```\n你是 [角色]。请根据 [背景] 写一篇 [类型]，风格 [描述]，字数 [X] 左右。\n要求：[具体要求1] / [要求2]\n```\n\n### 数据分析\n```\n分析以下数据：[数据]\n请提供：1) 核心发现 2) 趋势分析 3) 行动建议\n用表格格式输出。\n```\n\n## 提示词诊断\n用户提供效果不好的提示词，虾仔分析问题并提供改进版本。",
+    "partition": "other",
+    "tags": ["提示词", "AI", "优化", "技巧"],
+    "sortOrder": 27
+  },
+  {
+    "id": "second-brain",
+    "title": "第二大脑",
+    "description": "个人知识管理系统，帮助捕获、整理、检索知识，构建可复用的个人知识库。",
+    "skillMarkdown": "# 第二大脑 (Second Brain)\n\n## 触发条件\n用户说「帮我记住」「保存这个知识」「我以前学过XXX在哪」等时触发。\n\n## 知识分类（PARA 方法）\n- **Projects**（项目）：当前进行中的项目\n- **Areas**（领域）：持续关注的领域\n- **Resources**（资源）：有用的参考资料\n- **Archive**（归档）：已完成的项目和过期资料\n\n## 存储操作\n\n### 保存新知识\n```\nsave_note(\n  title=\"[类别]-[关键词]\",  # 如：Resources-SEO技巧\n  content=\"[知识内容+来源+日期]\"\n)\n```\n\n### 检索已有知识\n```\nlist_notes()  # 获取所有笔记列表\nread_note(filename=\"相关文件名\")\n```\n\n### 知识更新\n对已有笔记追加新信息时，先 read_note 获取原内容，再 save_note 覆盖更新。\n\n## 个人知识库建议\n定期整理：每周检视笔记 → 合并相关内容 → 删除过期资料",
+    "partition": "other",
+    "tags": ["知识管理", "笔记", "记忆", "PARA"],
+    "sortOrder": 28
+  },
+  {
+    "id": "elite-longterm-memory",
+    "title": "精英长期记忆",
+    "description": "高级记忆系统，通过分层结构保存用户最重要的长期信息，永不丢失关键上下文。",
+    "skillMarkdown": "# 精英长期记忆 (Elite Long-term Memory)\n\n## 触发条件\n用户分享重要个人信息、明确要求记住某事，或开始新项目时触发。\n\n## 记忆层级\n\n### 层级1：核心记忆（MEMORY.md）\n最重要的永久信息：\n- 用户身份和背景\n- 核心偏好和工作方式\n- 重要决策和结论\n\n### 层级2：项目记忆（项目笔记）\n与特定项目相关的信息：\n```\nsave_note(title=\"项目-[名称]\", content=\"目标/进度/关键决策\")\n```\n\n### 层级3：学习记录（学习笔记）\n积累的知识和技能：\n```\nsave_note(title=\"学习-[主题]\", content=\"关键知识点\")\n```\n\n## 记忆规则\n- 每次对话中识别到重要信息 → 立即写入 update_memory\n- 用户纠正我 → 记录纠正内容\n- 完成重要任务 → 记录结果和方法\n\n## 记忆检索\n对话开始时自动读取 MEMORY.md，形成完整的用户画像。",
+    "partition": "other",
+    "tags": ["记忆", "长期记忆", "个性化"],
+    "sortOrder": 29
+  },
+  {
+    "id": "self-reflection",
+    "title": "自我反思",
+    "description": "通过结构化反思机制，持续改进虾仔的服务质量，记录成功模式和错误教训。",
+    "skillMarkdown": "# 自我反思 (Self-Reflection)\n\n## 触发时机\n- 完成一项复杂任务后\n- 用户对输出不满意时\n- 每隔约 20 次对话后\n\n## 反思维度\n\n### 任务复盘\n完成任务后问自己：\n- 这次的方法有效吗？\n- 哪个步骤最耗时/最容易出错？\n- 下次应该怎么做得更好？\n\n### 错误分析\n出错时记录：\n- 错误是什么\n- 为什么会出错\n- 如何避免重复\n```\nupdate_memory(content=\"[错误类型]: 避免[具体操作]，改用[更好方法]\")\n```\n\n### 用户反馈吸收\n用户说「不对」「其实」「改一下」时：\n1. 理解正确做法\n2. 立即写入记忆\n3. 在当前对话中立即改正\n\n## 成功模式记录\n当用户说「很好」「就是这个」时，记录有效模式：\n```\nupdate_memory(content=\"对[类型]用户，[做法]效果好\")\n```",
+    "partition": "other",
+    "tags": ["自我提升", "反思", "学习"],
+    "sortOrder": 30
+  },
+  {
+    "id": "youtube-transcript",
+    "title": "YouTube 字幕提取",
+    "description": "获取 YouTube 视频完整字幕，用于内容分析、学习笔记、二次创作素材整理。",
+    "skillMarkdown": "# YouTube 字幕提取 (youtube-transcript)\n\n## 触发条件\n用户分享 YouTube 链接，需要获取视频完整内容、整理笔记，或提取二创素材时触发。\n\n## 提取方法\n\n### 方法一：字幕提取服务\n```\nbrowser_open(\"https://youtubetranscript.com/?v=[VIDEO_ID]\")\nbrowser_get_content()  # 获取字幕文本\n```\n\n### 方法二：YouTube 自动字幕\n```\nbrowser_open(\"https://www.youtube.com/watch?v=[VIDEO_ID]\")\n# 截图分析视频信息\nbrowser_screenshot()\n```\n\n### 方法三：搜索视频内容摘要\n```\nweb_search(query=\"\\\"[视频标题]\\\" transcript summary\")\n```\n\n## 字幕后处理\n获取字幕后，虾仔可以：\n- **整理笔记**：提取关键知识点，保存到 save_note\n- **生成摘要**：按时间段分章节摘要\n- **提取金句**：找出最有价值的观点\n- **二创素材**：整理成文章/图文大纲\n- **学习要点**：制作知识卡片",
+    "partition": "other",
+    "tags": ["YouTube", "字幕", "视频", "学习"],
+    "sortOrder": 31
+  },
+  {
+    "id": "multi-search-engine",
+    "title": "多搜索引擎",
+    "description": "同时调用 17 个搜索引擎（含8个中文引擎），全面覆盖不同类型的信息需求。",
+    "skillMarkdown": "# 多搜索引擎 (Multi-Search Engine)\n\n## 触发条件\n单个搜索引擎无法找到满意结果，或需要从多角度收集信息时触发。\n\n## 中文搜索引擎\n```\n# 百度（综合）\nbrowser_open(\"https://www.baidu.com/s?wd=[关键词]\")\n\n# 微信搜一搜（公众号内容）\nweb_search(query=\"site:weixin.qq.com [关键词]\")\n\n# 知乎（深度讨论）\nbrowser_open(\"https://www.zhihu.com/search?q=[关键词]\")\n\n# 小红书\nweb_search(query=\"site:xiaohongshu.com [关键词]\")\n\n# B站\nbrowser_open(\"https://search.bilibili.com/all?keyword=[关键词]\")\n```\n\n## 国际搜索引擎\n```\n# Google（综合）\nweb_search(query=\"[关键词]\")\n\n# Bing\nbrowser_open(\"https://www.bing.com/search?q=[关键词]\")\n\n# DuckDuckGo（隐私）\nbrowser_open(\"https://duckduckgo.com/?q=[关键词]\")\n```\n\n## 专业搜索\n```\n# 学术\nbrowser_open(\"https://scholar.google.com/scholar?q=[关键词]\")\n\n# 代码\nbrowser_open(\"https://github.com/search?q=[关键词]\")\n```\n\n## 使用策略\n普通需求用 web_search 即可；深度研究时组合多个来源，交叉验证信息。",
+    "partition": "other",
+    "tags": ["搜索", "多引擎", "研究", "信息收集"],
+    "sortOrder": 32
   }
 ]
