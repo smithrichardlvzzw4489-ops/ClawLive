@@ -72,7 +72,7 @@ export function Header({ leftNav = true }: HeaderProps) {
             <div className="flex min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto md:hidden">
               <nav className="flex shrink-0 items-center gap-0.5">
                 {navLink('/my-lobster', t('nav.myLobster'), isActive('/my-lobster'))}
-                {navLink('/', t('nav.home'), pathname === '/')}
+                {navLink('/plaza', t('nav.home'), isActive('/plaza'))}
                 {SHOW_LIVE_FEATURES && navLink('/rooms', t('nav.live'), isActive('/rooms'))}
                 {navLink('/points', t('nav.points'), isActive('/points'))}
               </nav>
@@ -82,7 +82,7 @@ export function Header({ leftNav = true }: HeaderProps) {
             <>
               <nav className="ml-0.5 flex shrink-0 items-center gap-0.5 sm:ml-1">
                 {navLink('/my-lobster', t('nav.myLobster'), isActive('/my-lobster'))}
-                {navLink('/', t('nav.home'), pathname === '/')}
+                {navLink('/plaza', t('nav.home'), isActive('/plaza'))}
                 {SHOW_LIVE_FEATURES && navLink('/rooms', t('nav.live'), isActive('/rooms'))}
                 {navLink('/points', t('nav.points'), isActive('/points'))}
               </nav>
