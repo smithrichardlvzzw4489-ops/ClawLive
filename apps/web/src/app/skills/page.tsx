@@ -33,7 +33,8 @@ const STATUS_LABEL: Record<string, { text: string; color: string }> = {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SkillsPage() {
-  const { token } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const [tab, setTab] = useState<Tab>('market');
 
   return (
