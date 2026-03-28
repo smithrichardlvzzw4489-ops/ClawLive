@@ -953,7 +953,7 @@ export default function MyLobsterPage() {
 
           <div className="mb-6 text-left">
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              给你的虾米起个名字 <span className="text-gray-400 font-normal">（选填，默认叫"虾米"）</span>
+              给你的虾米起个名字 <span className="text-gray-400 font-normal">（选填，默认叫&ldquo;虾米&rdquo;）</span>
             </label>
             <input
               type="text"
