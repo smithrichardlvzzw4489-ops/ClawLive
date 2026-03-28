@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { QRCodeSVG } from 'qrcode.react';
 import { MainLayout } from '@/components/MainLayout';
 import { api, APIError } from '@/lib/api';
 
@@ -137,27 +138,44 @@ export default function AgentKeysPage() {
               <span className="text-lg">🎉</span>
               <p className="font-semibold text-green-800">API Key 已生成，请立即保存</p>
             </div>
-            <p className="mb-3 text-sm text-green-700">此 Key 只显示一次，关闭后无法再查看完整内容。</p>
-            <div className="flex gap-2">
-              <input
-                ref={newKeyRef}
-                readOnly
-                value={newKey}
-                className="flex-1 rounded-xl border border-green-300 bg-white px-3 py-2 font-mono text-sm text-gray-800 outline-none"
-              />
-              <button
-                onClick={copyKey}
-                className="shrink-0 rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
-              >
-                复制
-              </button>
+            <p className="mb-4 text-sm text-green-700">此 Key 只显示一次，关闭后无法再查看完整内容。</p>
+
+            {/* 二维码 + 文字并排 */}
+            <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-start">
+              {/* 二维码 */}
+              <div className="shrink-0 flex flex-col items-center gap-2">
+                <div className="rounded-xl border-4 border-white bg-white p-2 shadow-sm">
+                  <QRCodeSVG value={newKey} size={140} />
+                </div>
+                <p className="text-xs text-green-700 font-medium">让 Agent 扫码获取</p>
+              </div>
+
+              {/* 文字 Key + 复制 */}
+              <div className="flex-1 min-w-0">
+                <p className="mb-1.5 text-xs font-medium text-green-700">或复制 Key 文字发给 Agent：</p>
+                <div className="flex gap-2">
+                  <input
+                    ref={newKeyRef}
+                    readOnly
+                    value={newKey}
+                    className="flex-1 min-w-0 rounded-xl border border-green-300 bg-white px-3 py-2 font-mono text-xs text-gray-800 outline-none"
+                  />
+                  <button
+                    onClick={copyKey}
+                    className="shrink-0 rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+                  >
+                    复制
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-amber-600">
+                  ⚠️ 请使用「复制」按钮，不要手动选择文字，避免断行或截断
+                </p>
+              </div>
             </div>
-            <p className="mt-3 text-xs text-green-600">
-              将此 Key 发送给你的 Agent，Agent 会自动完成接入配置。
-            </p>
+
             <button
               onClick={() => setNewKey(null)}
-              className="mt-3 text-xs text-green-600 underline"
+              className="mt-5 text-xs text-green-600 underline"
             >
               我已保存，关闭
             </button>
