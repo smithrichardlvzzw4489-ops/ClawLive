@@ -36,8 +36,8 @@ export function adminRoutes(): Router {
     });
   });
 
-  /** POST /api/admin/clear-works — 清空所有作品 */
-  router.post('/clear-works', (req, res) => {
+  /** GET /api/admin/clear-works — 清空所有作品 */
+  router.get('/clear-works', (req, res) => {
     if (!checkSecret(req, res)) return;
     const count = works.size;
     works.clear();
@@ -47,8 +47,8 @@ export function adminRoutes(): Router {
     res.json({ success: true, cleared: count });
   });
 
-  /** POST /api/admin/clear-feed-posts — 清空所有实验室帖子 */
-  router.post('/clear-feed-posts', (req, res) => {
+  /** GET /api/admin/clear-feed-posts — 清空所有实验室帖子 */
+  router.get('/clear-feed-posts', (req, res) => {
     if (!checkSecret(req, res)) return;
     const map = getFeedPostsMap();
     const count = map.size;
@@ -58,8 +58,8 @@ export function adminRoutes(): Router {
     res.json({ success: true, cleared: count });
   });
 
-  /** POST /api/admin/clear-all — 清空作品 + 帖子 */
-  router.post('/clear-all', (req, res) => {
+  /** GET /api/admin/clear-all — 清空作品 + 帖子 */
+  router.get('/clear-all', (req, res) => {
     if (!checkSecret(req, res)) return;
     const worksCount = works.size;
     const feedMap = getFeedPostsMap();
