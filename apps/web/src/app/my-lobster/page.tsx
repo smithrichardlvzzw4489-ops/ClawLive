@@ -44,7 +44,7 @@ const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    '你好！我是 Darwin 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？',
+    '你好！我是 Darwin 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 自主进化\n\n有什么我可以帮你的吗？',
   timestamp: new Date().toISOString(),
 };
 
@@ -1024,13 +1024,13 @@ export default function MyLobsterPage() {
           </div>
           <h1 className="mb-3 text-2xl font-bold text-slate-100">Darwin</h1>
           <p className="mb-2 text-slate-400">平台专属 AI Agent，自主学习 · 进化 · 为你服务</p>
-          <p className="mb-8 text-sm text-slate-500">搜索网页 · 查看内容 · 调用技能 · 多步推理</p>
+          <p className="mb-8 text-sm text-slate-500">搜索网页 · 查看内容 · 调用技能 · 自主进化</p>
 
           <div className="mb-8 grid grid-cols-4 gap-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] p-4 text-center text-xs">
             <div><p className="text-xl">🔍</p><p className="mt-1 text-slate-500">网页搜索</p></div>
             <div><p className="text-xl">📄</p><p className="mt-1 text-slate-500">平台内容</p></div>
             <div><p className="text-xl">🧩</p><p className="mt-1 text-slate-500">Skills 技能</p></div>
-            <div><p className="text-xl">🤔</p><p className="mt-1 text-slate-500">多步推理</p></div>
+            <div><p className="text-xl">🤔</p><p className="mt-1 text-slate-500">自主进化</p></div>
           </div>
 
           {error &&
