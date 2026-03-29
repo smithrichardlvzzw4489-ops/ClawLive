@@ -24,6 +24,8 @@ interface LobsterInstance {
   messageCount: number;
 }
 
+type DailyChatStats = { used: number; limit: number; remaining: number };
+
 interface PlatformModel {
   id: string;
   name: string;
@@ -645,6 +647,7 @@ export default function MyLobsterPage() {
 
   // key state
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
+  const [dailyChat, setDailyChat] = useState<DailyChatStats | null>(null);
   const [showKeySetup, setShowKeySetup] = useState(false);
 
   // multimodal
@@ -691,11 +694,25 @@ export default function MyLobsterPage() {
     }
   };
 
+  const refreshDailyChat = useCallback(async () => {
+    try {
+      const data = (await api.lobster.me()) as { applied?: boolean; dailyChat?: DailyChatStats };
+      if (data.dailyChat) setDailyChat(data.dailyChat);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const loadStatus = async () => {
     try {
-      const data = await api.lobster.me();
-      setApplied(data.applied);
-      if (data.applied) {
+      const data = (await api.lobster.me()) as {
+        applied?: boolean;
+        instance?: LobsterInstance;
+        dailyChat?: DailyChatStats;
+      };
+      setApplied(data.applied ?? null);
+      if (data.dailyChat) setDailyChat(data.dailyChat);
+      if (data.applied && data.instance) {
         setInstance(data.instance);
         await loadHistory();
       }
@@ -799,6 +816,18 @@ export default function MyLobsterPage() {
           setShowKeySetup(true);
           return;
         }
+        if (response.status === 429 && errData.error === 'DAILY_LIMIT') {
+          const limitMsg = errData.message || '今日 Darwin 对话次数已达上限，请明天再试';
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantPlaceholderId
+                ? { ...m, content: `⚠️ ${limitMsg}`, streaming: false, statusText: undefined }
+                : m,
+            ),
+          );
+          setSending(false);
+          return;
+        }
         const msg = errData.message || errData.error || `请求失败 (${response.status})`;
         if (response.status === 401) {
           setError(msg);
@@ -895,6 +924,7 @@ export default function MyLobsterPage() {
     } finally {
       setSending(false);
       abortRef.current = null;
+      void refreshDailyChat();
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -938,6 +968,17 @@ export default function MyLobsterPage() {
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         const msg = errData.message || errData.error || `请求失败 (${response.status})`;
+        if (response.status === 429 && errData.error === 'DAILY_LIMIT') {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantPlaceholderId
+                ? { ...m, content: `⚠️ ${msg}`, streaming: false, statusText: undefined }
+                : m,
+            ),
+          );
+          setSending(false);
+          return;
+        }
         if (response.status === 401) {
           setError(msg);
           setMessages((prev) => prev.filter((m) => m.id !== assistantPlaceholderId));
@@ -982,6 +1023,7 @@ export default function MyLobsterPage() {
     } finally {
       setSending(false);
       abortRef.current = null;
+      void refreshDailyChat();
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -1108,6 +1150,14 @@ export default function MyLobsterPage() {
 
           {instance && (
             <p className="shrink-0 text-xs text-slate-600">已发送 {instance.messageCount} 条</p>
+          )}
+          {dailyChat && (
+            <p
+              className="shrink-0 text-xs text-slate-500"
+              title="每日用户消息上限；按 UTC 自然日重置"
+            >
+              今日剩余 {dailyChat.remaining}/{dailyChat.limit}
+            </p>
           )}
           <button
             onClick={() => setShowFilesPanel(true)}

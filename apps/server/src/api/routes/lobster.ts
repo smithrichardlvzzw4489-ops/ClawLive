@@ -19,6 +19,8 @@ import {
   appendLobsterMessage,
   clearLobsterConversation,
   setPendingSkillSuggestion,
+  DarwinDailyLimitExceededError,
+  getDarwinDailyChatStats,
 } from '../../services/lobster-persistence';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
@@ -1425,7 +1427,12 @@ export function lobsterRoutes(): Router {
     const instance = getLobsterInstance(userId);
     if (!instance) return res.json({ applied: false });
     const conv = getLobsterConversation(userId);
-    return res.json({ applied: true, instance, historyCount: conv.messages.length });
+    return res.json({
+      applied: true,
+      instance,
+      historyCount: conv.messages.length,
+      dailyChat: getDarwinDailyChatStats(userId),
+    });
   });
 
   /** POST /api/lobster/apply */
@@ -1515,7 +1522,19 @@ export function lobsterRoutes(): Router {
       content: image ? `[图片] ${message.trim()}` : message.trim(),
       timestamp: new Date().toISOString(),
     };
-    await appendLobsterMessage(userId, userMsg);
+    try {
+      await appendLobsterMessage(userId, userMsg);
+    } catch (e) {
+      if (e instanceof DarwinDailyLimitExceededError) {
+        return res.status(429).json({
+          error: 'DAILY_LIMIT',
+          message: (e as DarwinDailyLimitExceededError).message,
+          limit: (e as DarwinDailyLimitExceededError).limit,
+          used: (e as DarwinDailyLimitExceededError).used,
+        });
+      }
+      throw e;
+    }
 
     // SSE headers
     res.setHeader('Content-Type', 'text/event-stream');

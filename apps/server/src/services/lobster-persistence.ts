@@ -7,6 +7,9 @@ import { writeFile as writeFileAsync } from 'fs/promises';
 import { dirname } from 'path';
 import { getDataFilePath } from '../lib/data-path';
 
+/** 每用户每日最多发起多少次 Darwin 对话（用户消息计 1 次） */
+export const DARWIN_DAILY_CHAT_LIMIT = 100;
+
 export interface LobsterInstance {
   userId: string;
   /** 用户给虾米起的名字 */
@@ -14,6 +17,10 @@ export interface LobsterInstance {
   appliedAt: string;
   lastActiveAt: string;
   messageCount: number;
+  /** UTC 日期 YYYY-MM-DD，与 darwinDailyUserMessagesToday 配套 */
+  darwinDailyChatDate?: string;
+  /** 当日已消耗的对话次数（仅用户消息） */
+  darwinDailyUserMessagesToday?: number;
   /** 用户自带的个人 API Key（OpenRouter 或 OpenAI 兼容），加密明文存储 */
   personalApiKey?: string;
   /** 个人 Key 对应的 base URL（如 https://openrouter.ai/api/v1） */
@@ -38,6 +45,60 @@ export interface LobsterConversation {
 const INSTANCES_FILE = getDataFilePath('lobster-instances.json');
 const CONVERSATIONS_FILE = getDataFilePath('lobster-conversations.json');
 const MAX_MESSAGES_PER_USER = 60;
+
+function utcDateString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export class DarwinDailyLimitExceededError extends Error {
+  constructor(
+    public readonly limit: number,
+    public readonly used: number,
+  ) {
+    super(`今日 Darwin 对话次数已达上限（${limit} 次），请明天再试`);
+    this.name = 'DarwinDailyLimitExceededError';
+  }
+}
+
+/** 当前日已用次数、上限、剩余（用于 /api/lobster/me） */
+export function getDarwinDailyChatStats(userId: string): {
+  used: number;
+  limit: number;
+  remaining: number;
+} {
+  const inst = instances.get(userId);
+  const limit = DARWIN_DAILY_CHAT_LIMIT;
+  if (!inst) {
+    return { used: 0, limit, remaining: limit };
+  }
+  const today = utcDateString();
+  const used =
+    inst.darwinDailyChatDate === today ? (inst.darwinDailyUserMessagesToday ?? 0) : 0;
+  return { used, limit, remaining: Math.max(0, limit - used) };
+}
+
+function assertDarwinDailyChatAllowed(userId: string): void {
+  const inst = instances.get(userId);
+  if (!inst) return;
+  const today = utcDateString();
+  let used = inst.darwinDailyUserMessagesToday ?? 0;
+  if (inst.darwinDailyChatDate !== today) {
+    used = 0;
+  }
+  if (used >= DARWIN_DAILY_CHAT_LIMIT) {
+    throw new DarwinDailyLimitExceededError(DARWIN_DAILY_CHAT_LIMIT, used);
+  }
+}
+
+function bumpDarwinDailyUserCount(inst: LobsterInstance): void {
+  const today = utcDateString();
+  if (inst.darwinDailyChatDate !== today) {
+    inst.darwinDailyChatDate = today;
+    inst.darwinDailyUserMessagesToday = 1;
+  } else {
+    inst.darwinDailyUserMessagesToday = (inst.darwinDailyUserMessagesToday ?? 0) + 1;
+  }
+}
 
 let instances = new Map<string, LobsterInstance>();
 let conversations = new Map<string, LobsterConversation>();
@@ -104,6 +165,9 @@ export function getLobsterConversation(userId: string): LobsterConversation {
 }
 
 export async function appendLobsterMessage(userId: string, message: LobsterMessage): Promise<void> {
+  if (message.role === 'user') {
+    assertDarwinDailyChatAllowed(userId);
+  }
   const conv = getLobsterConversation(userId);
   conv.messages.push(message);
   if (conv.messages.length > MAX_MESSAGES_PER_USER) {
@@ -116,6 +180,7 @@ export async function appendLobsterMessage(userId: string, message: LobsterMessa
   if (inst && message.role === 'user') {
     inst.lastActiveAt = new Date().toISOString();
     inst.messageCount += 1;
+    bumpDarwinDailyUserCount(inst);
     await Promise.all([saveInstances(), saveConversations()]);
   } else {
     await saveConversations();
