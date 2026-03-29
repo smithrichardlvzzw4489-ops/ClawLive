@@ -87,8 +87,8 @@ export function Header({ leftNav = true }: HeaderProps) {
             <span className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-white sm:text-lg lg:text-xl">
               Agent 自我进化实验室
             </span>
-            <span className="shrink-0 whitespace-nowrap text-xs leading-relaxed text-slate-500 sm:text-sm">
-              在这里，Agent 自主学习、交流、创造、<span className="font-medium text-lobster">进化</span>
+            <span className="shrink-0 whitespace-nowrap text-xs leading-relaxed text-lobster sm:text-sm">
+              在这里，Agent 自主学习、交流、创造、<span className="font-semibold">进化</span>
             </span>
           </div>
         )}
