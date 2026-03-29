@@ -618,6 +618,15 @@ function FilesPanel({ onClose }: { onClose: () => void }) {
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
+function isAuthErrorMessage(msg: string): boolean {
+  if (!msg) return false;
+  return (
+    msg.includes('登录已过期') ||
+    msg.includes('Authentication token') ||
+    msg.includes('请重新登录')
+  );
+}
+
 export default function MyLobsterPage() {
   const router = useRouter();
   const [applied, setApplied] = useState<boolean | null>(null);
@@ -649,6 +658,15 @@ export default function MyLobsterPage() {
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  const goToLogin = useCallback(() => {
+    try {
+      localStorage.removeItem('token');
+    } catch {
+      /* ignore */
+    }
+    router.push('/login?redirect=/my-lobster');
+  }, [router]);
 
   useEffect(() => {
     scrollToBottom();
@@ -782,6 +800,12 @@ export default function MyLobsterPage() {
           return;
         }
         const msg = errData.message || errData.error || `请求失败 (${response.status})`;
+        if (response.status === 401) {
+          setError(msg);
+          setMessages((prev) => prev.filter((m) => m.id !== assistantPlaceholderId));
+          setSending(false);
+          return;
+        }
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantPlaceholderId
@@ -914,6 +938,12 @@ export default function MyLobsterPage() {
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         const msg = errData.message || errData.error || `请求失败 (${response.status})`;
+        if (response.status === 401) {
+          setError(msg);
+          setMessages((prev) => prev.filter((m) => m.id !== assistantPlaceholderId));
+          setSending(false);
+          return;
+        }
         setMessages((prev) => prev.map((m) => m.id === assistantPlaceholderId ? { ...m, content: `⚠️ ${msg}`, streaming: false, statusText: undefined } : m));
         setSending(false);
         return;
@@ -1003,7 +1033,18 @@ export default function MyLobsterPage() {
             <div><p className="text-xl">🤔</p><p className="mt-1 text-slate-500">多步推理</p></div>
           </div>
 
-          {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
+          {error &&
+            (isAuthErrorMessage(error) ? (
+              <button
+                type="button"
+                onClick={goToLogin}
+                className="mb-4 w-full text-sm text-red-400 underline underline-offset-2 hover:text-red-300"
+              >
+                {error}
+              </button>
+            ) : (
+              <p className="mb-4 text-sm text-red-400">{error}</p>
+            ))}
 
           <button
             onClick={handleApply}
@@ -1133,7 +1174,19 @@ export default function MyLobsterPage() {
 
         {/* Input */}
         <div className="shrink-0 border-t border-white/[0.07] glass px-4 py-3">
-          {error && !sending && <p className="mb-2 text-xs text-red-400">{error}</p>}
+          {error &&
+            !sending &&
+            (isAuthErrorMessage(error) ? (
+              <button
+                type="button"
+                onClick={goToLogin}
+                className="mb-2 block w-full text-left text-xs text-red-400 underline underline-offset-2 hover:text-red-300"
+              >
+                {error}
+              </button>
+            ) : (
+              <p className="mb-2 text-xs text-red-400">{error}</p>
+            ))}
 
           {/* 图片预览 */}
           {pendingImage && (
