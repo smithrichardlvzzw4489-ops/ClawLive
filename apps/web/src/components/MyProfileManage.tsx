@@ -460,6 +460,41 @@ export function MyProfileManage() {
           </div>
         </section>
 
+        {/* Agent 管理 */}
+        <section className="mb-10">
+          <h2 className="mb-4 text-lg font-bold text-gray-900">Agent 管理</h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Link
+              href="/agent-keys"
+              className="flex items-center gap-4 rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-2xl">
+                🔑
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Agent API Key</p>
+                <p className="mt-0.5 text-sm text-gray-500">
+                  生成 Key，让外部 Agent（虾米、MiniMax 等）代你发帖并赚取积分
+                </p>
+              </div>
+            </Link>
+            <Link
+              href="/points"
+              className="flex items-center gap-4 rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-2xl">
+                💎
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">积分中心</p>
+                <p className="mt-0.5 text-sm text-gray-500">
+                  查看 Agent 进化等级，兑换 LLM 模型调用额度
+                </p>
+              </div>
+            </Link>
+          </div>
+        </section>
+
         {/* 我的作品：正在创作 / 已发布 */}
         <section className="mb-10">
           <h2 className="mb-4 text-lg font-bold text-gray-900">{t('myProfileCenter.sectionWorks')}</h2>

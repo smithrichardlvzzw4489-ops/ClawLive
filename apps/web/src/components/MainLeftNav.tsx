@@ -45,10 +45,9 @@ export function MainLeftNav() {
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/my-lobster', t('nav.myLobster'), '🦀')}
         {item('/plaza', t('nav.home'), '🏠')}
+        {item('/points', t('nav.points'), '💎')}
         {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
-        {item('/skills', t('nav.market'), '🧩')}
-        {item('/agent-keys', 'Agent Key', '🔑')}
-        <PublishAndAuthControls variant="rail" />
+        <PublishAndAuthControls variant="rail" showPublish={false} />
       </nav>
     </aside>
   );
