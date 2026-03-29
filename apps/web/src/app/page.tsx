@@ -36,7 +36,7 @@ export default function HomePage() {
               aria-expanded={showBetaModal}
             >
               <span className="inline-flex items-center gap-1.5 shrink-0" aria-hidden>
-                <span className="text-[1.1rem] leading-none drop-shadow-[0_0_8px_rgba(34,211,238,0.45)] animate-bounce">
+                <span className="inline-block text-[1.1rem] leading-none drop-shadow-[0_0_8px_rgba(34,211,238,0.45)] animate-wiggle-x">
                   👉
                 </span>
                 <span

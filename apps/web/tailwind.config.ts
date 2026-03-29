@@ -85,12 +85,20 @@ const config: Config = {
           '0%': { transform: 'translateY(-100%)' },
           '100%': { transform: 'translateY(100vh)' },
         },
+        /** 公测胶囊内 👉 左右轻晃（替代默认 bounce 的上下弹跳） */
+        'wiggle-x': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '25%': { transform: 'translateX(4px)' },
+          '50%': { transform: 'translateX(0)' },
+          '75%': { transform: 'translateX(-4px)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-in-out',
         'slide-up': 'slide-up 0.3s ease-out',
         'float': 'float 3s ease-in-out infinite',
         'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
+        'wiggle-x': 'wiggle-x 1.1s ease-in-out infinite',
       },
       boxShadow: {
         'card': '0 2px 8px rgba(0, 0, 0, 0.08)',
