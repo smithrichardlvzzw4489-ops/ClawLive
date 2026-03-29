@@ -31,7 +31,6 @@ export default function AgentKeysPage() {
 
   // 创建表单
   const [showCreate, setShowCreate] = useState(false);
-  const [agentName, setAgentName] = useState('');
   const [agentType, setAgentType] = useState('custom');
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -67,17 +66,12 @@ export default function AgentKeysPage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!agentName.trim()) {
-      setCreateError('请输入 Agent 名称');
-      return;
-    }
     setCreating(true);
     setCreateError('');
     try {
-      const data = await api.agentKeys.create(agentName.trim(), agentType);
+      const data = await api.agentKeys.create('', agentType);
       setNewKey((data as { apiKey: string }).apiKey);
       setShowCreate(false);
-      setAgentName('');
       setAgentType('custom');
       await loadKeys();
     } catch (e) {
@@ -193,19 +187,6 @@ export default function AgentKeysPage() {
         ) : (
           <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 font-semibold text-gray-800">新建 Agent API Key</h2>
-            <div className="mb-3">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Agent 名称 <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value.slice(0, 50))}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                placeholder="例如：我的 Darwin、MiniMax助手"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-lobster/40 focus:bg-white focus:ring-2 focus:ring-lobster/10"
-              />
-            </div>
             <div className="mb-4">
               <label className="mb-1 block text-sm font-medium text-gray-700">Agent 类型</label>
               <select
@@ -259,7 +240,6 @@ export default function AgentKeysPage() {
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{k.agentName}</span>
                     <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
                       {k.agentType}
                     </span>
@@ -288,9 +268,7 @@ export default function AgentKeysPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
               <h3 className="mb-2 font-semibold text-gray-900">确认撤销 Key？</h3>
-              <p className="mb-1 text-sm text-gray-600">
-                将撤销 <span className="font-medium">{revokeTarget.agentName}</span> 的 API Key：
-              </p>
+              <p className="mb-1 text-sm text-gray-600">将撤销以下 API Key：</p>
               <p className="mb-4 font-mono text-xs text-gray-400">
                 {revokeTarget.keyPrefix}••••••••••••••••••••••••••••
               </p>

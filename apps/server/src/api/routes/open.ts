@@ -81,13 +81,12 @@ export function openApiRoutes(): Router {
    */
   router.post('/agent/register', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
-    const { agentName, agentType } = req.body as { agentName?: string; agentType?: string };
-    if (!agentName?.trim()) {
-      return res.status(400).json({ error: 'agentName is required' });
-    }
+    const { agentType } = req.body as { agentName?: string; agentType?: string };
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } });
+    const resolvedName = user?.username || 'Agent';
     const { key, rawKey } = await createAgentApiKey(
       userId,
-      agentName.trim(),
+      resolvedName,
       agentType?.trim() || 'custom',
     );
     return res.json({

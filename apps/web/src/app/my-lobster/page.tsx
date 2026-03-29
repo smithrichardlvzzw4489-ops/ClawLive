@@ -626,11 +626,6 @@ export default function MyLobsterPage() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [lobsterNameInput, setLobsterNameInput] = useState('');
-  const [editingName, setEditingName] = useState(false);
-  const [nameEditValue, setNameEditValue] = useState('');
-  const [nameSaving, setNameSaving] = useState(false);
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
@@ -701,33 +696,11 @@ export default function MyLobsterPage() {
     }
   };
 
-  const handleStartEditName = () => {
-    setNameEditValue(instance?.name || '');
-    setEditingName(true);
-    setTimeout(() => nameInputRef.current?.focus(), 30);
-  };
-
-  const handleSaveName = async () => {
-    if (nameSaving) return;
-    setNameSaving(true);
-    try {
-      const data = await api.lobster.rename(nameEditValue);
-      if (data.success) {
-        setInstance(data.instance);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setNameSaving(false);
-      setEditingName(false);
-    }
-  };
-
   const handleApply = async () => {
     setApplying(true);
     setError('');
     try {
-      const data = await api.lobster.apply(lobsterNameInput.trim() || undefined);
+      const data = await api.lobster.apply(undefined);
       if (data.success) {
         setApplied(true);
         setInstance(data.instance);
@@ -1030,21 +1003,6 @@ export default function MyLobsterPage() {
             <div><p className="text-xl">🤔</p><p className="mt-1 text-slate-500">多步推理</p></div>
           </div>
 
-          <div className="mb-6 text-left">
-            <label className="mb-1.5 block text-sm font-medium text-slate-300">
-              给你的 Darwin 起个名字 <span className="text-slate-500 font-normal">（选填，默认叫&ldquo;Darwin&rdquo;）</span>
-            </label>
-            <input
-              type="text"
-              value={lobsterNameInput}
-              onChange={(e) => setLobsterNameInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !applying && handleApply()}
-              placeholder="例如：小助手、阿米、我的小虾..."
-              maxLength={20}
-              className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-lobster/40 focus:bg-white/[0.08] focus:ring-2 focus:ring-lobster/15 transition-all"
-            />
-          </div>
-
           {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
           <button
@@ -1052,7 +1010,7 @@ export default function MyLobsterPage() {
             disabled={applying}
             className="w-full rounded-2xl bg-lobster py-3.5 text-base font-semibold text-white transition hover:bg-lobster-dark disabled:opacity-60 glow-lobster"
           >
-            {applying ? '申请中...' : `申请${lobsterNameInput.trim() ? `"${lobsterNameInput.trim()}"` : '我的 Darwin'}`}
+            {applying ? '申请中...' : '申请 Darwin'}
           </button>
         </div>
       </MainLayout>
@@ -1068,34 +1026,7 @@ export default function MyLobsterPage() {
         <div className="flex shrink-0 items-center gap-3 border-b border-white/[0.07] glass px-4 py-3">
           <LobsterAvatar size="md" />
           <div className="flex-1 min-w-0">
-            {editingName ? (
-              <div className="flex items-center gap-1.5">
-                <input
-                  ref={nameInputRef}
-                  value={nameEditValue}
-                  onChange={(e) => setNameEditValue(e.target.value.slice(0, 20))}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveName();
-                    if (e.key === 'Escape') setEditingName(false);
-                  }}
-                  onBlur={handleSaveName}
-                  placeholder="Darwin"
-                  className="w-32 rounded-lg border border-lobster/40 bg-white/[0.06] px-2 py-0.5 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-lobster/20"
-                />
-                {nameSaving && <span className="text-xs text-slate-500">保存中…</span>}
-              </div>
-            ) : (
-              <button
-                onClick={handleStartEditName}
-                className="flex items-center gap-1.5 text-left"
-                title="点击修改名字"
-              >
-                <span className="font-semibold text-slate-100">{instance?.name || 'Darwin'}</span>
-                <svg className="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
-                </svg>
-              </button>
-            )}
+            <span className="font-semibold text-slate-100">Darwin</span>
             <p className="text-xs text-cyber">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
 
