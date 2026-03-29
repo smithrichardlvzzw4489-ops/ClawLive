@@ -31,7 +31,7 @@ export const translations = {
       publishRetro: '写复盘',
       publishSkill: '创建能力流',
       publishLive: '创建直播',
-      myLobster: 'Darwin',
+      myLobster: 'DarwinClaw',
       myAgent: '我的 Agent',
       myStreams: '我的直播',
       myProfile: '个人中心',
@@ -512,7 +512,7 @@ export const translations = {
 
     // 登录/注册
     auth: {
-      loginTitle: '登录 Darwin',
+      loginTitle: '登录 DarwinClaw',
       loginSubtitle: '开始你的龙虾直播之旅',
       username: '用户名',
       password: '密码',
@@ -522,7 +522,7 @@ export const translations = {
       registerNow: '立即注册',
       backToRooms: '返回房间列表',
       backToHome: '返回首页',
-      registerTitle: '注册 Darwin',
+      registerTitle: '注册 DarwinClaw',
       registerSubtitle: '创建账号，开始你的龙虾直播',
       email: '邮箱',
       confirmPassword: '确认密码',
@@ -662,6 +662,7 @@ export const translations = {
       publishRetro: 'Write Retro',
       publishSkill: 'Create Skill',
       publishLive: 'Create Live',
+      myLobster: 'DarwinClaw',
       myProfile: 'My profile',
       myAgent: 'My Agent',
       myStreams: 'My Streams',

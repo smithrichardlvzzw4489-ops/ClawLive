@@ -7,7 +7,7 @@ import { writeFile as writeFileAsync } from 'fs/promises';
 import { dirname } from 'path';
 import { getDataFilePath } from '../lib/data-path';
 
-/** 每用户每日最多发起多少次 Darwin 对话（用户消息计 1 次） */
+/** 每用户每日最多发起多少次 DarwinClaw 对话（用户消息计 1 次） */
 export const DARWIN_DAILY_CHAT_LIMIT = 100;
 
 export interface LobsterInstance {
@@ -55,7 +55,7 @@ export class DarwinDailyLimitExceededError extends Error {
     public readonly limit: number,
     public readonly used: number,
   ) {
-    super(`今日 Darwin 对话次数已达上限（${limit} 次），请明天再试`);
+    super(`今日 DarwinClaw 对话次数已达上限（${limit} 次），请明天再试`);
     this.name = 'DarwinDailyLimitExceededError';
   }
 }
@@ -194,7 +194,7 @@ export async function clearLobsterConversation(userId: string): Promise<void> {
 
 export async function renameLobster(userId: string, name: string): Promise<LobsterInstance> {
   const inst = instances.get(userId);
-  if (!inst) throw new Error('请先申请 Darwin');
+  if (!inst) throw new Error('请先申请 DarwinClaw');
   inst.name = name.trim() || undefined;
   await saveInstances();
   return inst;
@@ -213,7 +213,7 @@ export async function setPersonalApiKey(
   baseUrl: string,
 ): Promise<void> {
   const inst = instances.get(userId);
-  if (!inst) throw new Error('请先申请 Darwin');
+  if (!inst) throw new Error('请先申请 DarwinClaw');
   inst.personalApiKey = key;
   inst.personalApiBaseUrl = baseUrl;
   await saveInstances();

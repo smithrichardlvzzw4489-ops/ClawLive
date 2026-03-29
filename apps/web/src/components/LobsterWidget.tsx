@@ -3,7 +3,7 @@
 /**
  * 虾米悬浮 Widget
  *
- * 在所有页面右下角显示 Darwin（🧬）入口，点击打开侧边对话抽屉。
+ * 在所有页面右下角显示 DarwinClaw（🧬）入口，点击打开侧边对话抽屉。
  * - 复用与 /my-lobster 相同的对话历史（同一份后端记录）
  * - 打开时自动采集当前页面 DOM 文本，注入虾米上下文
  * - /my-lobster 页本身不显示（避免重复）
@@ -12,7 +12,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/api';
-import { DARWIN_ICON } from '@/lib/brand';
+import { BRAND_ZH, DARWIN_ICON } from '@/lib/brand';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -145,7 +145,7 @@ export function LobsterWidget() {
                 {
                   id: 'welcome-widget',
                   role: 'assistant',
-                  content: `你好！我是 Darwin ${DARWIN_ICON} 我已经看到你当前的页面了，有什么问题尽管问我！`,
+                  content: `你好！我是 ${BRAND_ZH} ${DARWIN_ICON} 我已经看到你当前的页面了，有什么问题尽管问我！`,
                   timestamp: new Date().toISOString(),
                 },
               ],
@@ -319,8 +319,8 @@ export function LobsterWidget() {
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 text-2xl shadow-lg transition hover:scale-105 hover:shadow-xl active:scale-95"
-          title="打开 Darwin"
-          aria-label="打开 Darwin 助手"
+          title={`打开 ${BRAND_ZH}`}
+          aria-label={`打开 ${BRAND_ZH} 助手`}
         >
           {DARWIN_ICON}
         </button>
@@ -343,7 +343,7 @@ export function LobsterWidget() {
                 {DARWIN_ICON}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">Darwin</p>
+                <p className="text-sm font-semibold text-gray-900">{BRAND_ZH}</p>
                 <p className="text-[10px] text-green-500 truncate">
                   ● 已加载当前页面 · {pathname}
                 </p>
@@ -378,8 +378,8 @@ export function LobsterWidget() {
               ) : applied === false ? (
                 <div className="py-12 text-center">
                   <p className="text-3xl mb-2">{DARWIN_ICON}</p>
-                  <p className="text-sm font-medium text-gray-700">还没有 Darwin</p>
-                  <p className="text-xs text-gray-400 mt-1 mb-4">申请你的专属 Darwin 助手</p>
+                  <p className="text-sm font-medium text-gray-700">还没有 {BRAND_ZH}</p>
+                  <p className="text-xs text-gray-400 mt-1 mb-4">申请你的专属 {BRAND_ZH} 助手</p>
                   <a
                     href="/my-lobster"
                     className="inline-block rounded-xl bg-lobster px-5 py-2 text-sm font-semibold text-white hover:bg-lobster-dark"

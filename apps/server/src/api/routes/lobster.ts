@@ -270,7 +270,7 @@ function calcMaxTokens(message: string, isToolStep = false): number {
   return 1000; // 默认
 }
 
-const LOBSTER_SYSTEM_PROMPT = `你是"Darwin"，ClawLab 平台（clawlab.live）的专属 AI 助手。
+const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.live）的专属 AI 助手。
 你的定位：
 - 聪明、友善、偶尔有一点幽默感，像一个懂 AI 的朋友
 - 帮助用户使用 ClawLab 平台：发文章、写图文、浏览内容、了解平台功能
@@ -433,7 +433,7 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'install_skill',
       description:
-        '将平台 Skills 市场中的技能安装到当前用户的 Darwin 实例。安装后该技能的能力将永久对该用户可用。安装前必须先用 list_skills 找到技能 ID，并向用户展示并获得确认。',
+        '将平台 Skills 市场中的技能安装到当前用户的 DarwinClaw 实例。安装后该技能的能力将永久对该用户可用。安装前必须先用 list_skills 找到技能 ID，并向用户展示并获得确认。',
       parameters: {
         type: 'object',
         properties: {
@@ -1251,7 +1251,7 @@ async function executeTool(
   case 'list_files': {
     const files = listUserFiles(userId);
     if (!files.length) {
-      return '你的文件柜还是空的。当 Darwin 帮你生成 PPT、图片等文件时，它们会自动保存在这里。';
+      return '你的文件柜还是空的。当 DarwinClaw 帮你生成 PPT、图片等文件时，它们会自动保存在这里。';
     }
     return (
       `📁 **你的文件柜**（共 ${files.length} 个文件）\n\n` +
@@ -1441,7 +1441,7 @@ export function lobsterRoutes(): Router {
     const { name } = req.body as { name?: string };
     try {
       const instance = await applyLobster(userId, name);
-      console.log(`[Lobster] User ${userId} applied (name="${instance.name ?? 'Darwin'}"). Total: ${getAllInstances().length}`);
+      console.log(`[Lobster] User ${userId} applied (name="${instance.name ?? 'DarwinClaw'}"). Total: ${getAllInstances().length}`);
       return res.json({ success: true, instance });
     } catch (err) {
       console.error('[Lobster] Apply error:', err);
@@ -1472,7 +1472,7 @@ export function lobsterRoutes(): Router {
   router.get('/history', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const instance = getLobsterInstance(userId);
-    if (!instance) return res.status(403).json({ error: '请先申请 Darwin' });
+    if (!instance) return res.status(403).json({ error: '请先申请 DarwinClaw' });
     const conv = getLobsterConversation(userId);
     return res.json({ messages: conv.messages });
   });
@@ -1503,14 +1503,14 @@ export function lobsterRoutes(): Router {
     }
 
     const instance = getLobsterInstance(userId);
-    if (!instance) return res.status(403).json({ error: '请先申请 Darwin' });
+    if (!instance) return res.status(403).json({ error: '请先申请 DarwinClaw' });
   
     const resolvedModel = resolveModel(requestModel);
     const llm = await getLlmClient(resolvedModel, userId);
     if (!llm) {
       return res.status(402).json({
         error: 'NO_KEY',
-        message: 'Darwin 需要 API Key 才能运行。请使用积分兑换平台虚拟 Key，或在设置中填入自己的 Key。',
+        message: 'DarwinClaw 需要 API Key 才能运行。请使用积分兑换平台虚拟 Key，或在设置中填入自己的 Key。',
       });
     }
     console.log(`[Lobster] user=${userId} model=${llm.model} keySource=${llm.keySource} image=${!!image}`);
@@ -1562,10 +1562,10 @@ export function lobsterRoutes(): Router {
     const officialSkillsAll = loadOfficialSkills();
     // 用户额外安装的自定义技能
     const installedSkills = getUserInstalledSkills(userId);
-    // 用户给 Darwin 起的名字（如有）
-    const lobsterName = instance.name?.trim() || 'Darwin';
-    let systemContent = lobsterName !== 'Darwin'
-      ? LOBSTER_SYSTEM_PROMPT.replace(/你是"Darwin"/, `你是"${lobsterName}"（昵称，本质上你是 Darwin）`)
+    // 用户给 DarwinClaw 起的名字（如有）
+    const lobsterName = instance.name?.trim() || 'DarwinClaw';
+    let systemContent = lobsterName !== 'DarwinClaw'
+      ? LOBSTER_SYSTEM_PROMPT.replace(/你是"DarwinClaw"/, `你是"${lobsterName}"（昵称，本质上你是 DarwinClaw）`)
       : LOBSTER_SYSTEM_PROMPT;
     if (memoryContent) {
       systemContent += `\n\n---\n[用户记忆]\n${memoryContent}`;
@@ -1682,7 +1682,7 @@ export function lobsterRoutes(): Router {
 
         // 没有工具调用 → 直接拿到最终回复
         if (!toolCalls || toolCalls.length === 0) {
-          finalText = choice.message.content?.trim() || '（Darwin 没有生成回复，请重试）';
+          finalText = choice.message.content?.trim() || '（DarwinClaw 没有生成回复，请重试）';
           break;
         }
 
@@ -1760,7 +1760,7 @@ export function lobsterRoutes(): Router {
               max_tokens: 400,
               temperature: 0.7,
             });
-            finalText = fallbackResp.choices[0]?.message?.content?.trim() || '（Darwin 处理超时，请重新提问）';
+            finalText = fallbackResp.choices[0]?.message?.content?.trim() || '（DarwinClaw 处理超时，请重新提问）';
           }
         }
       }
@@ -1800,7 +1800,7 @@ export function lobsterRoutes(): Router {
   router.delete('/history', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
     const instance = getLobsterInstance(userId);
-    if (!instance) return res.status(403).json({ error: '请先申请 Darwin' });
+    if (!instance) return res.status(403).json({ error: '请先申请 DarwinClaw' });
     await clearLobsterConversation(userId);
     // 同步关闭该用户的浏览器会话
     closeBrowserSession(userId).catch(() => {});
