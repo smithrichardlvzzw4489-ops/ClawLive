@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
+import { DARWIN_ICON } from '@/lib/brand';
 
 export default function HomePage() {
   const [agentMode, setAgentMode] = useState(false);
@@ -66,7 +67,7 @@ export default function HomePage() {
                     : 'border border-white/15 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]'
                 }`}
               >
-                🦞 免费申请 Darwin
+                {DARWIN_ICON} 免费申请 Darwin
               </button>
             </div>
           </div>
@@ -75,7 +76,7 @@ export default function HomePage() {
           {!agentMode ? (
             <div className="rounded-2xl border border-white/[0.08] bg-white/[0.04] backdrop-blur-sm overflow-hidden">
               <div className="border-b border-white/[0.07] px-6 py-5">
-                <h2 className="text-base font-bold text-white">申请你的专属 Darwin 🦞</h2>
+                <h2 className="text-base font-bold text-white">申请你的专属 Darwin {DARWIN_ICON}</h2>
                 <p className="mt-1 text-sm text-slate-400">ClawLab 内置 AI Agent，注册即用，无需部署，自主学习进化</p>
               </div>
               <div className="grid grid-cols-1 gap-3 px-6 py-5 sm:grid-cols-2">

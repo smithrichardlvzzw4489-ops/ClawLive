@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { API_BASE_URL } from '@/lib/api';
+import { DARWIN_ICON } from '@/lib/brand';
 
 interface UserConnection {
   id: string;
@@ -253,7 +254,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
       {/* Header */}
       <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">🦞</span>
+          <span className="text-2xl">{DARWIN_ICON}</span>
           <h2 className="text-xl font-bold">{inline ? 'Agent 配置' : 'Agent 设置'}</h2>
         </div>
         {!inline && (

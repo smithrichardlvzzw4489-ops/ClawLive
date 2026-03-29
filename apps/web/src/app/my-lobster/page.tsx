@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { api, APIError, API_BASE_URL } from '@/lib/api';
+import { DARWIN_ICON } from '@/lib/brand';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    '你好！我是 Darwin 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？',
+    `你好！我是 Darwin ${DARWIN_ICON} 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？`,
   timestamp: new Date().toISOString(),
 };
 
@@ -55,9 +56,9 @@ function LobsterAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
         : 'h-10 w-10 text-2xl';
   return (
     <div
-      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-orange-500 font-bold text-white shadow-sm`}
+      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-700 font-bold text-white shadow-sm`}
     >
-      🦀
+      {DARWIN_ICON}
     </div>
   );
 }
@@ -808,8 +809,8 @@ export default function MyLobsterPage() {
     return (
       <MainLayout>
         <div className="mx-auto max-w-md px-6 py-16 text-center">
-          <div className="mx-auto mb-6 relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-lobster to-lobster-dark text-5xl shadow-lg glow-lobster">
-            🦀
+          <div className="mx-auto mb-6 relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-800 text-5xl shadow-lg glow-lobster">
+            {DARWIN_ICON}
           </div>
           <h1 className="mb-3 text-2xl font-bold text-slate-100">Darwin</h1>
           <p className="mb-2 text-slate-400">平台专属 AI Agent，自主学习 · 进化 · 为你服务</p>

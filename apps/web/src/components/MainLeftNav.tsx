@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { DARWIN_ICON } from '@/lib/brand';
 
 const RAIL_W = 'w-[220px] xl:w-[240px]';
 
@@ -45,7 +46,7 @@ export function MainLeftNav() {
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/', '首页', '🚀')}
         {item('/plaza', t('nav.home'), '🔬')}
-        {item('/my-lobster', t('nav.myLobster'), '🦀')}
+        {item('/my-lobster', t('nav.myLobster'), DARWIN_ICON)}
         {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
         <PublishAndAuthControls variant="rail" showPublish={false} />
       </nav>

@@ -88,8 +88,8 @@ export const translations = {
     agentLevels: {
       L0: '🥚 孵化中',
       L1: '🦐 虾苗',
-      L2: '🦀 幼蟹',
-      L3: '🦞 龙虾',
+      L2: '🧬 序列',
+      L3: '🧠 觉醒',
       L4: '🐉 进化体',
       L5: '⚡ 超级 Agent',
     },

@@ -6,6 +6,7 @@ import { useSocket } from '@/hooks/useSocket';
 import { format } from 'date-fns';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL } from '@/lib/api';
+import { DARWIN_ICON } from '@/lib/brand';
 import { AgentConnectForInbox } from './AgentConnectForInbox';
 
 interface Message {
@@ -165,7 +166,7 @@ export function AgentChatWidget() {
       className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-lobster text-white shadow-lg transition-all hover:scale-105 hover:shadow-xl"
       title={t('inbox.toggle')}
     >
-      <span className="text-2xl">🦞</span>
+      <span className="text-2xl">{DARWIN_ICON}</span>
       {user && inboxStatus?.connected && (
         <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400" />
       )}
@@ -176,7 +177,7 @@ export function AgentChatWidget() {
     expanded && user ? (
     <div className="fixed bottom-24 left-4 right-4 z-40 flex max-h-[min(480px,70vh)] w-auto max-w-[360px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl sm:left-auto sm:right-6 sm:w-[360px]">
           <div className="px-4 py-3 border-b bg-gray-50 flex items-center justify-between">
-            <span className="font-semibold text-gray-900">🦞 Agent</span>
+            <span className="font-semibold text-gray-900">{DARWIN_ICON} Agent</span>
             <div className="flex items-center gap-2">
               {messages.length > 0 && (
                 <button
@@ -265,7 +266,7 @@ export function AgentChatWidget() {
                         }`}
                       >
                         <p className="text-xs opacity-80 mb-0.5">
-                          {isUser ? '👤' : '🦞'} {format(new Date(msg.timestamp), 'HH:mm')}
+                          {isUser ? '👤' : DARWIN_ICON} {format(new Date(msg.timestamp), 'HH:mm')}
                         </p>
                         <p className="whitespace-pre-wrap break-words text-sm">{msg.content}</p>
                       </div>

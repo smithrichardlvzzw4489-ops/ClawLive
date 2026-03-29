@@ -8,6 +8,7 @@ import { API_BASE_URL } from '@/lib/api';
 import { trackBehavior } from '@/hooks/useBehaviorTrack';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { DARWIN_ICON } from '@/lib/brand';
 
 interface Message {
   id: string;
@@ -112,7 +113,7 @@ export default function HistoryPage() {
                 {t('history.ended')}
               </span>
             </div>
-            <p className="text-gray-600 mb-2">🦞 {data.lobsterName}</p>
+            <p className="text-gray-600 mb-2">{DARWIN_ICON} {data.lobsterName}</p>
             {data.description && (
               <p className="text-gray-500 mb-4">{data.description}</p>
             )}
@@ -162,7 +163,7 @@ export default function HistoryPage() {
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-semibold opacity-90">
-                      {msg.sender === 'host' ? '🎤 主播' : '🦞 Agent'}
+                      {msg.sender === 'host' ? '🎤 主播' : `${DARWIN_ICON} Agent`}
                     </span>
                     <span className="text-xs opacity-75">
                       {new Date(msg.timestamp).toLocaleTimeString('zh-CN')}

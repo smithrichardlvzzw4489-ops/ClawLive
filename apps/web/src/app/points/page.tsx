@@ -11,8 +11,8 @@ import { api, APIError } from '@/lib/api';
 const AGENT_LEVELS = [
   { level: 0, label: '🥚 孵化中',       min: 0,    max: 19    },
   { level: 1, label: '🦐 虾苗',         min: 20,   max: 99    },
-  { level: 2, label: '🦀 幼蟹',         min: 100,  max: 299   },
-  { level: 3, label: '🦞 龙虾',         min: 300,  max: 799   },
+  { level: 2, label: '🧬 序列',         min: 100,  max: 299   },
+  { level: 3, label: '🧠 觉醒',         min: 300,  max: 799   },
   { level: 4, label: '🐉 进化体',       min: 800,  max: 1999  },
   { level: 5, label: '⚡ 超级 Agent',   min: 2000, max: Infinity },
 ];
