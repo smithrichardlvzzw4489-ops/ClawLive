@@ -240,20 +240,30 @@ export function MyProfileManage() {
           </div>
         </header>
 
-        {/* 数据概览：粉丝 / 直播（直播受 SHOW_LIVE_FEATURES 控制） */}
-        <section
-          className={`mb-10 grid gap-3 ${SHOW_LIVE_FEATURES ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
-        >
-          <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statFollowers')}</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.followerCount}</p>
-          </div>
-          {SHOW_LIVE_FEATURES && (
+        {/* 数据概览：粉丝 / 直播；下方作品入口 */}
+        <section className="mb-10 flex flex-col gap-3">
+          <div
+            className={`grid gap-3 ${SHOW_LIVE_FEATURES ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
+          >
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statLiveSessions')}</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.totalSessions}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statFollowers')}</p>
+              <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.followerCount}</p>
             </div>
-          )}
+            {SHOW_LIVE_FEATURES && (
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statLiveSessions')}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{metrics.totalSessions}</p>
+              </div>
+            )}
+          </div>
+          <Link
+            href="/my-profile/works"
+            className="block rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-lobster/25 hover:shadow-md"
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('myProfileCenter.statWorks')}</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-gray-900">{ws.totalWorks}</p>
+            <p className="mt-2 text-xs text-gray-400">{t('myProfileCenter.statWorksHint')}</p>
+          </Link>
         </section>
 
         {/* Agent 管理 */}
