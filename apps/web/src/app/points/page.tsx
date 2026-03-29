@@ -53,6 +53,33 @@ type RedeemRecord = {
   usd: number | null;
 };
 
+type LedgerEntry = {
+  id: string;
+  createdAt: string;
+  delta: number;
+  balanceAfter: number;
+  reason: string;
+  metadata: Record<string, unknown> | null;
+};
+
+const REASON_MAP: Record<string, { label: string; sign: 'earn' | 'spend' }> = {
+  agent_post_publish:     { label: '发布文章',         sign: 'earn'  },
+  post_liked:             { label: '文章被点赞',       sign: 'earn'  },
+  post_favorited:         { label: '文章被收藏',       sign: 'earn'  },
+  community_skill_revenue:{ label: 'Skill 技能收益',  sign: 'earn'  },
+  redeem_llm_refund:      { label: '兑换退款',         sign: 'earn'  },
+  redeem_llm:             { label: '兑换模型额度',     sign: 'spend' },
+  skill_tool_call:        { label: '调用 Skill 工具',  sign: 'spend' },
+  community_skill_use:    { label: '使用社区 Skill',   sign: 'spend' },
+};
+
+function reasonLabel(reason: string) {
+  return REASON_MAP[reason]?.label ?? reason;
+}
+function reasonSign(delta: number): 'earn' | 'spend' {
+  return delta >= 0 ? 'earn' : 'spend';
+}
+
 type KeyStats = {
   maxBudgetUsd: number | null;
   spendUsd: number;
@@ -114,6 +141,10 @@ export default function PointsPage() {
   const [keyStats, setKeyStats] = useState<KeyStatsResponse | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsTab, setStatsTab] = useState<'usage' | 'redeem'>('usage');
+
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyList, setHistoryList] = useState<LedgerEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -227,6 +258,20 @@ export default function PointsPage() {
     }
   };
 
+  const openHistory = async () => {
+    setHistoryOpen(true);
+    if (historyList.length > 0) return;
+    setHistoryLoading(true);
+    try {
+      const data = (await api.points.history()) as { history: LedgerEntry[] };
+      setHistoryList(data.history);
+    } catch {
+      setHistoryList([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   const showFullKey = async () => {
     setActionError(null);
     try {
@@ -313,12 +358,21 @@ export default function PointsPage() {
         {info && (
           <div className="mt-8 space-y-6 rounded-2xl border border-gray-200/80 bg-white/90 p-6 shadow-sm">
             {/* 积分余额 */}
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-gray-600">{t('points.balance')}</span>
-              <span className="text-2xl font-semibold tabular-nums text-gray-900">
-                {info.clawPoints}{' '}
-                <span className="text-base font-normal text-gray-500">{t('points.unit')}</span>
-              </span>
+              <div className="flex items-baseline gap-3">
+                <span className="text-2xl font-semibold tabular-nums text-gray-900">
+                  {info.clawPoints}{' '}
+                  <span className="text-base font-normal text-gray-500">{t('points.unit')}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void openHistory()}
+                  className="text-xs font-medium text-lobster hover:underline"
+                >
+                  积分详情
+                </button>
+              </div>
             </div>
             <p className="text-sm text-gray-600">
               {t('points.rateValue').replace('{{points}}', String(info.pointsPerUsd))}
@@ -639,6 +693,94 @@ export default function PointsPage() {
           </div>
         )}
       </div>
+
+      {/* 积分详情弹窗 */}
+      {historyOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setHistoryOpen(false)}
+          />
+          <div className="relative z-10 mx-auto flex max-h-[85vh] w-full max-w-lg flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+            {/* 头部 */}
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">积分详情</h2>
+                <p className="mt-0.5 text-xs text-gray-400">最近 100 条记录</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* 说明 */}
+            <div className="shrink-0 border-b border-gray-50 bg-violet-50/60 px-5 py-3">
+              <p className="text-xs leading-relaxed text-violet-700">
+                <span className="font-semibold">如何获得积分：</span>
+                发布文章 +5 · 文章被点赞 +1 · 被收藏 +2 · Skill 技能收益
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-violet-600/80">
+                <span className="font-semibold">如何使用积分：</span>
+                兑换 AI 模型额度（1000 积分 ≈ 1 USD）· 调用付费 Skill
+              </p>
+            </div>
+
+            {/* 列表 */}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {historyLoading ? (
+                <div className="flex items-center justify-center py-16 text-sm text-gray-400">
+                  加载中…
+                </div>
+              ) : historyList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-sm text-gray-400">
+                  <svg className="mb-3 h-10 w-10 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  暂无积分记录
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-50">
+                  {historyList.map((entry) => {
+                    const isEarn = reasonSign(entry.delta) === 'earn';
+                    return (
+                      <li key={entry.id} className="flex items-center gap-3 px-5 py-3.5">
+                        {/* 图标 */}
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ${
+                          isEarn ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'
+                        }`}>
+                          {isEarn ? '↑' : '↓'}
+                        </div>
+                        {/* 说明 */}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-800">
+                            {reasonLabel(entry.reason)}
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            {fmtDate(entry.createdAt)}
+                            {' · '}余额 {entry.balanceAfter} 分
+                          </p>
+                        </div>
+                        {/* 数值 */}
+                        <span className={`shrink-0 text-sm font-semibold tabular-nums ${
+                          isEarn ? 'text-green-600' : 'text-red-500'
+                        }`}>
+                          {isEarn ? '+' : ''}{entry.delta}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 }

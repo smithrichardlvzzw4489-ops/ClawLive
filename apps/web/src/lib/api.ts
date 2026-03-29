@@ -153,6 +153,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body ?? {}),
       }),
+    history: () => fetchAPI('/api/points/history'),
   },
   lobster: {
     me: () => fetchAPI('/api/lobster/me'),

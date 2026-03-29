@@ -153,6 +153,23 @@ export function pointsRoutes(): IRouter {
     }
   });
 
+  /** 完整积分流水（最近 100 条）*/
+  router.get('/history', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const ledger = await prisma.pointLedger.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: { id: true, createdAt: true, delta: true, balanceAfter: true, reason: true, metadata: true },
+      });
+      res.json({ history: ledger });
+    } catch (e) {
+      console.error('GET /api/points/history', e);
+      res.status(500).json({ error: 'Failed to load history' });
+    }
+  });
+
   /** 仅用于前端展示完整虚拟 Key（勿打日志）；需登录 */
   router.get('/llm/virtual-key', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
