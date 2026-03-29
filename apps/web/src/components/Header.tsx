@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
-import { BRAND_ZH } from '@/lib/brand';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 type HeaderProps = {
@@ -66,8 +66,15 @@ export function Header({ leftNav = true }: HeaderProps) {
         <div
           className={`flex min-w-0 items-center justify-between gap-2 md:justify-start md:gap-1 ${isHome ? 'md:flex-1' : 'shrink-0'}`}
         >
-          <Link href="/my-lobster" className="flex shrink-0 items-center gap-2">
-            <span className="text-xl font-bold tracking-tight text-lobster text-glow-lobster sm:text-2xl">{BRAND_ZH}</span>
+          <Link href="/my-lobster" className="flex shrink-0 items-center">
+            <Image
+              src="/logo.png"
+              alt="ClawLab"
+              width={120}
+              height={40}
+              className="h-9 w-auto object-contain sm:h-10"
+              priority
+            />
           </Link>
 
           {leftNav ? (
