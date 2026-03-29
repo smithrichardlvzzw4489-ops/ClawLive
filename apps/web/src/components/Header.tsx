@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
@@ -18,25 +17,7 @@ type HeaderProps = {
 
 export function Header({ leftNav = true }: HeaderProps) {
   const { t } = useLocale();
-  const router = useRouter();
   const pathname = usePathname();
-  const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    if (pathname === '/search') {
-      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-      const q = params.get('q');
-      if (q) setSearchTerm(q);
-    }
-  }, [pathname]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchTerm.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchTerm)}`);
-    }
-  };
-
   const isActive = (path: string) => pathname.startsWith(path);
 
   const navLink = (href: string, label: string, active: boolean) => (
@@ -53,8 +34,6 @@ export function Header({ leftNav = true }: HeaderProps) {
   );
 
   const isHome = false;
-  const searchInputClass =
-    'w-full rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-sm text-slate-300 placeholder:text-slate-600 focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/15 focus:bg-white/[0.08] transition-all';
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.07] glass">
@@ -101,18 +80,6 @@ export function Header({ leftNav = true }: HeaderProps) {
             </>
           )}
 
-          <form
-            onSubmit={handleSearch}
-            className="max-w-[200px] shrink-0 sm:max-w-[220px] md:hidden"
-          >
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className={searchInputClass}
-            />
-          </form>
         </div>
 
         {isHome && (
@@ -126,22 +93,6 @@ export function Header({ leftNav = true }: HeaderProps) {
           </div>
         )}
 
-        <div
-          className={`hidden min-w-0 md:flex md:flex-1 md:items-center md:justify-end ${isHome ? '' : 'md:ml-auto'}`}
-        >
-          <form
-            onSubmit={handleSearch}
-            className="w-full max-w-[200px] shrink-0 sm:max-w-[220px] lg:max-w-[240px]"
-          >
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className={searchInputClass}
-            />
-          </form>
-        </div>
       </div>
     </header>
   );
