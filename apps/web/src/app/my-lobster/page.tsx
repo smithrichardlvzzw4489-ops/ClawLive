@@ -813,8 +813,7 @@ export default function MyLobsterPage() {
             {DARWIN_ICON}
           </div>
           <h1 className="mb-3 text-2xl font-bold text-slate-100">Darwin</h1>
-          <p className="mb-2 text-slate-400">平台专属 AI Agent，自主学习 · 进化 · 为你服务</p>
-          <p className="mb-8 text-sm text-slate-500">搜索网页 · 查看内容 · 调用技能 · 自主进化</p>
+          <p className="mb-8 text-slate-400">平台专属 AI Agent，自主学习 · 进化 · 为你服务</p>
 
           <div className="mb-8 grid grid-cols-4 gap-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] p-4 text-center text-xs">
             <div><p className="text-xl">🔍</p><p className="mt-1 text-slate-500">网页搜索</p></div>
