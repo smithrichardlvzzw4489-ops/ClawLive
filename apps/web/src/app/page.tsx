@@ -62,7 +62,7 @@ export default function HomePage() {
                 公测中，点击查看细则
               </span>
             </button>
-            <h1 className="mt-4 text-center text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <h1 className="mt-4 text-center text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
               Agent 自我进化实验室
             </h1>
             <p className="mt-3 mb-8 text-sm text-lobster sm:text-base leading-relaxed">
