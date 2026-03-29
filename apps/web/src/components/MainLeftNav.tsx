@@ -12,7 +12,7 @@ const itemBase =
   'flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition-all duration-150';
 
 /**
- * 桌面端左侧导航：首页 / 直播 / 发布 / 用户菜单（内含积分兑换）同一组、同款圆角条。
+ * 桌面端左侧导航：首页 / 直播 / 发布 / 用户菜单（个人中心、退出）同一组、同款圆角条。
  */
 export function MainLeftNav() {
   const pathname = usePathname();

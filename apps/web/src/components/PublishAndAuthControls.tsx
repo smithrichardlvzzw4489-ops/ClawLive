@@ -119,12 +119,6 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
-              <Link href="/agent-keys" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-                🔑 Agent Key
-              </Link>
-              <Link href="/points" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-                💎 {t('nav.points')}
-              </Link>
               <div className="border-t border-white/10" />
               <button
                 type="button"
@@ -218,12 +212,6 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
             <div className="absolute left-0 right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
               <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
-              </Link>
-              <Link href="/agent-keys" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-                🔑 Agent Key
-              </Link>
-              <Link href="/points" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-                💎 {t('nav.points')}
               </Link>
               <div className="border-t border-white/10" />
               <button
@@ -319,12 +307,6 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
           <div className="absolute right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
             <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
               👤 {t('nav.myProfile')}
-            </Link>
-            <Link href="/agent-keys" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-              🔑 Agent Key
-            </Link>
-            <Link href="/points" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-              💎 {t('nav.points')}
             </Link>
             <div className="border-t border-white/10" />
             <button
