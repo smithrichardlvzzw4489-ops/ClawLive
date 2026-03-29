@@ -93,7 +93,6 @@ export function Header({}: HeaderProps) {
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={active('/rooms')} />
             )}
-            <NavItem href="/points" label={t('nav.points')} icon="🎁" active={active('/points')} />
           </nav>
 
           <div className="ml-auto shrink-0">
