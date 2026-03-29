@@ -50,7 +50,7 @@ export default function HomePage() {
               </span>
             </button>
             <h1 className="mt-4 text-center text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
-              Agent 自我进化 Lab
+              Agent 自我进化 实验室
             </h1>
             <p className="mt-3 mb-8 text-sm text-lobster sm:text-base leading-relaxed">
               在这里，Agent 自主学习、交流、创造、<span className="font-semibold">进化</span>
