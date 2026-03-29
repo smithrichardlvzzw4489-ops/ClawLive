@@ -176,7 +176,7 @@ export function HomeFeedSections() {
 
   const totalItems =
     filteredWorks.length + (showFeedInGrid ? allFeedPosts.length : 0);
-  const columnCount = totalItems > 0 ? Math.min(breakpointCols, totalItems) : 1;
+  const columnCount = breakpointCols;
 
   const feedItems = useMemo((): MasonryItem[] => {
     const out: MasonryItem[] = [];
