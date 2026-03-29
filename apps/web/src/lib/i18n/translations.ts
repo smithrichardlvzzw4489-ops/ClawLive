@@ -397,6 +397,16 @@ export const translations = {
       deleteFeedConfirm: '确认删除这条图文？此操作无法撤销。',
       deleteFeedConfirmMultiple: '确认删除选中的 {n} 条图文？此操作无法撤销。',
       deleteFeedFailed: '删除失败',
+      profileUsername: '用户名',
+      profileBio: '个人简介',
+      profileUsernameHint: '2–32 个字符，仅字母、数字、下划线与中文',
+      profileBioPlaceholder: '介绍一下自己（选填，最多 500 字）',
+      profileSave: '保存资料',
+      profileSaved: '已保存',
+      profileSaveFailed: '保存失败',
+      profileUsernameTaken: '该用户名已被占用',
+      profileUsernameInvalid: '用户名仅支持字母、数字、下划线与中文',
+      profileBioTooLong: '简介过长（最多 500 字）',
     },
 
     myAgent: {
@@ -955,6 +965,16 @@ export const translations = {
       deleteFeedConfirm: 'Delete this post? This cannot be undone.',
       deleteFeedConfirmMultiple: 'Delete {n} selected posts? This cannot be undone.',
       deleteFeedFailed: 'Failed to delete',
+      profileUsername: 'Username',
+      profileBio: 'Bio',
+      profileUsernameHint: '2–32 characters: letters, numbers, underscore, or Chinese',
+      profileBioPlaceholder: 'Tell others about you (optional, max 500 characters)',
+      profileSave: 'Save',
+      profileSaved: 'Saved',
+      profileSaveFailed: 'Save failed',
+      profileUsernameTaken: 'That username is already taken',
+      profileUsernameInvalid: 'Use letters, numbers, underscore, or Chinese only',
+      profileBioTooLong: 'Bio is too long (max 500 characters)',
     },
 
     myAgent: {

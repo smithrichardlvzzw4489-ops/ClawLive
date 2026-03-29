@@ -172,6 +172,73 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
   }
 });
 
+const USERNAME_RE = /^[\w\u4e00-\u9fff]+$/;
+
+router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const body = req.body as { username?: unknown; bio?: unknown };
+    const data: { username?: string; bio?: string | null } = {};
+
+    if (body.username !== undefined) {
+      const u = String(body.username).trim();
+      if (u.length < 2 || u.length > 32) {
+        return res.status(400).json({ error: 'USERNAME_LENGTH' });
+      }
+      if (!USERNAME_RE.test(u)) {
+        return res.status(400).json({ error: 'USERNAME_INVALID' });
+      }
+      data.username = u;
+    }
+
+    if (body.bio !== undefined) {
+      if (body.bio === null || body.bio === '') {
+        data.bio = null;
+      } else {
+        const b = String(body.bio).trim();
+        if (b.length > 500) {
+          return res.status(400).json({ error: 'BIO_TOO_LONG' });
+        }
+        data.bio = b || null;
+      }
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'NO_FIELDS' });
+    }
+
+    if (data.username) {
+      const taken = await prisma.user.findFirst({
+        where: { username: data.username, NOT: { id: userId } },
+      });
+      if (taken) {
+        return res.status(409).json({ error: 'USERNAME_TAKEN' });
+      }
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        avatarUrl: true,
+        bio: true,
+        telegramId: true,
+        clawPoints: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;

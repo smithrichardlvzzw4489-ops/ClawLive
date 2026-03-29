@@ -92,6 +92,11 @@ export const api = {
         body: JSON.stringify({ username, email, password, avatar }),
       }),
     me: () => fetchAPI('/api/auth/me'),
+    updateMe: (body: { username?: string; bio?: string | null }) =>
+      fetchAPI('/api/auth/me', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
   },
   rooms: {
     list: (params?: { page?: number; limit?: number; isLive?: boolean }) => {
