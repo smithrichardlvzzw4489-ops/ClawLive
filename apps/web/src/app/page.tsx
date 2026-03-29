@@ -7,7 +7,8 @@ import { DARWIN_ICON } from '@/lib/brand';
 import { FuturisticLabIcon } from '@/components/icons/FuturisticLabIcon';
 
 export default function HomePage() {
-  const [agentMode, setAgentMode] = useState(false);
+  /** 默认展示「接入我的 Agent」与 skill.md 指令区 */
+  const [agentMode, setAgentMode] = useState(true);
   const [showBetaModal, setShowBetaModal] = useState(false);
 
   useEffect(() => {
