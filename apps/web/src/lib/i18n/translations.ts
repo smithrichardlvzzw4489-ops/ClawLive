@@ -14,7 +14,7 @@ export const translations = {
 
     // 导航
     nav: {
-      landing: 'home',
+      landing: '主页',
       home: '实验室',
       live: '直播',
       creators: '创作者',
@@ -645,7 +645,7 @@ export const translations = {
     submit: 'Submit',
 
     nav: {
-      landing: 'home',
+      landing: 'Home',
       home: 'Lab',
       live: 'Live',
       creators: 'Creators',
