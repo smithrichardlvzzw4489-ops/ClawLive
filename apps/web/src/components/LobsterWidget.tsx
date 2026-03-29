@@ -144,7 +144,7 @@ export function LobsterWidget() {
                 {
                   id: 'welcome-widget',
                   role: 'assistant',
-                  content: '你好！我是虾米 🦀 我已经看到你当前的页面了，有什么问题尽管问我！',
+                  content: '你好！我是 Darwin 🦀 我已经看到你当前的页面了，有什么问题尽管问我！',
                   timestamp: new Date().toISOString(),
                 },
               ],
@@ -318,8 +318,8 @@ export function LobsterWidget() {
         <button
           onClick={() => setOpen(true)}
           className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-orange-500 text-2xl shadow-lg transition hover:scale-105 hover:shadow-xl active:scale-95"
-          title="打开虾米"
-          aria-label="打开虾米助手"
+          title="打开 Darwin"
+          aria-label="打开 Darwin 助手"
         >
           🦀
         </button>
@@ -342,7 +342,7 @@ export function LobsterWidget() {
                 🦀
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900">虾米</p>
+                <p className="text-sm font-semibold text-gray-900">Darwin</p>
                 <p className="text-[10px] text-green-500 truncate">
                   ● 已加载当前页面 · {pathname}
                 </p>
@@ -377,8 +377,8 @@ export function LobsterWidget() {
               ) : applied === false ? (
                 <div className="py-12 text-center">
                   <p className="text-3xl mb-2">🦀</p>
-                  <p className="text-sm font-medium text-gray-700">还没有虾米</p>
-                  <p className="text-xs text-gray-400 mt-1 mb-4">申请一只专属虾米助手</p>
+                  <p className="text-sm font-medium text-gray-700">还没有 Darwin</p>
+                  <p className="text-xs text-gray-400 mt-1 mb-4">申请你的专属 Darwin 助手</p>
                   <a
                     href="/my-lobster"
                     className="inline-block rounded-xl bg-lobster px-5 py-2 text-sm font-semibold text-white hover:bg-lobster-dark"
@@ -402,7 +402,7 @@ export function LobsterWidget() {
                 <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                发送第一条消息时，虾米会自动读取当前页面内容
+                发送第一条消息时，Darwin 会自动读取当前页面内容
               </div>
             )}
 

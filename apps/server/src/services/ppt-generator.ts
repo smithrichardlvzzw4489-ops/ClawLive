@@ -39,7 +39,7 @@ export async function generatePptx(
   pptx.layout = 'LAYOUT_WIDE';
   pptx.title = presentationTitle;
   pptx.subject = presentationTitle;
-  pptx.author = 'ClawClub 虾米';
+  pptx.author = 'ClawLab Darwin';
 
   // 定义 master slide 背景
   pptx.defineSlideMaster({
@@ -82,7 +82,7 @@ export async function generatePptx(
   }
 
   // 底部品牌标识
-  coverSlide.addText('ClawClub · 虾米生成', {
+  coverSlide.addText('ClawLab · Darwin 生成', {
     x: 0, y: 6.8, w: '100%', h: 0.4,
     fontSize: 11,
     color: THEME.subtext,

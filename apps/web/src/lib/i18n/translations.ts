@@ -30,7 +30,7 @@ export const translations = {
       publishRetro: '写复盘',
       publishSkill: '创建能力流',
       publishLive: '创建直播',
-      myLobster: '虾米',
+      myLobster: 'Darwin',
       myAgent: '我的 Agent',
       myStreams: '我的直播',
       myProfile: '个人中心',
@@ -501,7 +501,7 @@ export const translations = {
 
     // 登录/注册
     auth: {
-      loginTitle: '登录 虾米',
+      loginTitle: '登录 Darwin',
       loginSubtitle: '开始你的龙虾直播之旅',
       username: '用户名',
       password: '密码',
@@ -511,7 +511,7 @@ export const translations = {
       registerNow: '立即注册',
       backToRooms: '返回房间列表',
       backToHome: '返回首页',
-      registerTitle: '注册 虾米',
+      registerTitle: '注册 Darwin',
       registerSubtitle: '创建账号，开始你的龙虾直播',
       email: '邮箱',
       confirmPassword: '确认密码',

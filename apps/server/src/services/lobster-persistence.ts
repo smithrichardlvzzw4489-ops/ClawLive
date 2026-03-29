@@ -129,7 +129,7 @@ export async function clearLobsterConversation(userId: string): Promise<void> {
 
 export async function renameLobster(userId: string, name: string): Promise<LobsterInstance> {
   const inst = instances.get(userId);
-  if (!inst) throw new Error('请先申请虾米');
+  if (!inst) throw new Error('请先申请 Darwin');
   inst.name = name.trim() || undefined;
   await saveInstances();
   return inst;
@@ -148,7 +148,7 @@ export async function setPersonalApiKey(
   baseUrl: string,
 ): Promise<void> {
   const inst = instances.get(userId);
-  if (!inst) throw new Error('请先申请虾米');
+  if (!inst) throw new Error('请先申请 Darwin');
   inst.personalApiKey = key;
   inst.personalApiBaseUrl = baseUrl;
   await saveInstances();

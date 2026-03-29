@@ -42,7 +42,7 @@ const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    '你好！我是虾米 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？',
+    '你好！我是 Darwin 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？',
   timestamp: new Date().toISOString(),
 };
 
@@ -189,7 +189,7 @@ function KeySetupSheet({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div>
-            <h2 className="font-bold text-gray-900">虾米 · API Key 状态</h2>
+            <h2 className="font-bold text-gray-900">Darwin · API Key 状态</h2>
             <p className="text-xs text-gray-500 mt-0.5">使用平台积分兑换的虚拟 Key 调用 AI</p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100">
@@ -208,7 +208,7 @@ function KeySetupSheet({
                   <p className="font-semibold text-green-800 text-sm">平台虚拟 Key 已就绪</p>
                 </div>
                 <p className="text-xs text-green-700 ml-7">
-                  虾米将使用你通过积分兑换的虚拟 Key 调用 AI，消耗 Key 余额。
+                  Darwin 将使用你通过积分兑换的虚拟 Key 调用 AI，消耗 Key 余额。
                 </p>
                 <p className="text-xs text-green-600 ml-7 mt-1">
                   当前积分余额：{keyStatus.clawPoints.toLocaleString()} 积分
@@ -221,7 +221,7 @@ function KeySetupSheet({
                   <p className="font-semibold text-amber-800 text-sm">暂无平台虚拟 Key</p>
                 </div>
                 <p className="text-xs text-amber-700">
-                  虾米需要平台虚拟 Key 才能调用 AI，前往积分中心用积分兑换后即可使用。
+                  Darwin 需要平台虚拟 Key 才能调用 AI，前往积分中心用积分兑换后即可使用。
                 </p>
                 <p className="text-xs text-amber-600">
                   当前积分余额：{keyStatus.clawPoints.toLocaleString()} 积分
@@ -335,7 +335,7 @@ function AdminModelsPanel({
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div>
             <h2 className="font-bold text-gray-900">平台模型配置</h2>
-            <p className="text-xs text-gray-500 mt-0.5">管理虾米可用的 AI 模型</p>
+            <p className="text-xs text-gray-500 mt-0.5">管理 Darwin 可用的 AI 模型</p>
           </div>
           <button
             onClick={onClose}
@@ -535,7 +535,7 @@ function FilesPanel({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-lg font-bold text-gray-900">📁 我的文件柜</h2>
-            <p className="text-xs text-gray-500 mt-0.5">虾米生成的文件都在这里</p>
+            <p className="text-xs text-gray-500 mt-0.5">Darwin 生成的文件都在这里</p>
           </div>
           <button
             onClick={onClose}
@@ -557,7 +557,7 @@ function FilesPanel({ onClose }: { onClose: () => void }) {
             <div className="py-16 text-center">
               <p className="text-4xl mb-3">📂</p>
               <p className="text-gray-500 text-sm font-medium">文件柜还是空的</p>
-              <p className="text-gray-400 text-xs mt-1">让虾米帮你做 PPT 或生成图片，文件会自动保存在这里</p>
+              <p className="text-gray-400 text-xs mt-1">让 Darwin 帮你做 PPT 或生成图片，文件会自动保存在这里</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -795,7 +795,7 @@ export default function MyLobsterPage() {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantPlaceholderId
-                ? { ...m, content: '⚠️ 需要配置 API Key 才能使用虾米', streaming: false, statusText: undefined }
+                ? { ...m, content: '⚠️ 需要配置 API Key 才能使用 Darwin', streaming: false, statusText: undefined }
                 : m,
             ),
           );
@@ -940,7 +940,7 @@ export default function MyLobsterPage() {
           <div className="mx-auto mb-6 relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-lobster to-lobster-dark text-5xl shadow-lg glow-lobster">
             🦀
           </div>
-          <h1 className="mb-3 text-2xl font-bold text-slate-100">虾米</h1>
+          <h1 className="mb-3 text-2xl font-bold text-slate-100">Darwin</h1>
           <p className="mb-2 text-slate-400">平台专属 AI Agent，自主学习 · 进化 · 为你服务</p>
           <p className="mb-8 text-sm text-slate-500">搜索网页 · 查看内容 · 调用技能 · 多步推理</p>
 
@@ -953,7 +953,7 @@ export default function MyLobsterPage() {
 
           <div className="mb-6 text-left">
             <label className="mb-1.5 block text-sm font-medium text-slate-300">
-              给你的虾米起个名字 <span className="text-slate-500 font-normal">（选填，默认叫&ldquo;虾米&rdquo;）</span>
+              给你的 Darwin 起个名字 <span className="text-slate-500 font-normal">（选填，默认叫&ldquo;Darwin&rdquo;）</span>
             </label>
             <input
               type="text"
@@ -973,7 +973,7 @@ export default function MyLobsterPage() {
             disabled={applying}
             className="w-full rounded-2xl bg-lobster py-3.5 text-base font-semibold text-white transition hover:bg-lobster-dark disabled:opacity-60 glow-lobster"
           >
-            {applying ? '申请中...' : `申请${lobsterNameInput.trim() ? `"${lobsterNameInput.trim()}"` : '我的虾米'}`}
+            {applying ? '申请中...' : `申请${lobsterNameInput.trim() ? `"${lobsterNameInput.trim()}"` : '我的 Darwin'}`}
           </button>
         </div>
       </MainLayout>
@@ -1000,7 +1000,7 @@ export default function MyLobsterPage() {
                     if (e.key === 'Escape') setEditingName(false);
                   }}
                   onBlur={handleSaveName}
-                  placeholder="虾米"
+                  placeholder="Darwin"
                   className="w-32 rounded-lg border border-lobster/40 bg-white/[0.06] px-2 py-0.5 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-lobster/20"
                 />
                 {nameSaving && <span className="text-xs text-slate-500">保存中…</span>}
@@ -1011,7 +1011,7 @@ export default function MyLobsterPage() {
                 className="flex items-center gap-1.5 text-left"
                 title="点击修改名字"
               >
-                <span className="font-semibold text-slate-100">{instance?.name || '虾米'}</span>
+                <span className="font-semibold text-slate-100">{instance?.name || 'Darwin'}</span>
                 <svg className="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
                 </svg>
@@ -1150,7 +1150,7 @@ export default function MyLobsterPage() {
             </button>
           </div>
           <p className="mt-1.5 text-center text-[10px] text-slate-600">
-            虾米可能犯错，重要信息请自行核实
+            Darwin 可能犯错，重要信息请自行核实
           </p>
         </div>
       </div>
@@ -1161,7 +1161,7 @@ export default function MyLobsterPage() {
           <div className="w-full max-w-sm rounded-2xl border border-white/10 glass p-6 shadow-2xl">
             <h3 className="mb-2 text-lg font-bold text-slate-100">清空对话记录</h3>
             <p className="mb-6 text-sm text-slate-400">
-              清空后虾米将失去对之前对话的记忆，无法恢复。确定要清空吗？
+              清空后 Darwin 将失去对之前对话的记忆，无法恢复。确定要清空吗？
             </p>
             <div className="flex gap-3">
               <button
