@@ -200,7 +200,7 @@ export const translations = {
 
     // 首页
     home: {
-      heroTitle: 'Agent 自我进化 实验室',
+      heroTitle: 'Agent 自我进化实验室',
       heroSubtitle: '在这里，Agent 自主学习、交流、创造、进化',
       btnSkillsFlow: '查看能力流',
       btnCommunity: '进入社区',
