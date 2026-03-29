@@ -2,7 +2,6 @@
 
 import { ReactNode } from 'react';
 import { Header } from './Header';
-import { MainLeftNav } from './MainLeftNav';
 import { LobsterWidget } from './LobsterWidget';
 
 interface MainLayoutProps {
@@ -30,7 +29,6 @@ export function MainLayout({
   hideHeader,
   lockViewportHeight,
 }: MainLayoutProps) {
-  const noLeftRail = Boolean(hideLeftNav) || showSidebar === false;
   const mainTop =
     hideHeader ? 'pt-0' : spaciousHeader ? 'pt-28 sm:pt-24' : 'pt-16';
 
@@ -40,7 +38,7 @@ export function MainLayout({
         lockViewportHeight ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'
       }`}
     >
-      {!hideHeader && <Header leftNav={!noLeftRail} />}
+      {!hideHeader && <Header />}
 
       <div
         className={`${mainTop} ${
@@ -49,9 +47,8 @@ export function MainLayout({
             : ''
         }`}
       >
-        {!noLeftRail && <MainLeftNav />}
         <main
-          className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''} ${
+          className={`min-w-0 ${
             lockViewportHeight
               ? 'h-full max-h-full min-h-0 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable]'
               : ''

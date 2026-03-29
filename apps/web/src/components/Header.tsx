@@ -1,50 +1,67 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { DARWIN_ICON } from '@/lib/brand';
+import { FuturisticLabIcon } from '@/components/icons/FuturisticLabIcon';
 
-type HeaderProps = {
-  /**
-   * 为 true 时：lg+ 顶栏仅 Logo + 搜索，主导航在 MainLeftNav。
-   * 为 false 时：顶栏始终含首页/直播/发布/登录（沉浸式页等）。
-   */
-  leftNav?: boolean;
-};
+const navItemBase =
+  'flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-medium transition-all duration-150 sm:gap-2.5 sm:px-3.5';
 
-export function Header({ leftNav = true }: HeaderProps) {
-  const { t } = useLocale();
-  const pathname = usePathname();
-  const isActive = (path: string) => pathname.startsWith(path);
-
-  const navLink = (href: string, label: string, active: boolean) => (
+function NavItem({
+  href,
+  label,
+  icon,
+  active,
+}: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  active: boolean;
+}) {
+  return (
     <Link
       href={href}
-      className={`shrink-0 rounded-full px-3 py-2 text-[15px] font-medium transition-all sm:px-4 ${
+      className={`${navItemBase} ${
         active
-          ? 'bg-lobster/15 font-semibold text-lobster ring-1 ring-inset ring-lobster/25'
+          ? 'bg-lobster/10 font-semibold text-lobster ring-1 ring-inset ring-lobster/20 glow-lobster-sm'
           : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
       }`}
     >
-      {label}
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center text-lg leading-none sm:h-7 sm:w-7 [&>svg]:h-5 [&>svg]:w-5">
+        {icon}
+      </span>
+      <span className="whitespace-nowrap">{label}</span>
     </Link>
   );
+}
+
+type HeaderProps = {
+  /** 保留兼容；主导航始终在顶栏横排展示 */
+  leftNav?: boolean;
+};
+
+export function Header({}: HeaderProps) {
+  const { t } = useLocale();
+  const pathname = usePathname();
+
+  const active = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   const isHome = false;
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.07] glass">
       <div
-        className={`relative mx-auto flex min-w-0 flex-col gap-2 px-3 sm:px-4 md:flex-row md:items-center md:gap-3 lg:px-6 ${
+        className={`relative mx-auto flex min-w-0 flex-col gap-2 px-3 sm:px-4 md:flex-row md:flex-wrap md:items-center md:gap-3 lg:px-6 ${
           isHome ? 'py-3.5 sm:py-4' : 'py-2'
         }`}
       >
-        <div
-          className={`flex min-w-0 items-center justify-between gap-2 md:justify-start md:gap-1 ${isHome ? 'md:flex-1' : 'shrink-0'}`}
-        >
+        <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
           <Link href="/" className="flex shrink-0 items-center">
             <Image
               src="/logo.png"
@@ -56,30 +73,32 @@ export function Header({ leftNav = true }: HeaderProps) {
             />
           </Link>
 
-          {leftNav ? (
-            <div className="flex min-w-0 shrink-0 items-center gap-0.5 overflow-x-auto md:hidden">
-              <nav className="flex shrink-0 items-center gap-0.5">
-                {navLink('/', t('nav.landing'), pathname === '/')}
-                {navLink('/lab', t('nav.home'), isActive('/lab'))}
-                {navLink('/my-lobster', t('nav.myLobster'), isActive('/my-lobster'))}
-                {SHOW_LIVE_FEATURES && navLink('/rooms', t('nav.live'), isActive('/rooms'))}
-                {navLink('/points', t('nav.points'), isActive('/points'))}
-              </nav>
-              <PublishAndAuthControls variant="nav" />
-            </div>
-          ) : (
-            <>
-              <nav className="ml-0.5 flex shrink-0 items-center gap-0.5 sm:ml-1">
-                {navLink('/', t('nav.landing'), pathname === '/')}
-                {navLink('/lab', t('nav.home'), isActive('/lab'))}
-                {navLink('/my-lobster', t('nav.myLobster'), isActive('/my-lobster'))}
-                {SHOW_LIVE_FEATURES && navLink('/rooms', t('nav.live'), isActive('/rooms'))}
-                {navLink('/points', t('nav.points'), isActive('/points'))}
-              </nav>
-              <PublishAndAuthControls variant="nav" />
-            </>
-          )}
+          <nav
+            className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto pb-0.5 md:pb-0 [scrollbar-width:thin]"
+            aria-label="主导航"
+          >
+            <NavItem href="/" label={t('nav.landing')} icon="🚀" active={active('/')} />
+            <NavItem
+              href="/lab"
+              label={t('nav.home')}
+              icon={<FuturisticLabIcon className="h-5 w-5" />}
+              active={active('/lab')}
+            />
+            <NavItem
+              href="/my-lobster"
+              label={t('nav.myLobster')}
+              icon={DARWIN_ICON}
+              active={active('/my-lobster')}
+            />
+            {SHOW_LIVE_FEATURES && (
+              <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={active('/rooms')} />
+            )}
+            <NavItem href="/points" label={t('nav.points')} icon="🎁" active={active('/points')} />
+          </nav>
 
+          <div className="ml-auto shrink-0">
+            <PublishAndAuthControls variant="nav" />
+          </div>
         </div>
 
         {isHome && (
@@ -92,7 +111,6 @@ export function Header({ leftNav = true }: HeaderProps) {
             </span>
           </div>
         )}
-
       </div>
     </header>
   );
