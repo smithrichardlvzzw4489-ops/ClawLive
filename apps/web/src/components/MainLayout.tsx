@@ -17,6 +17,8 @@ interface MainLayoutProps {
   hideLeftNav?: boolean;
   /** 不显示顶栏（如作品沉浸式阅读页） */
   hideHeader?: boolean;
+  /** 锁定单屏高度，仅 main 内滚动，避免整页 document 随滚轮上下滚动 */
+  lockViewportHeight?: boolean;
 }
 
 export function MainLayout({
@@ -26,18 +28,37 @@ export function MainLayout({
   showSidebar,
   hideLeftNav,
   hideHeader,
+  lockViewportHeight,
 }: MainLayoutProps) {
   const noLeftRail = Boolean(hideLeftNav) || showSidebar === false;
   const mainTop =
     hideHeader ? 'pt-0' : spaciousHeader ? 'pt-28 sm:pt-24' : 'pt-16';
 
   return (
-    <div className="min-h-screen bg-void-950 bg-dot">
+    <div
+      className={`bg-void-950 bg-dot ${
+        lockViewportHeight ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'
+      }`}
+    >
       {!hideHeader && <Header leftNav={!noLeftRail} />}
 
-      <div className={mainTop}>
+      <div
+        className={`${mainTop} ${
+          lockViewportHeight
+            ? 'box-border h-[100dvh] max-h-[100dvh] min-h-0 overflow-hidden'
+            : ''
+        }`}
+      >
         {!noLeftRail && <MainLeftNav />}
-        <main className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''}`}>{children}</main>
+        <main
+          className={`min-w-0 ${!noLeftRail ? 'lg:pl-[220px] xl:pl-[240px]' : ''} ${
+            lockViewportHeight
+              ? 'h-full max-h-full min-h-0 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable]'
+              : ''
+          }`}
+        >
+          {children}
+        </main>
       </div>
 
       {/* 虾米悬浮入口（/my-lobster 页面自动隐藏） */}

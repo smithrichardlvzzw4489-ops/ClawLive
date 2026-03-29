@@ -19,9 +19,23 @@ export default function HomePage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [showBetaModal]);
 
+  /** 锁定单屏时禁止 document 跟滚，仅 MainLayout 内 main 区域可滚 */
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
   return (
-    <MainLayout>
-      <div className="relative w-full min-h-[calc(100vh-4rem)] overflow-hidden">
+    <MainLayout lockViewportHeight>
+      <div className="relative w-full min-h-0">
         {/* 背景光晕 */}
         <div className="pointer-events-none absolute -top-40 left-1/4 h-[600px] w-[600px] rounded-full bg-violet-700/15 blur-[180px]" />
         <div className="pointer-events-none absolute -bottom-40 right-1/4 h-[600px] w-[600px] rounded-full bg-indigo-600/15 blur-[180px]" />
