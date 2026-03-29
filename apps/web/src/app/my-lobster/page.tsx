@@ -26,12 +26,6 @@ interface LobsterInstance {
 
 type DailyChatStats = { used: number; limit: number; remaining: number };
 
-interface PlatformModel {
-  id: string;
-  name: string;
-  enabled: boolean;
-}
-
 interface KeyStatus {
   hasPlatformKey: boolean;
   clawPoints: number;
@@ -252,242 +246,6 @@ function KeySetupSheet({
   );
 }
 
-// ─── Admin Models Panel ──────────────────────────────────────────────────────
-
-function AdminModelsPanel({
-  models,
-  onSave,
-  onClose,
-}: {
-  models: PlatformModel[];
-  onSave: (models: PlatformModel[], secret: string) => Promise<void>;
-  onClose: () => void;
-}) {
-  const [list, setList] = useState<PlatformModel[]>(() =>
-    models.map((m) => ({ ...m })),
-  );
-  const [adminSecret, setAdminSecret] = useState('');
-  const [newId, setNewId] = useState('');
-  const [newName, setNewName] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
-  const [importing, setImporting] = useState(false);
-
-  const toggle = (idx: number) =>
-    setList((prev) => prev.map((m, i) => (i === idx ? { ...m, enabled: !m.enabled } : m)));
-
-  const remove = (idx: number) =>
-    setList((prev) => prev.filter((_, i) => i !== idx));
-
-  const importFromLitellm = async () => {
-    setImporting(true);
-    setSaveMsg('');
-    try {
-      const data = await api.platform.getLitellmModels();
-      const fetched: Array<{ id: string; name: string }> = data.models || [];
-      if (!fetched.length) {
-        setSaveMsg('⚠️ LiteLLM 未返回任何模型，请检查 LITELLM_BASE_URL 配置');
-        return;
-      }
-      setList((prev) => {
-        const existingIds = new Set(prev.map((m) => m.id));
-        const newOnes = fetched
-          .filter((m) => !existingIds.has(m.id))
-          .map((m) => ({ id: m.id, name: m.name, enabled: true }));
-        // 同时把已有的同名模型标为 enabled
-        const updated = prev.map((m) =>
-          fetched.some((f) => f.id === m.id) ? { ...m, enabled: true } : m,
-        );
-        return [...updated, ...newOnes];
-      });
-      setSaveMsg(`✅ 已从 LiteLLM 导入 ${fetched.length} 个模型`);
-    } catch {
-      setSaveMsg('❌ 无法连接 LiteLLM，请确认服务器配置');
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const addModel = () => {
-    const id = newId.trim();
-    const name = newName.trim();
-    if (!id || !name) return;
-    if (list.some((m) => m.id === id)) {
-      setSaveMsg('该模型 ID 已存在');
-      return;
-    }
-    setList((prev) => [...prev, { id, name, enabled: true }]);
-    setNewId('');
-    setNewName('');
-    setSaveMsg('');
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveMsg('');
-    try {
-      await onSave(list, adminSecret);
-      setSaveMsg('✅ 保存成功');
-    } catch (err) {
-      setSaveMsg(`❌ ${err instanceof Error ? err.message : '保存失败'}`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <div>
-            <h2 className="font-bold text-gray-900">平台模型配置</h2>
-            <p className="text-xs text-gray-500 mt-0.5">管理 Darwin 可用的 AI 模型</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        <div className="max-h-[60vh] overflow-y-auto px-5 py-4 space-y-4">
-          {/* Admin secret */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">管理员密码</label>
-            <input
-              type="password"
-              value={adminSecret}
-              onChange={(e) => setAdminSecret(e.target.value)}
-              placeholder="输入平台管理员密码（ADMIN_SECRET）"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
-            />
-          </div>
-
-          {/* Import from LiteLLM */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-medium text-gray-500">模型列表</label>
-              <button
-                onClick={importFromLitellm}
-                disabled={importing}
-                className="flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600 hover:bg-blue-100 disabled:opacity-50"
-              >
-                {importing ? (
-                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
-                ) : (
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                )}
-                从 LiteLLM 自动导入
-              </button>
-            </div>
-          </div>
-
-          {/* Model list */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2"></label>
-            <div className="space-y-2">
-              {list.map((m, i) => (
-                <div
-                  key={m.id}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
-                    m.enabled
-                      ? 'border-green-200 bg-green-50'
-                      : 'border-gray-100 bg-gray-50 opacity-60'
-                  }`}
-                >
-                  {/* Toggle */}
-                  <button
-                    onClick={() => toggle(i)}
-                    className={`relative h-5 w-9 rounded-full transition-colors ${
-                      m.enabled ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                        m.enabled ? 'translate-x-4' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{m.name}</p>
-                    <p className="text-xs text-gray-400 truncate">{m.id}</p>
-                  </div>
-                  <button
-                    onClick={() => remove(i)}
-                    className="shrink-0 rounded-lg p-1 text-gray-300 hover:bg-red-50 hover:text-red-400"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              {list.length === 0 && (
-                <p className="text-center text-sm text-gray-400 py-4">暂无模型，请在下方添加</p>
-              )}
-            </div>
-          </div>
-
-          {/* Add model */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">添加自定义模型</label>
-            <div className="flex gap-2">
-              <input
-                value={newId}
-                onChange={(e) => setNewId(e.target.value)}
-                placeholder="模型 ID，如 openai/gpt-4o"
-                className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
-              />
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="显示名称"
-                className="w-28 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-lobster/50 focus:ring-2 focus:ring-lobster/10"
-              />
-              <button
-                onClick={addModel}
-                className="shrink-0 rounded-xl bg-gray-800 px-3 py-2 text-sm font-medium text-white hover:bg-gray-700"
-              >
-                添加
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-gray-100 px-5 py-4">
-          {saveMsg && (
-            <p className={`mb-3 text-center text-sm ${saveMsg.startsWith('✅') ? 'text-green-600' : 'text-red-500'}`}>
-              {saveMsg}
-            </p>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-1 rounded-xl bg-lobster py-2.5 text-sm font-semibold text-white hover:bg-lobster-dark disabled:opacity-60"
-            >
-              {saving ? '保存中...' : '保存配置'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Files Panel ─────────────────────────────────────────────────────────────
 
 interface UserFile {
@@ -639,11 +397,7 @@ export default function MyLobsterPage() {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showFilesPanel, setShowFilesPanel] = useState(false);
-
-  // admin model config (hidden from users, accessible to admins only)
-  const [platformModels, setPlatformModels] = useState<PlatformModel[]>([]);
 
   // key state
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null);
@@ -1038,13 +792,6 @@ export default function MyLobsterPage() {
     }
   };
 
-  const handleSaveModels = async (models: PlatformModel[], secret: string) => {
-    await api.platform.saveModels(models, secret);
-    setPlatformModels(models);
-    setShowAdminPanel(false);
-  };
-
-
   // ── Loading ──
   if (applied === null) {
     return (
@@ -1112,18 +859,6 @@ export default function MyLobsterPage() {
             <span className="font-semibold text-slate-100">Darwin</span>
             <p className="text-xs text-cyber">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
-
-          {/* Admin: model config (hidden button, admin-only access) */}
-          <button
-            onClick={() => setShowAdminPanel(true)}
-            title="管理模型配置"
-            className="shrink-0 rounded-lg p-1.5 text-slate-600 hover:bg-white/[0.06] hover:text-slate-400 transition-colors"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
 
           {/* Key 状态指示器 */}
           <button
@@ -1321,15 +1056,6 @@ export default function MyLobsterPage() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Admin models panel */}
-      {showAdminPanel && (
-        <AdminModelsPanel
-          models={platformModels}
-          onSave={handleSaveModels}
-          onClose={() => setShowAdminPanel(false)}
-        />
       )}
 
       {/* Key setup sheet */}
