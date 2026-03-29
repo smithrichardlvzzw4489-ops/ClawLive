@@ -34,7 +34,7 @@ export default async function OgImage({
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 50%, #ff8787 100%)',
+          background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #a78bfa 100%)',
           padding: 48,
           fontFamily: 'system-ui, sans-serif',
         }}

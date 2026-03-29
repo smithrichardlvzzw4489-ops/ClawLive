@@ -66,10 +66,10 @@ const PLACEHOLDER_SURFACE_STYLES = [
   'bg-[#0d1117] bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:24px_24px] ring-1 ring-white/[0.07]',
   'bg-gradient-to-br from-[#0f0d17] via-[#110d1a] to-[#0d1117] ring-1 ring-lobster/[0.12]',
   'bg-gradient-to-br from-[#070f17] via-[#0a1422] to-[#0d1117] ring-1 ring-cyber/[0.12]',
-  'bg-[#0d1117] bg-[radial-gradient(ellipse_at_top_left,rgba(238,90,111,0.08),transparent_60%)] ring-1 ring-white/[0.07]',
+  'bg-[#0d1117] bg-[radial-gradient(ellipse_at_top_left,rgba(139,92,246,0.08),transparent_60%)] ring-1 ring-white/[0.07]',
   'bg-[#0d1117] bg-[radial-gradient(ellipse_at_bottom_right,rgba(34,211,238,0.06),transparent_60%)] ring-1 ring-white/[0.06]',
   'bg-gradient-to-b from-[#111827] to-[#0d1117] ring-1 ring-white/[0.07]',
-  'bg-[#0d1117] bg-[radial-gradient(ellipse_at_center,rgba(238,90,111,0.05),transparent_70%)] ring-1 ring-lobster/[0.10]',
+  'bg-[#0d1117] bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.05),transparent_70%)] ring-1 ring-lobster/[0.10]',
 ] as const;
 
 /** 仅有视频无封面时：克制深色底，避免高饱和「系统渐变」 */

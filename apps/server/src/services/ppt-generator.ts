@@ -16,7 +16,7 @@ export interface SlideInput {
 
 const THEME = {
   background: '1A1A2E',   // 深蓝黑
-  primary: 'E94560',      // 亮红（虾米色）
+  primary: '8B5CF6',      // electric violet
   text: 'EAEAEA',         // 浅灰文字
   subtext: 'A0A0B0',      // 次要文字
   accent: '0F3460',       // 深蓝强调

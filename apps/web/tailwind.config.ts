@@ -44,9 +44,9 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
         lobster: {
-          light: '#ff6b6b',
-          DEFAULT: '#ee5a6f',
-          dark: '#c92a2a',
+          light: '#c4b5fd',   /* violet-300 */
+          DEFAULT: '#8b5cf6', /* violet-500 */
+          dark: '#6d28d9',    /* violet-700 */
         },
         cyber: {
           DEFAULT: '#22d3ee',
@@ -78,8 +78,8 @@ const config: Config = {
           '50%': { transform: 'translateY(-8px)' },
         },
         'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 8px rgba(238,90,111,0.3)' },
-          '50%': { boxShadow: '0 0 20px rgba(238,90,111,0.6)' },
+          '0%, 100%': { boxShadow: '0 0 8px rgba(139,92,246,0.3)' },
+          '50%': { boxShadow: '0 0 20px rgba(139,92,246,0.6)' },
         },
         'scan': {
           '0%': { transform: 'translateY(-100%)' },
@@ -125,7 +125,7 @@ const config: Config = {
             '--tw-prose-td-borders': theme('colors.gray.200'),
             a: {
               fontWeight: '500',
-              textDecorationColor: 'rgba(238, 90, 111, 0.35)',
+              textDecorationColor: 'rgba(139, 92, 246, 0.35)',
             },
             /** 与常见正文排版接近：标题略大于正文，不夸张 */
             h1: {
