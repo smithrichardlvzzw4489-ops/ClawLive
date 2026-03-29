@@ -92,22 +92,6 @@ type KeyStatsResponse = {
   redeemHistory: RedeemRecord[];
 };
 
-const PRESET_MODELS = [
-  { label: '── Anthropic ──', value: '', disabled: true },
-  { label: 'Claude 3.5 Sonnet', value: 'openrouter/anthropic/claude-3-5-sonnet' },
-  { label: 'Claude 3.5 Haiku', value: 'openrouter/anthropic/claude-3-5-haiku' },
-  { label: 'Claude Opus 4', value: 'openrouter/anthropic/claude-opus-4' },
-  { label: '── Google ──', value: '', disabled: true },
-  { label: 'Gemini 2.0 Flash', value: 'openrouter/google/gemini-2.0-flash' },
-  { label: 'Gemini 2.5 Pro', value: 'openrouter/google/gemini-2.5-pro' },
-  { label: '── OpenAI ──', value: '', disabled: true },
-  { label: 'GPT-4o', value: 'openrouter/openai/gpt-4o' },
-  { label: 'GPT-4o Mini', value: 'openrouter/openai/gpt-4o-mini' },
-  { label: '── DeepSeek ──', value: '', disabled: true },
-  { label: 'DeepSeek R1', value: 'openrouter/deepseek/deepseek-r1' },
-  { label: 'DeepSeek Chat V3', value: 'openrouter/deepseek/deepseek-chat-v3-0324' },
-  { label: '── 自定义 ──', value: '__custom__' },
-];
 
 function fmtUsd(v: number) {
   return `$${v.toFixed(4)}`;
@@ -130,13 +114,6 @@ export default function PointsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
-
-  const [testMessage, setTestMessage] = useState('');
-  const [testModelSelect, setTestModelSelect] = useState('');
-  const [testModelCustom, setTestModelCustom] = useState('');
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ reply: string; model: string; mode: string } | null>(null);
-  const [testErr, setTestErr] = useState<string | null>(null);
 
   const [keyStats, setKeyStats] = useState<KeyStatsResponse | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -214,50 +191,6 @@ export default function PointsPage() {
       }
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const copyText = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      setActionError(t('points.copyFailed'));
-    }
-  };
-
-  const effectiveTestModel =
-    testModelSelect === '__custom__' ? testModelCustom.trim() : testModelSelect;
-
-  const runLlmTest = async (useVirtualKey: boolean) => {
-    if (!info?.litellmConfigured) return;
-    setTestErr(null);
-    setTestResult(null);
-    setTesting(true);
-    try {
-      const msg = testMessage.trim();
-      const mdl = effectiveTestModel;
-      const data = (await api.points.testLlm({
-        useVirtualKey,
-        ...(msg ? { message: msg } : {}),
-        ...(mdl ? { model: mdl } : {}),
-      })) as { ok?: boolean; reply?: string; model?: string; mode?: string; message?: string; error?: string };
-      if (data.reply != null && data.model != null) {
-        setTestResult({ reply: data.reply, model: data.model, mode: data.mode || '' });
-      } else {
-        setTestErr(data.message || data.error || t('points.testFailed'));
-      }
-    } catch (e) {
-      if (e instanceof APIError) {
-        setTestErr(
-          e.status === 400 && e.message.includes('NO_VIRTUAL')
-            ? t('points.testNeedVirtual')
-            : e.message || t('points.testFailed')
-        );
-      } else {
-        setTestErr(t('points.testFailed'));
-      }
-    } finally {
-      setTesting(false);
     }
   };
 
@@ -625,104 +558,7 @@ export default function PointsPage() {
                   </div>
                 )}
 
-                {/* 连接测试 */}
-                <div className="border-t border-gray-100 pt-6">
-                  <p className="text-sm font-medium text-gray-800">{t('points.testSection')}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('points.testHint')}</p>
-
-                  <label className="mt-3 block text-xs font-medium text-gray-600">模型（可选）</label>
-                  <select
-                    value={testModelSelect}
-                    onChange={(e) => setTestModelSelect(e.target.value)}
-                    disabled={testing}
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
-                  >
-                    <option value="">留空（用服务端默认）</option>
-                    {PRESET_MODELS.map((m, i) =>
-                      m.disabled ? (
-                        <option key={i} disabled value="">
-                          {m.label}
-                        </option>
-                      ) : (
-                        <option key={i} value={m.value}>
-                          {m.label}
-                        </option>
-                      )
-                    )}
-                  </select>
-
-                  {testModelSelect === '__custom__' && (
-                    <input
-                      type="text"
-                      value={testModelCustom}
-                      onChange={(e) => setTestModelCustom(e.target.value)}
-                      placeholder="如 openrouter/anthropic/claude-3-5-sonnet"
-                      className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
-                      disabled={testing}
-                    />
-                  )}
-
-                  <label className="mt-3 block text-xs font-medium text-gray-600">
-                    {t('points.testMessageLabel')}
-                  </label>
-                  <input
-                    type="text"
-                    value={testMessage}
-                    onChange={(e) => setTestMessage(e.target.value)}
-                    placeholder={t('points.testMessagePlaceholder')}
-                    className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/20"
-                    disabled={testing}
-                  />
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={testing}
-                      onClick={() => void runLlmTest(false)}
-                      className="rounded-full border border-lobster/40 bg-white px-4 py-2 text-sm font-medium text-lobster hover:bg-lobster/5 disabled:opacity-50"
-                    >
-                      {testing ? t('points.testing') : t('points.testMaster')}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={testing || !info.hasVirtualKey}
-                      onClick={() => void runLlmTest(true)}
-                      className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:opacity-50"
-                      title={!info.hasVirtualKey ? t('points.testNeedVirtual') : undefined}
-                    >
-                      {testing ? t('points.testing') : t('points.testVirtual')}
-                    </button>
-                  </div>
-                  {testErr && <p className="mt-2 text-sm text-red-600">{testErr}</p>}
-                  {testResult && (
-                    <div className="mt-3 rounded-lg border border-green-100 bg-green-50/80 px-3 py-2 text-sm text-gray-800">
-                      <p className="text-xs text-gray-500">
-                        {t('points.models')}: {testResult.model} · {testResult.mode}
-                      </p>
-                      <p className="mt-1 font-medium">{t('points.testOk')}</p>
-                      <p className="mt-1 whitespace-pre-wrap break-words">{testResult.reply}</p>
-                    </div>
-                  )}
-                </div>
               </>
-            )}
-
-            {/* 代理地址 */}
-            {info.litellmProxyBaseUrl && (
-              <div className="border-t border-gray-100 pt-6">
-                <p className="text-sm font-medium text-gray-800">{t('points.proxyUrl')}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <code className="break-all rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-800">
-                    {info.litellmProxyBaseUrl}/v1
-                  </code>
-                  <button
-                    type="button"
-                    onClick={() => void copyText(`${info.litellmProxyBaseUrl}/v1`)}
-                    className="shrink-0 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    {t('points.copy')}
-                  </button>
-                </div>
-              </div>
             )}
 
             {/* 虚拟 Key */}
