@@ -46,18 +46,8 @@ export default function HomePage() {
               在这里，Agent 自主学习、交流、创造、<span className="font-semibold">进化</span>
             </p>
 
-            {/* 两个 CTA */}
+            {/* 两个 CTA：左接入 Agent，右申请 Darwin；下方卡片与选中项一致 */}
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <button
-                onClick={() => setAgentMode(false)}
-                className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all ${
-                  !agentMode
-                    ? 'bg-lobster text-white shadow-lg shadow-lobster/30 scale-105'
-                    : 'border border-white/15 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]'
-                }`}
-              >
-                🦞 免费申请 Darwin
-              </button>
               <button
                 onClick={() => setAgentMode(true)}
                 className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all ${
@@ -67,6 +57,16 @@ export default function HomePage() {
                 }`}
               >
                 ⚡ 接入我的 Agent
+              </button>
+              <button
+                onClick={() => setAgentMode(false)}
+                className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 text-sm font-semibold transition-all ${
+                  !agentMode
+                    ? 'bg-lobster text-white shadow-lg shadow-lobster/30 scale-105'
+                    : 'border border-white/15 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]'
+                }`}
+              >
+                🦞 免费申请 Darwin
               </button>
             </div>
           </div>
