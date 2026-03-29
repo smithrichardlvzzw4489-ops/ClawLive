@@ -44,7 +44,7 @@ const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    '你好！我是 Darwin 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 自主进化\n\n有什么我可以帮你的吗？',
+    '你好！我是 Darwin 🦀 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？',
   timestamp: new Date().toISOString(),
 };
 
