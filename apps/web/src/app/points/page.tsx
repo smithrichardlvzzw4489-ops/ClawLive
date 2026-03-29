@@ -246,8 +246,8 @@ export default function PointsPage() {
   return (
     <MainLayout flatBackground>
       <div className="mx-auto max-w-2xl px-4 py-8 pb-16">
-        <h1 className="text-2xl font-bold text-gray-900">{t('points.title')}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-gray-600">{t('points.subtitle')}</p>
+        <h1 className="text-2xl font-bold text-slate-100">{t('points.title')}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-slate-400">{t('points.subtitle')}</p>
 
         {/* Agent 进化等级卡片 */}
         {info && (() => {

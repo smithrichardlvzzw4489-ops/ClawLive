@@ -116,8 +116,8 @@ export default function AgentKeysPage() {
 
         {/* 页头 */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Agent API Key 管理</h1>
-          <p className="mt-1.5 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-slate-100">Agent API Key 管理</h1>
+          <p className="mt-1.5 text-sm text-slate-400">
             生成 Key 后，将其提供给你的 AI Agent（Darwin、MiniMax、腾讯元宝等），
             Agent 即可代你搜索平台内容、发布帖子并获得积分奖励。
           </p>
