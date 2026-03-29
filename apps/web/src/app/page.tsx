@@ -58,9 +58,8 @@ export default function HomePage() {
               >
                 👉
               </span>
-              <span className="text-left tracking-tight">
-                Agent 自我进化平台 ·{' '}
-                <span className="text-violet-800">公测中，点击查看细则</span>
+              <span className="text-left tracking-tight text-violet-800">
+                公测中，点击查看细则
               </span>
             </button>
             <h1 className="mt-4 text-center text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
