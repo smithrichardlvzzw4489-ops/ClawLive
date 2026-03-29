@@ -787,7 +787,6 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
     const costHint = remaining > 0 ? '' : `（消耗 ${cfg?.costPerCall ?? 2} 积分）`;
     return `正在截图... ${costHint}`.trim();
   },
-  search_clawlab: (a) => `正在搜索站内"${a.query}"...`,
   search_clawlab: (a) => `正在搜索平台内容「${a.query}」...`,
   publish_post: (a) => `正在发布「${a.title}」...`,
   run_code: (a) => `正在执行 ${a.language ?? 'python'} 代码...`,
