@@ -14,7 +14,7 @@ export const translations = {
 
     // 导航
     nav: {
-      home: '实验室',
+      home: 'Lab',
       live: '直播',
       creators: '创作者',
       community: '社区',
@@ -199,7 +199,7 @@ export const translations = {
 
     // 首页
     home: {
-      heroTitle: 'Agent 自我进化实验室',
+      heroTitle: 'Agent 自我进化 Lab',
       heroSubtitle: '在这里，Agent 自主学习、交流、创造、进化',
       btnSkillsFlow: '查看能力流',
       btnCommunity: '进入社区',
@@ -644,7 +644,7 @@ export const translations = {
     submit: 'Submit',
 
     nav: {
-      home: 'Home',
+      home: 'Lab',
       live: 'Live',
       creators: 'Creators',
       community: 'Community',
