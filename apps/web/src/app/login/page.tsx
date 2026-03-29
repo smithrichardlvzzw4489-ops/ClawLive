@@ -162,22 +162,23 @@ function AuthForm() {
       {/* 细格网纹理 */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
-      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
+      {/* 玻璃卡片 */}
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/[0.08] bg-white/[0.05] p-8 shadow-2xl backdrop-blur-xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-3xl font-bold text-white">
             {mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
           </h1>
         </div>
 
         {isAgentKeyFlow && (
-          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="mb-5 rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
             <p className="font-semibold mb-0.5">🤖 你的 Agent 正在等待接入 ClawLab</p>
-            <p className="text-amber-700">注册或登录后，你将进入 API Key 生成页面，把 Key 复制给你的 Agent 即可完成接入。</p>
+            <p className="text-amber-400/80">注册或登录后，你将进入 API Key 生成页面，把 Key 复制给你的 Agent 即可完成接入。</p>
           </div>
         )}
 
         {connStatus !== 'ok' && (
-          <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${connStatus === 'checking' ? 'bg-yellow-50 border border-yellow-200 text-yellow-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+          <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${connStatus === 'checking' ? 'border border-yellow-400/20 bg-yellow-400/10 text-yellow-300' : 'border border-red-400/20 bg-red-400/10 text-red-300'}`}>
             {connStatus === 'checking'
               ? `正在检测后端连通性... (${API_BASE_URL})`
               : `后端不可达: ${connDetail}`}
@@ -185,12 +186,14 @@ function AuthForm() {
         )}
 
         {/* Tab 切换 */}
-        <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
+        <div className="flex rounded-lg bg-white/[0.06] border border-white/[0.08] p-1 mb-6">
           <button
             type="button"
             onClick={switchToLogin}
-            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
-              mode === 'login' ? 'bg-white text-lobster shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+              mode === 'login'
+                ? 'bg-white/[0.12] text-lobster shadow-sm border border-white/[0.1]'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             {t('auth.loginBtn')}
@@ -198,8 +201,10 @@ function AuthForm() {
           <button
             type="button"
             onClick={switchToRegister}
-            className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${
-              mode === 'register' ? 'bg-white text-lobster shadow-sm' : 'text-gray-600 hover:text-gray-900'
+            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
+              mode === 'register'
+                ? 'bg-white/[0.12] text-lobster shadow-sm border border-white/[0.1]'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             {t('auth.registerBtn')}
@@ -209,7 +214,7 @@ function AuthForm() {
         {mode === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-4">
             {error && (
-              <div className={`px-4 py-3 rounded-lg ${userNotFound ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+              <div className={`px-4 py-3 rounded-lg text-sm ${userNotFound ? 'border border-amber-400/20 bg-amber-400/10 text-amber-300' : 'border border-red-400/20 bg-red-400/10 text-red-300'}`}>
                 {error}
                 {userNotFound && (
                   <button
@@ -224,24 +229,24 @@ function AuthForm() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.username')}</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.username')}</label>
               <input
                 type="text"
                 autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.password')}</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.password')}</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
                 required
               />
             </div>
@@ -249,7 +254,7 @@ function AuthForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-lobster hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-lobster/20"
             >
               {loading ? t('auth.loggingIn') : t('auth.loginBtn')}
             </button>
@@ -257,18 +262,18 @@ function AuthForm() {
         ) : (
           <form onSubmit={handleRegister} className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="border border-red-400/20 bg-red-400/10 text-red-300 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.avatarLabel')}</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.avatarLabel')}</label>
               <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
                 <button
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
-                  className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-gray-400 transition hover:border-lobster/50 hover:bg-rose-50/50"
+                  className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-white/20 bg-white/[0.05] text-slate-400 transition hover:border-lobster/50 hover:bg-lobster/5"
                 >
                   {avatarDataUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -277,7 +282,7 @@ function AuthForm() {
                     <span className="text-3xl">+</span>
                   )}
                 </button>
-                <div className="min-w-0 flex-1 text-center text-sm text-gray-500 sm:text-left">
+                <div className="min-w-0 flex-1 text-center text-sm text-slate-400 sm:text-left">
                   <p>{t('auth.avatarHint')}</p>
                   {avatarDataUrl && (
                     <button
@@ -300,47 +305,47 @@ function AuthForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.username')}</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.username')}</label>
               <input
                 type="text"
                 value={formData.username}
                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
                 required
                 minLength={3}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.email')}</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.email')}</label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.password')}</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.password')}</label>
               <input
                 type="password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
                 required
                 minLength={6}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">{t('auth.confirmPassword')}</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.confirmPassword')}</label>
               <input
                 type="password"
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
+                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
                 required
               />
             </div>
@@ -348,14 +353,14 @@ function AuthForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full px-4 py-3 bg-lobster text-white rounded-lg font-semibold hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-lobster hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-lobster/20"
             >
               {loading ? t('auth.registering') : t('auth.registerBtn')}
             </button>
           </form>
         )}
 
-        <div className="mt-6 text-center text-sm text-gray-600">
+        <div className="mt-6 text-center text-sm text-slate-400">
           {mode === 'login' ? (
             <>
               {t('auth.noAccount')}{' '}
@@ -376,7 +381,7 @@ function AuthForm() {
         <div className="mt-4 text-center">
           <Link
             href={SHOW_LIVE_FEATURES ? '/rooms' : '/'}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
           >
             ← {SHOW_LIVE_FEATURES ? t('auth.backToRooms') : t('auth.backToHome')}
           </Link>
