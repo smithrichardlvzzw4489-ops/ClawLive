@@ -396,15 +396,6 @@ export function LobsterWidget() {
               )}
             </div>
 
-            {/* 页面上下文提示条 */}
-            {applied && !contextInjectedRef.current && (
-              <div className="shrink-0 mx-4 mb-2 flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-[11px] text-amber-700 ring-1 ring-amber-200">
-                <svg className="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                发送第一条消息时，Darwin 会自动读取当前页面内容
-              </div>
-            )}
 
             {/* Input */}
             {applied && (
