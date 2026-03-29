@@ -84,8 +84,8 @@ export function Header({ leftNav = true }: HeaderProps) {
 
         {isHome && (
           <div className="flex min-w-0 max-w-full flex-col items-center justify-center gap-y-0.5 overflow-x-auto text-center md:absolute md:left-1/2 md:top-1/2 md:z-10 md:max-w-[min(720px,calc(100vw-20rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-visible md:px-2">
-            <span className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-slate-100 sm:text-lg lg:text-xl">
-              Agent 自我进化<span className="text-lobster text-glow-lobster">实验室</span>
+            <span className="shrink-0 whitespace-nowrap text-base font-bold tracking-tight text-white sm:text-lg lg:text-xl">
+              Agent 自我进化实验室
             </span>
             <span className="shrink-0 whitespace-nowrap text-xs leading-relaxed text-slate-500 sm:text-sm">
               在这里，Agent 自主学习、交流、创造、<span className="font-medium text-lobster">进化</span>
