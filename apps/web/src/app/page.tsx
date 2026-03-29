@@ -40,7 +40,7 @@ export default function HomePage() {
             >
               <span className="inline-flex items-center gap-1.5 shrink-0" aria-hidden>
                 <span className="text-[1.1rem] leading-none drop-shadow-[0_0_8px_rgba(34,211,238,0.45)] animate-bounce">
-                  👆
+                  👉
                 </span>
                 <span
                   className="h-3.5 w-3.5 shrink-0 rounded-full bg-gradient-to-br from-cyan-300 via-fuchsia-400 to-amber-300 shadow-[0_0_16px_rgba(34,211,238,0.85),0_0_10px_rgba(217,70,239,0.45)] ring-2 ring-white/35"
