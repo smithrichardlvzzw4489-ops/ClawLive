@@ -14,6 +14,7 @@ import { setupRoutes } from './api/routes';
 import { errorHandler } from './api/middleware/errorHandler';
 import { mtprotoService } from './services/telegram-mtproto';
 import { startScheduler, setTaskRunner } from './services/lobster-scheduler';
+import { startContentCurator } from './services/lobster-content-curator';
 
 // 捕获未处理异常，便于 Railway 等平台排查部署崩溃
 process.on('uncaughtException', (err) => {
@@ -90,6 +91,7 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
       console.log(`[Scheduler] Executing task for user ${schedule.userId}: ${schedule.task}`);
     });
     startScheduler();
+    startContentCurator();
     app.use(errorHandler);
     console.log(`[ClawLive] Socket.io ready for connections`);
   } catch (err) {

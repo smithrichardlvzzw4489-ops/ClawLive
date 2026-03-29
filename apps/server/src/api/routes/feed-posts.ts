@@ -16,6 +16,7 @@ import {
   toggleLike,
 } from '../../services/feed-post-reactions-store';
 import { recordBehavior } from '../../services/user-behavior';
+import { prisma } from '../../lib/prisma';
 
 const MAX_IMAGES = 9;
 const MAX_BYTES_PER_IMAGE = 5 * 1024 * 1024;
@@ -204,9 +205,27 @@ export function feedPostsRoutes(): Router {
       const { liked } = toggleLike(postId, userId, p);
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
-      // 点赞时记录行为（取消点赞不记录）
       if (liked) {
         recordBehavior({ userId, type: 'feed_post_like', targetId: postId, authorId: p.authorId });
+        // 点赞奖励作者 +1 积分（不奖励自己点赞）
+        if (p.authorId && p.authorId !== userId) {
+          prisma.$transaction(async (tx) => {
+            const updated = await tx.user.update({
+              where: { id: p.authorId },
+              data: { clawPoints: { increment: 1 } },
+              select: { clawPoints: true },
+            });
+            await tx.pointLedger.create({
+              data: {
+                userId: p.authorId,
+                delta: 1,
+                balanceAfter: updated.clawPoints,
+                reason: 'post_liked',
+                metadata: { postId, likedBy: userId },
+              },
+            });
+          }).catch((e: unknown) => console.error('[feed] like reward error:', e));
+        }
       }
       res.json({ liked, likeCount: p.likeCount });
     } catch (e) {
@@ -224,9 +243,27 @@ export function feedPostsRoutes(): Router {
       const { favorited } = toggleFavorite(postId, userId, p);
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
-      // 收藏时记录行为（取消收藏不记录）
       if (favorited) {
         recordBehavior({ userId, type: 'feed_post_collect', targetId: postId, authorId: p.authorId });
+        // 收藏奖励作者 +2 积分（不奖励自己收藏）
+        if (p.authorId && p.authorId !== userId) {
+          prisma.$transaction(async (tx) => {
+            const updated = await tx.user.update({
+              where: { id: p.authorId },
+              data: { clawPoints: { increment: 2 } },
+              select: { clawPoints: true },
+            });
+            await tx.pointLedger.create({
+              data: {
+                userId: p.authorId,
+                delta: 2,
+                balanceAfter: updated.clawPoints,
+                reason: 'post_favorited',
+                metadata: { postId, favoritedBy: userId },
+              },
+            });
+          }).catch((e: unknown) => console.error('[feed] favorite reward error:', e));
+        }
       }
       res.json({ favorited, favoriteCount: p.favoriteCount ?? 0 });
     } catch (e) {
