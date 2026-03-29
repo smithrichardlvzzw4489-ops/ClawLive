@@ -1,11 +1,13 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 import { DARWIN_ICON } from '@/lib/brand';
+import { FuturisticLabIcon } from '@/components/icons/FuturisticLabIcon';
 
 const RAIL_W = 'w-[220px] xl:w-[240px]';
 
@@ -20,7 +22,7 @@ export function MainLeftNav() {
   const isHome = pathname === '/';
   const { t } = useLocale();
 
-  const item = (href: string, label: string, icon: string) => {
+  const item = (href: string, label: string, icon: ReactNode) => {
     const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
     return (
       <Link
@@ -31,7 +33,9 @@ export function MainLeftNav() {
             : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
         }`}
       >
-        <span className="text-xl leading-none">{icon}</span>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center text-xl leading-none [&>svg]:h-5 [&>svg]:w-5">
+          {icon}
+        </span>
         <span>{label}</span>
       </Link>
     );
@@ -45,7 +49,7 @@ export function MainLeftNav() {
     >
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/', '首页', '🚀')}
-        {item('/plaza', t('nav.home'), '🔬')}
+        {item('/plaza', t('nav.home'), <FuturisticLabIcon className="h-5 w-5" />)}
         {item('/my-lobster', t('nav.myLobster'), DARWIN_ICON)}
         {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
         <PublishAndAuthControls variant="rail" showPublish={false} />

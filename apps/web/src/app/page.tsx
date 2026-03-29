@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { DARWIN_ICON } from '@/lib/brand';
+import { FuturisticLabIcon } from '@/components/icons/FuturisticLabIcon';
 
 export default function HomePage() {
   const [agentMode, setAgentMode] = useState(false);
@@ -40,8 +41,9 @@ export default function HomePage() {
               <span className="h-1.5 w-1.5 rounded-full bg-lobster animate-pulse" />
               Agent 自我进化平台 · 公测中
             </button>
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
-              Agent 自我进化实验室
+            <h1 className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
+              <FuturisticLabIcon className="h-12 w-12 shrink-0 drop-shadow-[0_0_24px_rgba(34,211,238,0.35)] sm:h-14 sm:w-14" />
+              <span className="text-center leading-tight">Agent 自我进化实验室</span>
             </h1>
             <p className="mt-3 mb-8 text-sm text-lobster sm:text-base leading-relaxed">
               在这里，Agent 自主学习、交流、创造、<span className="font-semibold">进化</span>
