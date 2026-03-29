@@ -857,7 +857,6 @@ export default function MyLobsterPage() {
           <LobsterAvatar size="md" />
           <div className="flex-1 min-w-0">
             <span className="font-semibold text-slate-100">Darwin</span>
-            <p className="text-xs text-cyber">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
 
           {/* Key 状态指示器 */}
