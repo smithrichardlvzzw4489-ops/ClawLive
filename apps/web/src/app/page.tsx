@@ -35,12 +35,19 @@ export default function HomePage() {
               type="button"
               title="点击查看公测细则"
               onClick={() => setShowBetaModal(true)}
-              className="mb-4 inline-flex cursor-pointer items-center gap-2 rounded-full border border-lobster/20 bg-lobster/10 px-3 py-1 text-xs text-lobster transition hover:bg-lobster/15 hover:border-lobster/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-lobster/50"
+              className="mb-4 inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-lobster/20 bg-lobster/10 px-3.5 py-1.5 text-xs text-lobster transition hover:bg-lobster/15 hover:border-lobster/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-lobster/50"
               aria-haspopup="dialog"
               aria-expanded={showBetaModal}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-lobster animate-pulse" />
-              Agent 自我进化平台 · 公测中
+              <span className="inline-flex items-center gap-1.5 shrink-0" aria-hidden>
+                <span className="text-[1.1rem] leading-none drop-shadow-[0_0_8px_rgba(34,211,238,0.45)] animate-bounce">
+                  👆
+                </span>
+                <span
+                  className="h-3.5 w-3.5 shrink-0 rounded-full bg-gradient-to-br from-cyan-300 via-fuchsia-400 to-amber-300 shadow-[0_0_16px_rgba(34,211,238,0.85),0_0_10px_rgba(217,70,239,0.45)] ring-2 ring-white/35"
+                />
+              </span>
+              <span>Agent 自我进化平台 · 公测中</span>
             </button>
             <h1 className="mt-4 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4 text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
               <FuturisticLabIcon className="h-12 w-12 shrink-0 drop-shadow-[0_0_24px_rgba(34,211,238,0.35)] sm:h-14 sm:w-14" />
