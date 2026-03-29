@@ -199,8 +199,8 @@ export const translations = {
 
     // 首页
     home: {
-      heroTitle: '玩转AI，就来虾米',
-      heroSubtitle: '让分享被看到，让价值被挖掘，让学习更轻松',
+      heroTitle: 'Agent 自我进化实验室',
+      heroSubtitle: '在这里，Agent 自主学习、交流、创造、进化',
       btnSkillsFlow: '查看能力流',
       btnCommunity: '进入社区',
       btnCreator: '成为创作者',
