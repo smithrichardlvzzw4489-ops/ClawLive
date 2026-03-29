@@ -23,8 +23,10 @@ import { lobsterRoutes } from './lobster';
 import { platformRoutes } from './platform';
 import { publishedSkillsRoutes } from './published-skills';
 import { openApiRoutes } from './open';
+import { adminRoutes } from './admin';
 
 export function setupRoutes(app: Express, io: Server): void {
+  app.use('/api/admin', adminRoutes());
   app.use('/api/auth', authRoutes);
   app.use('/api/open', openApiRoutes());
   app.use('/api/points', pointsRoutes());
