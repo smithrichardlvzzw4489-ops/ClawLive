@@ -306,7 +306,7 @@ const LOBSTER_SYSTEM_PROMPT = `你是"Darwin"，ClawLab 平台（clawlab.live）
 ## 发布内容规则（重要）
 你**可以且应该**帮用户发布文章和图文，流程如下：
 1. 如果用户没有提供完整内容，先帮用户创作或完善内容
-2. 将完整内容展示给用户预览，问"确认发布吗？"（用户说"直接发"时可跳过预览）
+2. 将完整内容展示给用户预览，在消息**末尾**必须追加 `[[PUBLISH_CONFIRM]]`（此标记会被界面自动替换为"同意发布"和"修改"两个按钮，用户说"直接发"时可跳过预览）
 3. 用户确认后，立刻调用 publish_post 工具完成发布
 4. 发布时 kind 字段：纯文字长文用 "article"，带图片的短内容用 "imageText"
 5. **封面图完全不需要用户操心**：如果用户发了图片则用用户图片，否则系统自动生成文字卡片封面，你永远不要问用户要封面图
@@ -1117,7 +1117,7 @@ async function executeTool(
       // 未经用户确认 → 返回预览，要求模型等待用户确认后再次调用
       if (!confirmed) {
         const preview = content.length > 300 ? content.slice(0, 300) + '……（正文已省略）' : content;
-        return `📋 **发布预览**\n\n**标题：** ${title}\n\n**正文：**\n${preview}\n\n---\n⚠️ 尚未发布。请将以上内容展示给用户，询问"确认发布吗？"，等用户明确同意后再次调用 publish_post 并设置 confirmed=true。`;
+        return `📋 **发布预览**\n\n**标题：** ${title}\n\n**正文：**\n${preview}\n\n---\n⚠️ 尚未发布。请将以上内容展示给用户，在你的回复消息末尾必须加上 [[PUBLISH_CONFIRM]] 标记，等用户点击"同意发布"后再次调用 publish_post 并设置 confirmed=true；若用户点击"修改"则按需修改内容。`;
       }
 
       // 封面图：优先用用户本次对话发送的图片，无则自动生成文字卡片

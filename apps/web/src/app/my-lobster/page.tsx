@@ -38,6 +38,8 @@ interface KeyStatus {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
+const PUBLISH_CONFIRM_MARKER = '[[PUBLISH_CONFIRM]]';
+
 const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
@@ -118,6 +120,9 @@ function MessageBubble({ msg }: { msg: LobsterMessage }) {
     );
   }
 
+  // 去除 PUBLISH_CONFIRM 标记后再渲染
+  const displayContent = msg.content.replace(PUBLISH_CONFIRM_MARKER, '').trimEnd();
+
   // 将内容按换行拆分，逐段渲染链接
   const renderContent = (text: string) =>
     text.split('\n').map((line, i, arr) => (
@@ -137,7 +142,7 @@ function MessageBubble({ msg }: { msg: LobsterMessage }) {
             : 'rounded-tl-sm bg-white text-gray-800 shadow-sm ring-1 ring-gray-100'
         }`}
       >
-        <p className="whitespace-pre-wrap break-words">{renderContent(msg.content)}</p>
+        <p className="whitespace-pre-wrap break-words">{renderContent(displayContent)}</p>
         {msg.streaming && (
           <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-current opacity-70" />
         )}
@@ -904,6 +909,80 @@ export default function MyLobsterPage() {
     }
   };
 
+  const handleQuickReply = async (text: string) => {
+    if (sending) return;
+    const userMsg: LobsterMessage = {
+      id: `tmp-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setSending(true);
+    setError('');
+
+    const assistantPlaceholderId = `assistant-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantPlaceholderId, role: 'assistant', content: '', timestamp: new Date().toISOString(), streaming: true, statusText: '思考中...' },
+    ]);
+
+    const token = localStorage.getItem('token');
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/lobster/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: text }),
+        signal: ctrl.signal,
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const msg = errData.message || errData.error || `请求失败 (${response.status})`;
+        setMessages((prev) => prev.map((m) => m.id === assistantPlaceholderId ? { ...m, content: `⚠️ ${msg}`, streaming: false, statusText: undefined } : m));
+        setSending(false);
+        return;
+      }
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let streamContent = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+          let event: { type: string; text?: string; id?: string; message?: string };
+          try { event = JSON.parse(raw); } catch { continue; }
+          if (event.type === 'status') {
+            setMessages((prev) => prev.map((m) => m.id === assistantPlaceholderId ? { ...m, statusText: event.text, content: '', streaming: true } : m));
+          } else if (event.type === 'delta') {
+            streamContent += event.text ?? '';
+            setMessages((prev) => prev.map((m) => m.id === assistantPlaceholderId ? { ...m, content: streamContent, statusText: undefined, streaming: true } : m));
+          } else if (event.type === 'done') {
+            setMessages((prev) => prev.map((m) => m.id === assistantPlaceholderId ? { ...m, id: event.id ?? m.id, content: streamContent, streaming: false, statusText: undefined, timestamp: new Date().toISOString() } : m));
+          } else if (event.type === 'error') {
+            setMessages((prev) => prev.map((m) => m.id === assistantPlaceholderId ? { ...m, content: `⚠️ ${event.message}`, streaming: false, statusText: undefined } : m));
+          }
+        }
+      }
+    } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
+      setMessages((prev) => prev.map((m) => m.id === assistantPlaceholderId ? { ...m, content: '⚠️ 连接中断，请重试', streaming: false, statusText: undefined } : m));
+    } finally {
+      setSending(false);
+      abortRef.current = null;
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  };
+
   const handleClearHistory = async () => {
     try {
       await api.lobster.clearHistory();
@@ -1091,6 +1170,35 @@ export default function MyLobsterPage() {
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {/* Publish confirm quick-reply buttons */}
+        {(() => {
+          const last = [...messages].reverse().find((m) => m.role === 'assistant' && !m.streaming);
+          const showConfirm = last && last.content.includes(PUBLISH_CONFIRM_MARKER) && !sending;
+          if (!showConfirm) return null;
+          return (
+            <div className="shrink-0 border-t border-white/[0.07] px-4 pt-3 pb-0 flex gap-3">
+              <button
+                onClick={() => handleQuickReply('确认发布')}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-lobster/90 hover:bg-lobster px-4 py-2.5 text-sm font-semibold text-white transition-all shadow-sm"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                同意发布
+              </button>
+              <button
+                onClick={() => handleQuickReply('需要修改')}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.05] hover:bg-white/[0.10] px-4 py-2.5 text-sm font-semibold text-slate-300 transition-all"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                修改
+              </button>
+            </div>
+          );
+        })()}
 
         {/* Input */}
         <div className="shrink-0 border-t border-white/[0.07] glass px-4 py-3">
