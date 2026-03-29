@@ -5,6 +5,11 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@clawlive/shared-types'],
   output: 'standalone',
+  async redirects() {
+    return [
+      { source: '/plaza', destination: '/lab', permanent: true },
+    ];
+  },
   async rewrites() {
     return {
       beforeFiles: [],

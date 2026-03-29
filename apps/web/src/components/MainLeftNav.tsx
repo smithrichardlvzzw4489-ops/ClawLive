@@ -49,7 +49,7 @@ export function MainLeftNav() {
     >
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pb-4 pt-6">
         {item('/', '首页', '🚀')}
-        {item('/plaza', t('nav.home'), <FuturisticLabIcon className="h-5 w-5" />)}
+        {item('/lab', t('nav.home'), <FuturisticLabIcon className="h-5 w-5" />)}
         {item('/my-lobster', t('nav.myLobster'), DARWIN_ICON)}
         {SHOW_LIVE_FEATURES && item('/rooms', t('nav.live'), '📺')}
         <PublishAndAuthControls variant="rail" showPublish={false} />
