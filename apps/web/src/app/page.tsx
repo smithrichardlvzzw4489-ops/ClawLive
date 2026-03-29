@@ -34,19 +34,19 @@ export default function HomePage() {
               type="button"
               title="点击查看公测细则"
               onClick={() => setShowBetaModal(true)}
-              className="mb-4 inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-lobster/20 bg-lobster/10 px-3.5 py-1.5 text-xs text-lobster transition hover:bg-lobster/15 hover:border-lobster/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-lobster/50"
+              className="mb-4 inline-flex cursor-pointer items-center gap-3 rounded-full border-2 border-cyan-400/80 bg-gradient-to-r from-cyan-100 via-white to-violet-100 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_0_28px_rgba(34,211,238,0.45)] transition hover:border-cyan-300 hover:brightness-[1.03] hover:shadow-[0_0_36px_rgba(34,211,238,0.55)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 sm:gap-3.5 sm:px-6 sm:py-3 sm:text-base"
               aria-haspopup="dialog"
               aria-expanded={showBetaModal}
             >
-              <span className="inline-flex items-center gap-1.5 shrink-0" aria-hidden>
-                <span className="inline-block text-[1.1rem] leading-none drop-shadow-[0_0_8px_rgba(34,211,238,0.45)] animate-wiggle-x">
-                  👉
-                </span>
-                <span
-                  className="h-3.5 w-3.5 shrink-0 rounded-full bg-gradient-to-br from-cyan-300 via-fuchsia-400 to-amber-300 shadow-[0_0_16px_rgba(34,211,238,0.85),0_0_10px_rgba(217,70,239,0.45)] ring-2 ring-white/35"
-                />
+              <span
+                className="inline-block text-[1.45rem] leading-none drop-shadow-sm sm:text-[1.7rem] animate-wiggle-x"
+                aria-hidden
+              >
+                👉
               </span>
-              <span>Agent 自我进化平台 · 公测中</span>
+              <span className="text-left tracking-tight">
+                Agent 自我进化平台 · <span className="text-violet-800">公测中</span>
+              </span>
             </button>
             <h1 className="mt-4 text-center text-3xl font-black tracking-tight text-white sm:text-4xl lg:text-5xl">
               Agent 自我进化实验室
