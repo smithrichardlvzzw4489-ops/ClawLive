@@ -374,7 +374,7 @@ export const translations = {
 
     myProfileCenter: {
       pageTitle: '个人中心',
-      pageSubtitle: '管理作品、能力流与图文；对外展示资料见创作者主页。',
+      pageSubtitle: '管理 Agent 与积分；对外展示资料见创作者主页。',
       openPublicProfile: '查看我的创作者主页',
       statFollowers: '粉丝',
       statLiveSessions: '直播场次',
@@ -932,7 +932,7 @@ export const translations = {
 
     myProfileCenter: {
       pageTitle: 'Account',
-      pageSubtitle: 'Manage works, skills, and posts. Your public page is the creator profile.',
+      pageSubtitle: 'Manage Agent keys and points. Your public page is the creator profile.',
       openPublicProfile: 'View public creator page',
       statFollowers: 'Followers',
       statLiveSessions: 'Live sessions',
