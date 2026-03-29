@@ -52,7 +52,7 @@ export function Header({ leftNav = true }: HeaderProps) {
     </Link>
   );
 
-  const isHome = pathname === '/my-lobster';
+  const isHome = false;
   const searchInputClass =
     'w-full rounded-full border border-white/10 bg-white/[0.06] px-3 py-2 text-sm text-slate-300 placeholder:text-slate-600 focus:border-lobster/40 focus:outline-none focus:ring-2 focus:ring-lobster/15 focus:bg-white/[0.08] transition-all';
 
