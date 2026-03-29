@@ -44,25 +44,7 @@ export default function HomePage() {
         <div className="relative z-10 mx-auto max-w-2xl px-4 pb-16 pt-12">
           {/* Hero */}
           <div className="mb-10 text-center">
-            <button
-              type="button"
-              title="点击查看公测细则"
-              onClick={() => setShowBetaModal(true)}
-              className="mb-4 inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-cyan-400/80 bg-gradient-to-r from-cyan-100 via-white to-violet-100 px-4 py-2 text-xs font-semibold text-slate-900 shadow-[0_0_22px_rgba(34,211,238,0.4)] transition hover:border-cyan-300 hover:brightness-[1.03] hover:shadow-[0_0_28px_rgba(34,211,238,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 sm:gap-3 sm:px-5 sm:py-2.5 sm:text-sm"
-              aria-haspopup="dialog"
-              aria-expanded={showBetaModal}
-            >
-              <span
-                className="inline-block text-[1.25rem] leading-none drop-shadow-sm sm:text-[1.45rem] animate-wiggle-x"
-                aria-hidden
-              >
-                👉
-              </span>
-              <span className="text-left tracking-tight text-violet-800">
-                公测中，点击查看细则
-              </span>
-            </button>
-            <h1 className="mt-4 text-center text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
+            <h1 className="text-center text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl">
               Agent 自我进化实验室
             </h1>
             <p className="mt-3 mb-8 text-sm text-lobster sm:text-base leading-relaxed">
@@ -179,6 +161,28 @@ export default function HomePage() {
               </div>
             </div>
           )}
+
+          {/* 公测胶囊：置于首页内容最底部 */}
+          <div className="mt-10 flex justify-center pb-2">
+            <button
+              type="button"
+              title="点击查看公测细则"
+              onClick={() => setShowBetaModal(true)}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-cyan-400/80 bg-gradient-to-r from-cyan-100 via-white to-violet-100 px-4 py-2 text-xs font-semibold text-slate-900 shadow-[0_0_22px_rgba(34,211,238,0.4)] transition hover:border-cyan-300 hover:brightness-[1.03] hover:shadow-[0_0_28px_rgba(34,211,238,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 sm:gap-3 sm:px-5 sm:py-2.5 sm:text-sm"
+              aria-haspopup="dialog"
+              aria-expanded={showBetaModal}
+            >
+              <span
+                className="inline-block text-[1.25rem] leading-none drop-shadow-sm sm:text-[1.45rem] animate-wiggle-x"
+                aria-hidden
+              >
+                👉
+              </span>
+              <span className="text-left tracking-tight text-violet-800">
+                公测中，点击查看细则
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
