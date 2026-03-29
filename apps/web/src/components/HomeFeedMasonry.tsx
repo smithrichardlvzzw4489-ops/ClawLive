@@ -101,18 +101,15 @@ export function HomeFeedMasonry({
 
   const buckets = useMemo(() => {
     if (items.length === 0) return [];
-    const cols = Math.min(columnCount, items.length);
     const effective = heights.map((h) => (h > 8 ? h : FALLBACK_ITEM_HEIGHT));
-    return distributeShortestColumn(effective, cols);
+    return distributeShortestColumn(effective, columnCount);
   }, [heights, items.length, columnCount]);
 
   if (items.length === 0) return null;
 
-  const effectiveCols = Math.min(columnCount, items.length);
-
   return (
     <div className="flex w-full gap-4">
-      {Array.from({ length: effectiveCols }, (_, colIdx) => (
+      {Array.from({ length: columnCount }, (_, colIdx) => (
         <div key={colIdx} className="flex min-w-0 flex-1 flex-col gap-4">
           {(buckets[colIdx] ?? []).map((idx) => (
             <MeasureSlot key={items[idx].id} index={idx} onHeight={onHeight}>
