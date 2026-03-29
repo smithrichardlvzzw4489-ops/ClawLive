@@ -141,6 +141,9 @@ export default function PointsPage() {
   const [keyStats, setKeyStats] = useState<KeyStatsResponse | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsTab, setStatsTab] = useState<'usage' | 'redeem'>('usage');
+  const [usagePage, setUsagePage] = useState(1);
+  const [redeemPage, setRedeemPage] = useState(1);
+  const PAGE_SIZE = 15;
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState<LedgerEntry[]>([]);
@@ -458,7 +461,7 @@ export default function PointsPage() {
                     <div className="flex gap-4 border-b border-gray-100 pb-2">
                       <button
                         type="button"
-                        onClick={() => setStatsTab('usage')}
+                        onClick={() => { setStatsTab('usage'); setUsagePage(1); }}
                         className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
                           statsTab === 'usage'
                             ? 'border-lobster text-lobster'
@@ -469,7 +472,7 @@ export default function PointsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setStatsTab('redeem')}
+                        onClick={() => { setStatsTab('redeem'); setRedeemPage(1); }}
                         className={`text-sm font-medium pb-1 border-b-2 transition-colors ${
                           statsTab === 'redeem'
                             ? 'border-lobster text-lobster'
@@ -480,83 +483,145 @@ export default function PointsPage() {
                       </button>
                     </div>
 
-                    {statsTab === 'usage' && (
-                      <div className="mt-3">
-                        {keyStats.keyStats?.usageLogs.length === 0 ? (
-                          <p className="text-xs text-gray-400">暂无使用记录</p>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs text-gray-700">
-                              <thead>
-                                <tr className="border-b border-gray-100 text-gray-400">
-                                  <th className="py-2 pr-3 text-left font-normal">时间</th>
-                                  <th className="py-2 pr-3 text-left font-normal">模型</th>
-                                  <th className="py-2 pr-3 text-right font-normal">Token</th>
-                                  <th className="py-2 text-right font-normal">消费</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {keyStats.keyStats?.usageLogs.map((log, i) => (
-                                  <tr key={log.request_id ?? i} className="border-b border-gray-50">
-                                    <td className="py-1.5 pr-3 whitespace-nowrap text-gray-400">
-                                      {log.startTime ? fmtDate(log.startTime) : '—'}
-                                    </td>
-                                    <td className="py-1.5 pr-3 max-w-[180px] truncate" title={log.model}>
-                                      {log.model ?? '—'}
-                                    </td>
-                                    <td className="py-1.5 pr-3 text-right tabular-nums">
-                                      {log.total_tokens ?? '—'}
-                                    </td>
-                                    <td className="py-1.5 text-right tabular-nums">
-                                      {typeof log.spend === 'number' ? fmtUsd(log.spend) : '—'}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {statsTab === 'usage' && (() => {
+                      const logs = keyStats.keyStats?.usageLogs ?? [];
+                      const totalPages = Math.max(1, Math.ceil(logs.length / PAGE_SIZE));
+                      const pageLogs = logs.slice((usagePage - 1) * PAGE_SIZE, usagePage * PAGE_SIZE);
+                      return (
+                        <div className="mt-3">
+                          {logs.length === 0 ? (
+                            <p className="text-xs text-gray-400">暂无使用记录</p>
+                          ) : (
+                            <>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs text-gray-700">
+                                  <thead>
+                                    <tr className="border-b border-gray-100 text-gray-400">
+                                      <th className="py-2 pr-3 text-left font-normal">时间</th>
+                                      <th className="py-2 pr-3 text-left font-normal">模型</th>
+                                      <th className="py-2 pr-3 text-right font-normal">Token</th>
+                                      <th className="py-2 text-right font-normal">消费</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {pageLogs.map((log, i) => (
+                                      <tr key={log.request_id ?? i} className="border-b border-gray-50">
+                                        <td className="py-1.5 pr-3 whitespace-nowrap text-gray-400">
+                                          {log.startTime ? fmtDate(log.startTime) : '—'}
+                                        </td>
+                                        <td className="py-1.5 pr-3 max-w-[180px] truncate" title={log.model}>
+                                          {log.model ?? '—'}
+                                        </td>
+                                        <td className="py-1.5 pr-3 text-right tabular-nums">
+                                          {log.total_tokens ?? '—'}
+                                        </td>
+                                        <td className="py-1.5 text-right tabular-nums">
+                                          {typeof log.spend === 'number' ? fmtUsd(log.spend) : '—'}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {totalPages > 1 && (
+                                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                                  <span>{(usagePage - 1) * PAGE_SIZE + 1}–{Math.min(usagePage * PAGE_SIZE, logs.length)} / 共 {logs.length} 条</span>
+                                  <div className="flex gap-1">
+                                    <button
+                                      type="button"
+                                      disabled={usagePage === 1}
+                                      onClick={() => setUsagePage(p => p - 1)}
+                                      className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
+                                    >
+                                      ‹ 上一页
+                                    </button>
+                                    <span className="px-2 py-1 font-medium text-gray-700">{usagePage} / {totalPages}</span>
+                                    <button
+                                      type="button"
+                                      disabled={usagePage === totalPages}
+                                      onClick={() => setUsagePage(p => p + 1)}
+                                      className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
+                                    >
+                                      下一页 ›
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
 
-                    {statsTab === 'redeem' && (
-                      <div className="mt-3">
-                        {keyStats.redeemHistory.length === 0 ? (
-                          <p className="text-xs text-gray-400">暂无充值记录</p>
-                        ) : (
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-xs text-gray-700">
-                              <thead>
-                                <tr className="border-b border-gray-100 text-gray-400">
-                                  <th className="py-2 pr-3 text-left font-normal">时间</th>
-                                  <th className="py-2 pr-3 text-right font-normal">积分</th>
-                                  <th className="py-2 pr-3 text-right font-normal">换得 USD</th>
-                                  <th className="py-2 text-right font-normal">剩余积分</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {keyStats.redeemHistory.map((r, i) => (
-                                  <tr key={i} className="border-b border-gray-50">
-                                    <td className="py-1.5 pr-3 whitespace-nowrap text-gray-400">
-                                      {fmtDate(r.createdAt)}
-                                    </td>
-                                    <td className={`py-1.5 pr-3 text-right tabular-nums font-medium ${r.delta < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                      {r.delta > 0 ? `+${r.delta}` : r.delta}
-                                    </td>
-                                    <td className="py-1.5 pr-3 text-right tabular-nums">
-                                      {r.usd !== null ? fmtUsd(r.usd) : '—'}
-                                    </td>
-                                    <td className="py-1.5 text-right tabular-nums text-gray-500">
-                                      {r.balanceAfter}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {statsTab === 'redeem' && (() => {
+                      const records = keyStats.redeemHistory;
+                      const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
+                      const pageRecords = records.slice((redeemPage - 1) * PAGE_SIZE, redeemPage * PAGE_SIZE);
+                      return (
+                        <div className="mt-3">
+                          {records.length === 0 ? (
+                            <p className="text-xs text-gray-400">暂无充值记录</p>
+                          ) : (
+                            <>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs text-gray-700">
+                                  <thead>
+                                    <tr className="border-b border-gray-100 text-gray-400">
+                                      <th className="py-2 pr-3 text-left font-normal">时间</th>
+                                      <th className="py-2 pr-3 text-right font-normal">积分</th>
+                                      <th className="py-2 pr-3 text-right font-normal">换得 USD</th>
+                                      <th className="py-2 text-right font-normal">剩余积分</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {pageRecords.map((r, i) => (
+                                      <tr key={i} className="border-b border-gray-50">
+                                        <td className="py-1.5 pr-3 whitespace-nowrap text-gray-400">
+                                          {fmtDate(r.createdAt)}
+                                        </td>
+                                        <td className={`py-1.5 pr-3 text-right tabular-nums font-medium ${r.delta < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                          {r.delta > 0 ? `+${r.delta}` : r.delta}
+                                        </td>
+                                        <td className="py-1.5 pr-3 text-right tabular-nums">
+                                          {r.usd !== null ? fmtUsd(r.usd) : '—'}
+                                        </td>
+                                        <td className="py-1.5 text-right tabular-nums text-gray-500">
+                                          {r.balanceAfter}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                              {totalPages > 1 && (
+                                <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                                  <span>{(redeemPage - 1) * PAGE_SIZE + 1}–{Math.min(redeemPage * PAGE_SIZE, records.length)} / 共 {records.length} 条</span>
+                                  <div className="flex gap-1">
+                                    <button
+                                      type="button"
+                                      disabled={redeemPage === 1}
+                                      onClick={() => setRedeemPage(p => p - 1)}
+                                      className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
+                                    >
+                                      ‹ 上一页
+                                    </button>
+                                    <span className="px-2 py-1 font-medium text-gray-700">{redeemPage} / {totalPages}</span>
+                                    <button
+                                      type="button"
+                                      disabled={redeemPage === totalPages}
+                                      onClick={() => setRedeemPage(p => p + 1)}
+                                      className="rounded px-2 py-1 hover:bg-gray-100 disabled:opacity-30"
+                                    >
+                                      下一页 ›
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
