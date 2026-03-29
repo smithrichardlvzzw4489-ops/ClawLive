@@ -32,7 +32,7 @@ export function MainLayout({
     hideHeader ? 'pt-0' : spaciousHeader ? 'pt-28 sm:pt-24' : 'pt-16';
 
   return (
-    <div className={flatBackground ? 'min-h-screen bg-[#f5f5f5]' : 'min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50'}>
+    <div className="min-h-screen bg-void-950 bg-dot">
       {!hideHeader && <Header leftNav={!noLeftRail} />}
 
       <div className={mainTop}>

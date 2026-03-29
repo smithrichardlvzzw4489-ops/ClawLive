@@ -48,6 +48,16 @@ const config: Config = {
           DEFAULT: '#ee5a6f',
           dark: '#c92a2a',
         },
+        cyber: {
+          DEFAULT: '#22d3ee',
+          dim: 'rgba(34,211,238,0.12)',
+        },
+        void: {
+          950: '#07090f',
+          900: '#0d1117',
+          800: '#111827',
+          700: '#131d2e',
+        },
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -67,11 +77,20 @@ const config: Config = {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' },
         },
+        'pulse-glow': {
+          '0%, 100%': { boxShadow: '0 0 8px rgba(238,90,111,0.3)' },
+          '50%': { boxShadow: '0 0 20px rgba(238,90,111,0.6)' },
+        },
+        'scan': {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100vh)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.3s ease-in-out',
         'slide-up': 'slide-up 0.3s ease-out',
         'float': 'float 3s ease-in-out infinite',
+        'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
       },
       boxShadow: {
         'card': '0 2px 8px rgba(0, 0, 0, 0.08)',

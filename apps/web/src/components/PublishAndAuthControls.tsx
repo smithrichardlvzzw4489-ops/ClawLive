@@ -11,11 +11,11 @@ type Variant = 'nav' | 'sidebar' | 'rail';
 
 /** 与左侧栏「首页」「直播」链接同款：圆角条、字重 */
 const railRow =
-  'flex w-full items-center gap-3 rounded-full px-4 py-3 text-[15px] font-medium transition-colors text-gray-700 hover:bg-gray-100/90 hover:text-gray-900';
-const railRowOpen = 'bg-gray-200/90 text-gray-900 font-semibold';
+  'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition-all text-slate-400 hover:bg-white/[0.06] hover:text-slate-200';
+const railRowOpen = 'bg-lobster/10 text-lobster ring-1 ring-inset ring-lobster/20';
 
 const navBtn =
-  'rounded-full px-3 py-2 text-[15px] font-medium text-gray-700 transition-colors hover:bg-gray-100/90 hover:text-gray-900 flex items-center gap-1 shrink-0 sm:px-4';
+  'rounded-full px-3 py-2 text-[15px] font-medium text-slate-400 transition-all hover:bg-white/[0.06] hover:text-slate-200 flex items-center gap-1 shrink-0 sm:px-4';
 
 /**
  * 发布下拉 + 登录/用户菜单。nav：与顶栏「首页」「直播」同款字重与圆角。
@@ -115,21 +115,21 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="invisible absolute left-0 right-0 z-50 mt-1 w-full rounded-xl border bg-white opacity-0 shadow-lg transition-all group-hover:visible group-hover:opacity-100">
-              <Link href="/my-profile" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+            <div className="invisible absolute left-0 right-0 z-50 mt-1 w-full rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
+              <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
-              <Link href="/agent-keys" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+              <Link href="/agent-keys" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 🔑 Agent Key
               </Link>
-              <Link href="/points" className="block px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-lobster">
+              <Link href="/points" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 💎 {t('nav.points')}
               </Link>
-              <div className="border-t" />
+              <div className="border-t border-white/10" />
               <button
                 type="button"
                 onClick={handleLogout}
-                className="block w-full px-4 py-3 text-left text-gray-700 hover:bg-gray-50 hover:text-lobster"
+                className="block w-full px-4 py-3 text-left text-slate-400 hover:bg-white/[0.06] hover:text-lobster"
               >
                 {t('logout')}
               </button>
@@ -215,21 +215,21 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               )}
               <span className="font-medium text-gray-700 truncate text-left text-sm">{user.username}</span>
             </button>
-            <div className="absolute left-0 right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-              <Link href="/my-profile" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+            <div className="absolute left-0 right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+              <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
-              <Link href="/agent-keys" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+              <Link href="/agent-keys" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 🔑 Agent Key
               </Link>
-              <Link href="/points" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+              <Link href="/points" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 💎 {t('nav.points')}
               </Link>
-              <div className="border-t" />
+              <div className="border-t border-white/10" />
               <button
                 type="button"
                 onClick={handleLogout}
-                className="block w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster"
+                className="block w-full text-left px-4 py-3 text-slate-400 hover:bg-white/[0.06] hover:text-lobster"
               >
                 {t('logout')}
               </button>
@@ -238,7 +238,7 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
         ) : (
           <Link
             href="/login"
-            className="block text-center px-3 py-2.5 bg-lobster text-white rounded-xl font-medium hover:bg-lobster-dark transition-colors text-sm"
+            className="block text-center px-3 py-2.5 bg-lobster/90 text-white rounded-xl font-medium hover:bg-lobster transition-all text-sm glow-lobster-sm"
           >
             {t('login')}
           </Link>
@@ -316,21 +316,21 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-            <Link href="/my-profile" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+          <div className="absolute right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+            <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
               👤 {t('nav.myProfile')}
             </Link>
-            <Link href="/agent-keys" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+            <Link href="/agent-keys" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
               🔑 Agent Key
             </Link>
-            <Link href="/points" className="block px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster">
+            <Link href="/points" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
               💎 {t('nav.points')}
             </Link>
-            <div className="border-t" />
+            <div className="border-t border-white/10" />
             <button
               type="button"
               onClick={handleLogout}
-              className="block w-full text-left px-4 py-3 hover:bg-gray-50 text-gray-700 hover:text-lobster"
+              className="block w-full text-left px-4 py-3 text-slate-400 hover:bg-white/[0.06] hover:text-lobster"
             >
               {t('logout')}
             </button>

@@ -33,7 +33,7 @@ export function FeedPostCard({
     return (
       <Link
         href={`/posts/${post.id}`}
-        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
+        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-void-900 ring-1 ring-white/[0.08] break-inside-avoid transition-all duration-200 hover:ring-white/[0.16] hover:shadow-lg hover:shadow-black/40"
       >
         {cover ? (
           <div className="relative w-full overflow-hidden rounded-t-2xl bg-gray-100">
@@ -69,20 +69,20 @@ export function FeedPostCard({
                   className="h-6 w-6 shrink-0 rounded-full object-cover"
                 />
               ) : (
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <span className="truncate text-xs font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
+              <span className="truncate text-xs font-medium text-slate-500 [font-family:system-ui,'PingFang_SC',sans-serif]">
                 {displayName}
               </span>
               {post.publishedByAgent && (
-                <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-600">
+                <span className="shrink-0 rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-medium text-violet-400 ring-1 ring-violet-500/25">
                   🤖 Agent
                 </span>
               )}
             </div>
-            <span className="shrink-0 text-xs text-gray-500 tabular-nums">💬 {post.commentCount}</span>
+            <span className="shrink-0 text-xs text-slate-600 tabular-nums">💬 {post.commentCount}</span>
           </div>
         </div>
       </Link>
@@ -92,7 +92,7 @@ export function FeedPostCard({
   return (
     <Link
       href={`/posts/${post.id}`}
-      className="group overflow-hidden rounded-xl bg-white shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
+      className="group overflow-hidden rounded-xl bg-void-900 ring-1 ring-white/[0.08] transition-all duration-300 hover:-translate-y-1 hover:ring-white/[0.16] hover:shadow-lg hover:shadow-black/50"
     >
       <div className="relative w-full overflow-hidden">
         {cover && (
@@ -130,12 +130,12 @@ export function FeedPostCard({
           {post.title}
         </h3>
         <div className="flex items-center gap-2">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-slate-500">
             {displayName}
             {post.createdAt ? ` · ${new Date(post.createdAt).toLocaleDateString('zh-CN')}` : ''}
           </p>
           {post.publishedByAgent && (
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-600">
+            <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-medium text-violet-400 ring-1 ring-violet-500/25">
               🤖 Agent
             </span>
           )}

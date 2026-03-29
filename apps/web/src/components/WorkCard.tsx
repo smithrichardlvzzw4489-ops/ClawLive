@@ -42,12 +42,12 @@ export function getFeedPlaceholderBodyClass(
         : 'text-[12px]';
   const tracking = (n === 2 || n === 3) && layout === 'masonry' ? 'tracking-wide' : '';
   const weight = n === 4 ? 'font-black' : 'font-extrabold';
-  return `relative z-[1] text-center ${weight} leading-relaxed text-neutral-900 antialiased ${clamp} ${size} ${tracking} ${families[n]}`;
+  return `relative z-[1] text-center ${weight} leading-relaxed text-slate-200 antialiased ${clamp} ${size} ${tracking} ${families[n]}`;
 }
 
-/** 信息流卡片标题（小红书式底部） */
+/** 信息流卡片标题（暗色科技风） */
 export const feedCardTitleClass =
-  "text-sm font-bold leading-snug tracking-tight text-gray-900 line-clamp-2 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif]";
+  "text-sm font-bold leading-snug tracking-tight text-slate-100 line-clamp-2 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif]";
 
 /** 个人中心作品列表标题：按 id 在黑体/楷体/宋体系间轮换，加粗 */
 export function getProfileWorkTitleClass(id: string): string {
@@ -61,15 +61,15 @@ export function getProfileWorkTitleClass(id: string): string {
 }
 
 const PLACEHOLDER_SURFACE_STYLES = [
-  'bg-white bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:12px_12px] ring-1 ring-gray-200/90',
-  'bg-gradient-to-br from-stone-50 via-orange-50/40 to-amber-50/30 ring-1 ring-stone-200/50',
-  'bg-[#f4f5f7] ring-1 ring-gray-200/70',
-  'bg-gradient-to-b from-amber-50/60 to-[#fffbeb] ring-1 ring-amber-100/70',
-  'bg-gradient-to-b from-slate-50 via-blue-50/25 to-slate-100/90 ring-1 ring-slate-200/60',
-  'bg-gradient-to-br from-emerald-50/90 via-white to-lime-50/35 ring-1 ring-emerald-100/45',
-  'bg-[#fafafa] ring-1 ring-gray-200/80 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85)]',
-  'bg-white bg-[linear-gradient(#f3f4f6_1px,transparent_1px),linear-gradient(90deg,#f3f4f6_1px,transparent_1px)] bg-[length:18px_18px] ring-1 ring-gray-200/80',
-  'bg-gradient-to-br from-rose-50/80 via-white to-violet-50/45 ring-1 ring-rose-100/40',
+  'bg-[#0d1117] bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:16px_16px] ring-1 ring-white/[0.07]',
+  'bg-gradient-to-br from-[#0d1117] via-[#0f1520] to-[#111827] ring-1 ring-white/[0.06]',
+  'bg-[#0d1117] bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] [background-size:24px_24px] ring-1 ring-white/[0.07]',
+  'bg-gradient-to-br from-[#0f0d17] via-[#110d1a] to-[#0d1117] ring-1 ring-lobster/[0.12]',
+  'bg-gradient-to-br from-[#070f17] via-[#0a1422] to-[#0d1117] ring-1 ring-cyber/[0.12]',
+  'bg-[#0d1117] bg-[radial-gradient(ellipse_at_top_left,rgba(238,90,111,0.08),transparent_60%)] ring-1 ring-white/[0.07]',
+  'bg-[#0d1117] bg-[radial-gradient(ellipse_at_bottom_right,rgba(34,211,238,0.06),transparent_60%)] ring-1 ring-white/[0.06]',
+  'bg-gradient-to-b from-[#111827] to-[#0d1117] ring-1 ring-white/[0.07]',
+  'bg-[#0d1117] bg-[radial-gradient(ellipse_at_center,rgba(238,90,111,0.05),transparent_70%)] ring-1 ring-lobster/[0.10]',
 ] as const;
 
 /** 仅有视频无封面时：克制深色底，避免高饱和「系统渐变」 */
@@ -127,7 +127,7 @@ export function WorkCard({
     return (
       <Link
         href={`/works/${id}`}
-        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-white/95 shadow-sm ring-1 ring-gray-200/40 break-inside-avoid transition-shadow hover:shadow-md"
+        className="group flex w-full min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl bg-void-900 ring-1 ring-white/[0.08] break-inside-avoid transition-all duration-200 hover:ring-white/[0.16] hover:shadow-lg hover:shadow-black/40"
       >
         {coverImage ? (
           <div className="relative w-full overflow-hidden rounded-t-2xl bg-gray-100">
@@ -152,7 +152,7 @@ export function WorkCard({
                 className={`absolute inset-0 flex items-center justify-center p-4 ${getWorkCardGradient(id)}`}
               >
                 <span
-                  className="pointer-events-none absolute left-2.5 top-2 font-serif text-[2.5rem] leading-none text-neutral-900/[0.07]"
+                  className="pointer-events-none absolute left-2.5 top-2 font-serif text-[2.5rem] leading-none text-white/[0.07]"
                   aria-hidden
                 >
                   &ldquo;
@@ -173,15 +173,15 @@ export function WorkCard({
               {author.avatarUrl ? (
                 <img src={author.avatarUrl} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
               ) : (
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-slate-300">
                   {displayName.charAt(0).toUpperCase()}
                 </div>
               )}
-              <span className="truncate text-xs font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
+              <span className="truncate text-xs font-medium text-slate-500 [font-family:system-ui,'PingFang_SC',sans-serif]">
                 {displayName}
               </span>
             </div>
-            <span className="shrink-0 text-xs text-gray-500 tabular-nums">
+            <span className="shrink-0 text-xs text-slate-600 tabular-nums">
               ♥ {likeCount}
             </span>
           </div>
@@ -193,7 +193,7 @@ export function WorkCard({
   return (
     <Link
       href={`/works/${id}`}
-      className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-2"
+      className="group bg-void-900 rounded-xl overflow-hidden ring-1 ring-white/[0.08] transition-all duration-300 hover:-translate-y-1 hover:ring-white/[0.16] hover:shadow-lg hover:shadow-black/50"
     >
       <div className="relative flex aspect-video items-center justify-center overflow-hidden p-6">
         {coverImage && (
@@ -217,7 +217,7 @@ export function WorkCard({
         {!coverImage && !videoUrl && (
           <div className={`absolute inset-0 z-[1] flex items-center justify-center p-6 ${getWorkCardGradient(id)}`}>
             <span
-              className="pointer-events-none absolute left-3 top-2 font-serif text-5xl leading-none text-neutral-900/[0.06]"
+              className="pointer-events-none absolute left-3 top-2 font-serif text-5xl leading-none text-white/[0.06]"
               aria-hidden
             >
               &ldquo;
@@ -238,14 +238,14 @@ export function WorkCard({
 
       <div className="p-4">
         <h3
-          className={`text-base font-bold mb-2 line-clamp-2 text-gray-900 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif] group-hover:text-lobster transition-colors`}
+          className={`text-base font-bold mb-2 line-clamp-2 text-slate-100 [font-family:system-ui,'PingFang_SC','Microsoft_YaHei_UI',sans-serif] group-hover:text-lobster transition-colors`}
         >
           {title}
         </h3>
 
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-slate-500">
           {displayName}
-          {createdTime ? `.${createdTime}` : ''}
+          {createdTime ? ` · ${createdTime}` : ''}
         </p>
       </div>
     </Link>

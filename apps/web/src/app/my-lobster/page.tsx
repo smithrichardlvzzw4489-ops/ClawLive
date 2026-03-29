@@ -937,23 +937,23 @@ export default function MyLobsterPage() {
     return (
       <MainLayout>
         <div className="mx-auto max-w-md px-6 py-16 text-center">
-          <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-red-400 to-orange-500 text-5xl shadow-lg">
+          <div className="mx-auto mb-6 relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-lobster to-lobster-dark text-5xl shadow-lg glow-lobster">
             🦀
           </div>
-          <h1 className="mb-3 text-2xl font-bold text-gray-900">虾米</h1>
-          <p className="mb-2 text-gray-600">虾米平台专属 AI 助手，由平台自主运营</p>
-          <p className="mb-8 text-sm text-gray-500">搜索网页 · 查看内容 · 调用技能 · 多步推理</p>
+          <h1 className="mb-3 text-2xl font-bold text-slate-100">虾米</h1>
+          <p className="mb-2 text-slate-400">平台专属 AI Agent，自主学习 · 进化 · 为你服务</p>
+          <p className="mb-8 text-sm text-slate-500">搜索网页 · 查看内容 · 调用技能 · 多步推理</p>
 
-          <div className="mb-8 grid grid-cols-4 gap-3 rounded-2xl bg-gray-50 p-4 text-center text-xs">
-            <div><p className="text-xl">🔍</p><p className="mt-1 text-gray-600">网页搜索</p></div>
-            <div><p className="text-xl">📄</p><p className="mt-1 text-gray-600">平台内容</p></div>
-            <div><p className="text-xl">🧩</p><p className="mt-1 text-gray-600">Skills 技能</p></div>
-            <div><p className="text-xl">🤔</p><p className="mt-1 text-gray-600">多步推理</p></div>
+          <div className="mb-8 grid grid-cols-4 gap-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] p-4 text-center text-xs">
+            <div><p className="text-xl">🔍</p><p className="mt-1 text-slate-500">网页搜索</p></div>
+            <div><p className="text-xl">📄</p><p className="mt-1 text-slate-500">平台内容</p></div>
+            <div><p className="text-xl">🧩</p><p className="mt-1 text-slate-500">Skills 技能</p></div>
+            <div><p className="text-xl">🤔</p><p className="mt-1 text-slate-500">多步推理</p></div>
           </div>
 
           <div className="mb-6 text-left">
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              给你的虾米起个名字 <span className="text-gray-400 font-normal">（选填，默认叫&ldquo;虾米&rdquo;）</span>
+            <label className="mb-1.5 block text-sm font-medium text-slate-300">
+              给你的虾米起个名字 <span className="text-slate-500 font-normal">（选填，默认叫&ldquo;虾米&rdquo;）</span>
             </label>
             <input
               type="text"
@@ -962,16 +962,16 @@ export default function MyLobsterPage() {
               onKeyDown={(e) => e.key === 'Enter' && !applying && handleApply()}
               placeholder="例如：小助手、阿米、我的小虾..."
               maxLength={20}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-lobster/40 focus:bg-white focus:ring-2 focus:ring-lobster/10"
+              className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-lobster/40 focus:bg-white/[0.08] focus:ring-2 focus:ring-lobster/15 transition-all"
             />
           </div>
 
-          {error && <p className="mb-4 text-sm text-red-500">{error}</p>}
+          {error && <p className="mb-4 text-sm text-red-400">{error}</p>}
 
           <button
             onClick={handleApply}
             disabled={applying}
-            className="w-full rounded-2xl bg-lobster py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-lobster-dark disabled:opacity-60"
+            className="w-full rounded-2xl bg-lobster py-3.5 text-base font-semibold text-white transition hover:bg-lobster-dark disabled:opacity-60 glow-lobster"
           >
             {applying ? '申请中...' : `申请${lobsterNameInput.trim() ? `"${lobsterNameInput.trim()}"` : '我的虾米'}`}
           </button>
@@ -986,7 +986,7 @@ export default function MyLobsterPage() {
       <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-2xl flex-col">
 
         {/* Header */}
-        <div className="flex shrink-0 items-center gap-3 border-b border-gray-200/60 bg-white/80 px-4 py-3 backdrop-blur-sm">
+        <div className="flex shrink-0 items-center gap-3 border-b border-white/[0.07] glass px-4 py-3">
           <LobsterAvatar size="md" />
           <div className="flex-1 min-w-0">
             {editingName ? (
@@ -1001,9 +1001,9 @@ export default function MyLobsterPage() {
                   }}
                   onBlur={handleSaveName}
                   placeholder="虾米"
-                  className="w-32 rounded-lg border border-lobster/40 bg-white px-2 py-0.5 text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-lobster/20"
+                  className="w-32 rounded-lg border border-lobster/40 bg-white/[0.06] px-2 py-0.5 text-sm font-semibold text-slate-100 outline-none focus:ring-2 focus:ring-lobster/20"
                 />
-                {nameSaving && <span className="text-xs text-gray-400">保存中…</span>}
+                {nameSaving && <span className="text-xs text-slate-500">保存中…</span>}
               </div>
             ) : (
               <button
@@ -1011,20 +1011,20 @@ export default function MyLobsterPage() {
                 className="flex items-center gap-1.5 text-left"
                 title="点击修改名字"
               >
-                <span className="font-semibold text-gray-900">{instance?.name || '虾米'}</span>
-                <svg className="h-3.5 w-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="font-semibold text-slate-100">{instance?.name || '虾米'}</span>
+                <svg className="h-3.5 w-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H8v-2.414a2 2 0 01.586-1.414z" />
                 </svg>
               </button>
             )}
-            <p className="text-xs text-green-500">● 在线 · 工具调用 · 网页搜索 · Skills</p>
+            <p className="text-xs text-cyber">● 在线 · 工具调用 · 网页搜索 · Skills</p>
           </div>
 
           {/* Admin: model config (hidden button, admin-only access) */}
           <button
             onClick={() => setShowAdminPanel(true)}
             title="管理模型配置"
-            className="shrink-0 rounded-lg p-1.5 text-gray-300 hover:bg-gray-100 hover:text-gray-500"
+            className="shrink-0 rounded-lg p-1.5 text-slate-600 hover:bg-white/[0.06] hover:text-slate-400 transition-colors"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -1038,29 +1038,29 @@ export default function MyLobsterPage() {
             title={keyStatus?.hasPlatformKey ? 'Key 已配置' : '点击查看 Key 状态'}
             className={`shrink-0 flex items-center gap-1 rounded-xl px-2 py-1 text-xs font-medium transition ${
               keyStatus?.hasPlatformKey
-                ? 'bg-green-50 text-green-600 hover:bg-green-100'
-                : 'bg-amber-50 text-amber-600 hover:bg-amber-100 animate-pulse'
+                ? 'bg-cyber/10 text-cyber hover:bg-cyber/15 ring-1 ring-cyber/25'
+                : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/15 ring-1 ring-amber-500/25 animate-pulse'
             }`}
           >
             {keyStatus?.hasPlatformKey ? (
               <>
-                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                <span className="h-1.5 w-1.5 rounded-full bg-cyber" />
                 Key
               </>
             ) : (
               <>
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                 配置 Key
               </>
             )}
           </button>
 
           {instance && (
-            <p className="shrink-0 text-xs text-gray-400">已发送 {instance.messageCount} 条</p>
+            <p className="shrink-0 text-xs text-slate-600">已发送 {instance.messageCount} 条</p>
           )}
           <button
             onClick={() => setShowFilesPanel(true)}
-            className="shrink-0 flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition"
+            className="shrink-0 flex items-center gap-1 rounded-xl px-2 py-1.5 text-xs text-slate-500 hover:bg-white/[0.06] hover:text-slate-300 transition"
             title="我的文件柜"
           >
             <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1070,7 +1070,7 @@ export default function MyLobsterPage() {
           </button>
           <button
             onClick={() => setShowClearConfirm(true)}
-            className="shrink-0 rounded-lg px-2 py-1 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="shrink-0 rounded-lg px-2 py-1 text-xs text-slate-600 hover:bg-white/[0.06] hover:text-slate-400 transition"
           >
             清空
           </button>
@@ -1078,7 +1078,7 @@ export default function MyLobsterPage() {
 
         {/* Messages */}
         <div
-          className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4"
+          className="flex-1 overflow-y-auto bg-void-950 px-4 py-4"
           onClick={() => { /* close any open panels */ }}
         >
           <div className="space-y-4">
@@ -1093,14 +1093,14 @@ export default function MyLobsterPage() {
         </div>
 
         {/* Input */}
-        <div className="shrink-0 border-t border-gray-200/60 bg-white px-4 py-3">
-          {error && !sending && <p className="mb-2 text-xs text-red-500">{error}</p>}
+        <div className="shrink-0 border-t border-white/[0.07] glass px-4 py-3">
+          {error && !sending && <p className="mb-2 text-xs text-red-400">{error}</p>}
 
           {/* 图片预览 */}
           {pendingImage && (
             <div className="mb-2 flex items-center gap-2">
-              <img src={pendingImage} alt="待发送图片" className="h-16 w-16 rounded-xl object-cover ring-1 ring-gray-200" />
-              <button onClick={() => setPendingImage(null)} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-red-400">
+              <img src={pendingImage} alt="待发送图片" className="h-16 w-16 rounded-xl object-cover ring-1 ring-white/10" />
+              <button onClick={() => setPendingImage(null)} className="rounded-lg p-1 text-slate-500 hover:bg-white/[0.06] hover:text-red-400">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1114,7 +1114,7 @@ export default function MyLobsterPage() {
             <button
               onClick={() => imageInputRef.current?.click()}
               disabled={sending}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-white/[0.06] hover:text-slate-300 disabled:opacity-40 transition-colors"
               title="发送图片"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1131,7 +1131,7 @@ export default function MyLobsterPage() {
               rows={1}
               maxLength={2000}
               disabled={sending}
-              className="flex-1 resize-none rounded-2xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-lobster/40 focus:bg-white focus:ring-2 focus:ring-lobster/10 disabled:opacity-60"
+              className="flex-1 resize-none rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2.5 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-lobster/40 focus:bg-white/[0.09] focus:ring-2 focus:ring-lobster/15 disabled:opacity-60 transition-all"
               style={{ maxHeight: '120px', overflowY: input.split('\n').length > 3 ? 'auto' : 'hidden' }}
               onInput={(e) => {
                 const el = e.currentTarget;
@@ -1142,14 +1142,14 @@ export default function MyLobsterPage() {
             <button
               onClick={handleSend}
               disabled={(!input.trim() && !pendingImage) || sending}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lobster text-white shadow transition hover:bg-lobster-dark disabled:opacity-40"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lobster text-white transition hover:bg-lobster-dark disabled:opacity-40 glow-lobster-sm"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
                 <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
               </svg>
             </button>
           </div>
-          <p className="mt-1.5 text-center text-[10px] text-gray-300">
+          <p className="mt-1.5 text-center text-[10px] text-slate-600">
             虾米可能犯错，重要信息请自行核实
           </p>
         </div>
@@ -1157,16 +1157,16 @@ export default function MyLobsterPage() {
 
       {/* Clear confirm */}
       {showClearConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="mb-2 text-lg font-bold text-gray-900">清空对话记录</h3>
-            <p className="mb-6 text-sm text-gray-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 glass p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-bold text-slate-100">清空对话记录</h3>
+            <p className="mb-6 text-sm text-slate-400">
               清空后虾米将失去对之前对话的记忆，无法恢复。确定要清空吗？
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowClearConfirm(false)}
-                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/[0.06] transition-colors"
               >
                 取消
               </button>

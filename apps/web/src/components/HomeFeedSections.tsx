@@ -215,10 +215,10 @@ export function HomeFeedSections() {
           <button
             type="button"
             onClick={() => setActivePartition(null)}
-            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
               activePartition === null
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-200/70 text-gray-700 hover:bg-gray-300/80'
+                ? 'bg-lobster/90 text-white glow-lobster-sm'
+                : 'bg-white/[0.06] text-slate-400 ring-1 ring-white/10 hover:bg-white/[0.10] hover:text-slate-200'
             }`}
           >
             {t('works.partitionAll')}
@@ -228,10 +228,10 @@ export function HomeFeedSections() {
               key={p.id}
               type="button"
               onClick={() => setActivePartition(p.id)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-all ${
                 activePartition === p.id
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-gray-200/70 text-gray-700 hover:bg-gray-300/80'
+                  ? 'bg-lobster/90 text-white glow-lobster-sm'
+                  : 'bg-white/[0.06] text-slate-400 ring-1 ring-white/10 hover:bg-white/[0.10] hover:text-slate-200'
               }`}
             >
               {t(`partitions.${p.nameKey}`)}
@@ -243,11 +243,11 @@ export function HomeFeedSections() {
       <section>
         {loading ? (
           <div className="flex justify-center py-16">
-            <div className="h-9 w-9 animate-spin rounded-full border-2 border-gray-200 border-t-lobster" />
+            <div className="h-9 w-9 animate-spin rounded-full border-2 border-white/10 border-t-lobster" />
           </div>
         ) : !hasAny ? (
-          <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white/80 py-14 text-center">
-            <p className="mb-4 text-gray-600">
+          <div className="rounded-2xl border border-dashed border-white/10 py-14 text-center">
+            <p className="mb-4 text-slate-500">
               {activePartition ? t('home.noWorksInPartition') : t('home.noWorks')}
             </p>
             {!activePartition && (
@@ -262,7 +262,7 @@ export function HomeFeedSections() {
                 [FEATURE:CO_CREATE] END */}
                 <Link
                   href="/posts/create"
-                  className="inline-block rounded-xl border border-lobster px-6 py-3 font-medium text-lobster hover:bg-lobster/5"
+                  className="inline-block rounded-xl border border-lobster/50 px-6 py-3 font-medium text-lobster hover:bg-lobster/10 transition-all"
                 >
                   {t('feedPost.createTitle')}
                 </Link>
@@ -278,11 +278,11 @@ export function HomeFeedSections() {
                   type="button"
                   onClick={() => void loadMore()}
                   disabled={loadingMore}
-                  className="flex items-center gap-2 rounded-full border border-gray-300 bg-white px-8 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-60"
+                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-8 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-white/[0.08] hover:text-slate-200 disabled:opacity-50"
                 >
                   {loadingMore ? (
                     <>
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/10 border-t-lobster" />
                       加载中...
                     </>
                   ) : (

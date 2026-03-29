@@ -9,7 +9,7 @@ import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 const RAIL_W = 'w-[220px] xl:w-[240px]';
 
 const itemBase =
-  'flex items-center gap-3 rounded-full px-4 py-3 text-[15px] font-medium transition-colors';
+  'flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition-all duration-150';
 
 /**
  * 桌面端左侧导航：首页 / 直播 / 发布 / 用户菜单（内含积分兑换）同一组、同款圆角条。
@@ -26,8 +26,8 @@ export function MainLeftNav() {
         href={href}
         className={`${itemBase} ${
           active
-            ? 'bg-gray-200/90 font-semibold text-gray-900'
-            : 'text-gray-700 hover:bg-gray-100/90 hover:text-gray-900'
+            ? 'bg-lobster/10 font-semibold text-lobster ring-1 ring-inset ring-lobster/20 glow-lobster-sm'
+            : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
         }`}
       >
         <span className="text-xl leading-none">{icon}</span>
@@ -38,7 +38,7 @@ export function MainLeftNav() {
 
   return (
     <aside
-      className={`fixed left-0 z-30 hidden ${RAIL_W} flex-col border-r border-gray-200/60 bg-[#f5f5f5] lg:flex ${
+      className={`fixed left-0 z-30 hidden ${RAIL_W} flex-col border-r border-white/[0.07] glass lg:flex ${
         isHome ? 'top-20 h-[calc(100vh-5rem)]' : 'top-16 h-[calc(100vh-4rem)]'
       }`}
     >
