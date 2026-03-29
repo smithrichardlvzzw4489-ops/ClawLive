@@ -203,27 +203,19 @@ export function startContentCurator(): void {
     return;
   }
 
-  // 每 4 小时执行一次（0点、4点、8点、12点、16点、20点）
-  cron.schedule('0 */4 * * *', async () => {
+  // 每 30 分钟执行一次，覆盖所有注册用户
+  cron.schedule('*/30 * * * *', async () => {
     console.log('[Curator] Starting content curation run...');
     const instances = getAllInstances();
-    const now = Date.now();
-    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
-    // 只为最近 7 天有活跃的用户采集
-    const activeUsers = instances.filter((inst) => {
-      const lastActive = new Date(inst.lastActiveAt).getTime();
-      return now - lastActive < SEVEN_DAYS;
-    });
-
-    console.log(`[Curator] ${activeUsers.length} active users to curate for`);
+    console.log(`[Curator] ${instances.length} users to curate for`);
 
     // 串行处理，避免并发过高
-    for (const inst of activeUsers) {
+    for (const inst of instances) {
       try {
         await curateForUser(inst.userId);
-        // 每个用户间隔 10 秒，避免 API 速率限制
-        await new Promise((r) => setTimeout(r, 10000));
+        // 每个用户间隔 5 秒，避免 API 速率限制
+        await new Promise((r) => setTimeout(r, 5000));
       } catch (e) {
         console.error(`[Curator] Failed for user ${inst.userId}:`, e);
       }
