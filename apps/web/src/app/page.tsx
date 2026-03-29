@@ -48,12 +48,12 @@ export default function HomePage() {
               type="button"
               title="点击查看公测细则"
               onClick={() => setShowBetaModal(true)}
-              className="mb-4 inline-flex cursor-pointer items-center gap-3 rounded-full border-2 border-cyan-400/80 bg-gradient-to-r from-cyan-100 via-white to-violet-100 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-[0_0_28px_rgba(34,211,238,0.45)] transition hover:border-cyan-300 hover:brightness-[1.03] hover:shadow-[0_0_36px_rgba(34,211,238,0.55)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 sm:gap-3.5 sm:px-6 sm:py-3 sm:text-base"
+              className="mb-4 inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-cyan-400/80 bg-gradient-to-r from-cyan-100 via-white to-violet-100 px-4 py-2 text-xs font-semibold text-slate-900 shadow-[0_0_22px_rgba(34,211,238,0.4)] transition hover:border-cyan-300 hover:brightness-[1.03] hover:shadow-[0_0_28px_rgba(34,211,238,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/80 sm:gap-3 sm:px-5 sm:py-2.5 sm:text-sm"
               aria-haspopup="dialog"
               aria-expanded={showBetaModal}
             >
               <span
-                className="inline-block text-[1.45rem] leading-none drop-shadow-sm sm:text-[1.7rem] animate-wiggle-x"
+                className="inline-block text-[1.25rem] leading-none drop-shadow-sm sm:text-[1.45rem] animate-wiggle-x"
                 aria-hidden
               >
                 👉
