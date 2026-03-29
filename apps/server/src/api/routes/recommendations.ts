@@ -141,12 +141,14 @@ export function recommendationRoutes(): Router {
           kind: p.kind ?? 'article',
           title: p.title,
           content: p.content,
+          excerpt: p.excerpt,
           imageUrls: p.imageUrls,
           viewCount: p.viewCount,
           likeCount: p.likeCount,
           favoriteCount: p.favoriteCount ?? 0,
           commentCount: p.commentCount,
           createdAt: p.createdAt,
+          publishedByAgent: p.publishedByAgent ?? false,
           author: a ? { id: a.id, username: a.username, avatarUrl: a.avatarUrl } : { id: p.authorId, username: 'Unknown', avatarUrl: null },
         };
       });

@@ -21,6 +21,8 @@ export type FeedPostRecord = {
   updatedAt?: string;
   /** 是否由 AI Agent 发布（自动采集或通过 Open API 发布） */
   publishedByAgent?: boolean;
+  /** LLM 生成的摘要（无封面图时展示在卡片上） */
+  excerpt?: string;
 };
 
 function reviveDates(obj: unknown): FeedPostRecord {

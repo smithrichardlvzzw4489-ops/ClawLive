@@ -10,6 +10,7 @@ export interface FeedPostCardItem {
   kind?: 'article' | 'imageText';
   title: string;
   content: string;
+  excerpt?: string;
   imageUrls: string[];
   viewCount: number;
   commentCount: number;
@@ -25,7 +26,7 @@ export function FeedPostCard({
   post: FeedPostCardItem;
   variant?: 'default' | 'xhs';
 }) {
-  const summary = excerptPlainText(post.content, 120) || post.title;
+  const summary = post.excerpt || excerptPlainText(post.content, 120) || post.title;
   const cover = post.imageUrls?.[0];
   const displayName = post.author.username === 'Unknown' ? '作者' : post.author.username;
 

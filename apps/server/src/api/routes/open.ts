@@ -27,6 +27,7 @@ import {
 } from '../../services/agent-api-keys';
 import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store';
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
+import { generateFeedPostExcerpt } from '../../services/llm';
 import { prisma } from '../../lib/prisma';
 
 // ── Agent Key 认证中间件 ──────────────────────────────────────────────────────
@@ -214,6 +215,17 @@ export function openApiRoutes(): Router {
     };
     getFeedPostsMap().set(id, record);
     saveFeedPosts();
+
+    // 异步生成 LLM 摘要（无封面图时卡片展示用），不阻塞响应
+    generateFeedPostExcerpt({ title: titleTrimmed, content: contentTrimmed })
+      .then((excerpt) => {
+        const p = getFeedPostsMap().get(id);
+        if (p) {
+          p.excerpt = excerpt;
+          saveFeedPosts();
+        }
+      })
+      .catch(() => {});
 
     // 发帖奖励 +5 积分
     let pointsAwarded = 0;

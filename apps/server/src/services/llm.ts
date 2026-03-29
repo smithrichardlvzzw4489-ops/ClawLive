@@ -88,6 +88,30 @@ ${conversation || '（暂无对话）'}
   return text.slice(0, 120);
 }
 
+/**
+ * 为帖子生成一句话摘要，用于无封面图时展示在卡片上。
+ */
+export async function generateFeedPostExcerpt(context: {
+  title: string;
+  content: string;
+}): Promise<string> {
+  const { client, model } = getServerLlmClient();
+  const preview = context.content.replace(/[#*`\[\]!>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 600);
+  const prompt = `你是一个文案助手。根据以下文章，生成一句吸引人的摘要（50字以内），适合展示在卡片上，不要加引号或前缀，直接输出摘要文字。
+
+标题：${context.title}
+正文节选：${preview}`;
+
+  const response = await client.chat.completions.create({
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 100,
+    temperature: 0.6,
+  });
+  const text = response.choices[0]?.message?.content?.trim() || '';
+  return text.slice(0, 100);
+}
+
 export type LlmTestResult = { reply: string; model: string };
 
 /**
