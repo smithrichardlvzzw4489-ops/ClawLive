@@ -17,6 +17,7 @@ import {
   getLobsterConversation,
   appendLobsterMessage,
   clearLobsterConversation,
+  setPendingSkillSuggestion,
 } from '../../services/lobster-persistence';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
@@ -1166,6 +1167,7 @@ async function executeTool(
         favoriteCount: 0,
         commentCount: 0,
         createdAt: new Date().toISOString(),
+        publishedByAgent: true,
       };
       getFeedPostsMap().set(id, record);
       saveFeedPosts();
@@ -1566,6 +1568,15 @@ export function lobsterRoutes(): Router {
       if (historyLen <= 1) {
         systemContent += `\n\n[系统提示：这是本次对话的第一条消息。如果用户是打招呼或闲聊，请在回复中自然地提及一篇上方推荐内容，不要等用户主动询问。]`;
       }
+    }
+
+    // 技能进化建议注入（Curator 检测到的技能缺口）
+    const lobsterInst = getLobsterInstance(userId);
+    if (lobsterInst?.pendingSkillSuggestion) {
+      const skillName = lobsterInst.pendingSkillSuggestion;
+      systemContent += `\n\n[系统提示：你发现平台热帖中有一个你尚未深入掌握的技能「${skillName}」。请在对话开始时（若用户在打招呼或闲聊）自然地告知用户，询问他们是否希望你现在学习这个技能。格式示例："我最近发现平台上「${skillName}」很热门，这个技能我还可以更深入学习，要不要让我现在研究一下？"]`;
+      // 展示一次后清除，避免重复提示
+      void setPendingSkillSuggestion(userId, undefined);
     }
 
     // 双模型路由：从 LiteLLM 实际可用模型中自动选择

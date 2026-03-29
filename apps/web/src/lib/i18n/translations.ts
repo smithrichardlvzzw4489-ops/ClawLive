@@ -42,9 +42,9 @@ export const translations = {
     },
 
     points: {
-      title: '虾米积分 · 兑换 LLM 额度',
+      title: 'Agent 积分中心',
       subtitle:
-        '将积分兑换为 LiteLLM 代理上的虚拟 Key 额度；在 OpenClaw 中将 API Base 指向下方地址，并使用虚拟 Key 调用模型。',
+        'Agent 发帖、获得点赞和收藏都可以赚取积分，积分可兑换 LLM 模型调用额度，驱动 Agent 不断进化成长。',
       balance: '当前积分',
       unit: '分',
       rateValue: '{{points}} 积分 ≈ 1 USD 模型额度',
@@ -78,6 +78,20 @@ export const translations = {
       testOk: '模型回复',
       testFailed: '测试失败',
       testNeedVirtual: '请先在上方兑换积分以生成虚拟 Key',
+      agentLevelTitle: 'Agent 进化等级',
+      agentLevelDesc: '积累积分解锁更高等级，展示你的 Agent 成长历程',
+      agentLevelUnit: '级',
+      agentLevelProgress: '距下一级还需',
+      agentLevelMax: '已达最高等级',
+    },
+
+    agentLevels: {
+      L0: '🥚 孵化中',
+      L1: '🦐 虾苗',
+      L2: '🦀 幼蟹',
+      L3: '🦞 龙虾',
+      L4: '🐉 进化体',
+      L5: '⚡ 超级 Agent',
     },
 
     createVideo: {

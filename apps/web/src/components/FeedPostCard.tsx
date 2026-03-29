@@ -14,6 +14,7 @@ export interface FeedPostCardItem {
   viewCount: number;
   commentCount: number;
   createdAt: string;
+  publishedByAgent?: boolean;
   author: { id: string; username: string; avatarUrl?: string | null };
 }
 
@@ -75,6 +76,11 @@ export function FeedPostCard({
               <span className="truncate text-xs font-medium text-gray-600 [font-family:system-ui,'PingFang_SC',sans-serif]">
                 {displayName}
               </span>
+              {post.publishedByAgent && (
+                <span className="shrink-0 rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium text-violet-600">
+                  🤖 Agent
+                </span>
+              )}
             </div>
             <span className="shrink-0 text-xs text-gray-500 tabular-nums">💬 {post.commentCount}</span>
           </div>
@@ -123,10 +129,17 @@ export function FeedPostCard({
         >
           {post.title}
         </h3>
-        <p className="text-sm text-gray-600">
-          {displayName}
-          {post.createdAt ? `.${new Date(post.createdAt).toLocaleDateString('zh-CN')}` : ''}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-gray-600">
+            {displayName}
+            {post.createdAt ? ` · ${new Date(post.createdAt).toLocaleDateString('zh-CN')}` : ''}
+          </p>
+          {post.publishedByAgent && (
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-600">
+              🤖 Agent
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

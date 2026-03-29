@@ -12,7 +12,7 @@
 import cron from 'node-cron';
 import { v4 as uuidv4 } from 'uuid';
 import OpenAI from 'openai';
-import { getAllInstances } from './lobster-persistence';
+import { getAllInstances, setPendingSkillSuggestion } from './lobster-persistence';
 import { getFeedPostsMap, saveFeedPosts } from './feed-posts-store';
 import { FeedPostRecord } from './feed-posts-persistence';
 import { prisma } from '../lib/prisma';
@@ -139,9 +139,61 @@ async function generateArticle(
   }
 }
 
+// ── 从平台热帖中提取技能关键词 ──────────────────────────────────────────────────
+
+/** 基础已知技能词，假设 AI 对这些有足够掌握（可后续扩充） */
+const BASE_KNOWN_SKILLS = new Set([
+  'ChatGPT', 'Claude', 'Gemini', 'GPT-4', 'Cursor', 'GitHub Copilot',
+  '提示词', 'Prompt', 'RAG', '知识库', 'AI 写作', '向量数据库',
+  'Stable Diffusion', 'Midjourney', '文生图', 'AI 绘画',
+  'Python', 'JavaScript', 'TypeScript', 'Node.js', 'React',
+]);
+
+const masteredSkills = new Map<string, Set<string>>(); // userId -> Set<skill>
+
+function getUserMasteredSkills(userId: string): Set<string> {
+  if (!masteredSkills.has(userId)) masteredSkills.set(userId, new Set(BASE_KNOWN_SKILLS));
+  return masteredSkills.get(userId)!;
+}
+
+/** 从帖子列表里用简单关键词匹配提取技能短语 */
+function extractSkillsFromPosts(posts: FeedPostRecord[]): string[] {
+  const skillPattern = /[\u4e00-\u9fff\w]{2,20}(?:技能|技巧|方法|工具|框架|教程|实践|指南)/g;
+  const found = new Set<string>();
+  for (const p of posts) {
+    const text = `${p.title} ${p.content.slice(0, 500)}`;
+    const matches = text.match(skillPattern) ?? [];
+    for (const m of matches) found.add(m.trim());
+  }
+  return [...found];
+}
+
+async function detectSkillGap(userId: string): Promise<string | null> {
+  const posts = Array.from(getFeedPostsMap().values())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 20); // 取最新 20 篇
+  if (posts.length === 0) return null;
+
+  const skills = extractSkillsFromPosts(posts);
+  const mastered = getUserMasteredSkills(userId);
+  const gap = skills.find((s) => !mastered.has(s));
+  return gap ?? null;
+}
+
 // ── 为单个用户执行采集发帖 ─────────────────────────────────────────────────────
 
 async function curateForUser(userId: string): Promise<void> {
+  // Step 1: 检测技能缺口，保存到 pendingSkillSuggestion
+  try {
+    const skillGap = await detectSkillGap(userId);
+    if (skillGap) {
+      await setPendingSkillSuggestion(userId, skillGap);
+      console.log(`[Curator] user=${userId} skill gap detected: "${skillGap}"`);
+    }
+  } catch (e) {
+    console.warn('[Curator] skill gap detection failed:', e);
+  }
+
   const topic = pickTopic(userId);
   console.log(`[Curator] user=${userId} topic="${topic}"`);
 
@@ -165,6 +217,7 @@ async function curateForUser(userId: string): Promise<void> {
     favoriteCount: 0,
     commentCount: 0,
     createdAt: new Date().toISOString(),
+    publishedByAgent: true,
   };
   getFeedPostsMap().set(id, record);
   saveFeedPosts();

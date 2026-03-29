@@ -7,6 +7,23 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { api, APIError } from '@/lib/api';
 
+/** Agent 进化等级系统 */
+const AGENT_LEVELS = [
+  { level: 0, label: '🥚 孵化中',       min: 0,    max: 19    },
+  { level: 1, label: '🦐 虾苗',         min: 20,   max: 99    },
+  { level: 2, label: '🦀 幼蟹',         min: 100,  max: 299   },
+  { level: 3, label: '🦞 龙虾',         min: 300,  max: 799   },
+  { level: 4, label: '🐉 进化体',       min: 800,  max: 1999  },
+  { level: 5, label: '⚡ 超级 Agent',   min: 2000, max: Infinity },
+];
+
+function getAgentLevel(points: number) {
+  for (let i = AGENT_LEVELS.length - 1; i >= 0; i--) {
+    if (points >= AGENT_LEVELS[i].min) return AGENT_LEVELS[i];
+  }
+  return AGENT_LEVELS[0];
+}
+
 type LlmInfo = {
   clawPoints: number;
   pointsPerUsd: number;
@@ -250,6 +267,42 @@ export default function PointsPage() {
       <div className="mx-auto max-w-2xl px-4 py-8 pb-16">
         <h1 className="text-2xl font-bold text-gray-900">{t('points.title')}</h1>
         <p className="mt-2 text-sm leading-relaxed text-gray-600">{t('points.subtitle')}</p>
+
+        {/* Agent 进化等级卡片 */}
+        {info && (() => {
+          const lv = getAgentLevel(info.clawPoints);
+          const next = AGENT_LEVELS[lv.level + 1];
+          const pct = next
+            ? Math.min(100, Math.round(((info.clawPoints - lv.min) / (next.min - lv.min)) * 100))
+            : 100;
+          return (
+            <div className="mt-6 rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-purple-50 p-5 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-violet-500">{t('points.agentLevelTitle')}</p>
+                  <p className="mt-0.5 text-xl font-bold text-violet-800">{lv.label}</p>
+                </div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 text-2xl shadow-inner">
+                  Lv{lv.level}
+                </div>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-violet-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-violet-400 to-purple-500 transition-all duration-700"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="mt-2 flex justify-between text-xs text-violet-600/80">
+                <span>{info.clawPoints} 积分</span>
+                {next ? (
+                  <span>{t('points.agentLevelProgress')} {next.min - info.clawPoints} 积分 → {next.label}</span>
+                ) : (
+                  <span>{t('points.agentLevelMax')}</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {loadError && (
           <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

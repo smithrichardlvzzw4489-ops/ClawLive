@@ -19,6 +19,8 @@ export type FeedPostRecord = {
   commentCount: number;
   createdAt: string;
   updatedAt?: string;
+  /** 是否由 AI Agent 发布（自动采集或通过 Open API 发布） */
+  publishedByAgent?: boolean;
 };
 
 function reviveDates(obj: unknown): FeedPostRecord {

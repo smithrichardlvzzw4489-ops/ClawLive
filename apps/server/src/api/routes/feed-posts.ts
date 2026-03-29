@@ -73,6 +73,7 @@ export function feedPostsRoutes(): Router {
           favoriteCount: p.favoriteCount ?? 0,
           commentCount: p.commentCount,
           createdAt: p.createdAt,
+          publishedByAgent: p.publishedByAgent ?? false,
           author: author
             ? { id: author.id, username: author.username, avatarUrl: author.avatarUrl }
             : { id: p.authorId, username: 'Unknown', avatarUrl: null },
@@ -328,6 +329,7 @@ export function feedPostsRoutes(): Router {
         favoriteCount: p.favoriteCount ?? 0,
         commentCount: p.commentCount,
         createdAt: p.createdAt,
+        publishedByAgent: p.publishedByAgent ?? false,
         likedByMe,
         favoritedByMe,
         author: author

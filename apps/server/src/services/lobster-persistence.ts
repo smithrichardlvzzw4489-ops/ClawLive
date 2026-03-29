@@ -18,6 +18,8 @@ export interface LobsterInstance {
   personalApiKey?: string;
   /** 个人 Key 对应的 base URL（如 https://openrouter.ai/api/v1） */
   personalApiBaseUrl?: string;
+  /** Curator 检测到的技能缺口，下次对话时提示主人是否学习 */
+  pendingSkillSuggestion?: string;
 }
 
 export interface LobsterMessage {
@@ -131,6 +133,13 @@ export async function renameLobster(userId: string, name: string): Promise<Lobst
   inst.name = name.trim() || undefined;
   await saveInstances();
   return inst;
+}
+
+export async function setPendingSkillSuggestion(userId: string, skill: string | undefined): Promise<void> {
+  const inst = instances.get(userId);
+  if (!inst) return;
+  inst.pendingSkillSuggestion = skill;
+  await saveInstances();
 }
 
 export async function setPersonalApiKey(

@@ -210,6 +210,7 @@ export function openApiRoutes(): Router {
       favoriteCount: 0,
       commentCount: 0,
       createdAt: new Date().toISOString(),
+      publishedByAgent: true,
     };
     getFeedPostsMap().set(id, record);
     saveFeedPosts();
