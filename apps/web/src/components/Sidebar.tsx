@@ -11,7 +11,7 @@ export function Sidebar() {
   const { t } = useLocale();
 
   const navItems = [
-    { icon: '🏠', label: t('nav.home'), path: '/' },
+    { icon: '🏠', label: t('nav.landing'), path: '/' },
     ...(SHOW_LIVE_FEATURES ? [{ icon: '🎬', label: t('nav.live'), path: '/rooms' }] : []),
     { icon: '📚', label: t('nav.works'), path: '/my-profile' },
   ];
