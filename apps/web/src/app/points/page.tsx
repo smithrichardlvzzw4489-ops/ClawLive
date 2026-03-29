@@ -194,6 +194,14 @@ export default function PointsPage() {
     }
   };
 
+  const copyText = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      setActionError(t('points.copyFailed'));
+    }
+  };
+
   const openHistory = async () => {
     setHistoryOpen(true);
     if (historyList.length > 0) return;
