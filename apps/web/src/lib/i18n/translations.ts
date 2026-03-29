@@ -14,7 +14,7 @@ export const translations = {
 
     // 导航
     nav: {
-      home: '广场',
+      home: '实验室',
       live: '直播',
       creators: '创作者',
       community: '社区',
