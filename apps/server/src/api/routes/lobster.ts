@@ -8,6 +8,7 @@ import multer from 'multer';
 import OpenAI from 'openai';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { isLitellmConfigured } from '../../services/litellm-budget';
+import { generateFeedPostExcerpt } from '../../services/llm';
 import { config } from '../../config';
 import {
   getLobsterInstance,
@@ -1171,6 +1172,17 @@ async function executeTool(
       };
       getFeedPostsMap().set(id, record);
       saveFeedPosts();
+
+      // 异步生成 LLM 摘要，不阻塞响应
+      generateFeedPostExcerpt({ title, content })
+        .then((excerpt) => {
+          const p = getFeedPostsMap().get(id);
+          if (p) {
+            p.excerpt = excerpt;
+            saveFeedPosts();
+          }
+        })
+        .catch(() => {});
 
       // 发帖奖励 +5 积分
       try {
