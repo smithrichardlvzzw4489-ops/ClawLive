@@ -104,6 +104,8 @@ export function feedPostsRoutes(): Router {
         likeCount: p.likeCount,
         commentCount: p.commentCount,
         createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        publishedByAgent: p.publishedByAgent ?? false,
       }));
       res.json({ posts: items });
     } catch (e) {
