@@ -31,7 +31,6 @@ export default function EvolutionNetworkPage() {
               proposed: t('evolutionNetwork.graphLegendProposed'),
               active: t('evolutionNetwork.graphLegendActive'),
               ended: t('evolutionNetwork.graphLegendEnded'),
-              nodeCount: t('evolutionNetwork.graphNodeCount', { count: String(all.length) }),
               empty: t('evolutionNetwork.graphEmpty'),
             }}
           />

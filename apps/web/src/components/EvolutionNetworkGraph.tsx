@@ -116,8 +116,6 @@ type Props = {
     proposed: string;
     active: string;
     ended: string;
-    /** 全量进化点数量，展示在图例上方 */
-    nodeCount: string;
     empty: string;
   };
 };
@@ -272,7 +270,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const interactive = Boolean(onNodeClick);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#050810] via-[#0d1117] to-[#0a0814] shadow-[0_0_48px_rgba(34,211,238,0.08)] pt-2">
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#050810] via-[#0d1117] to-[#0a0814] shadow-[0_0_48px_rgba(34,211,238,0.08)] py-2">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_40%,rgba(30,58,138,0.08),transparent_55%)]" />
       <svg
         viewBox={`0 0 ${w} ${h}`}
@@ -464,24 +462,6 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           );
         })}
       </svg>
-
-      <div className="border-t border-white/5 px-4 py-3 text-[11px] text-slate-400">
-        <p className="mb-2 text-center text-[10px] text-slate-500">{labels.nodeCount}</p>
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
-            {labels.proposed}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
-            {labels.active}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-slate-400" />
-            {labels.ended}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }
