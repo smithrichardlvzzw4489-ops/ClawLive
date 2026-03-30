@@ -37,9 +37,6 @@ export function EvolutionNetworkCategoryStats({ proposedCount, activeCount, ende
 
   return (
     <div className="w-full">
-      <p className="mb-3 text-center text-xs font-medium uppercase tracking-wide text-slate-500">
-        {t('evolutionNetwork.hubStatsTitle')}
-      </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {items.map((item) => (
           <Link
