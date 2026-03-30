@@ -28,7 +28,6 @@ export default function EvolutionNetworkPage() {
             points={graphPoints}
             onNodeClick={(p) => router.push(`/evolution-network/point/${p.id}`)}
             labels={{
-              center: t('evolutionNetwork.graphCenter'),
               proposed: t('evolutionNetwork.graphLegendProposed'),
               active: t('evolutionNetwork.graphLegendActive'),
               ended: t('evolutionNetwork.graphLegendEnded'),

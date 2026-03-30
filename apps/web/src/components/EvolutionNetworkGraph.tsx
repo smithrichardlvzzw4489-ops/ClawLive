@@ -76,10 +76,10 @@ type Props = {
   points: EvolutionPoint[];
   onNodeClick?: (point: EvolutionPoint) => void;
   labels: {
-    center: string;
     proposed: string;
     active: string;
     ended: string;
+    /** 全量进化点数量，展示在图例上方 */
     nodeCount: string;
     empty: string;
   };
@@ -89,9 +89,6 @@ type LayoutItem = {
   p: EvolutionPoint;
   x: number;
   y: number;
-  angle: number;
-  cx: number;
-  cy: number;
   w: number;
   h: number;
 };
@@ -111,24 +108,28 @@ function groupByStatus(points: EvolutionPoint[]): Record<EvolutionPointStatus, E
   return out;
 }
 
+/** 节点略有大小的星点感（稳定哈希） */
+function nodeRadius(status: EvolutionPointStatus, id: string): number {
+  const base = status === 'active' ? 11 : 9;
+  const j = (strHash(`${id}|r`) % 5) - 2;
+  return Math.max(7, base + j * 0.5);
+}
+
 /**
- * 宽画布「满天星」：三类各占左/中/右星野，自枢纽连线；数据多时每类只传热点子集。
+ * 宽画布「满天星」：三类各占左/中/右星野散点，无中心枢纽、无辐射线。
  */
 export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const filterId = useId().replace(/:/g, '');
   const layout = useMemo(() => {
     const w = 1000;
     const h = 440;
-    const cx = w / 2;
-    const cy = h / 2 + 4;
     const grouped = groupByStatus(points);
     const items: LayoutItem[] = [];
 
     for (const status of STATUS_ORDER) {
       for (const p of grouped[status]) {
         const { x, y } = pointInZone(p.id, p.status, w, h);
-        const angle = Math.atan2(y - cy, x - cx);
-        items.push({ p, x, y, angle, cx, cy, w, h });
+        items.push({ p, x, y, w, h });
       }
     }
 
@@ -139,14 +140,14 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
     const w = 1000;
     const h = 440;
     const stars: { x: number; y: number; r: number; o: number }[] = [];
-    for (let i = 0; i < 110; i++) {
+    for (let i = 0; i < 130; i++) {
       const hx = strHash(`star|${i}|x`);
       const hy = strHash(`star|${i}|y`);
       stars.push({
         x: ((hx % 10000) / 10000) * w,
         y: ((hy % 10000) / 10000) * h,
-        r: 0.35 + ((hx >> 3) % 100) / 200,
-        o: 0.08 + ((hy >> 5) % 100) / 400,
+        r: 0.3 + ((hx >> 3) % 100) / 220,
+        o: 0.07 + ((hy >> 5) % 100) / 380,
       });
     }
     return stars;
@@ -161,12 +162,12 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   }
 
   const first = layout[0];
-  const { w, h, cx, cy } = first;
+  const { w, h } = first;
   const interactive = Boolean(onNodeClick);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#050810] via-[#0d1117] to-[#0a0814] shadow-[0_0_48px_rgba(34,211,238,0.1)] pt-2">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_45%,rgba(88,28,135,0.14),transparent_60%)]" />
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#050810] via-[#0d1117] to-[#0a0814] shadow-[0_0_48px_rgba(34,211,238,0.08)] pt-2">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_40%,rgba(30,58,138,0.08),transparent_55%)]" />
       <svg
         viewBox={`0 0 ${w} ${h}`}
         className="relative z-[1] h-auto w-full min-h-[320px] max-h-[480px]"
@@ -174,7 +175,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
       >
         <defs>
           <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="3" result="b" />
+            <feGaussianBlur stdDeviation="2.5" result="b" />
             <feMerge>
               <feMergeNode in="b" />
               <feMergeNode in="SourceGraphic" />
@@ -250,29 +251,17 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           </text>
         ))}
 
-        {layout.map(({ p, x, y, angle, cx: rcx, cy: rcy }) => {
+        {layout.map(({ p, x, y }) => {
           const col = STATUS_COLOR[p.status];
-          const rVis = p.status === 'active' ? 11 : 9;
+          const rVis = nodeRadius(p.status, p.id);
           const handleActivate = () => onNodeClick?.(p);
-          const lx = x + Math.cos(angle) * 24;
-          const ly = y + Math.sin(angle) * 24;
           const short = p.title.length > 8 ? `${p.title.slice(0, 7)}…` : p.title;
           return (
             <g key={p.id}>
-              <line
-                x1={rcx}
-                y1={rcy}
-                x2={x}
-                y2={y}
-                stroke={col.stroke}
-                strokeWidth="1"
-                strokeOpacity={0.28}
-                className="pointer-events-none"
-              />
               <circle
                 cx={x}
                 cy={y}
-                r={24}
+                r={26}
                 fill="transparent"
                 className={interactive ? 'cursor-pointer' : undefined}
                 onClick={interactive ? handleActivate : undefined}
@@ -288,10 +277,9 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
                 className={`pointer-events-none ${p.status === 'active' ? 'animate-pulse' : ''}`}
               />
               <text
-                x={lx}
-                y={ly}
+                x={x}
+                y={y + rVis + 14}
                 textAnchor="middle"
-                dominantBaseline="middle"
                 fill="rgba(226, 232, 240, 0.9)"
                 fontSize="9"
                 className="pointer-events-none select-none"
@@ -301,38 +289,24 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
             </g>
           );
         })}
-
-        <circle
-          cx={cx}
-          cy={cy}
-          r={40}
-          fill="rgba(139, 92, 246, 0.22)"
-          stroke="rgba(167, 139, 250, 0.95)"
-          strokeWidth="2"
-          filter={`url(#${filterId})`}
-          className="pointer-events-none"
-        />
-        <text x={cx} y={cy - 4} textAnchor="middle" fill="#e2e8f0" fontSize="12" fontWeight="700">
-          {labels.center}
-        </text>
-        <text x={cx} y={cy + 11} textAnchor="middle" fill="rgba(148, 163, 184, 0.95)" fontSize="8">
-          {labels.nodeCount}
-        </text>
       </svg>
 
-      <div className="flex flex-wrap items-center justify-center gap-4 border-t border-white/5 px-4 py-3 text-[11px] text-slate-400">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
-          {labels.proposed}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
-          {labels.active}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="h-2 w-2 rounded-full bg-slate-400" />
-          {labels.ended}
-        </span>
+      <div className="border-t border-white/5 px-4 py-3 text-[11px] text-slate-400">
+        <p className="mb-2 text-center text-[10px] text-slate-500">{labels.nodeCount}</p>
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
+            {labels.proposed}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)]" />
+            {labels.active}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-slate-400" />
+            {labels.ended}
+          </span>
+        </div>
       </div>
     </div>
   );
