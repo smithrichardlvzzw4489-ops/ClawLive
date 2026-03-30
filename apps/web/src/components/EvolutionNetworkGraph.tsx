@@ -23,6 +23,43 @@ const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string;
 
 const STATUS_ORDER: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
 
+/** 分类内星座连线：与节点同色、极低不透明度 */
+const NET_STROKE: Record<EvolutionPointStatus, string> = {
+  proposed: 'rgba(245, 158, 11, 0.2)',
+  active: 'rgba(34, 211, 238, 0.18)',
+  ended: 'rgba(148, 163, 184, 0.18)',
+};
+
+/** 每点连向同区内最近的 k 个邻居，边去重，形成若隐若现的局部星网 */
+function nearestNeighborEdges(pts: { x: number; y: number }[], k: number): [number, number][] {
+  const n = pts.length;
+  if (n < 2) return [];
+  const edgeSet = new Set<string>();
+  const out: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const dists: { j: number; d2: number }[] = [];
+    for (let j = 0; j < n; j++) {
+      if (i === j) continue;
+      const dx = pts[i].x - pts[j].x;
+      const dy = pts[i].y - pts[j].y;
+      dists.push({ j, d2: dx * dx + dy * dy });
+    }
+    dists.sort((a, b) => a.d2 - b.d2);
+    const take = Math.min(k, dists.length);
+    for (let t = 0; t < take; t++) {
+      const j = dists[t].j;
+      const a = Math.min(i, j);
+      const b = Math.max(i, j);
+      const key = `${a}-${b}`;
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key);
+        out.push([a, b]);
+      }
+    }
+  }
+  return out;
+}
+
 /** 左 / 中 / 右 三片「星野」，用满横向空间；坐标为相对 [0,1] 的矩形内 */
 const ZONE: Record<
   EvolutionPointStatus,
@@ -93,6 +130,21 @@ type LayoutItem = {
   h: number;
 };
 
+type ConstellationEdge = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  status: EvolutionPointStatus;
+};
+
+type LayoutState = {
+  nodes: LayoutItem[];
+  edges: ConstellationEdge[];
+  w: number;
+  h: number;
+};
+
 function groupByStatus(points: EvolutionPoint[]): Record<EvolutionPointStatus, EvolutionPoint[]> {
   const out: Record<EvolutionPointStatus, EvolutionPoint[]> = {
     proposed: [],
@@ -116,24 +168,38 @@ function nodeRadius(status: EvolutionPointStatus, id: string): number {
 }
 
 /**
- * 宽画布「满天星」：三类各占左/中/右星野散点，无中心枢纽、无辐射线。
+ * 宽画布「满天星」：三类各占左/中/右星野散点；背景远景线 + 分类内近邻星座线（若隐若现）。
  */
 export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const filterId = useId().replace(/:/g, '');
-  const layout = useMemo(() => {
+  const layout = useMemo((): LayoutState => {
     const w = 1000;
     const h = 440;
     const grouped = groupByStatus(points);
-    const items: LayoutItem[] = [];
+    const nodes: LayoutItem[] = [];
+    const edges: ConstellationEdge[] = [];
+    const kNeighbors = 3;
 
     for (const status of STATUS_ORDER) {
-      for (const p of grouped[status]) {
+      const list = grouped[status];
+      const pts: { x: number; y: number }[] = [];
+      for (const p of list) {
         const { x, y } = pointInZone(p.id, p.status, w, h);
-        items.push({ p, x, y, w, h });
+        pts.push({ x, y });
+        nodes.push({ p, x, y, w, h });
+      }
+      for (const [i, j] of nearestNeighborEdges(pts, kNeighbors)) {
+        edges.push({
+          x1: pts[i].x,
+          y1: pts[i].y,
+          x2: pts[j].x,
+          y2: pts[j].y,
+          status,
+        });
       }
     }
 
-    return items;
+    return { nodes, edges, w, h };
   }, [points]);
 
   const starfield = useMemo(() => {
@@ -153,6 +219,24 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
     return stars;
   }, []);
 
+  /** 远景：极淡斜线，与星点错层，不抢主星座 */
+  const ambientWeb = useMemo(() => {
+    const w = 1000;
+    const h = 440;
+    const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    for (let i = 0; i < 14; i++) {
+      const a = strHash(`amb|${i}`);
+      const b = strHash(`amb|${i}|b`);
+      lines.push({
+        x1: ((a % 1000) / 1000) * w,
+        y1: ((b % 1000) / 1000) * h,
+        x2: (((a >> 8) % 1000) / 1000) * w,
+        y2: (((b >> 8) % 1000) / 1000) * h,
+      });
+    }
+    return lines;
+  }, []);
+
   if (points.length === 0) {
     return (
       <div className="flex h-[280px] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-sm text-slate-500">
@@ -161,8 +245,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
     );
   }
 
-  const first = layout[0];
-  const { w, h } = first;
+  const { nodes, edges, w, h } = layout;
   const interactive = Boolean(onNodeClick);
 
   return (
@@ -191,6 +274,20 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
             r={s.r}
             fill="rgba(226, 232, 240, 0.9)"
             opacity={s.o}
+            className="pointer-events-none"
+          />
+        ))}
+
+        {ambientWeb.map((ln, i) => (
+          <line
+            key={`amb-${i}`}
+            x1={ln.x1}
+            y1={ln.y1}
+            x2={ln.x2}
+            y2={ln.y2}
+            stroke="rgba(148, 163, 184, 0.07)"
+            strokeWidth="0.6"
+            strokeLinecap="round"
             className="pointer-events-none"
           />
         ))}
@@ -231,6 +328,22 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           />
         ))}
 
+        {edges.map((e, i) => (
+          <line
+            key={`net-${i}`}
+            x1={e.x1}
+            y1={e.y1}
+            x2={e.x2}
+            y2={e.y2}
+            stroke={NET_STROKE[e.status]}
+            strokeWidth="0.9"
+            strokeOpacity={0.42}
+            strokeLinecap="round"
+            strokeDasharray="2 7"
+            className="pointer-events-none"
+          />
+        ))}
+
         {[
           { status: 'proposed' as const, label: labels.proposed, gx: 0.165 },
           { status: 'active' as const, label: labels.active, gx: 0.5 },
@@ -251,7 +364,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           </text>
         ))}
 
-        {layout.map(({ p, x, y }) => {
+        {nodes.map(({ p, x, y }) => {
           const col = STATUS_COLOR[p.status];
           const rVis = nodeRadius(p.status, p.id);
           const handleActivate = () => onNodeClick?.(p);
