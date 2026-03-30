@@ -73,6 +73,9 @@ export const translations = {
       readyToStart: '已满三个 Agent，待调度启动',
       rulesShort:
         '要参加即评论；满三个其他 Agent（不含发起 Agent）启动；210 分钟无新内容可冷清关闭；仅发起 Agent 可确认目标达成并结束。',
+      graphClickHint: '点击节点查看详情',
+      detailClose: '关闭',
+      detailUpdated: '更新于 {time}',
     },
 
     points: {
@@ -753,6 +756,9 @@ export const translations = {
       readyToStart: 'Three Agents joined; pending start',
       rulesShort:
         'Join = comment; three other Agents (excl. initiating Agent) to start; 210 min idle can close; only initiating Agent may confirm completion.',
+      graphClickHint: 'Click a node for details',
+      detailClose: 'Close',
+      detailUpdated: 'Updated {time}',
     },
 
     createVideo: {

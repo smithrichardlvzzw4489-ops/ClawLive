@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import type { EvolutionPoint, EvolutionPointStatus } from '@/lib/evolution-network';
 
 const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string; glow: string }> = {
@@ -23,6 +23,8 @@ const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string;
 
 type Props = {
   points: EvolutionPoint[];
+  /** 点击轨道上的进化点节点时回调（用于打开详情等） */
+  onNodeClick?: (point: EvolutionPoint) => void;
   labels: {
     center: string;
     proposed: string;
@@ -31,13 +33,16 @@ type Props = {
     /** 如「6 个进化点」 */
     nodeCount: string;
     empty: string;
+    /** 有 onNodeClick 时展示在图下方 */
+    graphClickHint?: string;
   };
 };
 
 /**
  * 轻量 SVG：中心枢纽 + 进化点沿轨道分布，颜色区分状态，营造「网络」直觉。
  */
-export function EvolutionNetworkGraph({ points, labels }: Props) {
+export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
+  const filterId = useId().replace(/:/g, '');
   const layout = useMemo(() => {
     const w = 520;
     const h = 320;
@@ -64,12 +69,21 @@ export function EvolutionNetworkGraph({ points, labels }: Props) {
   const first = layout[0];
   const { w, h, cx, cy } = first;
 
+  const interactive = Boolean(onNodeClick);
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#0a1628] via-[#0d1117] to-[#0f0a1a] shadow-[0_0_40px_rgba(34,211,238,0.12)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.12),transparent_55%)]" />
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-auto w-full max-h-[340px]" aria-hidden>
+      {labels.graphClickHint && (
+        <p className="relative z-10 px-2 pb-1 pt-2 text-center text-[11px] text-slate-500">{labels.graphClickHint}</p>
+      )}
+      <svg
+        viewBox={`0 0 ${w} ${h}`}
+        className="h-auto w-full max-h-[340px]"
+        aria-hidden={!interactive}
+      >
         <defs>
-          <filter id="evo-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="3" result="b" />
             <feMerge>
               <feMergeNode in="b" />
@@ -87,10 +101,13 @@ export function EvolutionNetworkGraph({ points, labels }: Props) {
           stroke="rgba(148, 163, 184, 0.15)"
           strokeWidth="1"
           strokeDasharray="4 6"
+          className="pointer-events-none"
         />
 
         {layout.map(({ p, x, y }) => {
           const col = STATUS_COLOR[p.status];
+          const rVis = p.status === 'active' ? 11 : 9;
+          const handleActivate = () => onNodeClick?.(p);
           return (
             <g key={p.id}>
               <line
@@ -101,16 +118,25 @@ export function EvolutionNetworkGraph({ points, labels }: Props) {
                 stroke={col.stroke}
                 strokeWidth="1.2"
                 strokeOpacity={0.45}
+                className="pointer-events-none"
               />
               <circle
                 cx={x}
                 cy={y}
-                r={p.status === 'active' ? 11 : 9}
+                r={22}
+                fill="transparent"
+                className={interactive ? 'cursor-pointer' : undefined}
+                onClick={interactive ? handleActivate : undefined}
+              />
+              <circle
+                cx={x}
+                cy={y}
+                r={rVis}
                 fill={col.fill}
                 stroke={col.stroke}
                 strokeWidth="1.5"
-                filter="url(#evo-glow)"
-                className={p.status === 'active' ? 'animate-pulse' : undefined}
+                filter={`url(#${filterId})`}
+                className={`pointer-events-none ${p.status === 'active' ? 'animate-pulse' : ''}`}
               />
               <text
                 x={x}
@@ -118,7 +144,7 @@ export function EvolutionNetworkGraph({ points, labels }: Props) {
                 textAnchor="middle"
                 fill="rgba(226, 232, 240, 0.85)"
                 fontSize="9"
-                className="select-none"
+                className="pointer-events-none select-none"
               >
                 {p.title.length > 8 ? `${p.title.slice(0, 7)}…` : p.title}
               </text>
@@ -127,7 +153,16 @@ export function EvolutionNetworkGraph({ points, labels }: Props) {
         })}
 
         {/* 中心节点 */}
-        <circle cx={cx} cy={cy} r={36} fill="rgba(139, 92, 246, 0.2)" stroke="rgba(167, 139, 250, 0.9)" strokeWidth="2" filter="url(#evo-glow)" />
+        <circle
+          cx={cx}
+          cy={cy}
+          r={36}
+          fill="rgba(139, 92, 246, 0.2)"
+          stroke="rgba(167, 139, 250, 0.9)"
+          strokeWidth="2"
+          filter={`url(#${filterId})`}
+          className="pointer-events-none"
+        />
         <text x={cx} y={cy - 4} textAnchor="middle" fill="#e2e8f0" fontSize="11" fontWeight="700">
           {labels.center}
         </text>
