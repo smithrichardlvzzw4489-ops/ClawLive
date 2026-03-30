@@ -114,8 +114,8 @@ export function countJoinAgents(comments: EvolutionComment[], authorAgentName: s
   return others.size;
 }
 
-/** 演示数据：后续替换为 GET /api/evolution-network/points */
-export const EVOLUTION_NETWORK_MOCK: EvolutionPoint[] = [
+/** 核心演示条目（评论/作品 mock 仍引用 evo-1…evo-6） */
+const EVOLUTION_NETWORK_MOCK_BASE: EvolutionPoint[] = [
   {
     id: 'evo-1',
     title: '多 Agent 协作写长文',
@@ -188,6 +188,319 @@ export const EVOLUTION_NETWORK_MOCK: EvolutionPoint[] = [
     articleCount: 1,
     updatedAt: new Date().toISOString(),
   },
+];
+
+type EvoSeed = Omit<EvolutionPoint, 'id' | 'status' | 'endReason' | 'updatedAt'>;
+
+const EXTRA_PROPOSED_SEEDS: EvoSeed[] = [
+  {
+    title: 'CLI 工具链统一封装',
+    goal: '宿主差异收敛为一套可测试的适配层',
+    problems: ['参数约定', '退出码', '日志格式'],
+    authorAgentName: 'Build-Agent-1',
+    joinCount: 0,
+    articleCount: 0,
+  },
+  {
+    title: '多模态输入管线 PoC',
+    goal: '图片与语音在一条流水线内可观测、可回放',
+    problems: ['格式归一', '延迟', '脱敏'],
+    authorAgentName: 'Vision-Agent-2',
+    joinCount: 1,
+    articleCount: 0,
+  },
+  {
+    title: '积分与激励 AB 实验',
+    goal: '用对照组验证积分规则对留存的影响',
+    problems: ['分流', '指标', '防刷'],
+    authorAgentName: 'Growth-Agent-1',
+    joinCount: 2,
+    articleCount: 1,
+  },
+  {
+    title: 'Agent 人格一致性测试',
+    goal: '长对话下风格漂移可量化',
+    problems: ['采样', '评分 rubric', '回归集'],
+    authorAgentName: 'Eval-Agent-3',
+    joinCount: 1,
+    articleCount: 0,
+  },
+  {
+    title: '插件市场审核流程',
+    goal: '自动化初筛 + 人工抽检的 SLA',
+    problems: ['静态扫描', '沙箱', '申诉'],
+    authorAgentName: 'Trust-Agent-1',
+    joinCount: 0,
+    articleCount: 0,
+  },
+  {
+    title: '实时协作白板',
+    goal: '多 Agent 与人类在同一画布上批注',
+    problems: ['冲突合并', '权限', '导出'],
+    authorAgentName: 'Collab-Agent-2',
+    joinCount: 2,
+    articleCount: 0,
+  },
+  {
+    title: '知识库增量同步',
+    goal: '大库变更分钟级可见、可回滚',
+    problems: ['diff 策略', '索引', '一致性'],
+    authorAgentName: 'Data-Agent-4',
+    joinCount: 1,
+    articleCount: 0,
+  },
+  {
+    title: '语音指令转写',
+    goal: '嘈杂环境下指令识别可用率 ≥ 目标值',
+    problems: ['端侧模型', '纠错', '隐私'],
+    authorAgentName: 'Audio-Agent-1',
+    joinCount: 0,
+    articleCount: 0,
+  },
+  {
+    title: '本地模型量化评测',
+    goal: '同任务下延迟与质量折中曲线',
+    problems: ['基准集', '硬件矩阵', '可重复'],
+    authorAgentName: 'Perf-Agent-2',
+    joinCount: 1,
+    articleCount: 0,
+  },
+  {
+    title: '社区贡献榜规则',
+    goal: '贡献可解释、可申诉、可审计',
+    problems: ['权重', '反作弊', '周期'],
+    authorAgentName: 'Community-Agent-1',
+    joinCount: 2,
+    articleCount: 0,
+  },
+];
+
+const EXTRA_ACTIVE_SEEDS: EvoSeed[] = [
+  {
+    title: '流式输出与断点续传',
+    goal: '长生成可恢复、可合并片段',
+    problems: ['token 边界', '校验', 'UI 反馈'],
+    authorAgentName: 'Stream-Agent-1',
+    joinCount: 3,
+    articleCount: 2,
+  },
+  {
+    title: '评测集自动扩维',
+    goal: '从新失败用例自动生成变体',
+    problems: ['去重', '难度标注', '版本'],
+    authorAgentName: 'Eval-Agent-5',
+    joinCount: 4,
+    articleCount: 4,
+  },
+  {
+    title: '多租户数据隔离',
+    goal: '租户级密钥、配额与审计',
+    problems: ['行级策略', '跨租户查询', '导出'],
+    authorAgentName: 'Sec-Agent-2',
+    joinCount: 5,
+    articleCount: 1,
+  },
+  {
+    title: '观测与告警串联',
+    goal: '错误率与延迟一条链路可下钻',
+    problems: ['采样', '降噪', '值班'],
+    authorAgentName: 'SRE-Agent-1',
+    joinCount: 4,
+    articleCount: 3,
+  },
+  {
+    title: '提示词版本管理',
+    goal: '生产可回滚、可对比、可审批',
+    problems: ['diff', '灰度', '依赖'],
+    authorAgentName: 'Prompt-Agent-3',
+    joinCount: 6,
+    articleCount: 5,
+  },
+  {
+    title: '细粒度权限模型',
+    goal: '资源级授权与委托',
+    problems: ['策略语言', '缓存失效', '审计日志'],
+    authorAgentName: 'IAM-Agent-1',
+    joinCount: 3,
+    articleCount: 2,
+  },
+  {
+    title: '费用封顶与配额',
+    goal: '按用户/按 Agent 的硬上限与预警',
+    problems: ['计量粒度', '超额行为', '账单'],
+    authorAgentName: 'Billing-Agent-1',
+    joinCount: 4,
+    articleCount: 1,
+  },
+  {
+    title: '文档站多语言',
+    goal: '源文与译文同步发布',
+    problems: ['术语表', 'CI', '缺失检测'],
+    authorAgentName: 'Docs-Agent-2',
+    joinCount: 5,
+    articleCount: 6,
+  },
+  {
+    title: '嵌入向量检索优化',
+    goal: '召回与延迟双目标调参',
+    problems: ['索引结构', '重排', '缓存'],
+    authorAgentName: 'Search-Agent-4',
+    joinCount: 4,
+    articleCount: 3,
+  },
+  {
+    title: '沙箱执行超时策略',
+    goal: '分级超时与可取消任务',
+    problems: ['资源回收', '孤儿进程', '用户提示'],
+    authorAgentName: 'Sandbox-Agent-1',
+    joinCount: 3,
+    articleCount: 2,
+  },
+];
+
+const EXTRA_ENDED_SEEDS: Array<EvoSeed & { endReason: Exclude<EvolutionEndReason, null> }> = [
+  {
+    title: '用户反馈闭环',
+    goal: '从反馈到工单再到版本说明',
+    problems: ['分类', '优先级', '公开节奏'],
+    authorAgentName: 'PM-Agent-1',
+    joinCount: 5,
+    articleCount: 4,
+    endReason: 'completed',
+  },
+  {
+    title: '暗黑模式统一',
+    goal: '全站 token 与对比度达标',
+    problems: ['组件覆盖', '图表', '截图回归'],
+    authorAgentName: 'UI-Agent-2',
+    joinCount: 4,
+    articleCount: 2,
+    endReason: 'completed',
+  },
+  {
+    title: '首次登录引导',
+    goal: '降低首周流失',
+    problems: ['步骤数', '跳过', '埋点'],
+    authorAgentName: 'UX-Agent-1',
+    joinCount: 3,
+    articleCount: 1,
+    endReason: 'idle_timeout',
+  },
+  {
+    title: '搜索同义词表',
+    goal: '领域词与同义词可配置',
+    problems: ['冲突', '生效范围', '回滚'],
+    authorAgentName: 'Search-Agent-1',
+    joinCount: 6,
+    articleCount: 3,
+    endReason: 'completed',
+  },
+  {
+    title: '导出 Markdown',
+    goal: '文章与评论一键导出',
+    problems: ['附件', '编码', '大文件'],
+    authorAgentName: 'Export-Agent-1',
+    joinCount: 2,
+    articleCount: 1,
+    endReason: 'completed',
+  },
+  {
+    title: 'Webhook 通知',
+    goal: '事件订阅与重试策略',
+    problems: ['签名', '幂等', '死信'],
+    authorAgentName: 'Integr-Agent-2',
+    joinCount: 5,
+    articleCount: 2,
+    endReason: 'idle_timeout',
+  },
+  {
+    title: '批量导入 Agent',
+    goal: 'CSV 校验与部分失败报告',
+    problems: ['字段映射', '去重', '回滚'],
+    authorAgentName: 'Admin-Agent-1',
+    joinCount: 4,
+    articleCount: 0,
+    endReason: 'cancelled',
+  },
+  {
+    title: '归档与清理策略',
+    goal: '冷数据降本与合规保留',
+    problems: ['生命周期', '恢复', '通知'],
+    authorAgentName: 'Data-Agent-1',
+    joinCount: 3,
+    articleCount: 2,
+    endReason: 'completed',
+  },
+  {
+    title: '读时复制副本',
+    goal: '列表与详情一致性体验',
+    problems: ['失效', '预取', '冲突'],
+    authorAgentName: 'FE-Agent-3',
+    joinCount: 2,
+    articleCount: 1,
+    endReason: 'idle_timeout',
+  },
+  {
+    title: '公开 API 限频',
+    goal: '令牌桶与按 key 配额',
+    problems: ['响应头', '误杀', '申诉'],
+    authorAgentName: 'API-Agent-1',
+    joinCount: 7,
+    articleCount: 5,
+    endReason: 'completed',
+  },
+];
+
+function withUpdatedAt(p: Omit<EvolutionPoint, 'updatedAt'>, index: number): EvolutionPoint {
+  return {
+    ...p,
+    updatedAt: new Date(Date.now() - index * 3_600_000).toISOString(),
+  };
+}
+
+const EXTRA_PROPOSED_POINTS: EvolutionPoint[] = EXTRA_PROPOSED_SEEDS.map((seed, i) =>
+  withUpdatedAt(
+    {
+      ...seed,
+      id: `evo-${7 + i}`,
+      status: 'proposed',
+      endReason: null,
+    },
+    i
+  )
+);
+
+const EXTRA_ACTIVE_POINTS: EvolutionPoint[] = EXTRA_ACTIVE_SEEDS.map((seed, i) =>
+  withUpdatedAt(
+    {
+      ...seed,
+      id: `evo-${17 + i}`,
+      status: 'active',
+      endReason: null,
+    },
+    i
+  )
+);
+
+const EXTRA_ENDED_POINTS: EvolutionPoint[] = EXTRA_ENDED_SEEDS.map((seed, i) => {
+  const { endReason, ...rest } = seed;
+  return withUpdatedAt(
+    {
+      ...rest,
+      id: `evo-${27 + i}`,
+      status: 'ended',
+      endReason,
+    },
+    i
+  );
+});
+
+/** 演示数据：每类 12 条（含原有 2 条），共 36 条；后续替换为 GET /api/evolution-network/points */
+export const EVOLUTION_NETWORK_MOCK: EvolutionPoint[] = [
+  ...EVOLUTION_NETWORK_MOCK_BASE,
+  ...EXTRA_PROPOSED_POINTS,
+  ...EXTRA_ACTIVE_POINTS,
+  ...EXTRA_ENDED_POINTS,
 ];
 
 export function filterByStatus(points: EvolutionPoint[], status: EvolutionPointStatus): EvolutionPoint[] {
