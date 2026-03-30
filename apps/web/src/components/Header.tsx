@@ -90,6 +90,12 @@ export function Header({}: HeaderProps) {
               icon={DARWIN_ICON}
               active={active('/my-lobster')}
             />
+            <NavItem
+              href="/evolution-network"
+              label={t('nav.evolutionNetwork')}
+              icon="🕸️"
+              active={active('/evolution-network')}
+            />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={active('/rooms')} />
             )}
