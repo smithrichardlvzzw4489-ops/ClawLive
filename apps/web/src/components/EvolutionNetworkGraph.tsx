@@ -23,11 +23,11 @@ const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string;
 
 const STATUS_ORDER: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
 
-/** 分类内星座连线：与节点同色、极低不透明度 */
+/** 分类内星座连线：与节点同色 */
 const NET_STROKE: Record<EvolutionPointStatus, string> = {
-  proposed: 'rgba(245, 158, 11, 0.2)',
-  active: 'rgba(34, 211, 238, 0.18)',
-  ended: 'rgba(148, 163, 184, 0.18)',
+  proposed: 'rgba(245, 158, 11, 0.32)',
+  active: 'rgba(34, 211, 238, 0.28)',
+  ended: 'rgba(148, 163, 184, 0.28)',
 };
 
 /** 每点连向同区内最近的 k 个邻居，边去重，形成若隐若现的局部星网 */
@@ -172,13 +172,14 @@ function nodeRadius(status: EvolutionPointStatus, id: string): number {
  */
 export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const filterId = useId().replace(/:/g, '');
+  const gridPatternId = useId().replace(/:/g, '');
   const layout = useMemo((): LayoutState => {
     const w = 1000;
     const h = 440;
     const grouped = groupByStatus(points);
     const nodes: LayoutItem[] = [];
     const edges: ConstellationEdge[] = [];
-    const kNeighbors = 3;
+    const kNeighbors = 5;
 
     for (const status of STATUS_ORDER) {
       const list = grouped[status];
@@ -219,12 +220,12 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
     return stars;
   }, []);
 
-  /** 远景：极淡斜线，与星点错层，不抢主星座 */
+  /** 远景：随机长斜线，增强网感 */
   const ambientWeb = useMemo(() => {
     const w = 1000;
     const h = 440;
     const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 28; i++) {
       const a = strHash(`amb|${i}`);
       const b = strHash(`amb|${i}|b`);
       lines.push({
@@ -232,6 +233,28 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
         y1: ((b % 1000) / 1000) * h,
         x2: (((a >> 8) % 1000) / 1000) * w,
         y2: (((b >> 8) % 1000) / 1000) * h,
+      });
+    }
+    return lines;
+  }, []);
+
+  /** 远景：较短碎线，与长斜线交错 */
+  const ambientWebShort = useMemo(() => {
+    const w = 1000;
+    const h = 440;
+    const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
+    for (let i = 0; i < 36; i++) {
+      const a = strHash(`ambs|${i}`);
+      const b = strHash(`ambs|${i}|b`);
+      const x1 = ((a % 1000) / 1000) * w;
+      const y1 = ((b % 1000) / 1000) * h;
+      const len = 40 + (strHash(`ambs|${i}|len`) % 120);
+      const ang = (strHash(`ambs|${i}|ang`) % 360) * (Math.PI / 180);
+      lines.push({
+        x1,
+        y1,
+        x2: x1 + len * Math.cos(ang),
+        y2: y1 + len * Math.sin(ang),
       });
     }
     return lines;
@@ -264,6 +287,19 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+          <pattern
+            id={gridPatternId}
+            width={44}
+            height={44}
+            patternUnits="userSpaceOnUse"
+          >
+            <path
+              d="M 44 0 L 0 0 0 44"
+              fill="none"
+              stroke="rgba(148, 163, 184, 0.11)"
+              strokeWidth="0.45"
+            />
+          </pattern>
         </defs>
 
         {starfield.map((s, i) => (
@@ -278,6 +314,16 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           />
         ))}
 
+        <rect
+          x={0}
+          y={0}
+          width={w}
+          height={h}
+          fill={`url(#${gridPatternId})`}
+          opacity={0.45}
+          className="pointer-events-none"
+        />
+
         {ambientWeb.map((ln, i) => (
           <line
             key={`amb-${i}`}
@@ -285,9 +331,24 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
             y1={ln.y1}
             x2={ln.x2}
             y2={ln.y2}
-            stroke="rgba(148, 163, 184, 0.07)"
-            strokeWidth="0.6"
+            stroke="rgba(148, 163, 184, 0.12)"
+            strokeWidth="0.75"
             strokeLinecap="round"
+            className="pointer-events-none"
+          />
+        ))}
+
+        {ambientWebShort.map((ln, i) => (
+          <line
+            key={`ambs-${i}`}
+            x1={ln.x1}
+            y1={ln.y1}
+            x2={ln.x2}
+            y2={ln.y2}
+            stroke="rgba(100, 116, 139, 0.1)"
+            strokeWidth="0.55"
+            strokeLinecap="round"
+            strokeDasharray="1 4"
             className="pointer-events-none"
           />
         ))}
@@ -336,10 +397,10 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
             x2={e.x2}
             y2={e.y2}
             stroke={NET_STROKE[e.status]}
-            strokeWidth="0.9"
-            strokeOpacity={0.42}
+            strokeWidth="1.15"
+            strokeOpacity={0.62}
             strokeLinecap="round"
-            strokeDasharray="2 7"
+            strokeDasharray="2 5"
             className="pointer-events-none"
           />
         ))}
