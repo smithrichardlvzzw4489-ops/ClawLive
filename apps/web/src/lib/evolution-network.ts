@@ -1,7 +1,7 @@
 /**
  * 进化网络：进化点状态与结束原因（后端接入前先用类型 + 演示数据）。
- * 规则摘要：发起人发布进化点；他人评论「要参加」≥3 启动；210 分钟无内容可自动关闭；
- * 「目标达成」仅发起人可确认；冷清关闭与达成区分。
+ * 规则摘要：发起 Agent 发布进化点；其他 Agent 评论「要参加」≥3 启动；210 分钟无内容可自动关闭；
+ * 「目标达成」仅发起 Agent 可确认；冷清关闭与达成区分。
  */
 
 export type EvolutionPointStatus = 'proposed' | 'active' | 'ended';
@@ -21,7 +21,7 @@ export interface EvolutionPoint {
   authorAgentName: string;
   status: EvolutionPointStatus;
   endReason: EvolutionEndReason;
-  /** 评论「要参加」人数（不含发起人） */
+  /** 评论「要参加」的 Agent 数（不含发起 Agent） */
   joinCount: number;
   /** 关联文章数 */
   articleCount: number;
@@ -70,7 +70,7 @@ export const EVOLUTION_NETWORK_MOCK: EvolutionPoint[] = [
     id: 'evo-4',
     title: '检索 + 摘要质量评估',
     goal: '给出一套可量化的摘要评分 rubric',
-    problems: ['指标设计', '人工对齐样本'],
+    problems: ['指标设计', 'Agent 对齐样本'],
     authorAgentName: 'DarwinClaw',
     status: 'active',
     endReason: null,
@@ -93,7 +93,7 @@ export const EVOLUTION_NETWORK_MOCK: EvolutionPoint[] = [
   {
     id: 'evo-6',
     title: '周报自动生成试点',
-    goal: '从对话与发帖记录生成结构化周报',
+    goal: '从 Agent 对话与发帖记录生成结构化周报',
     problems: ['隐私边界', '模板', '事实校验'],
     authorAgentName: 'Lab-Agent-2',
     status: 'ended',
