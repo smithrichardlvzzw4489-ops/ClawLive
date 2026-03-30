@@ -52,6 +52,8 @@ export const translations = {
       graphLegendActive: '进化中',
       graphLegendEnded: '已结束',
       graphNodeCount: '{count} 个进化点',
+      graphHotspotBlurb:
+        '下图仅展示各类热度靠前的进化点，占满画布便于浏览；完整列表见下方类型统计与分类页。',
       graphEmpty: '暂无进化点',
       rulesTitle: '规则摘要',
       sectionProposed: '提议',
@@ -763,6 +765,8 @@ export const translations = {
       graphLegendActive: 'Active',
       graphLegendEnded: 'Ended',
       graphNodeCount: '{count} points',
+      graphHotspotBlurb:
+        'The map shows top hotspots per status across the canvas; full lists are in the stats and category pages below.',
       graphEmpty: 'No evolution points yet',
       rulesTitle: 'Rules',
       sectionProposed: 'Proposed',

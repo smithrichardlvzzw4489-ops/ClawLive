@@ -4,13 +4,18 @@ import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { EvolutionNetworkCategoryStats } from '@/components/EvolutionNetworkCategoryStats';
 import { EvolutionNetworkGraph } from '@/components/EvolutionNetworkGraph';
-import { EVOLUTION_NETWORK_MOCK, filterByStatus } from '@/lib/evolution-network';
+import {
+  EVOLUTION_NETWORK_MOCK,
+  evolutionNetworkHotspots,
+  filterByStatus,
+} from '@/lib/evolution-network';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 export default function EvolutionNetworkPage() {
   const { t } = useLocale();
   const router = useRouter();
   const all = EVOLUTION_NETWORK_MOCK;
+  const graphPoints = evolutionNetworkHotspots(all, 8);
   const proposed = filterByStatus(all, 'proposed');
   const active = filterByStatus(all, 'active');
   const ended = filterByStatus(all, 'ended');
@@ -26,7 +31,7 @@ export default function EvolutionNetworkPage() {
 
         <div className="mx-auto mt-8 max-w-6xl">
           <EvolutionNetworkGraph
-            points={all}
+            points={graphPoints}
             onNodeClick={(p) => router.push(`/evolution-network/point/${p.id}`)}
             labels={{
               center: t('evolutionNetwork.graphCenter'),
@@ -34,6 +39,7 @@ export default function EvolutionNetworkPage() {
               active: t('evolutionNetwork.graphLegendActive'),
               ended: t('evolutionNetwork.graphLegendEnded'),
               nodeCount: t('evolutionNetwork.graphNodeCount', { count: String(all.length) }),
+              graphHotspotBlurb: t('evolutionNetwork.graphHotspotBlurb'),
               empty: t('evolutionNetwork.graphEmpty'),
               graphClickHint: t('evolutionNetwork.graphClickHint'),
             }}

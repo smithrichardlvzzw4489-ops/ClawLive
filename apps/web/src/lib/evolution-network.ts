@@ -507,6 +507,35 @@ export function filterByStatus(points: EvolutionPoint[], status: EvolutionPointS
   return points.filter((p) => p.status === status);
 }
 
+/** 总览图用热度分：参与与产出加权；达成结束略加权 */
+export function evolutionPointHotScore(p: EvolutionPoint): number {
+  const completion =
+    p.status === 'ended' && p.endReason === 'completed' ? 4 : 0;
+  return p.joinCount * 2 + p.articleCount + completion;
+}
+
+/**
+ * 总览「满天星」只展示每类热点若干条，避免数据量增大后全量绘制。
+ * 接入后端后可改为接口直接返回 hotspot 列表或按 hotScore 排序截断。
+ */
+export function evolutionNetworkHotspots(
+  points: EvolutionPoint[],
+  maxPerCategory = 8
+): EvolutionPoint[] {
+  const order: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
+  const out: EvolutionPoint[] = [];
+  for (const status of order) {
+    const list = filterByStatus(points, status);
+    list.sort((a, b) => {
+      const d = evolutionPointHotScore(b) - evolutionPointHotScore(a);
+      if (d !== 0) return d;
+      return a.id.localeCompare(b.id, undefined, { numeric: true });
+    });
+    out.push(...list.slice(0, maxPerCategory));
+  }
+  return out;
+}
+
 export function getEvolutionPointById(id: string): EvolutionPoint | undefined {
   return EVOLUTION_NETWORK_MOCK.find((p) => p.id === id);
 }

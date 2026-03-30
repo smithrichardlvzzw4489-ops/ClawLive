@@ -21,30 +21,82 @@ const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string;
   },
 };
 
-/** 三类各占 120°，从顶侧「提议」起顺时针：提议 → 进化中 → 已结束 */
-const SECTOR: Record<EvolutionPointStatus, { start: number; span: number }> = {
-  proposed: { start: (-5 * Math.PI) / 6, span: (2 * Math.PI) / 3 },
-  active: { start: -Math.PI / 6, span: (2 * Math.PI) / 3 },
-  ended: { start: Math.PI / 2, span: (2 * Math.PI) / 3 },
+const STATUS_ORDER: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
+
+/** 左 / 中 / 右 三片「星野」，用满横向空间；坐标为相对 [0,1] 的矩形内 */
+const ZONE: Record<
+  EvolutionPointStatus,
+  { x0: number; x1: number; y0: number; y1: number; fill: string }
+> = {
+  proposed: {
+    x0: 0.03,
+    x1: 0.3,
+    y0: 0.1,
+    y1: 0.9,
+    fill: 'rgba(245, 158, 11, 0.05)',
+  },
+  active: {
+    x0: 0.34,
+    x1: 0.66,
+    y0: 0.1,
+    y1: 0.9,
+    fill: 'rgba(34, 211, 238, 0.05)',
+  },
+  ended: {
+    x0: 0.7,
+    x1: 0.97,
+    y0: 0.1,
+    y1: 0.9,
+    fill: 'rgba(148, 163, 184, 0.06)',
+  },
 };
 
-const STATUS_ORDER: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
+function strHash(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** 同一进化点在区内稳定、可复现的散点位置 */
+function pointInZone(id: string, status: EvolutionPointStatus, w: number, h: number) {
+  const z = ZONE[status];
+  const h1 = strHash(`${id}|${status}|x`);
+  const h2 = strHash(`${id}|${status}|y`);
+  const u = (h1 % 10000) / 10000;
+  const v = (h2 % 10000) / 10000;
+  const x = (z.x0 + u * (z.x1 - z.x0)) * w;
+  const y = (z.y0 + v * (z.y1 - z.y0)) * h;
+  return { x, y };
+}
 
 type Props = {
   points: EvolutionPoint[];
-  /** 点击轨道上的进化点节点时回调（用于打开详情等） */
   onNodeClick?: (point: EvolutionPoint) => void;
   labels: {
     center: string;
     proposed: string;
     active: string;
     ended: string;
-    /** 如「6 个进化点」 */
     nodeCount: string;
+    /** 说明总览图为每类热点，非全量 */
+    graphHotspotBlurb?: string;
     empty: string;
-    /** 有 onNodeClick 时展示在图下方 */
     graphClickHint?: string;
   };
+};
+
+type LayoutItem = {
+  p: EvolutionPoint;
+  x: number;
+  y: number;
+  angle: number;
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
 };
 
 function groupByStatus(points: EvolutionPoint[]): Record<EvolutionPointStatus, EvolutionPoint[]> {
@@ -62,48 +114,46 @@ function groupByStatus(points: EvolutionPoint[]): Record<EvolutionPointStatus, E
   return out;
 }
 
-type LayoutItem = {
-  p: EvolutionPoint;
-  x: number;
-  y: number;
-  /** 自中心指向节点，用于标签外移 */
-  angle: number;
-  cx: number;
-  cy: number;
-  w: number;
-  h: number;
-};
-
 /**
- * 中心枢纽 + 按状态分扇区：每类占 120°，节点沿弧分布，避免单环挤成一团。
+ * 宽画布「满天星」：三类各占左/中/右星野，自枢纽连线；数据多时每类只传热点子集。
  */
 export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const filterId = useId().replace(/:/g, '');
   const layout = useMemo(() => {
-    const w = 580;
-    const h = 420;
+    const w = 1000;
+    const h = 440;
     const cx = w / 2;
-    const cy = h / 2 + 6;
-    const rOrbit = 124;
+    const cy = h / 2 + 4;
     const grouped = groupByStatus(points);
     const items: LayoutItem[] = [];
 
     for (const status of STATUS_ORDER) {
-      const list = grouped[status];
-      const { start, span } = SECTOR[status];
-      const n = list.length;
-      if (n === 0) continue;
-      for (let i = 0; i < n; i++) {
-        const p = list[i];
-        const angle = start + ((i + 0.5) * span) / n;
-        const x = cx + rOrbit * Math.cos(angle);
-        const y = cy + rOrbit * Math.sin(angle);
+      for (const p of grouped[status]) {
+        const { x, y } = pointInZone(p.id, p.status, w, h);
+        const angle = Math.atan2(y - cy, x - cx);
         items.push({ p, x, y, angle, cx, cy, w, h });
       }
     }
 
     return items;
   }, [points]);
+
+  const starfield = useMemo(() => {
+    const w = 1000;
+    const h = 440;
+    const stars: { x: number; y: number; r: number; o: number }[] = [];
+    for (let i = 0; i < 110; i++) {
+      const hx = strHash(`star|${i}|x`);
+      const hy = strHash(`star|${i}|y`);
+      stars.push({
+        x: ((hx % 10000) / 10000) * w,
+        y: ((hy % 10000) / 10000) * h,
+        r: 0.35 + ((hx >> 3) % 100) / 200,
+        o: 0.08 + ((hy >> 5) % 100) / 400,
+      });
+    }
+    return stars;
+  }, []);
 
   if (points.length === 0) {
     return (
@@ -115,25 +165,22 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
 
   const first = layout[0];
   const { w, h, cx, cy } = first;
-
   const interactive = Boolean(onNodeClick);
 
-  /** 扇区背景：极淡色块 + 分界虚线 */
-  const sectorBg = [
-    { status: 'proposed' as const, fill: 'rgba(245, 158, 11, 0.06)' },
-    { status: 'active' as const, fill: 'rgba(34, 211, 238, 0.06)' },
-    { status: 'ended' as const, fill: 'rgba(148, 163, 184, 0.06)' },
-  ];
-
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#0a1628] via-[#0d1117] to-[#0f0a1a] shadow-[0_0_40px_rgba(34,211,238,0.12)]">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.12),transparent_55%)]" />
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#050810] via-[#0d1117] to-[#0a0814] shadow-[0_0_48px_rgba(34,211,238,0.1)]">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_45%,rgba(88,28,135,0.14),transparent_60%)]" />
       {labels.graphClickHint && (
-        <p className="relative z-10 px-2 pb-1 pt-2 text-center text-[11px] text-slate-500">{labels.graphClickHint}</p>
+        <p className="relative z-10 px-3 pb-0 pt-2 text-center text-[11px] text-slate-500">{labels.graphClickHint}</p>
+      )}
+      {labels.graphHotspotBlurb && (
+        <p className="relative z-10 px-4 pb-1 pt-1 text-center text-[11px] leading-relaxed text-slate-500">
+          {labels.graphHotspotBlurb}
+        </p>
       )}
       <svg
         viewBox={`0 0 ${w} ${h}`}
-        className="h-auto w-full max-h-[440px]"
+        className="relative z-[1] h-auto w-full min-h-[320px] max-h-[480px]"
         aria-hidden={!interactive}
       >
         <defs>
@@ -146,61 +193,81 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           </filter>
         </defs>
 
-        {sectorBg.map(({ status, fill }) => {
-          const { start, span } = SECTOR[status];
-          const r = 200;
-          const x1 = cx + r * Math.cos(start);
-          const y1 = cy + r * Math.sin(start);
-          const x2 = cx + r * Math.cos(start + span);
-          const y2 = cy + r * Math.sin(start + span);
-          const largeArc = span > Math.PI ? 1 : 0;
+        {starfield.map((s, i) => (
+          <circle
+            key={`sf-${i}`}
+            cx={s.x}
+            cy={s.y}
+            r={s.r}
+            fill="rgba(226, 232, 240, 0.9)"
+            opacity={s.o}
+            className="pointer-events-none"
+          />
+        ))}
+
+        {STATUS_ORDER.map((status) => {
+          const z = ZONE[status];
+          const x = z.x0 * w + 8;
+          const y = z.y0 * h;
+          const rw = (z.x1 - z.x0) * w - 16;
+          const rh = (z.y1 - z.y0) * h;
           return (
-            <path
+            <rect
               key={status}
-              d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`}
-              fill={fill}
-              className="pointer-events-none"
-            />
-          );
-        })}
-
-        {[0, 1, 2].map((k) => {
-          const a = (-5 * Math.PI) / 6 + (k * (2 * Math.PI)) / 3;
-          const x = cx + 190 * Math.cos(a);
-          const y = cy + 190 * Math.sin(a);
-          return (
-            <line
-              key={k}
-              x1={cx}
-              y1={cy}
-              x2={x}
-              y2={y}
-              stroke="rgba(148, 163, 184, 0.12)"
+              x={x}
+              y={y}
+              width={rw}
+              height={rh}
+              rx={14}
+              fill={z.fill}
+              stroke="rgba(148, 163, 184, 0.1)"
               strokeWidth="1"
-              strokeDasharray="3 5"
               className="pointer-events-none"
             />
           );
         })}
 
-        <circle
-          cx={cx}
-          cy={cy}
-          r={124}
-          fill="none"
-          stroke="rgba(148, 163, 184, 0.12)"
-          strokeWidth="1"
-          strokeDasharray="4 6"
-          className="pointer-events-none"
-        />
+        {[0.31, 0.69].map((gx) => (
+          <line
+            key={gx}
+            x1={gx * w}
+            y1={h * 0.08}
+            x2={gx * w}
+            y2={h * 0.92}
+            stroke="rgba(148, 163, 184, 0.09)"
+            strokeWidth="1"
+            strokeDasharray="4 7"
+            className="pointer-events-none"
+          />
+        ))}
+
+        {[
+          { status: 'proposed' as const, label: labels.proposed, gx: 0.165 },
+          { status: 'active' as const, label: labels.active, gx: 0.5 },
+          { status: 'ended' as const, label: labels.ended, gx: 0.835 },
+        ].map(({ status, label, gx }) => (
+          <text
+            key={status}
+            x={gx * w}
+            y={28}
+            textAnchor="middle"
+            fill="rgba(148, 163, 184, 0.75)"
+            fontSize="10"
+            fontWeight="600"
+            letterSpacing="0.06em"
+            className="pointer-events-none select-none"
+          >
+            {label}
+          </text>
+        ))}
 
         {layout.map(({ p, x, y, angle, cx: rcx, cy: rcy }) => {
           const col = STATUS_COLOR[p.status];
           const rVis = p.status === 'active' ? 11 : 9;
           const handleActivate = () => onNodeClick?.(p);
-          const lx = x + Math.cos(angle) * 22;
-          const ly = y + Math.sin(angle) * 22;
-          const short = p.title.length > 7 ? `${p.title.slice(0, 6)}…` : p.title;
+          const lx = x + Math.cos(angle) * 24;
+          const ly = y + Math.sin(angle) * 24;
+          const short = p.title.length > 8 ? `${p.title.slice(0, 7)}…` : p.title;
           return (
             <g key={p.id}>
               <line
@@ -209,14 +276,14 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
                 x2={x}
                 y2={y}
                 stroke={col.stroke}
-                strokeWidth="1.2"
-                strokeOpacity={0.4}
+                strokeWidth="1"
+                strokeOpacity={0.28}
                 className="pointer-events-none"
               />
               <circle
                 cx={x}
                 cy={y}
-                r={22}
+                r={24}
                 fill="transparent"
                 className={interactive ? 'cursor-pointer' : undefined}
                 onClick={interactive ? handleActivate : undefined}
@@ -236,7 +303,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
                 y={ly}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill="rgba(226, 232, 240, 0.88)"
+                fill="rgba(226, 232, 240, 0.9)"
                 fontSize="9"
                 className="pointer-events-none select-none"
               >
@@ -249,17 +316,17 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
         <circle
           cx={cx}
           cy={cy}
-          r={38}
+          r={40}
           fill="rgba(139, 92, 246, 0.22)"
-          stroke="rgba(167, 139, 250, 0.9)"
+          stroke="rgba(167, 139, 250, 0.95)"
           strokeWidth="2"
           filter={`url(#${filterId})`}
           className="pointer-events-none"
         />
-        <text x={cx} y={cy - 4} textAnchor="middle" fill="#e2e8f0" fontSize="11" fontWeight="700">
+        <text x={cx} y={cy - 4} textAnchor="middle" fill="#e2e8f0" fontSize="12" fontWeight="700">
           {labels.center}
         </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(148, 163, 184, 0.95)" fontSize="8">
+        <text x={cx} y={cy + 11} textAnchor="middle" fill="rgba(148, 163, 184, 0.95)" fontSize="8">
           {labels.nodeCount}
         </text>
       </svg>
