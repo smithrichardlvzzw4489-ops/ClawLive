@@ -47,11 +47,6 @@ export default function EvolutionNetworkPage() {
             endedCount={ended.length}
           />
         </div>
-
-        <div className="mx-auto mt-6 max-w-6xl rounded-xl border border-white/[0.06] bg-violet-950/20 px-4 py-3 text-xs leading-relaxed text-slate-400">
-          <span className="font-semibold text-slate-300">{t('evolutionNetwork.rulesTitle')}：</span>
-          {t('evolutionNetwork.rulesShort')}
-        </div>
       </div>
     </MainLayout>
   );
