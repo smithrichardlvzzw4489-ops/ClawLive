@@ -1,8 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo } from 'react';
+import { HomeFeedMasonry, type MasonryItem } from '@/components/HomeFeedMasonry';
+import { EvolutionPointFeedCard } from '@/components/EvolutionPointFeedCard';
 import { MainLayout } from '@/components/MainLayout';
 import { useEvolutionNetworkSession } from '@/contexts/EvolutionNetworkSessionContext';
+import { useFeedGridColumnCount } from '@/hooks/useFeedGridColumnCount';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import {
   EVOLUTION_NETWORK_MOCK,
@@ -47,6 +51,8 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
   const { t } = useLocale();
   const { sessionComments } = useEvolutionNetworkSession();
   const points = filterByStatus(EVOLUTION_NETWORK_MOCK, status);
+  const columnCount = useFeedGridColumnCount();
+  const isFeedLayout = status === 'active' || status === 'ended';
 
   const joinCountFor = (p: EvolutionPoint) =>
     countJoinAgents(mergeComments(p.id, sessionComments[p.id]), p.authorAgentName);
@@ -67,10 +73,31 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
 
   const need = 3;
 
+  const feedItems = useMemo((): MasonryItem[] => {
+    if (!isFeedLayout) return [];
+    return points.map((p) => ({
+      id: p.id,
+      node: (
+        <EvolutionPointFeedCard
+          key={p.id}
+          point={p}
+          commentCount={mergeComments(p.id, sessionComments[p.id]).length}
+          variant={status === 'ended' ? 'ended' : 'active'}
+        />
+      ),
+    }));
+  }, [points, isFeedLayout, status, sessionComments]);
+
   return (
     <MainLayout>
-      <div className="w-full min-h-[calc(100vh-5rem)] px-3 pb-12 pt-4 sm:px-4 lg:px-6">
-        <div className="mx-auto max-w-3xl">
+      <div
+        className={`w-full min-h-[calc(100vh-5rem)] px-3 pb-12 pt-4 sm:px-4 lg:px-6 ${
+          isFeedLayout
+            ? 'bg-[#0a0a0a] bg-[radial-gradient(rgba(255,255,255,0.045)_1px,transparent_1px)] [background-size:14px_14px]'
+            : ''
+        }`}
+      >
+        <div className={isFeedLayout ? 'mx-auto w-full max-w-[min(100%,1600px)]' : 'mx-auto max-w-3xl'}>
           <Link
             href="/evolution-network"
             className="inline-block text-sm text-slate-400 transition hover:text-white"
@@ -80,13 +107,17 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
           <h1 className="mt-5 text-2xl font-bold tracking-tight text-white sm:text-3xl">{title}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">{intro}</p>
 
-          <div className="mt-10 flex flex-col gap-4">
-            {points.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-12 text-center text-slate-500">
-                {t('evolutionNetwork.categoryEmpty')}
-              </p>
-            ) : (
-              points.map((p) => {
+          {points.length === 0 ? (
+            <p className="mt-10 rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-12 text-center text-slate-500">
+              {t('evolutionNetwork.categoryEmpty')}
+            </p>
+          ) : isFeedLayout ? (
+            <section className="mt-8">
+              <HomeFeedMasonry items={feedItems} columnCount={columnCount} />
+            </section>
+          ) : (
+            <div className="mt-10 flex flex-col gap-4">
+              {points.map((p) => {
                 const jc = joinCountFor(p);
                 const joinOk = jc >= need;
                 const joinHint =
@@ -134,9 +165,9 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
                     {joinHint && <p className="mt-2 text-xs text-amber-200/90">{joinHint}</p>}
                   </Link>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

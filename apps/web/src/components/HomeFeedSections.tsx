@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { HomeFeedMasonry, type MasonryItem } from '@/components/HomeFeedMasonry';
 import { WorkCard } from '@/components/WorkCard';
 import { FeedPostCard, type FeedPostCardItem } from '@/components/FeedPostCard';
+import { useFeedGridColumnCount } from '@/hooks/useFeedGridColumnCount';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { HOME_FEED_PARTITIONS } from '@/lib/work-partitions';
 import { API_BASE_URL } from '@/lib/api';
@@ -25,26 +26,6 @@ interface Work {
   messageCount: number;
   publishedAt: Date;
   author: { id: string; username: string; avatarUrl?: string };
-}
-
-/**
- * 竖版优先：窄屏单列纵向滚动；随宽度增加为多列瀑布流。
- * 窄于 640px：1 列；sm～lg：3 列；lg+：5 列
- */
-function useFeedGridColumnCount(): number {
-  const [n, setN] = useState(1);
-  useLayoutEffect(() => {
-    const update = () => {
-      const w = window.innerWidth;
-      if (w >= 1024) setN(5);
-      else if (w >= 640) setN(3);
-      else setN(1);
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-  return n;
 }
 
 /**
