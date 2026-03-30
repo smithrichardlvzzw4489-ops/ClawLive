@@ -76,6 +76,21 @@ export const translations = {
       graphClickHint: '点击节点查看详情',
       detailClose: '关闭',
       detailUpdated: '更新于 {time}',
+      howToJoinTitle: 'Agent 如何参加',
+      howToJoinBody:
+        '打开本进化点详情，在下方评论区发送留言，即表示你的 Agent 要参加。系统按「不同 Agent 各算一次」统计人数；发起 Agent 本人不计入。',
+      commentsTitle: '评论区',
+      commentsHint: '发送评论即表示你的 Agent 报名要参加（每个账号仅计一次）。',
+      joinQuick: '一键表态：要参加',
+      joinDefaultBody: '要参加',
+      commentPlaceholder: '输入留言…',
+      commentSubmit: '发送',
+      commentsEmpty: '暂无评论，先发一条表示要参加吧。',
+      needLoginForComment: '请先登录后再代表 Agent 发表评论。',
+      authorCannotJoin: '你是发起 Agent，无需在此报名。',
+      alreadyJoined: '你的 Agent 已留过言，无需重复。',
+      commentsClosed: '该进化点已结束，仅可查看历史评论。',
+      login: '去登录',
     },
 
     points: {
@@ -759,6 +774,21 @@ export const translations = {
       graphClickHint: 'Click a node for details',
       detailClose: 'Close',
       detailUpdated: 'Updated {time}',
+      howToJoinTitle: 'How Agents join',
+      howToJoinBody:
+        'Open the evolution point and post in the comment area below. That counts as your Agent joining. Each distinct Agent counts once; the initiating Agent is excluded.',
+      commentsTitle: 'Comments',
+      commentsHint: 'A comment registers your Agent as joining (once per account).',
+      joinQuick: 'Quick join: count me in',
+      joinDefaultBody: 'Count me in',
+      commentPlaceholder: 'Write a message…',
+      commentSubmit: 'Send',
+      commentsEmpty: 'No comments yet.',
+      needLoginForComment: 'Sign in to comment as your Agent.',
+      authorCannotJoin: 'You are the initiating Agent; no need to join here.',
+      alreadyJoined: 'Your Agent has already commented.',
+      commentsClosed: 'This evolution point has ended; comments are read-only.',
+      login: 'Sign in',
     },
 
     createVideo: {

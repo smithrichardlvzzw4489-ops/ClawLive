@@ -1,15 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
 import { MainLayout } from '@/components/MainLayout';
 import { EvolutionNetworkGraph } from '@/components/EvolutionNetworkGraph';
 import {
   EVOLUTION_NETWORK_MOCK,
   filterByStatus,
+  mergeComments,
+  countJoinAgents,
+  type EvolutionComment,
   type EvolutionEndReason,
   type EvolutionPoint,
 } from '@/lib/evolution-network';
 import { useLocale } from '@/lib/i18n/LocaleContext';
+import { useAuth } from '@/hooks/useAuth';
 
 function endReasonText(t: (k: string, params?: Record<string, string>) => string, reason: EvolutionEndReason): string {
   if (!reason) return '—';
@@ -34,11 +39,47 @@ function problemsPreview(p: EvolutionPoint): string {
 function EvolutionPointDetailModal({
   point,
   onClose,
+  comments,
+  effectiveJoinCount,
+  onSubmitComment,
+  submitError,
+  onDismissSubmitError,
+  currentUserName,
+  isAuthenticated,
 }: {
   point: EvolutionPoint;
   onClose: () => void;
+  comments: EvolutionComment[];
+  effectiveJoinCount: number;
+  onSubmitComment: (body: string) => void;
+  submitError: string | null;
+  onDismissSubmitError: () => void;
+  currentUserName: string | null;
+  isAuthenticated: boolean;
 }) {
   const { t } = useLocale();
+  const [draft, setDraft] = useState('');
+
+  const need = 3;
+  const joinOk = effectiveJoinCount >= need;
+  const joinHint =
+    point.status === 'proposed'
+      ? joinOk
+        ? t('evolutionNetwork.readyToStart')
+        : t('evolutionNetwork.needMoreJoin', { n: String(need - effectiveJoinCount) })
+      : null;
+
+  const timeStr = new Date(point.updatedAt).toLocaleString('zh-CN', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+
+  const commentsOpen = point.status !== 'ended';
+  const isAuthor =
+    Boolean(currentUserName) && currentUserName === point.authorAgentName;
+  const alreadyJoined =
+    Boolean(currentUserName) &&
+    comments.some((c) => c.authorAgentName === currentUserName);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,19 +89,10 @@ function EvolutionPointDetailModal({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const need = 3;
-  const joinOk = point.joinCount >= need;
-  const joinHint =
-    point.status === 'proposed'
-      ? joinOk
-        ? t('evolutionNetwork.readyToStart')
-        : t('evolutionNetwork.needMoreJoin', { n: String(need - point.joinCount) })
-      : null;
-
-  const timeStr = new Date(point.updatedAt).toLocaleString('zh-CN', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  });
+  useEffect(() => {
+    setDraft('');
+    onDismissSubmitError();
+  }, [point.id, onDismissSubmitError]);
 
   return (
     <div
@@ -73,6 +105,7 @@ function EvolutionPointDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="evo-detail-title"
+        onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
@@ -116,7 +149,7 @@ function EvolutionPointDetailModal({
           </div>
           <div>
             <dt className="text-slate-600">{t('evolutionNetwork.cardJoin')}</dt>
-            <dd className="mt-0.5 font-medium text-slate-200">{point.joinCount}</dd>
+            <dd className="mt-0.5 font-medium text-slate-200">{effectiveJoinCount}</dd>
           </div>
           <div>
             <dt className="text-slate-600">{t('evolutionNetwork.cardArticles')}</dt>
@@ -133,20 +166,108 @@ function EvolutionPointDetailModal({
         {joinHint && <p className="mt-3 text-sm text-amber-200/90">{joinHint}</p>}
 
         <p className="mt-4 text-xs text-slate-500">{t('evolutionNetwork.detailUpdated', { time: timeStr })}</p>
+
+        <div className="mt-6 border-t border-white/10 pt-5">
+          <h3 className="text-sm font-semibold text-slate-200">{t('evolutionNetwork.commentsTitle')}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{t('evolutionNetwork.commentsHint')}</p>
+
+          <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-white/[0.06] bg-black/20 p-3">
+            {comments.length === 0 ? (
+              <li className="text-sm text-slate-500">{t('evolutionNetwork.commentsEmpty')}</li>
+            ) : (
+              comments.map((c) => (
+                <li key={c.id} className="border-b border-white/[0.04] pb-2 last:border-0 last:pb-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-1">
+                    <span className="text-xs font-medium text-cyan-200/90">{c.authorAgentName}</span>
+                    <time className="text-[10px] text-slate-600" dateTime={c.createdAt}>
+                      {new Date(c.createdAt).toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' })}
+                    </time>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-sm text-slate-300">{c.body}</p>
+                </li>
+              ))
+            )}
+          </ul>
+
+          {!commentsOpen && (
+            <p className="mt-3 text-xs text-slate-500">{t('evolutionNetwork.commentsClosed')}</p>
+          )}
+
+          {commentsOpen && (
+            <div className="mt-3 space-y-2">
+              {!isAuthenticated && (
+                <p className="text-sm text-amber-200/90">
+                  {t('evolutionNetwork.needLoginForComment')}{' '}
+                  <Link href="/login" className="underline hover:text-white">
+                    {t('evolutionNetwork.login')}
+                  </Link>
+                </p>
+              )}
+              {isAuthenticated && isAuthor && (
+                <p className="text-xs text-slate-500">{t('evolutionNetwork.authorCannotJoin')}</p>
+              )}
+              {isAuthenticated && !isAuthor && alreadyJoined && (
+                <p className="text-xs text-slate-500">{t('evolutionNetwork.alreadyJoined')}</p>
+              )}
+              {submitError && <p className="text-xs text-red-400/90">{submitError}</p>}
+              {isAuthenticated && !isAuthor && !alreadyJoined && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onSubmitComment(t('evolutionNetwork.joinDefaultBody'))}
+                    className="w-full rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+                  >
+                    {t('evolutionNetwork.joinQuick')}
+                  </button>
+                  <textarea
+                    value={draft}
+                    onChange={(e) => {
+                      onDismissSubmitError();
+                      setDraft(e.target.value);
+                    }}
+                    placeholder={t('evolutionNetwork.commentPlaceholder')}
+                    rows={3}
+                    className="w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = draft.trim();
+                      if (!trimmed) return;
+                      onSubmitComment(trimmed);
+                      setDraft('');
+                    }}
+                    className="rounded-lg bg-lobster px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+                  >
+                    {t('evolutionNetwork.commentSubmit')}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function EvolutionCard({ point, onSelect }: { point: EvolutionPoint; onSelect?: () => void }) {
+function EvolutionCard({
+  point,
+  onSelect,
+  joinCountDisplay,
+}: {
+  point: EvolutionPoint;
+  onSelect?: () => void;
+  joinCountDisplay: number;
+}) {
   const { t } = useLocale();
   const need = 3;
-  const joinOk = point.joinCount >= need;
+  const joinOk = joinCountDisplay >= need;
   const joinHint =
     point.status === 'proposed'
       ? joinOk
         ? t('evolutionNetwork.readyToStart')
-        : t('evolutionNetwork.needMoreJoin', { n: String(need - point.joinCount) })
+        : t('evolutionNetwork.needMoreJoin', { n: String(need - joinCountDisplay) })
       : null;
 
   return (
@@ -181,7 +302,7 @@ function EvolutionCard({ point, onSelect }: { point: EvolutionPoint; onSelect?: 
         </div>
         <div>
           <dt className="text-slate-600">{t('evolutionNetwork.cardJoin')}</dt>
-          <dd className="font-medium text-slate-300">{point.joinCount}</dd>
+          <dd className="font-medium text-slate-300">{joinCountDisplay}</dd>
         </div>
         <div>
           <dt className="text-slate-600">{t('evolutionNetwork.cardArticles')}</dt>
@@ -204,11 +325,13 @@ function Section({
   points,
   emptyHint,
   onSelectPoint,
+  joinCountFor,
 }: {
   title: string;
   points: EvolutionPoint[];
   emptyHint: string;
   onSelectPoint?: (p: EvolutionPoint) => void;
+  joinCountFor: (p: EvolutionPoint) => number;
 }) {
   return (
     <section className="flex min-h-0 flex-col gap-3">
@@ -223,6 +346,7 @@ function Section({
             <EvolutionCard
               key={p.id}
               point={p}
+              joinCountDisplay={joinCountFor(p)}
               onSelect={onSelectPoint ? () => onSelectPoint(p) : undefined}
             />
           ))}
@@ -234,13 +358,59 @@ function Section({
 
 export default function EvolutionNetworkPage() {
   const { t } = useLocale();
+  const { user, isAuthenticated } = useAuth();
   const [detail, setDetail] = useState<EvolutionPoint | null>(null);
+  const [sessionComments, setSessionComments] = useState<Record<string, EvolutionComment[]>>({});
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const dismissCommentError = useCallback(() => setCommentError(null), []);
+
   const all = EVOLUTION_NETWORK_MOCK;
   const proposed = filterByStatus(all, 'proposed');
   const active = filterByStatus(all, 'active');
   const ended = filterByStatus(all, 'ended');
 
-  const openDetail = (p: EvolutionPoint) => setDetail(p);
+  const currentAgentName = user?.username ?? null;
+
+  const commentsFor = (p: EvolutionPoint) => mergeComments(p.id, sessionComments[p.id]);
+
+  const joinCountFor = (p: EvolutionPoint) => countJoinAgents(commentsFor(p), p.authorAgentName);
+
+  const openDetail = (p: EvolutionPoint) => {
+    setCommentError(null);
+    setDetail(p);
+  };
+
+  const handleSubmitComment = (body: string) => {
+    if (!detail) return;
+    setCommentError(null);
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    const name = user?.username;
+    if (!isAuthenticated || !name) {
+      setCommentError(t('evolutionNetwork.needLoginForComment'));
+      return;
+    }
+    if (detail.status === 'ended') return;
+    if (name === detail.authorAgentName) {
+      setCommentError(t('evolutionNetwork.authorCannotJoin'));
+      return;
+    }
+    const merged = commentsFor(detail);
+    if (merged.some((c) => c.authorAgentName === name)) {
+      setCommentError(t('evolutionNetwork.alreadyJoined'));
+      return;
+    }
+    const c: EvolutionComment = {
+      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      authorAgentName: name,
+      body: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+    setSessionComments((prev) => ({
+      ...prev,
+      [detail.id]: [...(prev[detail.id] ?? []), c],
+    }));
+  };
 
   return (
     <MainLayout>
@@ -248,6 +418,10 @@ export default function EvolutionNetworkPage() {
         <header className="mx-auto max-w-6xl">
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{t('evolutionNetwork.title')}</h1>
           <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-400 sm:text-base">{t('evolutionNetwork.subtitle')}</p>
+          <div className="mt-4 max-w-3xl rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
+            <h2 className="text-sm font-semibold text-slate-200">{t('evolutionNetwork.howToJoinTitle')}</h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{t('evolutionNetwork.howToJoinBody')}</p>
+          </div>
         </header>
 
         <div className="mx-auto mt-8 max-w-6xl">
@@ -277,23 +451,41 @@ export default function EvolutionNetworkPage() {
             points={proposed}
             emptyHint={t('evolutionNetwork.graphEmpty')}
             onSelectPoint={openDetail}
+            joinCountFor={joinCountFor}
           />
           <Section
             title={t('evolutionNetwork.sectionActive')}
             points={active}
             emptyHint={t('evolutionNetwork.graphEmpty')}
             onSelectPoint={openDetail}
+            joinCountFor={joinCountFor}
           />
           <Section
             title={t('evolutionNetwork.sectionEnded')}
             points={ended}
             emptyHint={t('evolutionNetwork.graphEmpty')}
             onSelectPoint={openDetail}
+            joinCountFor={joinCountFor}
           />
         </div>
       </div>
 
-      {detail && <EvolutionPointDetailModal point={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <EvolutionPointDetailModal
+          point={detail}
+          onClose={() => {
+            setDetail(null);
+            setCommentError(null);
+          }}
+          comments={commentsFor(detail)}
+          effectiveJoinCount={joinCountFor(detail)}
+          onSubmitComment={handleSubmitComment}
+          submitError={commentError}
+          onDismissSubmitError={dismissCommentError}
+          currentUserName={currentAgentName}
+          isAuthenticated={isAuthenticated}
+        />
+      )}
     </MainLayout>
   );
 }
