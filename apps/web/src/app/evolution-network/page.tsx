@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { MainLayout } from '@/components/MainLayout';
+import { EvolutionPointDetailHero } from '@/components/EvolutionPointDetailHero';
 import { EvolutionNetworkGraph } from '@/components/EvolutionNetworkGraph';
 import {
   EVOLUTION_NETWORK_MOCK,
@@ -101,7 +102,7 @@ function EvolutionPointDetailModal({
       role="presentation"
     >
       <div
-        className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#0d1117] p-6 shadow-2xl shadow-cyan-950/40"
+        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-[#0a0a0f] shadow-2xl shadow-cyan-950/40"
         role="dialog"
         aria-modal="true"
         aria-labelledby="evo-detail-title"
@@ -110,58 +111,56 @@ function EvolutionPointDetailModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 rounded-lg px-2 py-1 text-lg leading-none text-slate-400 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/55 text-lg leading-none text-white ring-1 ring-white/15 backdrop-blur-sm transition hover:bg-black/70"
           aria-label={t('evolutionNetwork.detailClose')}
         >
           ✕
         </button>
 
-        <p className="text-xs font-medium uppercase tracking-wide text-cyan-400/90">{statusBadgeText(t, point)}</p>
-        <h2 id="evo-detail-title" className="mt-1 pr-10 text-xl font-bold text-white">
-          {point.title}
-        </h2>
+        <div className="p-4 pt-14">
+          <EvolutionPointDetailHero
+            point={point}
+            joinCount={effectiveJoinCount}
+            statusLabel={statusBadgeText(t, point)}
+            joinCountTitle={t('evolutionNetwork.cardJoin')}
+          />
 
-        <dl className="mt-4 space-y-3 text-sm text-slate-300">
-          <div>
-            <dt className="text-xs text-slate-500">{t('evolutionNetwork.cardGoal')}</dt>
-            <dd className="mt-0.5 leading-relaxed">{point.goal}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-slate-500">{t('evolutionNetwork.cardProblems')}</dt>
-            <dd className="mt-0.5">
+          <div className="mt-5 rounded-xl border border-cyan-500/25 bg-[#05080c] bg-[radial-gradient(rgba(255,255,255,0.055)_1px,transparent_1px)] [background-size:14px_14px] p-4 ring-1 ring-white/[0.06]">
+            <p className="text-sm leading-relaxed text-slate-200">
+              <span className="text-slate-500">{t('evolutionNetwork.cardGoal')}：</span>
+              {point.goal}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-300">
+              <span className="text-slate-500">{t('evolutionNetwork.cardProblems')}：</span>
               {point.problems.length === 0 ? (
                 '—'
               ) : (
-                <ul className="list-inside list-disc space-y-1 leading-relaxed text-slate-400">
-                  {point.problems.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ul>
+                <span className="text-slate-200">{point.problems.join('；')}</span>
               )}
-            </dd>
+            </p>
           </div>
-        </dl>
 
-        <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs text-slate-400">
-          <div>
-            <dt className="text-slate-600">{t('evolutionNetwork.cardAuthor')}</dt>
-            <dd className="mt-0.5 font-medium text-slate-200">{point.authorAgentName}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-600">{t('evolutionNetwork.cardJoin')}</dt>
-            <dd className="mt-0.5 font-medium text-slate-200">{effectiveJoinCount}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-600">{t('evolutionNetwork.cardArticles')}</dt>
-            <dd className="mt-0.5 font-medium text-slate-200">{point.articleCount}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-600">{t('evolutionNetwork.cardEndReason')}</dt>
-            <dd className="mt-0.5 font-medium text-slate-200">
-              {point.status === 'ended' ? endReasonText(t, point.endReason) : '—'}
-            </dd>
-          </div>
-        </dl>
+          <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs text-slate-400">
+            <div>
+              <dt className="text-slate-600">{t('evolutionNetwork.cardAuthor')}</dt>
+              <dd className="mt-0.5 font-medium text-slate-200">{point.authorAgentName}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-600">{t('evolutionNetwork.cardJoin')}</dt>
+              <dd className="mt-0.5 font-medium text-slate-200">{effectiveJoinCount}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-600">{t('evolutionNetwork.cardArticles')}</dt>
+              <dd className="mt-0.5 font-medium text-slate-200">{point.articleCount}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-600">{t('evolutionNetwork.cardEndReason')}</dt>
+              <dd className="mt-0.5 font-medium text-slate-200">
+                {point.status === 'ended' ? endReasonText(t, point.endReason) : '—'}
+              </dd>
+            </div>
+          </dl>
+        </div>
 
         {joinHint && <p className="mt-3 text-sm text-amber-200/90">{joinHint}</p>}
 
@@ -196,10 +195,14 @@ function EvolutionPointDetailModal({
           {commentsOpen && (
             <div className="mt-3 space-y-2">
               {!isAuthenticated && (
-                <p className="text-sm text-amber-200/90">
-                  {t('evolutionNetwork.needLoginForComment')}{' '}
-                  <Link href="/login" className="underline hover:text-white">
-                    {t('evolutionNetwork.login')}
+                <p className="text-sm leading-relaxed text-amber-200/90">
+                  {t('evolutionNetwork.needAccountForComment')}{' '}
+                  <Link href="/register" className="font-medium underline hover:text-white">
+                    {t('evolutionNetwork.goRegister')}
+                  </Link>
+                  <span className="text-slate-500"> · </span>
+                  <Link href="/login" className="text-slate-400 underline hover:text-white">
+                    {t('evolutionNetwork.goLogin')}
                   </Link>
                 </p>
               )}
@@ -387,7 +390,7 @@ export default function EvolutionNetworkPage() {
     if (!trimmed) return;
     const name = user?.username;
     if (!isAuthenticated || !name) {
-      setCommentError(t('evolutionNetwork.needLoginForComment'));
+      setCommentError(t('evolutionNetwork.needAccountForComment'));
       return;
     }
     if (detail.status === 'ended') return;
