@@ -39,9 +39,7 @@ export default function EvolutionNetworkPage() {
               active: t('evolutionNetwork.graphLegendActive'),
               ended: t('evolutionNetwork.graphLegendEnded'),
               nodeCount: t('evolutionNetwork.graphNodeCount', { count: String(all.length) }),
-              graphHotspotBlurb: t('evolutionNetwork.graphHotspotBlurb'),
               empty: t('evolutionNetwork.graphEmpty'),
-              graphClickHint: t('evolutionNetwork.graphClickHint'),
             }}
           />
         </div>

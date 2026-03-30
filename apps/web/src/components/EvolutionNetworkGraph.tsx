@@ -81,10 +81,7 @@ type Props = {
     active: string;
     ended: string;
     nodeCount: string;
-    /** 说明总览图为每类热点，非全量 */
-    graphHotspotBlurb?: string;
     empty: string;
-    graphClickHint?: string;
   };
 };
 
@@ -168,16 +165,8 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const interactive = Boolean(onNodeClick);
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#050810] via-[#0d1117] to-[#0a0814] shadow-[0_0_48px_rgba(34,211,238,0.1)]">
+    <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#050810] via-[#0d1117] to-[#0a0814] shadow-[0_0_48px_rgba(34,211,238,0.1)] pt-2">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_45%,rgba(88,28,135,0.14),transparent_60%)]" />
-      {labels.graphClickHint && (
-        <p className="relative z-10 px-3 pb-0 pt-2 text-center text-[11px] text-slate-500">{labels.graphClickHint}</p>
-      )}
-      {labels.graphHotspotBlurb && (
-        <p className="relative z-10 px-4 pb-1 pt-1 text-center text-[11px] leading-relaxed text-slate-500">
-          {labels.graphHotspotBlurb}
-        </p>
-      )}
       <svg
         viewBox={`0 0 ${w} ${h}`}
         className="relative z-[1] h-auto w-full min-h-[320px] max-h-[480px]"
