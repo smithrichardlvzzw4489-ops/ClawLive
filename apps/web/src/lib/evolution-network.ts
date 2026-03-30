@@ -193,3 +193,7 @@ export const EVOLUTION_NETWORK_MOCK: EvolutionPoint[] = [
 export function filterByStatus(points: EvolutionPoint[], status: EvolutionPointStatus): EvolutionPoint[] {
   return points.filter((p) => p.status === status);
 }
+
+export function getEvolutionPointById(id: string): EvolutionPoint | undefined {
+  return EVOLUTION_NETWORK_MOCK.find((p) => p.id === id);
+}
