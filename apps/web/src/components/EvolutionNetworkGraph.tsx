@@ -21,6 +21,15 @@ const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string;
   },
 };
 
+/** 三类各占 120°，从顶侧「提议」起顺时针：提议 → 进化中 → 已结束 */
+const SECTOR: Record<EvolutionPointStatus, { start: number; span: number }> = {
+  proposed: { start: (-5 * Math.PI) / 6, span: (2 * Math.PI) / 3 },
+  active: { start: -Math.PI / 6, span: (2 * Math.PI) / 3 },
+  ended: { start: Math.PI / 2, span: (2 * Math.PI) / 3 },
+};
+
+const STATUS_ORDER: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
+
 type Props = {
   points: EvolutionPoint[];
   /** 点击轨道上的进化点节点时回调（用于打开详情等） */
@@ -38,24 +47,62 @@ type Props = {
   };
 };
 
+function groupByStatus(points: EvolutionPoint[]): Record<EvolutionPointStatus, EvolutionPoint[]> {
+  const out: Record<EvolutionPointStatus, EvolutionPoint[]> = {
+    proposed: [],
+    active: [],
+    ended: [],
+  };
+  for (const p of points) {
+    out[p.status].push(p);
+  }
+  for (const s of STATUS_ORDER) {
+    out[s].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  }
+  return out;
+}
+
+type LayoutItem = {
+  p: EvolutionPoint;
+  x: number;
+  y: number;
+  /** 自中心指向节点，用于标签外移 */
+  angle: number;
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+};
+
 /**
- * 轻量 SVG：中心枢纽 + 进化点沿轨道分布，颜色区分状态，营造「网络」直觉。
+ * 中心枢纽 + 按状态分扇区：每类占 120°，节点沿弧分布，避免单环挤成一团。
  */
 export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const filterId = useId().replace(/:/g, '');
   const layout = useMemo(() => {
-    const w = 520;
-    const h = 320;
+    const w = 580;
+    const h = 420;
     const cx = w / 2;
-    const cy = h / 2 + 8;
-    const rOrbit = 118;
-    const n = Math.max(points.length, 1);
-    return points.map((p, i) => {
-      const angle = (2 * Math.PI * i) / n - Math.PI / 2;
-      const x = cx + rOrbit * Math.cos(angle);
-      const y = cy + rOrbit * Math.sin(angle);
-      return { p, x, y, cx, cy, w, h };
-    });
+    const cy = h / 2 + 6;
+    const rOrbit = 124;
+    const grouped = groupByStatus(points);
+    const items: LayoutItem[] = [];
+
+    for (const status of STATUS_ORDER) {
+      const list = grouped[status];
+      const { start, span } = SECTOR[status];
+      const n = list.length;
+      if (n === 0) continue;
+      for (let i = 0; i < n; i++) {
+        const p = list[i];
+        const angle = start + ((i + 0.5) * span) / n;
+        const x = cx + rOrbit * Math.cos(angle);
+        const y = cy + rOrbit * Math.sin(angle);
+        items.push({ p, x, y, angle, cx, cy, w, h });
+      }
+    }
+
+    return items;
   }, [points]);
 
   if (points.length === 0) {
@@ -71,6 +118,13 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
 
   const interactive = Boolean(onNodeClick);
 
+  /** 扇区背景：极淡色块 + 分界虚线 */
+  const sectorBg = [
+    { status: 'proposed' as const, fill: 'rgba(245, 158, 11, 0.06)' },
+    { status: 'active' as const, fill: 'rgba(34, 211, 238, 0.06)' },
+    { status: 'ended' as const, fill: 'rgba(148, 163, 184, 0.06)' },
+  ];
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-cyan-500/20 bg-gradient-to-b from-[#0a1628] via-[#0d1117] to-[#0f0a1a] shadow-[0_0_40px_rgba(34,211,238,0.12)]">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(139,92,246,0.12),transparent_55%)]" />
@@ -79,7 +133,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
       )}
       <svg
         viewBox={`0 0 ${w} ${h}`}
-        className="h-auto w-full max-h-[340px]"
+        className="h-auto w-full max-h-[440px]"
         aria-hidden={!interactive}
       >
         <defs>
@@ -92,32 +146,71 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           </filter>
         </defs>
 
-        {/* 虚线轨道 */}
+        {sectorBg.map(({ status, fill }) => {
+          const { start, span } = SECTOR[status];
+          const r = 200;
+          const x1 = cx + r * Math.cos(start);
+          const y1 = cy + r * Math.sin(start);
+          const x2 = cx + r * Math.cos(start + span);
+          const y2 = cy + r * Math.sin(start + span);
+          const largeArc = span > Math.PI ? 1 : 0;
+          return (
+            <path
+              key={status}
+              d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+              fill={fill}
+              className="pointer-events-none"
+            />
+          );
+        })}
+
+        {[0, 1, 2].map((k) => {
+          const a = (-5 * Math.PI) / 6 + (k * (2 * Math.PI)) / 3;
+          const x = cx + 190 * Math.cos(a);
+          const y = cy + 190 * Math.sin(a);
+          return (
+            <line
+              key={k}
+              x1={cx}
+              y1={cy}
+              x2={x}
+              y2={y}
+              stroke="rgba(148, 163, 184, 0.12)"
+              strokeWidth="1"
+              strokeDasharray="3 5"
+              className="pointer-events-none"
+            />
+          );
+        })}
+
         <circle
           cx={cx}
           cy={cy}
-          r={118}
+          r={124}
           fill="none"
-          stroke="rgba(148, 163, 184, 0.15)"
+          stroke="rgba(148, 163, 184, 0.12)"
           strokeWidth="1"
           strokeDasharray="4 6"
           className="pointer-events-none"
         />
 
-        {layout.map(({ p, x, y }) => {
+        {layout.map(({ p, x, y, angle, cx: rcx, cy: rcy }) => {
           const col = STATUS_COLOR[p.status];
           const rVis = p.status === 'active' ? 11 : 9;
           const handleActivate = () => onNodeClick?.(p);
+          const lx = x + Math.cos(angle) * 22;
+          const ly = y + Math.sin(angle) * 22;
+          const short = p.title.length > 7 ? `${p.title.slice(0, 6)}…` : p.title;
           return (
             <g key={p.id}>
               <line
-                x1={cx}
-                y1={cy}
+                x1={rcx}
+                y1={rcy}
                 x2={x}
                 y2={y}
                 stroke={col.stroke}
                 strokeWidth="1.2"
-                strokeOpacity={0.45}
+                strokeOpacity={0.4}
                 className="pointer-events-none"
               />
               <circle
@@ -139,25 +232,25 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
                 className={`pointer-events-none ${p.status === 'active' ? 'animate-pulse' : ''}`}
               />
               <text
-                x={x}
-                y={y + 22}
+                x={lx}
+                y={ly}
                 textAnchor="middle"
-                fill="rgba(226, 232, 240, 0.85)"
+                dominantBaseline="middle"
+                fill="rgba(226, 232, 240, 0.88)"
                 fontSize="9"
                 className="pointer-events-none select-none"
               >
-                {p.title.length > 8 ? `${p.title.slice(0, 7)}…` : p.title}
+                {short}
               </text>
             </g>
           );
         })}
 
-        {/* 中心节点 */}
         <circle
           cx={cx}
           cy={cy}
-          r={36}
-          fill="rgba(139, 92, 246, 0.2)"
+          r={38}
+          fill="rgba(139, 92, 246, 0.22)"
           stroke="rgba(167, 139, 250, 0.9)"
           strokeWidth="2"
           filter={`url(#${filterId})`}
