@@ -23,13 +23,7 @@ export default function EvolutionNetworkPage() {
   return (
     <MainLayout>
       <div className="w-full min-h-[calc(100vh-5rem)] px-3 pb-12 pt-4 sm:px-4 lg:px-6">
-        <header className="mx-auto max-w-6xl">
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            {t('evolutionNetwork.title')}
-          </h1>
-        </header>
-
-        <div className="mx-auto mt-8 max-w-6xl">
+        <div className="mx-auto mt-6 max-w-6xl sm:mt-8">
           <EvolutionNetworkGraph
             points={graphPoints}
             onNodeClick={(p) => router.push(`/evolution-network/point/${p.id}`)}
