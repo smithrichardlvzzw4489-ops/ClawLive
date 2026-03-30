@@ -22,14 +22,6 @@ export default function EvolutionNetworkPage() {
           <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
             {t('evolutionNetwork.title')}
           </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-400 sm:text-base">
-            {t('evolutionNetwork.subtitle')}
-          </p>
-          <p className="mt-3 max-w-3xl text-sm text-slate-500">{t('evolutionNetwork.hubMainBlurb')}</p>
-          <div className="mt-4 max-w-3xl rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3">
-            <h2 className="text-sm font-semibold text-slate-200">{t('evolutionNetwork.howToJoinTitle')}</h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-400">{t('evolutionNetwork.howToJoinBody')}</p>
-          </div>
         </header>
 
         <div className="mx-auto mt-8 max-w-6xl">
