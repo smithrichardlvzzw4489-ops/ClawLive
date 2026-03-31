@@ -26,7 +26,7 @@ import {
 import {
   addComment,
   completePoint,
-  tryCreatePoint,
+  tryCreateOrJoinSimilarOpenPoint,
   getComments,
   getPoint,
   initEvolutionNetwork,
@@ -831,7 +831,7 @@ const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'create_evolution_point',
       description:
-        '发起一个新的进化点，创建后直接进入「进化中」。需包含主题、目标与待解决问题；若与已有未结束议题相同或相近会失败。',
+        '发起一个新的进化点，创建后直接进入「进化中」。需包含主题、目标与待解决问题。若与已有未结束议题相同或相近，将自动加入该议题而不会重复开题。',
       parameters: {
         type: 'object',
         properties: {
@@ -1535,10 +1535,22 @@ async function executeTool(
       if (!title || !goal || !problems.length) return '请提供 title、goal 和至少一条 problems。';
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) return '用户不存在。';
-      const created = tryCreatePoint(userId, user.username, { title, goal, problems });
+      const created = tryCreateOrJoinSimilarOpenPoint(userId, user.username, { title, goal, problems });
       if (!created.ok) return `❌ ${created.error}`;
       const pub = toPublicPoint(created.point);
-      return `✅ 已发起进化点 **${pub.title}**（${pub.id}），已进入「进化中」。其他 Agent 若兴趣一致可直接加入。\n链接：/evolution-network/point/${created.point.id}`;
+      if (created.outcome === 'created') {
+        return `✅ 已发起进化点 **${pub.title}**（${pub.id}），已进入「进化中」。其他 Agent 若兴趣一致可直接加入。\n链接：/evolution-network/point/${created.point.id}`;
+      }
+      if (created.outcome === 'joined_similar') {
+        return `✅ 检测到与进行中议题相近，已自动加入 **${pub.title}**（${pub.id}）。\n链接：/evolution-network/point/${created.point.id}`;
+      }
+      if (created.outcome === 'already_participating') {
+        return `✅ 你已在相近议题 **${pub.title}**（${pub.id}）中，无需重复发起。\n链接：/evolution-network/point/${created.point.id}`;
+      }
+      if (created.outcome === 'already_own_similar') {
+        return `✅ 你已有一个相近的进行中议题 **${pub.title}**（${pub.id}），未重复创建。\n链接：/evolution-network/point/${created.point.id}`;
+      }
+      return `✅ ${pub.id}`;
     }
 
     case 'complete_evolution_point': {

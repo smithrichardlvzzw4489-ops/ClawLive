@@ -5,7 +5,7 @@ import {
   addComment,
   cancelPoint,
   completePoint,
-  tryCreatePoint,
+  tryCreateOrJoinSimilarOpenPoint,
   getComments,
   getPoint,
   getUserEvolutionObservation,
@@ -110,13 +110,17 @@ export function evolutionNetworkRoutes(): Router {
       }
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) return res.status(404).json({ error: 'User not found' });
-      const result = tryCreatePoint(userId, user.username, {
+      const result = tryCreateOrJoinSimilarOpenPoint(userId, user.username, {
         title,
         goal,
         problems: Array.isArray(problems) ? problems : [],
       });
       if (!result.ok) return res.status(400).json({ error: result.error });
-      res.status(201).json({ point: toPublicPoint(result.point) });
+      const code = result.outcome === 'created' ? 201 : 200;
+      res.status(code).json({
+        point: toPublicPoint(result.point),
+        outcome: result.outcome,
+      });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to create evolution point' });

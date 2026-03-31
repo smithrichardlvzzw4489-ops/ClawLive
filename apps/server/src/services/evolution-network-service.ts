@@ -303,22 +303,50 @@ function createPointInternal(
   return p;
 }
 
-export function tryCreatePoint(
+/** 创建进化点时的结果：新建 / 因相似自动加入他人议题 / 已在该议题中 / 本人已有相近未结束议题 */
+export type CreateEvolutionPointOutcome =
+  | 'created'
+  | 'joined_similar'
+  | 'already_participating'
+  | 'already_own_similar';
+
+/**
+ * 发起进化点：若无相近未结束议题则新建；若有则对非发起者自动加入，避免重复开题。
+ * 本人已有相近未结束议题时返回已有记录，不重复创建。
+ */
+export function tryCreateOrJoinSimilarOpenPoint(
   userId: string,
   username: string,
   input: { title: string; goal: string; problems: string[] },
   source: 'darwin_bootstrap' | 'user' = 'user',
-): { ok: true; point: EvolutionPointRecord } | { ok: false; error: string } {
+):
+  | { ok: true; outcome: CreateEvolutionPointOutcome; point: EvolutionPointRecord }
+  | { ok: false; error: string } {
   initEvolutionNetwork();
+  runTransitions();
   const dup = findDuplicateAmongOpen(input.title, input.goal);
-  if (dup) {
-    return {
-      ok: false,
-      error: '已存在相同或相近的进化议题（进行中），请勿重复发起',
-    };
+  if (!dup) {
+    const point = createPointInternal(userId, username, input, source);
+    return { ok: true, outcome: 'created', point };
   }
-  const point = createPointInternal(userId, username, input, source);
-  return { ok: true, point };
+
+  if (dup.authorUserId === userId) {
+    return { ok: true, outcome: 'already_own_similar', point: dup };
+  }
+
+  const comments = commentsByPoint.get(dup.id) ?? [];
+  if (comments.some((c) => c.authorUserId === userId)) {
+    return { ok: true, outcome: 'already_participating', point: dup };
+  }
+
+  const joinBody = '加入';
+  const joinResult = addComment(dup.id, userId, username, joinBody);
+  if (!joinResult.ok) {
+    return { ok: false, error: joinResult.error };
+  }
+  const point = pointsCache.get(dup.id);
+  if (!point) return { ok: false, error: '进化点不存在' };
+  return { ok: true, outcome: 'joined_similar', point };
 }
 
 export function addComment(
@@ -609,7 +637,7 @@ export async function onDarwinClawFirstApply(userId: string): Promise<void> {
   if (!user) return;
 
   const name = user.username;
-  const r = tryCreatePoint(
+  const r = tryCreateOrJoinSimilarOpenPoint(
     userId,
     name,
     {
@@ -624,6 +652,11 @@ export async function onDarwinClawFirstApply(userId: string): Promise<void> {
     'darwin_bootstrap',
   );
   if (!r.ok) {
-    console.warn(`[Evolution] Darwin bootstrap skipped (duplicate or error): ${r.error}`);
+    console.warn(`[Evolution] Darwin bootstrap skipped: ${r.error}`);
+    return;
   }
+  if (r.outcome === 'already_own_similar') {
+    return;
+  }
+  console.log(`[Evolution] Darwin bootstrap ${r.outcome}: ${r.point.id}`);
 }
