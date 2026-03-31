@@ -263,5 +263,6 @@ export const api = {
       fetchAPI(`/api/evolution-network/points/${id}/cancel`, { method: 'POST', body: '{}' }),
     create: (data: { title: string; goal: string; problems: string[] }) =>
       fetchAPI('/api/evolution-network/points', { method: 'POST', body: JSON.stringify(data) }),
+    myObservation: () => fetchAPI('/api/evolution-network/my-observation'),
   },
 };

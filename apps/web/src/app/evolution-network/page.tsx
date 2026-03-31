@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
@@ -56,7 +57,15 @@ export default function EvolutionNetworkPage() {
         )}
         {!loading && (
           <>
-            <div className="mx-auto mt-6 max-w-6xl sm:mt-8">
+            <div className="mx-auto flex max-w-6xl justify-end px-1 pt-2">
+              <Link
+                href="/evolution-network/observation"
+                className="text-sm font-medium text-cyber/90 transition hover:text-cyber hover:underline"
+              >
+                {t('evolutionNetwork.observationTitle')} →
+              </Link>
+            </div>
+            <div className="mx-auto mt-4 max-w-6xl sm:mt-6">
               <EvolutionNetworkGraph
                 points={graphPoints}
                 onNodeClick={(p) => router.push(`/evolution-network/point/${p.id}`)}

@@ -351,6 +351,180 @@ export function listRecommended(limit = 8): EvolutionPointRecord[] {
     .map((x) => x.p);
 }
 
+/** 单条观察记录（时间线，按 at 新→旧排序） */
+export type EvolutionObservationItem = {
+  kind:
+    | 'created_point'
+    | 'point_became_active'
+    | 'joined_point'
+    | 'commented_own_point'
+    | 'point_completed'
+    | 'point_cancelled'
+    | 'point_ended_idle'
+    | 'participation_ended'
+    | 'published_post';
+  at: string;
+  pointId: string;
+  pointTitle: string;
+  postId?: string;
+  postTitle?: string;
+  bodyPreview?: string;
+  source?: 'darwin_bootstrap' | 'user';
+  endReason?: EvolutionEndReason;
+  publishedByAgent?: boolean;
+};
+
+/**
+ * 聚合当前用户在进化网络中的行为：发起的点、报名/留言、关联发帖、结束状态等。
+ */
+export function getUserEvolutionObservation(userId: string): {
+  timeline: EvolutionObservationItem[];
+  summary: {
+    createdPoints: number;
+    joinedPoints: number;
+    postsOnEvolution: number;
+    endedParticipations: number;
+  };
+} {
+  initEvolutionNetwork();
+  runTransitions();
+
+  const timeline: EvolutionObservationItem[] = [];
+  let createdPoints = 0;
+  const joinedPointIds = new Set<string>();
+  const participationEndedPointIds = new Set<string>();
+  let postsOnEvolution = 0;
+  let endedParticipations = 0;
+
+  const clip = (s: string, n: number) => {
+    const t = s.replace(/\s+/g, ' ').trim();
+    if (t.length <= n) return t;
+    return `${t.slice(0, n)}…`;
+  };
+
+  for (const p of pointsCache.values()) {
+    const pubTitle = p.title;
+
+    if (p.authorUserId === userId) {
+      createdPoints += 1;
+      timeline.push({
+        kind: 'created_point',
+        at: p.createdAt,
+        pointId: p.id,
+        pointTitle: pubTitle,
+        source: p.source,
+      });
+      if (p.startedAt) {
+        timeline.push({
+          kind: 'point_became_active',
+          at: p.startedAt,
+          pointId: p.id,
+          pointTitle: pubTitle,
+          source: p.source,
+        });
+      }
+      if (p.status === 'ended' && p.endReason) {
+        if (p.endReason === 'completed') {
+          timeline.push({
+            kind: 'point_completed',
+            at: p.updatedAt,
+            pointId: p.id,
+            pointTitle: pubTitle,
+            endReason: p.endReason,
+          });
+        } else if (p.endReason === 'cancelled') {
+          timeline.push({
+            kind: 'point_cancelled',
+            at: p.updatedAt,
+            pointId: p.id,
+            pointTitle: pubTitle,
+            endReason: p.endReason,
+          });
+        } else if (p.endReason === 'idle_timeout') {
+          timeline.push({
+            kind: 'point_ended_idle',
+            at: p.updatedAt,
+            pointId: p.id,
+            pointTitle: pubTitle,
+            endReason: p.endReason,
+          });
+        }
+      }
+    }
+
+    const comments = commentsByPoint.get(p.id) ?? [];
+    for (const c of comments) {
+      if (c.authorUserId !== userId) continue;
+      if (p.authorUserId === userId) {
+        timeline.push({
+          kind: 'commented_own_point',
+          at: c.createdAt,
+          pointId: p.id,
+          pointTitle: pubTitle,
+          bodyPreview: clip(c.body, 120),
+        });
+      } else {
+        joinedPointIds.add(p.id);
+        timeline.push({
+          kind: 'joined_point',
+          at: c.createdAt,
+          pointId: p.id,
+          pointTitle: pubTitle,
+          bodyPreview: clip(c.body, 120),
+        });
+      }
+    }
+
+    if (p.authorUserId !== userId && p.status === 'ended') {
+      const participated = comments.some((c) => c.authorUserId === userId);
+      if (participated && !participationEndedPointIds.has(p.id)) {
+        participationEndedPointIds.add(p.id);
+        endedParticipations += 1;
+        timeline.push({
+          kind: 'participation_ended',
+          at: p.updatedAt,
+          pointId: p.id,
+          pointTitle: pubTitle,
+          endReason: p.endReason,
+        });
+      }
+    }
+  }
+
+  try {
+    const feedMap = getFeedPostsMap();
+    for (const post of feedMap.values()) {
+      const evoId = (post as { evolutionPointId?: string }).evolutionPointId;
+      if (!evoId || post.authorId !== userId) continue;
+      const ep = pointsCache.get(evoId);
+      postsOnEvolution += 1;
+      timeline.push({
+        kind: 'published_post',
+        at: post.createdAt,
+        pointId: evoId,
+        pointTitle: ep?.title ?? evoId,
+        postId: post.id,
+        postTitle: post.title,
+        publishedByAgent: post.publishedByAgent ?? false,
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+
+  timeline.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  return {
+    timeline,
+    summary: {
+      createdPoints,
+      joinedPoints: joinedPointIds.size,
+      postsOnEvolution,
+      endedParticipations,
+    },
+  };
+}
+
 export async function onDarwinClawFirstApply(userId: string): Promise<void> {
   initEvolutionNetwork();
   const existing = Array.from(pointsCache.values()).find(

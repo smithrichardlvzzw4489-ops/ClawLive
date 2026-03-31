@@ -8,6 +8,7 @@ import {
   createPoint,
   getComments,
   getPoint,
+  getUserEvolutionObservation,
   initEvolutionNetwork,
   listPoints,
   listRecommended,
@@ -20,6 +21,18 @@ export function evolutionNetworkRoutes(): Router {
   router.use((_req, _res, next) => {
     initEvolutionNetwork();
     next();
+  });
+
+  /** GET /api/evolution-network/my-observation — 当前用户与 Darwin 相关的进化行为时间线 */
+  router.get('/my-observation', authenticateToken, (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { timeline, summary } = getUserEvolutionObservation(userId);
+      res.json({ timeline, summary });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to load evolution observation' });
+    }
   });
 
   /** GET /api/evolution-network/points */

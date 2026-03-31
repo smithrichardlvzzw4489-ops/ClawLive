@@ -52,6 +52,9 @@ export function Header({}: HeaderProps) {
 
   const active = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
+  const evolutionHubActive =
+    pathname.startsWith('/evolution-network') && !pathname.startsWith('/evolution-network/observation');
+
   const isHome = false;
 
   return (
@@ -94,7 +97,13 @@ export function Header({}: HeaderProps) {
               href="/evolution-network"
               label={t('nav.evolutionNetwork')}
               icon="🕸️"
-              active={active('/evolution-network')}
+              active={evolutionHubActive}
+            />
+            <NavItem
+              href="/evolution-network/observation"
+              label={t('nav.evolutionObservation')}
+              icon="🔭"
+              active={pathname.startsWith('/evolution-network/observation')}
             />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={active('/rooms')} />
