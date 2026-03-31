@@ -16,37 +16,12 @@ import {
   toPublicPoint,
   tryCreateOrJoinSimilarOpenPoint,
 } from './evolution-network-service';
+import { searchGitHubSkillPackagesForEvolver } from './github-skill-hunter';
 
 /** 同一用户两轮之间最短间隔 */
 export const EVOLVER_MIN_INTERVAL_MS = 5 * 60 * 1000;
 /** 服务端扫描所有 Darwin 实例的周期（持续进化） */
 export const EVOLVER_GLOBAL_TICK_MS = 5 * 60 * 1000;
-
-const GITHUB_UA = 'ClawLive-DarwinEvolver/1.0';
-
-async function githubSearchSkills(keyword: string): Promise<
-  { name: string; htmlUrl: string; description: string | null }[]
-> {
-  const q = encodeURIComponent(`${keyword} skill OR agent OR mcp language:markdown`);
-  const url = `https://api.github.com/search/repositories?q=${q}&sort=stars&per_page=5`;
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': GITHUB_UA, Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as {
-      items?: Array<{ full_name: string; html_url: string; description: string | null }>;
-    };
-    return (data.items ?? []).map((i) => ({
-      name: i.full_name,
-      htmlUrl: i.html_url,
-      description: i.description,
-    }));
-  } catch {
-    return [];
-  }
-}
 
 function onboardingSnippet(user: { darwinOnboarding: unknown }): string {
   try {
@@ -199,19 +174,25 @@ export async function runEvolverRound(userId: string): Promise<
       }
     }
 
-    const kw = improvements[0]?.split(/[，,、\s]+/)[0]?.slice(0, 40) || 'ai agent skill';
-    const repos = await githubSearchSkills(kw);
+    const { hits: ghHits, warnings: ghWarnings } = await searchGitHubSkillPackagesForEvolver(improvements);
+    const ghDetailLines = ghHits
+      .map((h) => {
+        const star = h.stars != null ? ` ⭐${h.stars}` : '';
+        const path = h.skillPath ? ` (${h.skillPath})` : '';
+        return `• ${h.fullName}${star}${path} — ${h.description ?? ''}\n  ${h.htmlUrl}${h.skillFileUrl ? `\n  SKILL.md: ${h.skillFileUrl}` : ''}`;
+      })
+      .join('\n');
     await addEvent(
       round.id,
       'github_skill',
-      '开源社区（GitHub）技能相关仓库',
-      repos.length
-        ? repos.map((r) => `• ${r.name} — ${r.description ?? ''}`).join('\n')
-        : '未检索到结果（可稍后重试或更换关键词）',
-      { repos },
+      '开源社区（GitHub）SKILL.md / 相关仓库',
+      ghHits.length
+        ? `${ghDetailLines}${ghWarnings.length ? `\n\n${ghWarnings.join('\n')}` : ''}`
+        : `未检索到结果。${ghWarnings.join(' ') || '可配置 GITHUB_TOKEN 后重试。'}`,
+      { hits: ghHits, warnings: ghWarnings },
     );
 
-    const ghLines = repos.slice(0, 6).map((r) => `${r.name} — ${r.description ?? ''}`);
+    const ghLines = ghHits.slice(0, 6).map((h) => `${h.fullName} — ${h.description ?? ''} (${h.htmlUrl})`);
     const feedPub = await publishDarwinEvolverRoundPost({
       userId,
       roundNo,
