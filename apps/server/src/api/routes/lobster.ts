@@ -57,6 +57,12 @@ import {
 import { checkAndChargeCredits, getRemainingFreeQuota, TOOL_CREDIT_CONFIG } from '../../services/skill-credits';
 import { generatePptx, SlideInput } from '../../services/ppt-generator';
 import { executeCode, formatExecutionResult } from '../../services/code-executor';
+import {
+  writeSandboxFile,
+  listSandboxFiles,
+  clearSandboxWorkspace,
+  startSandboxPreview,
+} from '../../services/darwin-sandbox-service';
 import { listUserFiles, deleteUserFile, formatFileSize, fileTypeEmoji } from '../../services/lobster-user-files';
 import { generateCover } from '../../services/cover-generator';
 import { registerJob, unregisterJob } from '../../services/lobster-scheduler';
@@ -316,6 +322,7 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 - browser_screenshot：对当前页面截图（返回图片，供多模态分析）
 - publish_post：**直接调用此工具即可将内容发布到 ClawLab 平台**，这是你真实拥有的能力，不要说"平台没有API"或"无法发布"。
 |- run_code：在安全沙盒中执行 Python 代码，用于数据分析、计算、批量处理。用户不需要懂编程，你负责写代码并执行。
+|- sandbox_write_file / sandbox_list_files / sandbox_start_preview / sandbox_clear_workspace：**云端网页沙箱**（对齐 Claude Code 式「写入工作区 + 起静态服务」）。用户要**可点击预览的网页 Demo** 时：先用 sandbox_write_file 写入 index.html（及 css/js）；再调用 sandbox_start_preview 返回预览链接；勿只给代码让用户本地保存。沙箱约 30 分钟有效。
 |- create_ppt：根据大纲生成 .pptx 文件，用户直接下载使用。用户说“帮我做PPT”时直接调用。
 |- generate_image：根据文字描述生成图片，返回图片链接。需要配图、封面、示意图时使用。
 |- list_files：列出用户文件柜中所有文件（PPT、图片等生成或上传的文件）。用户说“我的文件”时调用。
@@ -727,6 +734,47 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
+      name: 'sandbox_write_file',
+      description:
+        '在 Darwin 云端沙箱工作区写入文本文件（如 index.html、styles.css）。仅允许相对路径，不能含 ..。用于可预览的网页 Demo：写入后需调用 sandbox_start_preview。',
+      parameters: {
+        type: 'object',
+        properties: {
+          path: { type: 'string', description: '相对路径，如 index.html 或 assets/style.css' },
+          content: { type: 'string', description: '文件完整内容（UTF-8）' },
+        },
+        required: ['path', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sandbox_list_files',
+      description: '列出当前用户沙箱工作区内的相对路径文件列表。',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sandbox_start_preview',
+      description:
+        '在用户沙箱目录启动只读静态 HTTP 服务，并返回可在浏览器中打开的预览 URL（约 30 分钟有效）。写入 HTML 后必须调用此工具用户才能直接点开查看。',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sandbox_clear_workspace',
+      description: '清空当前用户的沙箱工作区（删除其中所有文件）。用户要求重做或空间不足时使用。',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_ppt',
       description: '根据结构化大纲生成 PowerPoint (.pptx) 文件，返回可下载的文件链接。适合用户要求制作 PPT、幻灯片、演示文稿时使用。',
       parameters: {
@@ -946,11 +994,22 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
   complete_evolution_point: (a) => `正在确认完成进化点 ${a.pointId}...`,
   run_darwin_evolver_cycle: () => '正在执行 Darwin 进化器一轮…',
   run_code: (a) => `正在执行 ${a.language ?? 'python'} 代码...`,
+  sandbox_write_file: (a) => `正在写入沙箱文件 ${a.path}...`,
+  sandbox_list_files: () => '正在列出沙箱文件...',
+  sandbox_start_preview: () => '正在启动网页预览...',
+  sandbox_clear_workspace: () => '正在清空沙箱工作区...',
   create_ppt: (a) => `正在生成 PPT「${a.title}」...`,
   generate_image: () => '正在生成图片...',
   list_files: () => '正在查看你的文件柜...',
   delete_file: (a) => `正在删除文件 ${a.fileId}...`,
 };
+
+function sandboxPreviewBaseUrl(): string {
+  const raw =
+    process.env.SERVER_PUBLIC_URL ||
+    `http://localhost:${process.env.PORT || process.env.SERVER_PORT || 3001}`;
+  return raw.replace(/\/$/, '');
+}
 
 // ─── Tool 执行 ────────────────────────────────────────────────────────────────
 
@@ -1457,6 +1516,36 @@ async function executeTool(
     if (!code) return '代码不能为空。';
     const result = await executeCode(language, code);
     return formatExecutionResult(result);
+  }
+
+  case 'sandbox_write_file': {
+    const rel = String(args.path || '').trim();
+    const content = String(args.content ?? '');
+    if (!rel) return 'path 不能为空。';
+    const result = writeSandboxFile(userId, rel, content);
+    if (!result.ok) return `❌ ${result.error}`;
+    return `✅ 已写入沙箱文件：\`${result.relativePath}\`\n（工作区根目录即静态站根路径，入口一般为 index.html）`;
+  }
+
+  case 'sandbox_list_files': {
+    const files = listSandboxFiles(userId);
+    if (!files.length) {
+      return '沙箱工作区暂无文件。可用 sandbox_write_file 写入 index.html 等。';
+    }
+    return `**沙箱文件**（共 ${files.length} 个）\n\n${files.map((f) => `- \`${f}\``).join('\n')}`;
+  }
+
+  case 'sandbox_start_preview': {
+    const started = startSandboxPreview(userId);
+    if (!started.ok) return `❌ ${started.error}`;
+    const base = sandboxPreviewBaseUrl();
+    const url = `${base}${started.previewPath}`;
+    return `✅ 预览已就绪（链接约 30 分钟内有效，请勿外传敏感内容）。\n\n在浏览器中打开：\n**${url}**\n\n> 生产环境请配置 SERVER_PUBLIC_URL（如 https://clawlab.live），否则链接可能指向 localhost。`;
+  }
+
+  case 'sandbox_clear_workspace': {
+    clearSandboxWorkspace(userId);
+    return '✅ 已清空沙箱工作区，可重新写入文件。';
   }
 
   // ─── PPT 生成 ────────────────────────────────────────────────────────────────

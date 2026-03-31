@@ -11,6 +11,7 @@ import { UPLOADS_DIR } from './lib/data-path';
 import { initRoomsStore } from './lib/rooms-store';
 import { setupSocketIO } from './socket/index-simple';
 import { setupRoutes } from './api/routes';
+import { mountSandboxPreview } from './api/routes/sandbox-preview';
 import { errorHandler } from './api/middleware/errorHandler';
 import { mtprotoService } from './services/telegram-mtproto';
 import { startScheduler, setTaskRunner } from './services/lobster-scheduler';
@@ -84,6 +85,7 @@ app.use(morgan('dev'));
 
 if (!existsSync(UPLOADS_DIR)) mkdirSync(UPLOADS_DIR, { recursive: true });
 app.use('/uploads', express.static(UPLOADS_DIR));
+mountSandboxPreview(app);
 
 const PORT = Number(process.env.PORT || process.env.SERVER_PORT || 3001);
 
