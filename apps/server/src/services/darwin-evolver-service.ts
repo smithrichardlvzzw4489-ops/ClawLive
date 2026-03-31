@@ -8,6 +8,7 @@ import {
   getLobsterConversation,
   getLobsterInstance,
 } from './lobster-persistence';
+import { publishDarwinEvolverRoundPost } from './feed-post-agent-publish';
 import {
   initEvolutionNetwork,
   listEvolutionPointsForUser,
@@ -175,6 +176,7 @@ export async function runEvolverRound(userId: string): Promise<
     );
 
     const maxImp = 3;
+    let linkedEvoPointId: string | undefined;
     for (let i = 0; i < Math.min(improvements.length, maxImp); i++) {
       const line = improvements[i].slice(0, 200);
       await addEvent(round.id, 'improvement', `改进项 ${i + 1}`, line);
@@ -185,6 +187,7 @@ export async function runEvolverRound(userId: string): Promise<
 
       const evo = tryCreateOrJoinSimilarOpenPoint(userId, user.username, { title, goal, problems }, 'user');
       if (evo.ok) {
+        if (!linkedEvoPointId) linkedEvoPointId = evo.point.id;
         const pub = toPublicPoint(evo.point);
         await addEvent(round.id, 'evolution_match', `进化网络：${evo.outcome}`, pub.title, {
           outcome: evo.outcome,
@@ -208,11 +211,31 @@ export async function runEvolverRound(userId: string): Promise<
       { repos },
     );
 
+    const ghLines = repos.slice(0, 6).map((r) => `${r.name} — ${r.description ?? ''}`);
+    const feedPub = await publishDarwinEvolverRoundPost({
+      userId,
+      roundNo,
+      summary,
+      selfAssessment,
+      improvements,
+      evolutionPointId: linkedEvoPointId,
+      githubLines: ghLines,
+    });
+    if (feedPub.ok) {
+      await addEvent(round.id, 'feed_publish', '社区动态已发布', `已发布本轮进化纪要到实验室 Feed`, {
+        postId: feedPub.postId,
+      });
+    } else {
+      await addEvent(round.id, 'feed_publish', '社区动态发布失败', feedPub.error, {
+        error: feedPub.error,
+      });
+    }
+
     await addEvent(
       round.id,
       'publish_hint',
       '进化方式建议',
-      '在进化点下使用 publish_post 发布图文/文章；可在技能市场或 GitHub 结果中安装技能后再产出。',
+      '已自动发布本轮纪要；你仍可在 Darwin 对话中用 publish_post 发布更多图文并关联进化点。',
     );
 
     const mine = listEvolutionPointsForUser(userId);
