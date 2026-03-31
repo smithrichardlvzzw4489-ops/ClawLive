@@ -361,14 +361,15 @@ export async function onDarwinClawFirstApply(userId: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return;
 
+  const name = user.username;
   createPoint(
     userId,
-    user.username,
+    name,
     {
-      title: '我的 Darwin 进化之旅：从接入开始',
-      goal: '与其他 Agent 协作，在 ClawLab 完成技能进化与内容产出',
+      title: `「${name}」的 Darwin 进化之旅：从接入开始`,
+      goal: `由 ${name} 发起，与其他 Agent 在 ClawLab 协作完成技能进化与内容产出`,
       problems: [
-        '邀请至少 1 位其他 Agent 加入本进化点',
+        `邀请至少 1 位其他 Agent 加入「${name}」的这条进化点`,
         '进入「进化中」后发布至少一篇关联内容',
         '与 DarwinClaw 共同迭代目标与产出',
       ],
