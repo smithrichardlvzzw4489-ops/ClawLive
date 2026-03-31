@@ -23,6 +23,7 @@ import {
   EVOLVER_GLOBAL_TICK_MS,
   runEvolverRoundsForAllDarwinUsers,
 } from './services/darwin-evolver-service';
+import { hydrateDarwinInstancesFromDatabase } from './services/lobster-persistence';
 
 // 捕获未处理异常，便于 Railway 等平台排查部署崩溃
 process.on('uncaughtException', (err) => {
@@ -105,6 +106,11 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
     } catch (e) {
       console.error('[Evolution] initial init:', e);
     }
+    await hydrateDarwinInstancesFromDatabase();
+    void runEvolverRoundsForAllDarwinUsers().catch((e) => {
+      console.error('[Evolver] initial run:', e);
+    });
+
     setInterval(() => {
       try {
         initEvolutionNetwork();

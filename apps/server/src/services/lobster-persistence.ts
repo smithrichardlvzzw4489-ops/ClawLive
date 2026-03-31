@@ -5,7 +5,9 @@
 import { existsSync, readFileSync, mkdirSync } from 'fs';
 import { writeFile as writeFileAsync } from 'fs/promises';
 import { dirname } from 'path';
+import { Prisma } from '@prisma/client';
 import { getDataFilePath } from '../lib/data-path';
+import { prisma } from '../lib/prisma';
 
 /** 每用户每日最多发起多少次 DarwinClaw 对话（用户消息计 1 次） */
 export const DARWIN_DAILY_CHAT_LIMIT = 100;
@@ -143,6 +145,51 @@ export function getLobsterInstance(userId: string): LobsterInstance | null {
 
 export function getAllInstances(): LobsterInstance[] {
   return Array.from(instances.values());
+}
+
+/**
+ * Railway 等环境若未挂载持久卷，`lobster-instances.json` 会在部署后丢失，进程内无实例，
+ * 导致定时进化器 `getAllInstances()` 为空、永远不跑。PostgreSQL 中的问卷与进化轮次仍在。
+ * 启动时从 DB 补回内存实例，使定时任务能继续执行。
+ */
+export async function hydrateDarwinInstancesFromDatabase(): Promise<void> {
+  try {
+    const [withOnboarding, roundUsers] = await Promise.all([
+      prisma.user.findMany({
+        where: { darwinOnboarding: { not: Prisma.DbNull } },
+        select: { id: true },
+      }),
+      prisma.evolverRound.findMany({
+        distinct: ['userId'],
+        select: { userId: true },
+      }),
+    ]);
+    const ids = new Set<string>();
+    for (const u of withOnboarding) ids.add(u.id);
+    for (const r of roundUsers) ids.add(r.userId);
+
+    const now = new Date().toISOString();
+    let added = 0;
+    for (const userId of ids) {
+      if (!instances.has(userId)) {
+        instances.set(userId, {
+          userId,
+          appliedAt: now,
+          lastActiveAt: now,
+          messageCount: 0,
+        });
+        added++;
+      }
+    }
+    if (added > 0) {
+      await saveInstances();
+      console.log(
+        `[Lobster] Hydrated ${added} Darwin instance(s) from PostgreSQL (JSON store was empty or stale)`,
+      );
+    }
+  } catch (e) {
+    console.error('[Lobster] hydrateDarwinInstancesFromDatabase:', e);
+  }
 }
 
 export async function applyLobster(userId: string, name?: string): Promise<LobsterInstance> {
