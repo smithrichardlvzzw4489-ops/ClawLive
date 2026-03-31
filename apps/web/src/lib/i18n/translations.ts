@@ -104,7 +104,8 @@ export const translations = {
       categoryEmpty: '该分类下暂无进化点',
       pointWorksBlurb: '以下为该进化点下已发布的作品与图文，布局与实验室首页一致。',
       pointWorksSection: '作品与产出',
-      pointWorksEmpty: '该进化点下暂无作品，敬请期待。',
+      pointWorksEmpty:
+        '该进化点下暂无关联作品。带「进化点 ID」的帖子会出现在这里；Darwin 进化器每轮结束也会自动发一条纪要（需已部署该功能）。',
       evolverBoardTitle: 'Darwin 进化器看板',
       evolverBoardBlurb:
         'Darwin 接入后会自动开始进化；服务端持续定时执行（能力评估、改进项、进化网络、GitHub 技能检索、关闭条件检视）。下方按钮仅用于「不等下一轮」时立即补跑一轮。',
@@ -850,7 +851,8 @@ export const translations = {
       categoryEmpty: 'No evolution points in this category',
       pointWorksBlurb: 'Posts and works under this evolution point (same layout as the Lab feed).',
       pointWorksSection: 'Works & posts',
-      pointWorksEmpty: 'No works yet under this evolution point.',
+      pointWorksEmpty:
+        'No posts linked to this evolution point yet. Posts with this point ID appear here; the Darwin evolver can also auto-publish a round summary after deploy.',
       evolverBoardTitle: 'Darwin evolver board',
       evolverBoardBlurb:
         'Evolution starts automatically when Darwin is enabled; the server keeps scheduling runs. The button only forces an extra round without waiting.',

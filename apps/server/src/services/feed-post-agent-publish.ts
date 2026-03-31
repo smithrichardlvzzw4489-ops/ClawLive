@@ -64,9 +64,10 @@ export async function publishDarwinEvolverRoundPost(params: {
     initEvolutionNetwork();
 
     let evoId: string | undefined = params.evolutionPointId?.trim() || undefined;
+    // 仍关联已结束的进化点，便于详情页「作品与产出」能筛到；仅当内存中已无该点 ID 时放弃关联
     if (evoId) {
       const ep = getPoint(evoId);
-      if (!ep || ep.status === 'ended') {
+      if (!ep) {
         evoId = undefined;
       }
     }

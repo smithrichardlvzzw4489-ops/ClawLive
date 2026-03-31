@@ -50,6 +50,7 @@ export function feedPostsRoutes(): Router {
 
   router.get('/', async (req: Request, res: Response) => {
     try {
+      mergeFeedPostsFromDisk();
       const { offset, limit, evolutionPointId } = req.query;
       let list = Array.from(feedPostsMap.values()).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
