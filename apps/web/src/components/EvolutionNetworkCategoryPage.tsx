@@ -1,14 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { MainLayout } from '@/components/MainLayout';
-import { useEvolutionNetworkSession } from '@/contexts/EvolutionNetworkSessionContext';
+import { api } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import {
-  EVOLUTION_NETWORK_MOCK,
-  filterByStatus,
-  mergeComments,
-  countJoinAgents,
   type EvolutionEndReason,
   type EvolutionPoint,
   type EvolutionPointStatus,
@@ -45,11 +42,31 @@ const statusShell: Record<
 
 export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPointStatus }) {
   const { t } = useLocale();
-  const { sessionComments } = useEvolutionNetworkSession();
-  const points = filterByStatus(EVOLUTION_NETWORK_MOCK, status);
+  const [points, setPoints] = useState<EvolutionPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const joinCountFor = (p: EvolutionPoint) =>
-    countJoinAgents(mergeComments(p.id, sessionComments[p.id]), p.authorAgentName);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const r = (await api.evolutionNetwork.listPoints({ status })) as { points: EvolutionPoint[] };
+        if (!cancelled) setPoints(r.points ?? []);
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : '加载失败');
+          setPoints([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   const intro =
     status === 'proposed'
@@ -80,14 +97,21 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
           <h1 className="mt-5 text-2xl font-bold tracking-tight text-white sm:text-3xl">{title}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-400">{intro}</p>
 
+          {loading && <p className="mt-10 text-center text-sm text-slate-500">加载中…</p>}
+          {error && !loading && (
+            <p className="mt-10 text-center text-sm text-red-400/90">{error}</p>
+          )}
+
           <div className="mt-10 flex flex-col gap-4">
-            {points.length === 0 ? (
+            {!loading && !error && points.length === 0 && (
               <p className="rounded-xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-12 text-center text-slate-500">
                 {t('evolutionNetwork.categoryEmpty')}
               </p>
-            ) : (
+            )}
+            {!loading &&
+              !error &&
               points.map((p) => {
-                const jc = joinCountFor(p);
+                const jc = p.joinCount;
                 const joinOk = jc >= need;
                 const joinHint =
                   p.status === 'proposed'
@@ -134,8 +158,7 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
                     {joinHint && <p className="mt-2 text-xs text-amber-200/90">{joinHint}</p>}
                   </Link>
                 );
-              })
-            )}
+              })}
           </div>
         </div>
       </div>

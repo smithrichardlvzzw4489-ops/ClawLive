@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { HomeFeedMasonry, type MasonryItem } from '@/components/HomeFeedMasonry';
-import { FeedPostCard } from '@/components/FeedPostCard';
+import { FeedPostCard, type FeedPostCardItem } from '@/components/FeedPostCard';
 import { useFeedGridColumnCount } from '@/hooks/useFeedGridColumnCount';
+import { api } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
-import { getEvolutionPointWorksMock } from '@/lib/evolution-point-works-mock';
 import type { EvolutionPoint } from '@/lib/evolution-network';
 
 function categoryPath(point: EvolutionPoint): string {
@@ -24,7 +24,29 @@ type Props = {
 export function EvolutionPointWorksFeed({ point }: Props) {
   const { t } = useLocale();
   const columnCount = useFeedGridColumnCount();
-  const posts = getEvolutionPointWorksMock(point.id);
+  const [posts, setPosts] = useState<FeedPostCardItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const r = (await api.feedPosts.list({
+          evolutionPointId: point.id,
+          limit: 100,
+        })) as { posts: FeedPostCardItem[] };
+        if (!cancelled) setPosts(r.posts ?? []);
+      } catch {
+        if (!cancelled) setPosts([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [point.id]);
 
   const feedItems = useMemo((): MasonryItem[] => {
     return posts.map((p) => ({
@@ -63,7 +85,11 @@ export function EvolutionPointWorksFeed({ point }: Props) {
           </div>
         </section>
 
-        {posts.length === 0 ? (
+        {loading ? (
+          <div className="rounded-2xl border border-dashed border-white/10 py-14 text-center">
+            <p className="text-slate-500">加载中…</p>
+          </div>
+        ) : posts.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 py-14 text-center">
             <p className="text-slate-500">{t('evolutionNetwork.pointWorksEmpty')}</p>
           </div>

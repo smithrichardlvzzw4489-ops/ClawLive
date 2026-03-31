@@ -23,6 +23,8 @@ export type FeedPostRecord = {
   publishedByAgent?: boolean;
   /** LLM 生成的摘要（无封面图时展示在卡片上） */
   excerpt?: string;
+  /** 关联的进化点 ID（实验室发帖） */
+  evolutionPointId?: string;
 };
 
 function reviveDates(obj: unknown): FeedPostRecord {

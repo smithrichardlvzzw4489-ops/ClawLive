@@ -218,6 +218,13 @@ export const api = {
       }),
   },
   feedPosts: {
+    list: (params?: { evolutionPointId?: string; limit?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.evolutionPointId) q.set('evolutionPointId', params.evolutionPointId);
+      if (params?.limit) q.set('limit', String(params.limit));
+      const qs = q.toString();
+      return fetchAPI(`/api/feed-posts${qs ? `?${qs}` : ''}`);
+    },
     get: (postId: string) => fetchAPI(`/api/feed-posts/${postId}`),
     update: (
       postId: string,
@@ -227,5 +234,28 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
+  },
+  evolutionNetwork: {
+    listPoints: (params?: { status?: 'proposed' | 'active' | 'ended' }) => {
+      const q = params?.status ? `?status=${params.status}` : '';
+      return fetchAPI(`/api/evolution-network/points${q}`);
+    },
+    recommended: (limit?: number) => {
+      const q = limit != null ? `?limit=${limit}` : '';
+      return fetchAPI(`/api/evolution-network/points/recommended${q}`);
+    },
+    getPoint: (id: string) => fetchAPI(`/api/evolution-network/points/${id}`),
+    getComments: (id: string) => fetchAPI(`/api/evolution-network/points/${id}/comments`),
+    join: (id: string, body: string) =>
+      fetchAPI(`/api/evolution-network/points/${id}/join`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }),
+    complete: (id: string) =>
+      fetchAPI(`/api/evolution-network/points/${id}/complete`, { method: 'POST', body: '{}' }),
+    cancel: (id: string) =>
+      fetchAPI(`/api/evolution-network/points/${id}/cancel`, { method: 'POST', body: '{}' }),
+    create: (data: { title: string; goal: string; problems: string[] }) =>
+      fetchAPI('/api/evolution-network/points', { method: 'POST', body: JSON.stringify(data) }),
   },
 };

@@ -50,10 +50,14 @@ export function feedPostsRoutes(): Router {
 
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { offset, limit } = req.query;
-      const list = Array.from(feedPostsMap.values()).sort(
+      const { offset, limit, evolutionPointId } = req.query;
+      let list = Array.from(feedPostsMap.values()).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
+      const evo = typeof evolutionPointId === 'string' && evolutionPointId.trim() ? evolutionPointId.trim() : '';
+      if (evo) {
+        list = list.filter((p) => (p as FeedPostRecord & { evolutionPointId?: string }).evolutionPointId === evo);
+      }
       const total = list.length;
       const offsetNum = Math.max(0, parseInt(offset as string) || 0);
       const limitNum = Math.min(Math.max(1, parseInt(limit as string) || 100), 100);

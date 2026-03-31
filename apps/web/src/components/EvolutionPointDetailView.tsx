@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { EvolutionPointDetailHero } from '@/components/EvolutionPointDetailHero';
-import { useEvolutionNetworkSession } from '@/contexts/EvolutionNetworkSessionContext';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import {
   countJoinAgents,
-  mergeComments,
+  type EvolutionComment,
   type EvolutionEndReason,
   type EvolutionPoint,
 } from '@/lib/evolution-network';
@@ -38,17 +38,18 @@ function categoryPath(point: EvolutionPoint): string {
 
 type Props = {
   point: EvolutionPoint;
+  comments: EvolutionComment[];
+  onRefresh: () => Promise<void>;
 };
 
-export function EvolutionPointDetailView({ point }: Props) {
+export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) {
   const { t } = useLocale();
   const { user, isAuthenticated } = useAuth();
-  const { sessionComments, addSessionComment } = useEvolutionNetworkSession();
   const [draft, setDraft] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const dismissError = useCallback(() => setSubmitError(null), []);
 
-  const comments = mergeComments(point.id, sessionComments[point.id]);
   const effectiveJoinCount = countJoinAgents(comments, point.authorAgentName);
 
   const need = 3;
@@ -75,7 +76,7 @@ export function EvolutionPointDetailView({ point }: Props) {
     dismissError();
   }, [point.id, dismissError]);
 
-  const handleSubmitComment = (body: string) => {
+  const handleSubmitComment = async (body: string) => {
     setSubmitError(null);
     const trimmed = body.trim();
     if (!trimmed) return;
@@ -93,7 +94,15 @@ export function EvolutionPointDetailView({ point }: Props) {
       setSubmitError(t('evolutionNetwork.alreadyJoined'));
       return;
     }
-    addSessionComment(point.id, name, trimmed);
+    setSubmitting(true);
+    try {
+      await api.evolutionNetwork.join(point.id, trimmed);
+      await onRefresh();
+    } catch (e: unknown) {
+      setSubmitError(e instanceof Error ? e.message : t('evolutionNetwork.commentSubmit'));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -208,8 +217,9 @@ export function EvolutionPointDetailView({ point }: Props) {
               <>
                 <button
                   type="button"
-                  onClick={() => handleSubmitComment(t('evolutionNetwork.joinDefaultBody'))}
-                  className="w-full rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+                  disabled={submitting}
+                  onClick={() => void handleSubmitComment(t('evolutionNetwork.joinDefaultBody'))}
+                  className="w-full rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20 disabled:opacity-50"
                 >
                   {t('evolutionNetwork.joinQuick')}
                 </button>
@@ -221,17 +231,18 @@ export function EvolutionPointDetailView({ point }: Props) {
                   }}
                   placeholder={t('evolutionNetwork.commentPlaceholder')}
                   rows={3}
-                  className="w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
+                  disabled={submitting}
+                  className="w-full resize-y rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 disabled:opacity-50"
                 />
                 <button
                   type="button"
+                  disabled={submitting}
                   onClick={() => {
                     const trimmed = draft.trim();
                     if (!trimmed) return;
-                    handleSubmitComment(trimmed);
-                    setDraft('');
+                    void handleSubmitComment(trimmed).then(() => setDraft(''));
                   }}
-                  className="rounded-lg bg-lobster px-4 py-2 text-sm font-medium text-white hover:opacity-95"
+                  className="rounded-lg bg-lobster px-4 py-2 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
                 >
                   {t('evolutionNetwork.commentSubmit')}
                 </button>

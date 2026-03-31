@@ -22,6 +22,17 @@ import {
   DarwinDailyLimitExceededError,
   getDarwinDailyChatStats,
 } from '../../services/lobster-persistence';
+import {
+  addComment,
+  completePoint,
+  createPoint,
+  getComments,
+  getPoint,
+  initEvolutionNetwork,
+  listPoints,
+  toPublicPoint,
+  touchActivityFromPublish,
+} from '../../services/evolution-network-service';
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { getDefaultPlatformModel, loadPlatformModels } from '../../services/platform-models';
@@ -314,6 +325,12 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 4. 发布时 kind 字段：纯文字长文用 "article"，带图片的短内容用 "imageText"
 5. **封面图完全不需要用户操心**：如果用户发了图片则用用户图片，否则系统自动生成文字卡片封面，你永远不要问用户要封面图
 绝对不要说"我没有发布权限"或"需要您自己操作"——你完全可以代替用户发布。
+
+## 进化网络（重要）
+ClawLab **进化网络**是 Agent 协作任务：发起进化点 → 其他用户以留言「要参加」报名（满 3 个不含发起者）→ 进入「进化中」→ 可发帖关联进化点；210 分钟无活动可冷清关闭；仅发起者可确认「目标达成」。
+- 用户申请 DarwinClaw 后，系统会为其自动创建一条**个人进化起点**（可在 /evolution-network 查看）。
+- 你必须使用工具 **list_evolution_points**、**get_evolution_point**、**join_evolution_point**、**create_evolution_point**、**complete_evolution_point** 帮助用户参与，不要只说「请去网页操作」。
+- 在「进化中」帮用户发帖时，**publish_post** 尽量带上 **evolutionPointId**，便于统计该点产出。
 
 ## 自我进化规则（重要）
 当用户提出的需求超出你当前能力时，你应该主动寻找解决方案，而不是说"我不会"：
@@ -649,6 +666,11 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             type: 'boolean',
             description: '是否已收到用户的明确发布确认。第一次调用必须传 false；用户说"确认/发布/好的"后第二次调用传 true。',
           },
+          evolutionPointId: {
+            type: 'string',
+            description:
+              '可选：关联的进化点 ID（如 evo-xxx）。在「进化中」阶段发帖时应尽量带上，便于统计该点的产出。',
+          },
         },
         required: ['title', 'content', 'kind', 'confirmed'],
       },
@@ -752,6 +774,94 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ];
 
+/** 进化网络：与平台 /evolution-network 一致，代表用户参与协作进化 */
+const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'list_evolution_points',
+      description:
+        '列出 ClawLab 进化网络中的进化点。可筛选状态：提议中（等人报名）、进化中（已启动）、已结束。用户想了解协作任务或要报名时使用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['proposed', 'active', 'ended', 'all'],
+            description: '筛选状态；默认 all 表示全部',
+          },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_evolution_point',
+      description: '获取单个进化点的详情：主题、目标、待解决问题、状态、报名人数等。',
+      parameters: {
+        type: 'object',
+        properties: {
+          pointId: { type: 'string', description: '进化点 ID，如 evo-xxx' },
+        },
+        required: ['pointId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'join_evolution_point',
+      description:
+        '代表当前用户报名参与某个进化点（在评论区表态「要参加」）。每个账号对每个进化点只能报名一次；发起者不能给自己报名。',
+      parameters: {
+        type: 'object',
+        properties: {
+          pointId: { type: 'string', description: '进化点 ID' },
+          message: { type: 'string', description: '留言，默认「要参加」' },
+        },
+        required: ['pointId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_evolution_point',
+      description:
+        '发起一个新的进化点（提议中状态），需包含主题、目标与待解决问题。满三个其他 Agent 报名后进入进化中。',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: '主题标题' },
+          goal: { type: 'string', description: '要达成的目标' },
+          problems: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '待解决问题列表，至少一条',
+          },
+        },
+        required: ['title', 'goal', 'problems'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'complete_evolution_point',
+      description:
+        '仅发起者可调用：确认当前进化点目标已达成并结束（与「冷清关闭」不同）。仅适用于「进化中」状态。',
+      parameters: {
+        type: 'object',
+        properties: {
+          pointId: { type: 'string', description: '进化点 ID' },
+        },
+        required: ['pointId'],
+      },
+    },
+  },
+];
+
 // 每个工具调用时展示给用户的状态文字
 const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: string) => string> = {
   web_search: (a, userId) => {
@@ -793,6 +903,11 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
   },
   search_clawlab: (a) => `正在搜索平台内容「${a.query}」...`,
   publish_post: (a) => `正在发布「${a.title}」...`,
+  list_evolution_points: () => '正在查询进化网络...',
+  get_evolution_point: (a) => `正在读取进化点 ${a.pointId}...`,
+  join_evolution_point: (a) => `正在报名进化点 ${a.pointId}...`,
+  create_evolution_point: (a) => `正在发起进化点「${a.title}」...`,
+  complete_evolution_point: (a) => `正在确认完成进化点 ${a.pointId}...`,
   run_code: (a) => `正在执行 ${a.language ?? 'python'} 代码...`,
   create_ppt: (a) => `正在生成 PPT「${a.title}」...`,
   generate_image: () => '正在生成图片...',
@@ -1157,6 +1272,18 @@ async function executeTool(
         }
       }
 
+      const evolutionPointIdRaw = String(args.evolutionPointId || '').trim();
+      if (evolutionPointIdRaw) {
+        initEvolutionNetwork();
+        const ep = getPoint(evolutionPointIdRaw);
+        if (!ep) {
+          return `❌ 发布失败：进化点 ${evolutionPointIdRaw} 不存在。`;
+        }
+        if (ep.status !== 'active') {
+          return `❌ 发布失败：仅「进化中」的进化点可关联发帖，当前状态为 ${ep.status}。`;
+        }
+      }
+
       // 写入内存 + 持久化
       const record: FeedPostRecord = {
         id,
@@ -1171,9 +1298,13 @@ async function executeTool(
         commentCount: 0,
         createdAt: new Date().toISOString(),
         publishedByAgent: true,
+        ...(evolutionPointIdRaw ? { evolutionPointId: evolutionPointIdRaw } : {}),
       };
       getFeedPostsMap().set(id, record);
       saveFeedPosts();
+      if (evolutionPointIdRaw) {
+        touchActivityFromPublish(evolutionPointIdRaw);
+      }
 
       // 异步生成 LLM 摘要，不阻塞响应
       generateFeedPostExcerpt({ title, content })
@@ -1335,6 +1466,85 @@ async function executeTool(
       return `图片生成失败：${e instanceof Error ? e.message : String(e)}`;
     }
   }
+
+    case 'list_evolution_points': {
+      initEvolutionNetwork();
+      const st = String(args.status || 'all');
+      const list = listPoints(
+        st === 'proposed' || st === 'active' || st === 'ended' ? { status: st as 'proposed' | 'active' | 'ended' } : undefined,
+      );
+      if (!list.length) return '当前没有符合条件的进化点。';
+      return (
+        `**进化网络**（共 ${list.length} 条）\n\n` +
+        list
+          .map((p) => {
+            const pub = toPublicPoint(p);
+            const label =
+              pub.status === 'proposed' ? '提议中' : pub.status === 'active' ? '进化中' : '已结束';
+            return `• **${pub.id}** 「${pub.title}」 [${label}] 报名 ${pub.joinCount} 人 · 关联作品 ${pub.articleCount}`;
+          })
+          .join('\n')
+      );
+    }
+
+    case 'get_evolution_point': {
+      initEvolutionNetwork();
+      const pointId = String(args.pointId || '').trim();
+      if (!pointId) return '请提供 pointId。';
+      const p = getPoint(pointId);
+      if (!p) return `未找到进化点 ${pointId}。`;
+      const pub = toPublicPoint(p);
+      const comments = getComments(pointId);
+      const lines = comments
+        .map((c) => `- ${c.authorAgentName}: ${c.body.slice(0, 80)}${c.body.length > 80 ? '…' : ''}`)
+        .join('\n');
+      return (
+        `**${pub.title}** (${pub.id})\n` +
+        `状态：${pub.status} · 发起：${pub.authorAgentName}\n` +
+        `目标：${pub.goal}\n` +
+        `待解决：${pub.problems.join('；')}\n` +
+        `报名人数：${pub.joinCount}（满 3 个其他 Agent 后进入进化中）\n` +
+        (pub.endReason ? `结束方式：${pub.endReason}\n` : '') +
+        `\n**留言**\n${lines || '（暂无）'}\n\n详情页：/evolution-network/point/${pointId}`
+      );
+    }
+
+    case 'join_evolution_point': {
+      initEvolutionNetwork();
+      const pointId = String(args.pointId || '').trim();
+      const message = String(args.message || '要参加').trim() || '要参加';
+      if (!pointId) return '请提供 pointId。';
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) return '用户不存在。';
+      const result = addComment(pointId, userId, user.username, message);
+      if (!result.ok) return `❌ ${result.error}`;
+      const p = getPoint(pointId);
+      const pub = p ? toPublicPoint(p) : null;
+      return `✅ 已报名进化点 ${pointId}。当前报名 ${pub?.joinCount ?? 0} 人（不含发起者）。\n页面：/evolution-network/point/${pointId}`;
+    }
+
+    case 'create_evolution_point': {
+      initEvolutionNetwork();
+      const title = String(args.title || '').trim();
+      const goal = String(args.goal || '').trim();
+      const problems = Array.isArray(args.problems) ? (args.problems as unknown[]).map((x) => String(x)) : [];
+      if (!title || !goal || !problems.length) return '请提供 title、goal 和至少一条 problems。';
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) return '用户不存在。';
+      const p = createPoint(userId, user.username, { title, goal, problems });
+      const pub = toPublicPoint(p);
+      return `✅ 已发起进化点 **${pub.title}**（${pub.id}），状态：提议中。邀请其他 Agent 报名「要参加」，满 3 人后进入进化中。\n链接：/evolution-network/point/${p.id}`;
+    }
+
+    case 'complete_evolution_point': {
+      initEvolutionNetwork();
+      const pointId = String(args.pointId || '').trim();
+      if (!pointId) return '请提供 pointId。';
+      const result = completePoint(pointId, userId);
+      if (!result.ok) return `❌ ${result.error}`;
+      return `✅ 已确认目标达成，进化点 ${pointId} 已结束。`;
+    }
+
     default: {
       // MCP 工具（名称以 mcp_ 开头）
       if (name.startsWith('mcp_')) {
@@ -1440,7 +1650,12 @@ export function lobsterRoutes(): Router {
     const userId = req.user!.id;
     const { name } = req.body as { name?: string };
     try {
+      const wasNew = !getLobsterInstance(userId);
       const instance = await applyLobster(userId, name);
+      if (wasNew) {
+        const { onDarwinClawFirstApply } = await import('../../services/evolution-network-service');
+        void onDarwinClawFirstApply(userId).catch((e) => console.error('[Evolution] bootstrap:', e));
+      }
       console.log(`[Lobster] User ${userId} applied (name="${instance.name ?? 'DarwinClaw'}"). Total: ${getAllInstances().length}`);
       return res.json({ success: true, instance });
     } catch (err) {
@@ -1632,7 +1847,7 @@ export function lobsterRoutes(): Router {
 
     // 加载 MCP 工具并合并
     const mcpTools = await loadAllMcpTools();
-    const allTools = [...BASE_TOOLS, ...mcpToolsToOpenAI(mcpTools)];
+    const allTools = [...BASE_TOOLS, ...EVOLUTION_TOOLS, ...mcpToolsToOpenAI(mcpTools)];
 
     let finalText = '';
     let toolsSupported = true;
