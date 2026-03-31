@@ -92,6 +92,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { writeFile as writeFileAsync } from 'fs/promises';
 import { join } from 'path';
 import { UPLOADS_DIR } from '../../lib/data-path';
+import { exaWebSearch, fetchReadableViaJina } from '../../lib/public-url-fetch';
 
 const MAX_REACT_STEPS = 100;
 
@@ -300,7 +301,9 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 - 在用户需要时提供创作灵感和建议
 
 你拥有工具，请在有需要时主动使用：
-- web_search：搜索互联网，获取最新资讯和热点
+- web_search：搜索互联网（Tavily），获取最新资讯和热点
+- url_read：通过 Jina Reader 读取任意公开网页的正文（推文/文章/GitHub 页等），**云端可用**，无需本机 agent-reach
+- exa_search：语义搜索（需配置 EXA_API_KEY），与 Agent Reach 中 Exa 渠道一致
 - search_clawlab：搜索 ClawLab 平台站内帖子。**用户提问时优先搜站内**，站内无结果再搜全网
 - get_my_posts：查看用户在本平台发布的内容
 - list_skills：列出平台 Skills 市场中的可用技能
@@ -424,6 +427,37 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       parameters: {
         type: 'object',
         properties: { query: { type: 'string', description: '搜索关键词，尽量简洁精准' } },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'url_read',
+      description:
+        '读取公开网页的正文内容（通过 Jina Reader，云端可用）。用户给出链接、或需要读推文/文章/GitHub/README/公众号网页版时使用；不可访问内网或本地地址。',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '以 http(s):// 开头的完整 URL' },
+        },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'exa_search',
+      description:
+        '语义搜索互联网（Exa）。当 Tavily web_search 结果不理想、或需要「更像 Agent Reach / mcporter exa」的语义检索时使用；未配置 EXA_API_KEY 时不可用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: '搜索语句或关键词' },
+          numResults: { type: 'number', description: '返回条数 1–10，默认 5' },
+        },
         required: ['query'],
       },
     },
@@ -958,6 +992,18 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
       : `（消耗 ${cfg?.costPerCall ?? 2} 积分）`;
     return `正在搜索「${a.query}」... ${costHint}`;
   },
+  url_read: (a, userId) => {
+    const remaining = userId ? getRemainingFreeQuota(userId, 'url_read') : 0;
+    const cfg = TOOL_CREDIT_CONFIG['url_read'];
+    const costHint = remaining > 0 ? `（今日剩余免费 ${remaining} 次）` : `（消耗 ${cfg?.costPerCall ?? 1} 积分）`;
+    return `正在读取网页 ${a.url}... ${costHint}`;
+  },
+  exa_search: (a, userId) => {
+    const remaining = userId ? getRemainingFreeQuota(userId, 'exa_search') : 0;
+    const cfg = TOOL_CREDIT_CONFIG['exa_search'];
+    const costHint = remaining > 0 ? `（今日剩余免费 ${remaining} 次）` : `（消耗 ${cfg?.costPerCall ?? 2} 积分）`;
+    return `正在 Exa 搜索「${a.query}」... ${costHint}`;
+  },
   get_my_posts: () => '正在获取你的发布记录...',
   list_skills: (a) => (a.keyword ? `正在查找「${a.keyword}」相关技能...` : '正在查询技能市场...'),
   get_skill_detail: (a) => `正在加载技能详情 (${a.skillId})...`,
@@ -1082,6 +1128,37 @@ async function executeTool(
       } catch (err) {
         console.error('[Lobster] web_search error:', err);
         return '搜索请求失败，请稍后重试。';
+      }
+    }
+
+    case 'url_read': {
+      const target = String(args.url || '').trim();
+      if (!target) return '请提供 url。';
+      try {
+        const { text } = await fetchReadableViaJina(target);
+        const creditInfo = args.__creditInfo__ ? `\n\n${args.__creditInfo__}` : '';
+        return `**页面正文**（Jina Reader）\n\n${text}${creditInfo}`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error('[Lobster] url_read error:', err);
+        return `读取失败：${msg}`;
+      }
+    }
+
+    case 'exa_search': {
+      if (!process.env.EXA_API_KEY?.trim()) {
+        return '⚠️ Exa 搜索未启用（需配置 EXA_API_KEY）。可改用 web_search 或 url_read。';
+      }
+      const query = String(args.query || '').trim();
+      if (!query) return '搜索词不能为空。';
+      const n = Math.min(10, Math.max(1, Number(args.numResults) || 5));
+      try {
+        const out = await exaWebSearch(query, n);
+        const creditInfo = args.__creditInfo__ ? `\n\n${args.__creditInfo__}` : '';
+        return `**Exa 搜索结果**\n\n${out}${creditInfo}`;
+      } catch (err) {
+        console.error('[Lobster] exa_search error:', err);
+        return `Exa 搜索失败：${err instanceof Error ? err.message : String(err)}`;
       }
     }
 
