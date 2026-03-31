@@ -69,14 +69,29 @@ async function addEvent(
   });
 }
 
-async function shouldSkipDueToInterval(userId: string): Promise<boolean> {
-  const last = await prisma.evolverRound.findFirst({
-    where: { userId, status: { in: ['completed', 'failed'] } },
-    orderBy: { startedAt: 'desc' },
+/** 按「上一轮结束时间」限流；曾用 startedAt 排序，在并发/异常顺序下会误判为未到间隔 */
+async function intervalBlockReason(userId: string): Promise<string | null> {
+  let last = await prisma.evolverRound.findFirst({
+    where: {
+      userId,
+      status: { in: ['completed', 'failed'] },
+      completedAt: { not: null },
+    },
+    orderBy: { completedAt: 'desc' },
   });
-  if (!last?.completedAt && !last?.startedAt) return false;
-  const t = last.completedAt ?? last.startedAt;
-  return Date.now() - t.getTime() < EVOLVER_MIN_INTERVAL_MS;
+  if (!last) {
+    last = await prisma.evolverRound.findFirst({
+      where: { userId, status: { in: ['completed', 'failed'] } },
+      orderBy: { startedAt: 'desc' },
+    });
+  }
+  if (!last) return null;
+  const end = last.completedAt ?? last.startedAt;
+  if (!end) return null;
+  const elapsed = Date.now() - end.getTime();
+  if (elapsed >= EVOLVER_MIN_INTERVAL_MS) return null;
+  const remainSec = Math.ceil((EVOLVER_MIN_INTERVAL_MS - elapsed) / 1000);
+  return `距离上一轮不足最小间隔，约 ${remainSec} 秒后可再试`;
 }
 
 /**
@@ -90,8 +105,16 @@ export async function runEvolverRound(userId: string): Promise<
     return { ok: false, reason: '未申请 DarwinClaw，无进化器' };
   }
 
-  if (await shouldSkipDueToInterval(userId)) {
-    return { ok: false, reason: '距离上一轮不足最小间隔，已跳过' };
+  const running = await prisma.evolverRound.findFirst({
+    where: { userId, status: 'running' },
+  });
+  if (running) {
+    return { ok: false, reason: '已有进行中的进化轮次，请稍候再试' };
+  }
+
+  const intervalMsg = await intervalBlockReason(userId);
+  if (intervalMsg) {
+    return { ok: false, reason: intervalMsg };
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
