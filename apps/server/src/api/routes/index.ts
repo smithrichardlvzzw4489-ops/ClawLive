@@ -26,6 +26,7 @@ import { openApiRoutes } from './open';
 import { adminRoutes } from './admin';
 import { evolutionNetworkRoutes } from './evolution-network';
 import { evolverRoutes } from './evolver';
+import { darwinRoutes } from './darwin';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/admin', adminRoutes());
@@ -42,6 +43,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/feed-posts', feedPostsRoutes());
   app.use('/api/evolution-network', evolutionNetworkRoutes());
   app.use('/api/evolver', evolverRoutes());
+  app.use('/api/darwin', darwinRoutes());
   app.use('/api/search', searchRoutes());
   app.use('/api/behavior', behaviorRoutes());
   app.use('/api/rooms', roomSimpleRoutes(io));

@@ -105,6 +105,12 @@ export function Header({}: HeaderProps) {
               icon="🔭"
               active={pathname.startsWith('/evolution-network/observation')}
             />
+            <NavItem
+              href="/darwin"
+              label={t('nav.darwinShowcase')}
+              icon="🧬"
+              active={pathname.startsWith('/darwin')}
+            />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={active('/rooms')} />
             )}

@@ -42,6 +42,7 @@ export const translations = {
       points: '积分兑换',
       evolutionNetwork: '进化网络',
       evolutionObservation: '进化观察',
+      darwinShowcase: 'Darwin 展厅',
     },
 
     evolutionNetwork: {
@@ -139,6 +140,33 @@ export const translations = {
       authorCannotJoin: '你是发起 Agent，无需在此加入。',
       alreadyJoined: '你的 Agent 已留过言，无需重复。',
       commentsClosed: '该进化点已结束，仅可查看历史评论。',
+    },
+
+    darwinShowcase: {
+      title: 'Darwin 展厅',
+      subtitle:
+        '浏览已接入 Darwin 的用户：已安装技能数量、进化点与进化器摘要；可一键克隆技能到当前账号。',
+      skillCount: '已安装技能',
+      evoPointCount: '进化点',
+      viewProfile: '查看档案',
+      empty: '暂无已接入 Darwin 的用户。',
+      profileTitle: 'Darwin 进化档案',
+      skillsSection: '已安装技能（量化）',
+      skillsHint: '以下为该账号实际安装并注入 Darwin 对话的技能；不含仅平台默认开放、未安装的官方索引。',
+      sourcePlatform: '市场',
+      sourceWeb: '网络学习',
+      evoPointsSection: '进化点',
+      evoStatus: '状态',
+      evolverSection: '进化器轮次摘要',
+      evolutionResult: '进化结果（摘要）',
+      cloneTitle: '克隆技能',
+      cloneHint: '将对方全部已安装技能复制到你的账号（同 skillId 会覆盖为你的副本）。',
+      cloneButton: '克隆此 Darwin 的全部技能',
+      cloneLogin: '后可克隆全部技能',
+      cloneOk: '已合并到你的账号',
+      cloneFail: '克隆失败',
+      loading: '加载中…',
+      notFound: '未找到该 Darwin 或对方未接入 Darwin。',
     },
 
     points: {
@@ -788,6 +816,7 @@ export const translations = {
       points: 'Points',
       evolutionNetwork: 'Evolution Network',
       evolutionObservation: 'Evolution log',
+      darwinShowcase: 'Darwin gallery',
     },
 
     evolutionNetwork: {
@@ -886,6 +915,34 @@ export const translations = {
       authorCannotJoin: 'You are the initiating Agent; no need to join here.',
       alreadyJoined: 'Your Agent has already commented.',
       commentsClosed: 'This evolution point has ended; comments are read-only.',
+    },
+
+    darwinShowcase: {
+      title: 'Darwin gallery',
+      subtitle:
+        'Browse users with Darwin: installed skill counts, evolution points, and evolver summaries. Clone skills to your account.',
+      skillCount: 'Installed skills',
+      evoPointCount: 'Evolution points',
+      viewProfile: 'View profile',
+      empty: 'No Darwin users yet.',
+      profileTitle: 'Darwin evolution profile',
+      skillsSection: 'Installed skills (quantified)',
+      skillsHint:
+        'Skills actually installed for this account and injected into Darwin chat; default platform index entries are not counted here.',
+      sourcePlatform: 'Market',
+      sourceWeb: 'Web learned',
+      evoPointsSection: 'Evolution points',
+      evoStatus: 'Status',
+      evolverSection: 'Evolver rounds',
+      evolutionResult: 'Evolution result (summary)',
+      cloneTitle: 'Clone skills',
+      cloneHint: 'Copy all installed skills from this user to your account (same skillId overwrites your copy).',
+      cloneButton: 'Clone all skills from this Darwin',
+      cloneLogin: ' to clone all skills',
+      cloneOk: 'Merged into your account',
+      cloneFail: 'Clone failed',
+      loading: 'Loading…',
+      notFound: 'Darwin not found or user has not enabled Darwin.',
     },
 
     createVideo: {

@@ -273,4 +273,20 @@ export const api = {
     roundEvents: (roundId: string) => fetchAPI(`/api/evolver/rounds/${roundId}/events`),
     run: () => fetchAPI('/api/evolver/run', { method: 'POST', body: '{}' }),
   },
+  darwin: {
+    directory: (params?: { limit?: number; offset?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.limit != null) q.set('limit', String(params.limit));
+      if (params?.offset != null) q.set('offset', String(params.offset));
+      const s = q.toString();
+      return fetchAPI(`/api/darwin/directory${s ? `?${s}` : ''}`);
+    },
+    profile: (username: string) =>
+      fetchAPI(`/api/darwin/profile/${encodeURIComponent(username)}`),
+    cloneSkills: (body: { sourceUserId?: string; sourceUsername?: string }) =>
+      fetchAPI('/api/darwin/clone-skills', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
 };
