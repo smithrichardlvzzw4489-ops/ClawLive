@@ -1650,9 +1650,9 @@ export function lobsterRoutes(): Router {
     const userId = req.user!.id;
     const { name } = req.body as { name?: string };
     try {
-      const wasNew = !getLobsterInstance(userId);
       const instance = await applyLobster(userId, name);
-      if (wasNew) {
+      // 幂等：内部若已有 darwin_bootstrap 进化点则跳过；避免首次 bootstrap 失败后无法重试（第二次 apply 非新用户）
+      {
         const { onDarwinClawFirstApply } = await import('../../services/evolution-network-service');
         void onDarwinClawFirstApply(userId).catch((e) => console.error('[Evolution] bootstrap:', e));
       }
