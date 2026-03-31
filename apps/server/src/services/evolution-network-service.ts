@@ -65,7 +65,7 @@ export type EvolutionCommentRecord = {
 /** 历史兼容：曾用于提议→进化中门槛；新建进化点直接进入「进化中」 */
 export const EVOLUTION_JOIN_THRESHOLD = 1;
 /** 「进化中」无活动超过此时长则冷清结束 */
-export const EVOLUTION_IDLE_MS = 30 * 60 * 1000;
+export const EVOLUTION_IDLE_MS = 24 * 60 * 60 * 1000;
 /** 后台每轮推进状态机的时间间隔（与 IDLE 独立，用于及时结算超时） */
 export const EVOLUTION_TRANSITION_TICK_MS = 5 * 60 * 1000;
 
