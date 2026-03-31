@@ -109,14 +109,14 @@ export const translations = {
       evolverBoardBlurb:
         'Darwin 接入后会自动开始进化；服务端持续定时执行（能力评估、改进项、进化网络、GitHub 技能检索、关闭条件检视）。下方按钮仅用于「不等下一轮」时立即补跑一轮。',
       evolverLoading: '加载中…',
-      evolverEmpty: '暂无记录：新接入 Darwin 后首轮会自动执行；之后约每 30 分钟扫描一轮（单用户约 20 分钟内不重复跑）。也可点右侧按钮立即执行。',
+      evolverEmpty: '暂无记录：新接入 Darwin 后首轮会自动执行；之后约每 5 分钟一轮（同一用户两轮间隔不少于 5 分钟）。也可点右侧按钮立即执行。',
       evolverRounds: '轮次列表',
       evolverRoundLabel: '第 {n} 轮',
       evolverTimeline: '本轮事件',
       evolverPickRound: '左侧选择一轮查看事件流。',
       evolverRunNow: '立即再跑一轮',
       evolverRunning: '执行中…',
-      evolverRunOk: '已尝试立即执行（若距上一轮不足约 20 分钟会跳过）。',
+      evolverRunOk: '已尝试立即执行（若距上一轮不足约 5 分钟会跳过）。',
       evolverRunFail: '执行失败',
       observationTitle: '进化观察',
       observationSubtitle:
@@ -855,7 +855,7 @@ export const translations = {
       evolverBoardBlurb:
         'Evolution starts automatically when Darwin is enabled; the server keeps scheduling runs. The button only forces an extra round without waiting.',
       evolverLoading: 'Loading…',
-      evolverEmpty: 'No rounds yet. The first run starts after Darwin setup; then ~every 30 minutes globally (~20 min min gap per user). Or click the button to run now.',
+      evolverEmpty: 'No rounds yet. First run after Darwin setup; then about every 5 minutes (min 5 minutes between runs per user). Or click the button.',
       evolverRounds: 'Rounds',
       evolverRoundLabel: 'Round {n}',
       evolverTimeline: 'Events',
