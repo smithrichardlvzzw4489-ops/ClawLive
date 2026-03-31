@@ -1,9 +1,12 @@
 /**
- * LLM 服务：优先 LiteLLM（OpenAI 兼容 /v1），否则回退 OpenRouter。
+ * LLM 服务：默认若已配置 LiteLLM（LITELLM_BASE_URL + LITELLM_MASTER_KEY）则走代理；
+ * 否则走 OpenRouter（OPENROUTER_API_KEY）。
+ *
+ * 若同时配置了 LiteLLM 与 OpenRouter，默认仍优先 LiteLLM；需让进化器/摘要走 OpenRouter 时请设
+ * SERVER_LLM_USE_OPENROUTER=1，并设置 OPENROUTER_API_KEY 与 OPENROUTER_MODEL。
  *
  * 「发布/摘要」类服务端调用（作品一句话摘要、帖子 excerpt、Darwin 进化器评估等）共用
- * {@link getPublishingLlmClient}：同一套 KEY（LITELLM_MASTER_KEY 或 OPENROUTER_API_KEY）与
- * 同一模型解析规则（LLM_SUMMARY_MODEL → LITELLM_MODELS 首个 → 默认 gpt-4o-mini）。
+ * {@link getPublishingLlmClient}。
  */
 
 import OpenAI from 'openai';
@@ -30,10 +33,33 @@ function modelForOpenRouter(): string {
 
 type LlmClient = { client: OpenAI; model: string };
 
+/** 为 true 时：在已配置 LiteLLM 的情况下仍用 OpenRouter 作为发布/摘要/进化器客户端（需 OPENROUTER_API_KEY） */
+function publishingLlmForceOpenRouter(): boolean {
+  const v = process.env.SERVER_LLM_USE_OPENROUTER?.trim().toLowerCase();
+  return v === '1' || v === 'true' || v === 'yes' || v === 'openrouter';
+}
+
+function openRouterPublishingClient(): LlmClient {
+  const key = process.env.OPENROUTER_API_KEY?.trim();
+  if (!key) {
+    throw new Error(
+      '已设置 SERVER_LLM_USE_OPENROUTER，但未设置 OPENROUTER_API_KEY',
+    );
+  }
+  const base = (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
+  return {
+    client: new OpenAI({ apiKey: key, baseURL: base }),
+    model: modelForOpenRouter(),
+  };
+}
+
 /**
  * 与作品结果摘要、社区帖子摘要、Darwin 进化器评估共用：同一客户端与模型选择。
  */
 export function getPublishingLlmClient(): LlmClient {
+  if (publishingLlmForceOpenRouter()) {
+    return openRouterPublishingClient();
+  }
   if (isLitellmConfigured()) {
     return {
       client: new OpenAI({
@@ -52,7 +78,7 @@ export function getPublishingLlmClient(): LlmClient {
   return {
     client: new OpenAI({
       apiKey: key,
-      baseURL: 'https://openrouter.ai/api/v1',
+      baseURL: (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, ''),
     }),
     model: modelForOpenRouter(),
   };
