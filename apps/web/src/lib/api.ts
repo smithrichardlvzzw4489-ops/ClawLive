@@ -1,3 +1,5 @@
+import type { DarwinOnboardingAnswers } from '@clawlive/shared-types';
+
 const _BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 /**
@@ -162,7 +164,11 @@ export const api = {
   },
   lobster: {
     me: () => fetchAPI('/api/lobster/me'),
-    apply: (name?: string) => fetchAPI('/api/lobster/apply', { method: 'POST', body: JSON.stringify({ name }) }),
+    apply: (name?: string, onboarding?: DarwinOnboardingAnswers) =>
+      fetchAPI('/api/lobster/apply', {
+        method: 'POST',
+        body: JSON.stringify({ name, onboarding }),
+      }),
     rename: (name: string) => fetchAPI('/api/lobster/name', { method: 'PATCH', body: JSON.stringify({ name }) }),
     history: () => fetchAPI('/api/lobster/history'),
     chat: (message: string, image?: string, pageContext?: string, pageUrl?: string) =>

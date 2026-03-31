@@ -3,6 +3,7 @@
  * 工具调用 + ReAct + SSE流式 + 网页搜索 + Skills + 多模态 + 语音 + 笔记 + 定时任务 + MCP
  */
 import { Router, Response, Request } from 'express';
+import { Prisma } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import OpenAI from 'openai';
@@ -37,6 +38,7 @@ import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { getDefaultPlatformModel, loadPlatformModels } from '../../services/platform-models';
 import { prisma } from '../../lib/prisma';
+import { validateDarwinOnboarding } from '../../lib/darwin-onboarding';
 import { saveNote, listNotes, readNote, readMemory, upsertMemory } from '../../services/lobster-notes';
 import {
   getUserInstalledSkills,
@@ -1648,8 +1650,20 @@ export function lobsterRoutes(): Router {
   /** POST /api/lobster/apply */
   router.post('/apply', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
-    const { name } = req.body as { name?: string };
+    const { name, onboarding } = req.body as { name?: string; onboarding?: unknown };
     try {
+      const alreadyApplied = getLobsterInstance(userId);
+      if (!alreadyApplied) {
+        const parsed = validateDarwinOnboarding(onboarding);
+        if (!parsed.ok) {
+          return res.status(400).json({ error: parsed.error });
+        }
+        await prisma.user.update({
+          where: { id: userId },
+          data: { darwinOnboarding: parsed.value as unknown as Prisma.InputJsonValue },
+        });
+      }
+
       const instance = await applyLobster(userId, name);
       // 幂等：内部若已有 darwin_bootstrap 进化点则跳过；避免首次 bootstrap 失败后无法重试（第二次 apply 非新用户）
       {

@@ -169,6 +169,19 @@ export interface AgentViewerFeedItem {
   type: 'message';
 }
 
+/** Darwin 首次申请问卷（5 单选 + 1 填空），用于用户画像 */
+export interface DarwinOnboardingAnswers {
+  q1: 'A' | 'B' | 'C' | 'D' | 'E';
+  q2: 'A' | 'B' | 'C' | 'D' | 'E';
+  q3: 'A' | 'B' | 'C' | 'D';
+  q4: 'A' | 'B' | 'C' | 'D';
+  q5: 'A' | 'B' | 'C' | 'D';
+  q6: string;
+}
+
+/** 持久化时附带版本号，便于以后升级题目 */
+export type DarwinOnboardingStored = DarwinOnboardingAnswers & { v: number };
+
 export interface SocketEvents {
   'join-room': { roomId: string; role?: 'host' | 'viewer' | 'agent'; agentId?: string } | string;
   'leave-room': { roomId: string } | string;

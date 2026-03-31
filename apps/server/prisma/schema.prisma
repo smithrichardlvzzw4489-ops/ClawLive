@@ -20,6 +20,8 @@ model User {
   clawPoints        Int      @default(0)
   /// LiteLLM 虚拟 Key；勿写入日志或下发给前端（除专用接口）
   litellmVirtualKey String?
+  /// 首次申请 Darwin 时填写的问卷（JSON），申请成功时写入
+  darwinOnboarding  Json?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { api, APIError, API_BASE_URL } from '@/lib/api';
 import { BRAND_ZH, DARWIN_ICON } from '@/lib/brand';
+import { DarwinOnboardingForm } from '@/components/DarwinOnboardingForm';
+import type { DarwinOnboardingAnswers } from '@clawlive/shared-types';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -487,14 +489,14 @@ export default function MyLobsterPage() {
     }
   };
 
-  const handleApply = async () => {
+  const handleApply = async (answers: DarwinOnboardingAnswers) => {
     setApplying(true);
     setError('');
     try {
-      const data = await api.lobster.apply(undefined);
+      const data = (await api.lobster.apply(undefined, answers)) as { success?: boolean; instance?: LobsterInstance };
       if (data.success) {
         setApplied(true);
-        setInstance(data.instance);
+        setInstance(data.instance ?? null);
         setMessages([WELCOME_MESSAGE]);
       }
     } catch (err) {
@@ -809,18 +811,13 @@ export default function MyLobsterPage() {
   if (!applied) {
     return (
       <MainLayout>
-        <div className="mx-auto max-w-md px-6 py-16 text-center">
-          <div className="mx-auto mb-6 relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-800 text-5xl shadow-lg glow-lobster">
-            {DARWIN_ICON}
-          </div>
-          <h1 className="mb-3 text-2xl font-bold text-slate-100">DarwinClaw</h1>
-          <p className="mb-8 text-slate-400">实验室专属 AI Agent，自主学习 · 进化 · 为你服务</p>
-
-          <div className="mb-8 grid grid-cols-4 gap-3 rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.08] p-4 text-center text-xs">
-            <div><p className="text-xl">🔍</p><p className="mt-1 text-slate-500">网页搜索</p></div>
-            <div><p className="text-xl">📄</p><p className="mt-1 text-slate-500">平台内容</p></div>
-            <div><p className="text-xl">🧩</p><p className="mt-1 text-slate-500">Skills 技能</p></div>
-            <div><p className="text-xl">🤔</p><p className="mt-1 text-slate-500">自主进化</p></div>
+        <div className="mx-auto max-w-xl px-4 py-8 pb-16 sm:px-6">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-5 relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-indigo-800 text-4xl shadow-lg glow-lobster">
+              {DARWIN_ICON}
+            </div>
+            <h1 className="mb-2 text-2xl font-bold text-slate-100">DarwinClaw</h1>
+            <p className="text-sm text-slate-400">实验室专属 AI Agent，自主学习 · 进化 · 为你服务</p>
           </div>
 
           {error &&
@@ -828,21 +825,21 @@ export default function MyLobsterPage() {
               <button
                 type="button"
                 onClick={goToLogin}
-                className="mb-4 w-full text-sm text-red-400 underline underline-offset-2 hover:text-red-300"
+                className="mb-6 w-full text-center text-sm text-red-400 underline underline-offset-2 hover:text-red-300"
               >
                 {error}
               </button>
             ) : (
-              <p className="mb-4 text-sm text-red-400">{error}</p>
+              <p className="mb-6 text-center text-sm text-red-400">{error}</p>
             ))}
 
-          <button
-            onClick={handleApply}
-            disabled={applying}
-            className="w-full rounded-2xl bg-lobster py-3.5 text-base font-semibold text-white transition hover:bg-lobster-dark disabled:opacity-60 glow-lobster"
-          >
-            {applying ? '申请中...' : '申请 DarwinClaw'}
-          </button>
+          <div className="mx-auto flex justify-center">
+            <DarwinOnboardingForm
+              onSubmit={handleApply}
+              submitting={applying}
+              serverError={error && !isAuthErrorMessage(error) ? error : undefined}
+            />
+          </div>
         </div>
       </MainLayout>
     );
