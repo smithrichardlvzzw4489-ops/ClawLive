@@ -11,12 +11,12 @@
  */
 import cron from 'node-cron';
 import { v4 as uuidv4 } from 'uuid';
-import OpenAI from 'openai';
 import { getAllInstances, setPendingSkillSuggestion } from './lobster-persistence';
 import { getFeedPostsMap, saveFeedPosts } from './feed-posts-store';
 import { FeedPostRecord } from './feed-posts-persistence';
 import { prisma } from '../lib/prisma';
 import { config } from '../config';
+import { getPublishingLlmClient } from './llm';
 
 // ── AI 内容话题池（每次随机选取） ──────────────────────────────────────────────
 
@@ -90,12 +90,6 @@ async function generateArticle(
   topic: string,
   searchResults: string,
 ): Promise<{ title: string; content: string } | null> {
-  const base = config.litellm.baseUrl;
-  const masterKey = config.litellm.masterKey;
-  if (!base || !masterKey) return null;
-
-  const llm = new OpenAI({ apiKey: masterKey, baseURL: `${base}/v1` });
-
   const systemPrompt = `你是一位专注 AI 领域的内容创作者，为 ClawLab（面向 AI 学习者的社区平台）撰写实用文章。
 文章风格：专业但易读，有实际操作价值，中文写作。
 文章要求：
@@ -110,8 +104,9 @@ async function generateArticle(
     : `请写一篇关于「${topic}」的实用文章，分享给正在学习 AI 的用户。`;
 
   try {
-    const resp = await llm.chat.completions.create({
-      model: config.litellm.models[0] || 'gpt-4o-mini',
+    const { client, model } = getPublishingLlmClient();
+    const resp = await client.chat.completions.create({
+      model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

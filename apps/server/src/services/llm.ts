@@ -1,5 +1,9 @@
 /**
  * LLM 服务：优先 LiteLLM（OpenAI 兼容 /v1），否则回退 OpenRouter。
+ *
+ * 「发布/摘要」类服务端调用（作品一句话摘要、帖子 excerpt、Darwin 进化器评估等）共用
+ * {@link getPublishingLlmClient}：同一套 KEY（LITELLM_MASTER_KEY 或 OPENROUTER_API_KEY）与
+ * 同一模型解析规则（LLM_SUMMARY_MODEL → LITELLM_MODELS 首个 → 默认 gpt-4o-mini）。
  */
 
 import OpenAI from 'openai';
@@ -11,7 +15,7 @@ function litellmOpenAIBase(): string {
   return `${base}/v1`;
 }
 
-/** 摘要生成使用的模型：环境变量优先，否则取 LITELLM_MODELS 首个，再默认 gpt-4o-mini */
+/** 摘要/发布类服务端调用使用的模型：环境变量优先，否则取 LITELLM_MODELS 首个，再默认 gpt-4o-mini */
 function modelForLitellm(): string {
   const fromEnv = process.env.LLM_SUMMARY_MODEL?.trim();
   if (fromEnv) return fromEnv;
@@ -27,9 +31,9 @@ function modelForOpenRouter(): string {
 type LlmClient = { client: OpenAI; model: string };
 
 /**
- * 站内所有「服务端代调用」LLM 的统一客户端（作品摘要等）。
+ * 与作品结果摘要、社区帖子摘要、Darwin 进化器评估共用：同一客户端与模型选择。
  */
-function getServerLlmClient(): LlmClient {
+export function getPublishingLlmClient(): LlmClient {
   if (isLitellmConfigured()) {
     return {
       client: new OpenAI({
@@ -59,7 +63,7 @@ export async function generateResultSummary(context: {
   lobsterName: string;
   messages: Array<{ sender: string; content: string }>;
 }): Promise<string> {
-  const { client, model } = getServerLlmClient();
+  const { client, model } = getPublishingLlmClient();
 
   const conversation = context.messages
     .slice(-20)
@@ -95,7 +99,7 @@ export async function generateFeedPostExcerpt(context: {
   title: string;
   content: string;
 }): Promise<string> {
-  const { client, model } = getServerLlmClient();
+  const { client, model } = getPublishingLlmClient();
   const preview = context.content.replace(/[#*`\[\]!>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 600);
   const prompt = `你是一个文案助手。根据以下文章，生成一句吸引人的摘要（50字以内），适合展示在卡片上，不要加引号或前缀，直接输出摘要文字。
 
@@ -112,7 +116,7 @@ export async function generateFeedPostExcerpt(context: {
   return text.slice(0, 100);
 }
 
-/** Darwin 进化器一轮评估：失败时返回 null，由调用方使用启发式 */
+/** Darwin 进化器一轮评估：与 generateResultSummary / generateFeedPostExcerpt 同 KEY、同模型；失败时返回 null */
 export async function generateEvolverAssessment(context: {
   username: string;
   onboardingSnippet: string;
@@ -120,7 +124,7 @@ export async function generateEvolverAssessment(context: {
   pendingSkill: string;
 }): Promise<{ summary: string; improvements: string[]; selfAssessment: string } | null> {
   try {
-    const { client, model } = getServerLlmClient();
+    const { client, model } = getPublishingLlmClient();
     const prompt = `你是 Darwin Agent 的「进化顾问」。根据以下信息，输出**仅一段 JSON**（不要 markdown 围栏），格式：
 {"summary":"本轮能力评估一句话","selfAssessment":"自我能力简述（2-3句）","improvements":["改进项1（具体可执行）","改进项2","改进项3"]}
 改进项最多 3 条，与技能、工具、与主人协作相关；若信息不足可写通用能力提升方向。
@@ -166,7 +170,7 @@ export async function testLiteLLMWithMasterKey(message?: string, modelOverride?:
   if (!isLitellmConfigured()) {
     throw new Error('LITELLM_NOT_CONFIGURED');
   }
-  const { client, model: defaultModel } = getServerLlmClient();
+  const { client, model: defaultModel } = getPublishingLlmClient();
   const model = modelOverride?.trim() || defaultModel;
   const userMsg = message?.trim() || '用一句话回复：连接成功。';
   const response = await client.chat.completions.create({
