@@ -58,7 +58,13 @@ export default function EvolutionNetworkPage() {
         )}
         {!loading && (
           <>
-            <div className="mx-auto flex max-w-6xl justify-end px-1 pt-2">
+            <div className="mx-auto flex max-w-6xl flex-wrap justify-end gap-x-5 gap-y-2 px-1 pt-2">
+              <Link
+                href="/evolution-network/evolver"
+                className="text-sm font-medium text-cyan-400/90 transition hover:text-cyan-300 hover:underline"
+              >
+                {t('evolutionNetwork.evolverBoardTitle')} →
+              </Link>
               <Link
                 href="/evolution-network/observation"
                 className="text-sm font-medium text-cyber/90 transition hover:text-cyber hover:underline"

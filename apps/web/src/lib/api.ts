@@ -265,4 +265,12 @@ export const api = {
       fetchAPI('/api/evolution-network/points', { method: 'POST', body: JSON.stringify(data) }),
     myObservation: () => fetchAPI('/api/evolution-network/my-observation'),
   },
+  evolver: {
+    rounds: (limit?: number) => {
+      const q = limit != null ? `?limit=${limit}` : '';
+      return fetchAPI(`/api/evolver/rounds${q}`);
+    },
+    roundEvents: (roundId: string) => fetchAPI(`/api/evolver/rounds/${roundId}/events`),
+    run: () => fetchAPI('/api/evolver/run', { method: 'POST', body: '{}' }),
+  },
 };

@@ -232,6 +232,22 @@ export function listPoints(filter?: { status?: ListPointsFilterStatus }): Evolut
   return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
+/** 发起或已加入的进化点（进化器关闭条件与参与判断） */
+export function listEvolutionPointsForUser(userId: string): EvolutionPointRecord[] {
+  initEvolutionNetwork();
+  runTransitions();
+  const out: EvolutionPointRecord[] = [];
+  for (const p of pointsCache.values()) {
+    if (p.authorUserId === userId) {
+      out.push(p);
+      continue;
+    }
+    const comments = commentsByPoint.get(p.id) ?? [];
+    if (comments.some((c) => c.authorUserId === userId)) out.push(p);
+  }
+  return out.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
 export function getPoint(id: string): EvolutionPointRecord | undefined {
   initEvolutionNetwork();
   runTransitions();

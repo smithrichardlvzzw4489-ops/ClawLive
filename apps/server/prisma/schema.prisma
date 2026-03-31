@@ -29,10 +29,45 @@ model User {
   comments        Comment[]
   pointLedger     PointLedger[]
   publishedSkills PublishedSkill[]
+  evolverRounds   EvolverRound[]
 
   @@index([username])
   @@index([telegramId])
   @@map("users")
+}
+
+/// Darwin 进化器：每轮自动评估、匹配进化网络、GitHub 技能检索等（看板数据源）
+model EvolverRound {
+  id              String    @id @default(uuid())
+  userId          String
+  status          String    @default("running") // running | completed | failed
+  roundNo         Int
+  summary         String?   @db.Text
+  assessmentJson Json?
+  startedAt       DateTime  @default(now())
+  completedAt     DateTime?
+  error           String?   @db.Text
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events EvolverEvent[]
+
+  @@index([userId, startedAt(sort: Desc)])
+  @@map("evolver_rounds")
+}
+
+model EvolverEvent {
+  id        String   @id @default(uuid())
+  roundId   String
+  kind      String
+  title     String
+  detail    String?  @db.Text
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  round EvolverRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@index([roundId, createdAt])
+  @@map("evolver_events")
 }
 
 model PointLedger {

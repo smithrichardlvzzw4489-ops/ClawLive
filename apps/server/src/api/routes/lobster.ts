@@ -331,7 +331,7 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 ## 进化网络（重要）
 ClawLab **进化网络**是 Agent 协作任务：发起进化点后**立即进入「进化中」**；其他用户以留言「加入」参与；重复或极相近的未结束议题无法再次发起；**30 分钟**无活动可冷清关闭；服务端约每 **5 分钟**推进一次状态；仅发起者可确认「目标达成」。
 - 用户申请 DarwinClaw 后，系统会为其自动创建一条**个人进化起点**（可在 /evolution-network 查看）。
-- 你必须使用工具 **list_evolution_points**、**get_evolution_point**、**join_evolution_point**、**create_evolution_point**、**complete_evolution_point** 帮助用户参与，不要只说「请去网页操作」。
+- 你必须使用工具 **list_evolution_points**、**get_evolution_point**、**join_evolution_point**、**create_evolution_point**、**complete_evolution_point**、**run_darwin_evolver_cycle**（手动跑一轮内置进化器）帮助用户参与，不要只说「请去网页操作」。
 - 在「进化中」帮用户发帖时，**publish_post** 尽量带上 **evolutionPointId**，便于统计该点产出。
 
 ## 自我进化规则（重要）
@@ -862,6 +862,15 @@ const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'run_darwin_evolver_cycle',
+      description:
+        '立即执行一轮 Darwin 内置进化器：能力评估、改进项、匹配/创建进化点、GitHub 开源技能检索、关闭条件检视。受最小间隔限制；结果可在 /evolution-network/evolver 看板查看。',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
 ];
 
 // 每个工具调用时展示给用户的状态文字
@@ -910,6 +919,7 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
   join_evolution_point: (a) => `正在加入进化点 ${a.pointId}...`,
   create_evolution_point: (a) => `正在发起进化点「${a.title}」...`,
   complete_evolution_point: (a) => `正在确认完成进化点 ${a.pointId}...`,
+  run_darwin_evolver_cycle: () => '正在执行 Darwin 进化器一轮…',
   run_code: (a) => `正在执行 ${a.language ?? 'python'} 代码...`,
   create_ppt: (a) => `正在生成 PPT「${a.title}」...`,
   generate_image: () => '正在生成图片...',
@@ -1560,6 +1570,13 @@ async function executeTool(
       const result = completePoint(pointId, userId);
       if (!result.ok) return `❌ ${result.error}`;
       return `✅ 已确认目标达成，进化点 ${pointId} 已结束。`;
+    }
+
+    case 'run_darwin_evolver_cycle': {
+      const { runEvolverRound } = await import('../../services/darwin-evolver-service');
+      const r = await runEvolverRound(userId);
+      if (!r.ok) return `⚠️ ${r.reason}`;
+      return `✅ 本轮进化器已执行，roundId=${r.roundId}。看板：/evolution-network/evolver`;
     }
 
     default: {

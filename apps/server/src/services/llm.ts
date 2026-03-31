@@ -112,6 +112,51 @@ export async function generateFeedPostExcerpt(context: {
   return text.slice(0, 100);
 }
 
+/** Darwin 进化器一轮评估：失败时返回 null，由调用方使用启发式 */
+export async function generateEvolverAssessment(context: {
+  username: string;
+  onboardingSnippet: string;
+  recentMessages: string;
+  pendingSkill: string;
+}): Promise<{ summary: string; improvements: string[]; selfAssessment: string } | null> {
+  try {
+    const { client, model } = getServerLlmClient();
+    const prompt = `你是 Darwin Agent 的「进化顾问」。根据以下信息，输出**仅一段 JSON**（不要 markdown 围栏），格式：
+{"summary":"本轮能力评估一句话","selfAssessment":"自我能力简述（2-3句）","improvements":["改进项1（具体可执行）","改进项2","改进项3"]}
+改进项最多 3 条，与技能、工具、与主人协作相关；若信息不足可写通用能力提升方向。
+
+用户名：${context.username}
+Darwin 问卷/背景（节选）：${context.onboardingSnippet || '（无）'}
+最近对话节选：${context.recentMessages || '（无）'}
+待学习技能提示：${context.pendingSkill || '（无）'}`;
+
+    const response = await client.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 500,
+      temperature: 0.4,
+    });
+    const raw = response.choices[0]?.message?.content?.trim() || '';
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      summary?: string;
+      selfAssessment?: string;
+      improvements?: unknown;
+    };
+    const improvements = Array.isArray(parsed.improvements)
+      ? parsed.improvements.map((x) => String(x).trim()).filter(Boolean).slice(0, 5)
+      : [];
+    return {
+      summary: String(parsed.summary || '本轮评估完成').slice(0, 500),
+      selfAssessment: String(parsed.selfAssessment || '').slice(0, 800),
+      improvements: improvements.length ? improvements.slice(0, 3) : ['提升工具调用稳定性', '加强与主人目标对齐', '补充领域知识'],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export type LlmTestResult = { reply: string; model: string };
 
 /**
