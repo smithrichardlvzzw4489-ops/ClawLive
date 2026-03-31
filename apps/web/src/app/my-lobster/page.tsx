@@ -43,7 +43,7 @@ const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    `你好！我是 ${BRAND_ZH} ${DARWIN_ICON} 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n• 🧬 进化网络：申请 Darwin 后系统会为你创建「个人进化起点」。在 /evolution-network 打开总览；或对我说「列出进化点」「我的进化点」，我会用工具帮你查并引导报名。\n\n有什么我可以帮你的吗？`,
+    `你好！我是 ${BRAND_ZH} ${DARWIN_ICON} 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n• 🧬 进化网络：申请 Darwin 后系统会为你创建「个人进化起点」。在 /evolution-network 打开总览；或对我说「列出进化点」「我的进化点」，我会用工具帮你查并引导加入。\n\n有什么我可以帮你的吗？`,
   timestamp: new Date().toISOString(),
 };
 

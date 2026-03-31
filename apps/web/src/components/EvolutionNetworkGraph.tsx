@@ -3,6 +3,9 @@
 import { useId, useMemo } from 'react';
 import type { EvolutionPoint, EvolutionPointStatus } from '@/lib/evolution-network';
 
+/** 图布局桶：未结束（提议中+进化中）与已结束 */
+type EvoBucket = 'evolving' | 'ended';
+
 const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string; glow: string }> = {
   proposed: {
     fill: 'rgba(251, 191, 36, 0.35)',
@@ -21,16 +24,17 @@ const STATUS_COLOR: Record<EvolutionPointStatus, { fill: string; stroke: string;
   },
 };
 
-const STATUS_ORDER: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
+const BUCKET_ORDER: EvoBucket[] = ['evolving', 'ended'];
 
-/** 分类内星座连线：与节点同色 */
-const NET_STROKE: Record<EvolutionPointStatus, string> = {
-  proposed: 'rgba(245, 158, 11, 0.32)',
-  active: 'rgba(34, 211, 238, 0.28)',
+const NET_STROKE: Record<EvoBucket, string> = {
+  evolving: 'rgba(34, 211, 238, 0.28)',
   ended: 'rgba(148, 163, 184, 0.28)',
 };
 
-/** 每点连向同区内最近的 k 个邻居，边去重，形成若隐若现的局部星网 */
+function evolutionBucket(p: EvolutionPoint): EvoBucket {
+  return p.status === 'ended' ? 'ended' : 'evolving';
+}
+
 function nearestNeighborEdges(pts: { x: number; y: number }[], k: number): [number, number][] {
   const n = pts.length;
   if (n < 2) return [];
@@ -60,27 +64,16 @@ function nearestNeighborEdges(pts: { x: number; y: number }[], k: number): [numb
   return out;
 }
 
-/** 左 / 中 / 右 三片「星野」，用满横向空间；坐标为相对 [0,1] 的矩形内 */
-const ZONE: Record<
-  EvolutionPointStatus,
-  { x0: number; x1: number; y0: number; y1: number; fill: string }
-> = {
-  proposed: {
+const ZONE: Record<EvoBucket, { x0: number; x1: number; y0: number; y1: number; fill: string }> = {
+  evolving: {
     x0: 0.03,
-    x1: 0.3,
-    y0: 0.1,
-    y1: 0.9,
-    fill: 'rgba(245, 158, 11, 0.05)',
-  },
-  active: {
-    x0: 0.34,
-    x1: 0.66,
+    x1: 0.47,
     y0: 0.1,
     y1: 0.9,
     fill: 'rgba(34, 211, 238, 0.05)',
   },
   ended: {
-    x0: 0.7,
+    x0: 0.53,
     x1: 0.97,
     y0: 0.1,
     y1: 0.9,
@@ -97,11 +90,10 @@ function strHash(s: string): number {
   return h >>> 0;
 }
 
-/** 同一进化点在区内稳定、可复现的散点位置 */
-function pointInZone(id: string, status: EvolutionPointStatus, w: number, h: number) {
-  const z = ZONE[status];
-  const h1 = strHash(`${id}|${status}|x`);
-  const h2 = strHash(`${id}|${status}|y`);
+function pointInZone(id: string, bucket: EvoBucket, w: number, h: number) {
+  const z = ZONE[bucket];
+  const h1 = strHash(`${id}|${bucket}|x`);
+  const h2 = strHash(`${id}|${bucket}|y`);
   const u = (h1 % 10000) / 10000;
   const v = (h2 % 10000) / 10000;
   const x = (z.x0 + u * (z.x1 - z.x0)) * w;
@@ -113,8 +105,7 @@ type Props = {
   points: EvolutionPoint[];
   onNodeClick?: (point: EvolutionPoint) => void;
   labels: {
-    proposed: string;
-    active: string;
+    evolving: string;
     ended: string;
     empty: string;
   };
@@ -133,7 +124,7 @@ type ConstellationEdge = {
   y1: number;
   x2: number;
   y2: number;
-  status: EvolutionPointStatus;
+  bucket: EvoBucket;
 };
 
 type LayoutState = {
@@ -143,30 +134,28 @@ type LayoutState = {
   h: number;
 };
 
-function groupByStatus(points: EvolutionPoint[]): Record<EvolutionPointStatus, EvolutionPoint[]> {
-  const out: Record<EvolutionPointStatus, EvolutionPoint[]> = {
-    proposed: [],
-    active: [],
+function groupByBucket(points: EvolutionPoint[]): Record<EvoBucket, EvolutionPoint[]> {
+  const out: Record<EvoBucket, EvolutionPoint[]> = {
+    evolving: [],
     ended: [],
   };
   for (const p of points) {
-    out[p.status].push(p);
+    out[evolutionBucket(p)].push(p);
   }
-  for (const s of STATUS_ORDER) {
-    out[s].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+  for (const b of BUCKET_ORDER) {
+    out[b].sort((a, c) => a.id.localeCompare(c.id, undefined, { numeric: true }));
   }
   return out;
 }
 
-/** 节点略有大小的星点感（稳定哈希） */
 function nodeRadius(status: EvolutionPointStatus, id: string): number {
-  const base = status === 'active' ? 11 : 9;
+  const base = status === 'active' || status === 'proposed' ? 11 : 9;
   const j = (strHash(`${id}|r`) % 5) - 2;
   return Math.max(7, base + j * 0.5);
 }
 
 /**
- * 宽画布「满天星」：三类各占左/中/右星野散点；背景远景线 + 分类内近邻星座线（若隐若现）。
+ * 宽画布「满天星」：左/右两片（进化中 / 已结束）；背景远景线 + 桶内近邻星座线。
  */
 export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const filterId = useId().replace(/:/g, '');
@@ -174,16 +163,16 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
   const layout = useMemo((): LayoutState => {
     const w = 1000;
     const h = 440;
-    const grouped = groupByStatus(points);
+    const grouped = groupByBucket(points);
     const nodes: LayoutItem[] = [];
     const edges: ConstellationEdge[] = [];
     const kNeighbors = 5;
 
-    for (const status of STATUS_ORDER) {
-      const list = grouped[status];
+    for (const bucket of BUCKET_ORDER) {
+      const list = grouped[bucket];
       const pts: { x: number; y: number }[] = [];
       for (const p of list) {
-        const { x, y } = pointInZone(p.id, p.status, w, h);
+        const { x, y } = pointInZone(p.id, bucket, w, h);
         pts.push({ x, y });
         nodes.push({ p, x, y, w, h });
       }
@@ -193,7 +182,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           y1: pts[i].y,
           x2: pts[j].x,
           y2: pts[j].y,
-          status,
+          bucket,
         });
       }
     }
@@ -218,7 +207,6 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
     return stars;
   }, []);
 
-  /** 远景：随机长斜线，增强网感 */
   const ambientWeb = useMemo(() => {
     const w = 1000;
     const h = 440;
@@ -236,7 +224,6 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
     return lines;
   }, []);
 
-  /** 远景：较短碎线，与长斜线交错 */
   const ambientWebShort = useMemo(() => {
     const w = 1000;
     const h = 440;
@@ -351,15 +338,15 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           />
         ))}
 
-        {STATUS_ORDER.map((status) => {
-          const z = ZONE[status];
+        {BUCKET_ORDER.map((bucket) => {
+          const z = ZONE[bucket];
           const x = z.x0 * w + 8;
           const y = z.y0 * h;
           const rw = (z.x1 - z.x0) * w - 16;
           const rh = (z.y1 - z.y0) * h;
           return (
             <rect
-              key={status}
+              key={bucket}
               x={x}
               y={y}
               width={rw}
@@ -373,19 +360,16 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           );
         })}
 
-        {[0.31, 0.69].map((gx) => (
-          <line
-            key={gx}
-            x1={gx * w}
-            y1={h * 0.08}
-            x2={gx * w}
-            y2={h * 0.92}
-            stroke="rgba(148, 163, 184, 0.09)"
-            strokeWidth="1"
-            strokeDasharray="4 7"
-            className="pointer-events-none"
-          />
-        ))}
+        <line
+          x1={0.5 * w}
+          y1={h * 0.08}
+          x2={0.5 * w}
+          y2={h * 0.92}
+          stroke="rgba(148, 163, 184, 0.09)"
+          strokeWidth="1"
+          strokeDasharray="4 7"
+          className="pointer-events-none"
+        />
 
         {edges.map((e, i) => (
           <line
@@ -394,7 +378,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
             y1={e.y1}
             x2={e.x2}
             y2={e.y2}
-            stroke={NET_STROKE[e.status]}
+            stroke={NET_STROKE[e.bucket]}
             strokeWidth="1.15"
             strokeOpacity={0.62}
             strokeLinecap="round"
@@ -404,12 +388,11 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
         ))}
 
         {[
-          { status: 'proposed' as const, label: labels.proposed, gx: 0.165 },
-          { status: 'active' as const, label: labels.active, gx: 0.5 },
-          { status: 'ended' as const, label: labels.ended, gx: 0.835 },
-        ].map(({ status, label, gx }) => (
+          { label: labels.evolving, gx: 0.25 },
+          { label: labels.ended, gx: 0.75 },
+        ].map(({ label, gx }) => (
           <text
-            key={status}
+            key={gx}
             x={gx * w}
             y={28}
             textAnchor="middle"
@@ -428,6 +411,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
           const rVis = nodeRadius(p.status, p.id);
           const handleActivate = () => onNodeClick?.(p);
           const short = p.title.length > 8 ? `${p.title.slice(0, 7)}…` : p.title;
+          const pulse = p.status === 'active' || p.status === 'proposed';
           return (
             <g key={p.id}>
               <circle
@@ -446,7 +430,7 @@ export function EvolutionNetworkGraph({ points, labels, onNodeClick }: Props) {
                 stroke={col.stroke}
                 strokeWidth="1.5"
                 filter={`url(#${filterId})`}
-                className={`pointer-events-none ${p.status === 'active' ? 'animate-pulse' : ''}`}
+                className={`pointer-events-none ${pulse ? 'animate-pulse' : ''}`}
               />
               <text
                 x={x}

@@ -53,15 +53,14 @@ export function EvolutionPointPageClient({ pointId }: { pointId: string }) {
     );
   }
 
-  if (point.status === 'proposed') {
-    return (
-      <MainLayout>
-        <div className="mx-auto max-w-md px-3 py-6 sm:px-4 lg:px-6">
+  return (
+    <MainLayout>
+      <div className="mx-auto max-w-[min(100%,1600px)] px-3 py-6 sm:px-4 lg:px-6">
+        <div className="mx-auto max-w-md">
           <EvolutionPointDetailView point={point} comments={comments} onRefresh={load} />
         </div>
-      </MainLayout>
-    );
-  }
-
-  return <EvolutionPointWorksFeed point={point} />;
+        <EvolutionPointWorksFeed point={point} variant="feedOnly" />
+      </div>
+    </MainLayout>
+  );
 }

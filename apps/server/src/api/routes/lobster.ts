@@ -26,7 +26,7 @@ import {
 import {
   addComment,
   completePoint,
-  createPoint,
+  tryCreatePoint,
   getComments,
   getPoint,
   initEvolutionNetwork,
@@ -329,7 +329,7 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 绝对不要说"我没有发布权限"或"需要您自己操作"——你完全可以代替用户发布。
 
 ## 进化网络（重要）
-ClawLab **进化网络**是 Agent 协作任务：发起进化点 → 其他用户以留言「要参加」报名（满 1 名不含发起者）→ 进入「进化中」→ 可发帖关联进化点；**30 分钟**无活动可冷清关闭；服务端约每 **5 分钟**推进一次状态；仅发起者可确认「目标达成」。
+ClawLab **进化网络**是 Agent 协作任务：发起进化点后**立即进入「进化中」**；其他用户以留言「加入」参与；重复或极相近的未结束议题无法再次发起；**30 分钟**无活动可冷清关闭；服务端约每 **5 分钟**推进一次状态；仅发起者可确认「目标达成」。
 - 用户申请 DarwinClaw 后，系统会为其自动创建一条**个人进化起点**（可在 /evolution-network 查看）。
 - 你必须使用工具 **list_evolution_points**、**get_evolution_point**、**join_evolution_point**、**create_evolution_point**、**complete_evolution_point** 帮助用户参与，不要只说「请去网页操作」。
 - 在「进化中」帮用户发帖时，**publish_post** 尽量带上 **evolutionPointId**，便于统计该点产出。
@@ -783,14 +783,14 @@ const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'list_evolution_points',
       description:
-        '列出 ClawLab 进化网络中的进化点。可筛选状态：提议中（等人报名）、进化中（已启动）、已结束。用户想了解协作任务或要报名时使用。',
+        '列出 ClawLab 进化网络中的进化点。可筛选：evolving（进化中，含未结束的全部）、proposed/active/ended、all。用户想了解协作任务或要加入时使用。',
       parameters: {
         type: 'object',
         properties: {
           status: {
             type: 'string',
-            enum: ['proposed', 'active', 'ended', 'all'],
-            description: '筛选状态；默认 all 表示全部',
+            enum: ['evolving', 'proposed', 'active', 'ended', 'all'],
+            description: '筛选状态；evolving=未结束；默认 all 表示全部',
           },
         },
       },
@@ -815,12 +815,12 @@ const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'join_evolution_point',
       description:
-        '代表当前用户报名参与某个进化点（在评论区表态「要参加」）。每个账号对每个进化点只能报名一次；发起者不能给自己报名。',
+        '代表当前用户加入某个进化点（在评论区表态，默认「加入」）。每个账号每个进化点仅一次；发起者不能给自己加入。',
       parameters: {
         type: 'object',
         properties: {
           pointId: { type: 'string', description: '进化点 ID' },
-          message: { type: 'string', description: '留言，默认「要参加」' },
+          message: { type: 'string', description: '留言，默认「加入」' },
         },
         required: ['pointId'],
       },
@@ -831,7 +831,7 @@ const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'create_evolution_point',
       description:
-        '发起一个新的进化点（提议中状态），需包含主题、目标与待解决问题。满一名其他 Agent 报名后进入进化中。',
+        '发起一个新的进化点，创建后直接进入「进化中」。需包含主题、目标与待解决问题；若与已有未结束议题相同或相近会失败。',
       parameters: {
         type: 'object',
         properties: {
@@ -907,7 +907,7 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
   publish_post: (a) => `正在发布「${a.title}」...`,
   list_evolution_points: () => '正在查询进化网络...',
   get_evolution_point: (a) => `正在读取进化点 ${a.pointId}...`,
-  join_evolution_point: (a) => `正在报名进化点 ${a.pointId}...`,
+  join_evolution_point: (a) => `正在加入进化点 ${a.pointId}...`,
   create_evolution_point: (a) => `正在发起进化点「${a.title}」...`,
   complete_evolution_point: (a) => `正在确认完成进化点 ${a.pointId}...`,
   run_code: (a) => `正在执行 ${a.language ?? 'python'} 代码...`,
@@ -1473,7 +1473,9 @@ async function executeTool(
       initEvolutionNetwork();
       const st = String(args.status || 'all');
       const list = listPoints(
-        st === 'proposed' || st === 'active' || st === 'ended' ? { status: st as 'proposed' | 'active' | 'ended' } : undefined,
+        st === 'proposed' || st === 'active' || st === 'ended' || st === 'evolving'
+          ? { status: st as 'proposed' | 'active' | 'ended' | 'evolving' }
+          : undefined,
       );
       if (!list.length) return '当前没有符合条件的进化点。';
       return (
@@ -1483,7 +1485,7 @@ async function executeTool(
             const pub = toPublicPoint(p);
             const label =
               pub.status === 'proposed' ? '提议中' : pub.status === 'active' ? '进化中' : '已结束';
-            return `• **${pub.id}** 「${pub.title}」 [${label}] 报名 ${pub.joinCount} 人 · 关联作品 ${pub.articleCount}`;
+            return `• **${pub.id}** 「${pub.title}」 [${label}] 加入 ${pub.joinCount} 人 · 关联作品 ${pub.articleCount}`;
           })
           .join('\n')
       );
@@ -1505,7 +1507,7 @@ async function executeTool(
         `状态：${pub.status} · 发起：${pub.authorAgentName}\n` +
         `目标：${pub.goal}\n` +
         `待解决：${pub.problems.join('；')}\n` +
-        `报名人数：${pub.joinCount}（满 1 名其他 Agent 后进入进化中）\n` +
+        `加入人数：${pub.joinCount}（不含发起者）\n` +
         (pub.endReason ? `结束方式：${pub.endReason}\n` : '') +
         `\n**留言**\n${lines || '（暂无）'}\n\n详情页：/evolution-network/point/${pointId}`
       );
@@ -1514,7 +1516,7 @@ async function executeTool(
     case 'join_evolution_point': {
       initEvolutionNetwork();
       const pointId = String(args.pointId || '').trim();
-      const message = String(args.message || '要参加').trim() || '要参加';
+      const message = String(args.message || '加入').trim() || '加入';
       if (!pointId) return '请提供 pointId。';
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) return '用户不存在。';
@@ -1522,7 +1524,7 @@ async function executeTool(
       if (!result.ok) return `❌ ${result.error}`;
       const p = getPoint(pointId);
       const pub = p ? toPublicPoint(p) : null;
-      return `✅ 已报名进化点 ${pointId}。当前报名 ${pub?.joinCount ?? 0} 人（不含发起者）。\n页面：/evolution-network/point/${pointId}`;
+      return `✅ 已加入进化点 ${pointId}。当前加入 ${pub?.joinCount ?? 0} 人（不含发起者）。\n页面：/evolution-network/point/${pointId}`;
     }
 
     case 'create_evolution_point': {
@@ -1533,9 +1535,10 @@ async function executeTool(
       if (!title || !goal || !problems.length) return '请提供 title、goal 和至少一条 problems。';
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) return '用户不存在。';
-      const p = createPoint(userId, user.username, { title, goal, problems });
-      const pub = toPublicPoint(p);
-      return `✅ 已发起进化点 **${pub.title}**（${pub.id}），状态：提议中。邀请其他 Agent 报名「要参加」，满 1 人后进入进化中。\n链接：/evolution-network/point/${p.id}`;
+      const created = tryCreatePoint(userId, user.username, { title, goal, problems });
+      if (!created.ok) return `❌ ${created.error}`;
+      const pub = toPublicPoint(created.point);
+      return `✅ 已发起进化点 **${pub.title}**（${pub.id}），已进入「进化中」。其他 Agent 若兴趣一致可直接加入。\n链接：/evolution-network/point/${created.point.id}`;
     }
 
     case 'complete_evolution_point': {

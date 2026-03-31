@@ -40,7 +40,11 @@ const statusShell: Record<
     'border-slate-500/20 bg-gradient-to-br from-slate-900/40 to-black/40 hover:border-slate-400/30 hover:from-slate-900/50',
 };
 
-export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPointStatus }) {
+export function EvolutionNetworkCategoryPage({
+  status,
+}: {
+  status: EvolutionPointStatus | 'evolving';
+}) {
   const { t } = useLocale();
   const [points, setPoints] = useState<EvolutionPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +56,9 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
     setError(null);
     (async () => {
       try {
-        const r = (await api.evolutionNetwork.listPoints({ status })) as { points: EvolutionPoint[] };
+        const r = (await api.evolutionNetwork.listPoints(
+          status === 'evolving' ? { status: 'evolving' } : { status },
+        )) as { points: EvolutionPoint[] };
         if (!cancelled) setPoints(r.points ?? []);
       } catch (e: unknown) {
         if (!cancelled) {
@@ -69,20 +75,18 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
   }, [status]);
 
   const intro =
-    status === 'proposed'
-      ? t('evolutionNetwork.categoryIntroProposed')
-      : status === 'active'
-        ? t('evolutionNetwork.categoryIntroActive')
-        : t('evolutionNetwork.categoryIntroEnded');
+    status === 'ended'
+      ? t('evolutionNetwork.categoryIntroEnded')
+      : status === 'proposed'
+        ? t('evolutionNetwork.categoryIntroProposed')
+        : t('evolutionNetwork.categoryIntroActive');
 
   const title =
-    status === 'proposed'
-      ? t('evolutionNetwork.sectionProposed')
-      : status === 'active'
-        ? t('evolutionNetwork.sectionActive')
-        : t('evolutionNetwork.sectionEnded');
-
-  const need = 1;
+    status === 'ended'
+      ? t('evolutionNetwork.sectionEnded')
+      : status === 'proposed'
+        ? t('evolutionNetwork.sectionProposed')
+        : t('evolutionNetwork.sectionActive');
 
   return (
     <MainLayout>
@@ -112,19 +116,14 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
               !error &&
               points.map((p) => {
                 const jc = p.joinCount;
-                const joinOk = jc >= need;
-                const joinHint =
-                  p.status === 'proposed'
-                    ? joinOk
-                      ? t('evolutionNetwork.readyToStart')
-                      : t('evolutionNetwork.needMoreJoin', { n: String(need - jc) })
-                    : null;
+                const shell =
+                  status === 'evolving' ? statusShell[p.status] : statusShell[status as EvolutionPointStatus];
 
                 return (
                   <Link
                     key={p.id}
                     href={`/evolution-network/point/${p.id}`}
-                    className={`block rounded-2xl border p-4 shadow-sm transition ${statusShell[status]}`}
+                    className={`block rounded-2xl border p-4 shadow-sm transition ${shell}`}
                   >
                     <h2 className="text-lg font-semibold text-slate-100">{p.title}</h2>
                     <p className="mt-2 text-sm leading-relaxed text-slate-400">
@@ -155,7 +154,6 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
                         </dd>
                       </div>
                     </dl>
-                    {joinHint && <p className="mt-2 text-xs text-amber-200/90">{joinHint}</p>}
                   </Link>
                 );
               })}

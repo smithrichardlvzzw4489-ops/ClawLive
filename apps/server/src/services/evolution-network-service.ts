@@ -42,15 +42,66 @@ export type EvolutionCommentRecord = {
   createdAt: string;
 };
 
-/** 不含发起者，至少几名其他 Agent 报名后进入「进化中」 */
+/** 历史兼容：曾用于提议→进化中门槛；新建进化点直接进入「进化中」 */
 export const EVOLUTION_JOIN_THRESHOLD = 1;
 /** 「进化中」无活动超过此时长则冷清结束 */
 export const EVOLUTION_IDLE_MS = 30 * 60 * 1000;
 /** 后台每轮推进状态机的时间间隔（与 IDLE 独立，用于及时结算超时） */
 export const EVOLUTION_TRANSITION_TICK_MS = 5 * 60 * 1000;
 
-const JOIN_THRESHOLD = EVOLUTION_JOIN_THRESHOLD;
 const IDLE_MS = EVOLUTION_IDLE_MS;
+
+function normalizeDupText(s: string): string {
+  return s.replace(/\s+/g, '').toLowerCase();
+}
+
+function diceBigramSimilarity(a: string, b: string): number {
+  const s1 = a.replace(/\s+/g, '');
+  const s2 = b.replace(/\s+/g, '');
+  if (s1.length < 2 || s2.length < 2) return 0;
+  const map = new Map<string, number>();
+  for (let i = 0; i < s1.length - 1; i++) {
+    const bg = s1.slice(i, i + 2).toLowerCase();
+    map.set(bg, (map.get(bg) ?? 0) + 1);
+  }
+  let inter = 0;
+  for (let i = 0; i < s2.length - 1; i++) {
+    const bg = s2.slice(i, i + 2).toLowerCase();
+    const c = map.get(bg);
+    if (c && c > 0) {
+      inter++;
+      map.set(bg, c - 1);
+    }
+  }
+  const denom = s1.length - 1 + s2.length - 1;
+  return denom > 0 ? (2 * inter) / denom : 0;
+}
+
+/** 与未结束的进化点是否相同或相近（避免重复开题） */
+export function isEvolutionPointDuplicateOf(
+  existing: EvolutionPointRecord,
+  title: string,
+  goal: string,
+): boolean {
+  if (existing.status === 'ended') return false;
+  const nt = normalizeDupText(title);
+  const ng = normalizeDupText(goal);
+  const et = normalizeDupText(existing.title);
+  const eg = normalizeDupText(existing.goal);
+  if (nt === et || ng === eg) return true;
+  if (nt.length >= 4 && et.length >= 4 && (nt.includes(et) || et.includes(nt))) return true;
+  if (diceBigramSimilarity(title, existing.title) >= 0.52) return true;
+  if (ng.length >= 8 && eg.length >= 8 && (ng.includes(eg.slice(0, 14)) || eg.includes(ng.slice(0, 14)))) return true;
+  return false;
+}
+
+function findDuplicateAmongOpen(title: string, goal: string): EvolutionPointRecord | undefined {
+  ensureLoaded();
+  for (const p of pointsCache.values()) {
+    if (isEvolutionPointDuplicateOf(p, title, goal)) return p;
+  }
+  return undefined;
+}
 
 let pointsCache = new Map<string, EvolutionPointRecord>();
 let commentsByPoint = new Map<string, EvolutionCommentRecord[]>();
@@ -140,7 +191,7 @@ function countArticlesForPoint(pointId: string): number {
   }
 }
 
-/** 状态转换：满员进 active、active 冷清结束 */
+/** 状态转换：遗留「提议中」并入「进化中」；active 冷清结束 */
 export function runTransitions(): void {
   ensureLoaded();
   const now = Date.now();
@@ -148,14 +199,11 @@ export function runTransitions(): void {
 
   for (const p of pointsCache.values()) {
     if (p.status === 'proposed') {
-      const comments = commentsByPoint.get(p.id) ?? [];
-      if (countJoinAgents(p, comments) >= JOIN_THRESHOLD) {
-        p.status = 'active';
-        p.startedAt = new Date().toISOString();
-        p.lastActivityAt = p.startedAt;
-        p.updatedAt = p.startedAt;
-        changed = true;
-      }
+      p.status = 'active';
+      p.startedAt = p.startedAt ?? p.createdAt;
+      p.lastActivityAt = p.lastActivityAt || p.updatedAt;
+      p.updatedAt = new Date().toISOString();
+      changed = true;
     } else if (p.status === 'active') {
       const last = new Date(p.lastActivityAt).getTime();
       if (now - last > IDLE_MS) {
@@ -170,11 +218,15 @@ export function runTransitions(): void {
   if (changed) savePoints();
 }
 
-export function listPoints(filter?: { status?: EvolutionPointStatus }): EvolutionPointRecord[] {
+export type ListPointsFilterStatus = EvolutionPointStatus | 'evolving';
+
+export function listPoints(filter?: { status?: ListPointsFilterStatus }): EvolutionPointRecord[] {
   initEvolutionNetwork();
   runTransitions();
   let list = Array.from(pointsCache.values());
-  if (filter?.status) {
+  if (filter?.status === 'evolving') {
+    list = list.filter((p) => p.status === 'proposed' || p.status === 'active');
+  } else if (filter?.status) {
     list = list.filter((p) => p.status === filter.status);
   }
   return list.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
@@ -220,13 +272,12 @@ export function toPublicPoint(p: EvolutionPointRecord): {
   };
 }
 
-export function createPoint(
+function createPointInternal(
   userId: string,
   username: string,
   input: { title: string; goal: string; problems: string[] },
-  source: 'darwin_bootstrap' | 'user' = 'user',
+  source: 'darwin_bootstrap' | 'user',
 ): EvolutionPointRecord {
-  initEvolutionNetwork();
   const id = `evo-${randomUUID().replace(/-/g, '').slice(0, 12)}`;
   const now = new Date().toISOString();
   const p: EvolutionPointRecord = {
@@ -236,10 +287,11 @@ export function createPoint(
     problems: input.problems.map((x) => x.trim()).filter(Boolean),
     authorUserId: userId,
     authorAgentName: username,
-    status: 'proposed',
+    status: 'active',
     endReason: null,
     createdAt: now,
     updatedAt: now,
+    startedAt: now,
     lastActivityAt: now,
     source,
   };
@@ -247,8 +299,26 @@ export function createPoint(
   commentsByPoint.set(id, []);
   savePoints();
   saveComments();
-  console.log(`[Evolution] Created point ${id} by ${username}`);
+  console.log(`[Evolution] Created point ${id} by ${username} (active)`);
   return p;
+}
+
+export function tryCreatePoint(
+  userId: string,
+  username: string,
+  input: { title: string; goal: string; problems: string[] },
+  source: 'darwin_bootstrap' | 'user' = 'user',
+): { ok: true; point: EvolutionPointRecord } | { ok: false; error: string } {
+  initEvolutionNetwork();
+  const dup = findDuplicateAmongOpen(input.title, input.goal);
+  if (dup) {
+    return {
+      ok: false,
+      error: '已存在相同或相近的进化议题（进行中），请勿重复发起',
+    };
+  }
+  const point = createPointInternal(userId, username, input, source);
+  return { ok: true, point };
 }
 
 export function addComment(
@@ -263,15 +333,20 @@ export function addComment(
   if (!p) return { ok: false, error: '进化点不存在' };
   if (p.status === 'ended') return { ok: false, error: '已结束，无法留言' };
 
-  const trimmed = body.trim();
-  if (!trimmed) return { ok: false, error: '留言不能为空' };
+  let trimmed = body.trim();
+  if (!trimmed) {
+    if (username === p.authorAgentName) {
+      return { ok: false, error: '留言不能为空' };
+    }
+    trimmed = '加入';
+  }
 
   const comments = commentsByPoint.get(pointId) ?? [];
   if (username === p.authorAgentName) {
-    // 发起者仍可增加「说明」类评论，但不计入报名
+    // 发起者仍可增加「说明」类评论，但不计入加入人数
   } else {
     if (comments.some((c) => c.authorAgentName === username)) {
-      return { ok: false, error: '每个账号仅可报名一次' };
+      return { ok: false, error: '每个账号仅可加入一次' };
     }
   }
 
@@ -287,12 +362,6 @@ export function addComment(
 
   p.lastActivityAt = c.createdAt;
   p.updatedAt = c.createdAt;
-
-  if (p.status === 'proposed' && countJoinAgents(p, comments) >= JOIN_THRESHOLD) {
-    p.status = 'active';
-    p.startedAt = c.createdAt;
-    p.lastActivityAt = c.createdAt;
-  }
 
   saveComments();
   savePoints();
@@ -317,7 +386,7 @@ export function cancelPoint(pointId: string, userId: string): { ok: true } | { o
   const p = pointsCache.get(pointId);
   if (!p) return { ok: false, error: '进化点不存在' };
   if (p.authorUserId !== userId) return { ok: false, error: '仅发起者可取消' };
-  if (p.status !== 'proposed') return { ok: false, error: '仅提议中的进化点可取消' };
+  if (p.status === 'ended') return { ok: false, error: '已结束，无法取消' };
   p.status = 'ended';
   p.endReason = 'cancelled';
   p.updatedAt = new Date().toISOString();
@@ -414,7 +483,11 @@ export function getUserEvolutionObservation(userId: string): {
         pointTitle: pubTitle,
         source: p.source,
       });
-      if (p.startedAt) {
+      const createdMs = new Date(p.createdAt).getTime();
+      const startedMs = p.startedAt ? new Date(p.startedAt).getTime() : NaN;
+      const sameMoment =
+        p.startedAt && !Number.isNaN(startedMs) && Math.abs(startedMs - createdMs) < 4000;
+      if (p.startedAt && !sameMoment) {
         timeline.push({
           kind: 'point_became_active',
           at: p.startedAt,
@@ -536,18 +609,21 @@ export async function onDarwinClawFirstApply(userId: string): Promise<void> {
   if (!user) return;
 
   const name = user.username;
-  createPoint(
+  const r = tryCreatePoint(
     userId,
     name,
     {
       title: `「${name}」的 Darwin 进化之旅：从接入开始`,
       goal: `由 ${name} 发起，与其他 Agent 在 ClawLab 协作完成技能进化与内容产出`,
       problems: [
-        `邀请至少 1 位其他 Agent 加入「${name}」的这条进化点`,
-        '进入「进化中」后发布至少一篇关联内容',
+        `其他 Agent 若兴趣一致可直接加入「${name}」的这条进化点`,
+        '在进化点下发布至少一篇关联内容',
         '与 DarwinClaw 共同迭代目标与产出',
       ],
     },
     'darwin_bootstrap',
   );
+  if (!r.ok) {
+    console.warn(`[Evolution] Darwin bootstrap skipped (duplicate or error): ${r.error}`);
+  }
 }

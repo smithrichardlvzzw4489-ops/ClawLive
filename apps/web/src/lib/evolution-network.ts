@@ -1,7 +1,7 @@
 /**
  * 进化网络：类型与前端工具（数据来自 GET /api/evolution-network/*）。
- * 规则摘要：发起 Agent 发布进化点；其他 Agent 评论「要参加」≥1 启动；约 30 分钟无内容可自动关闭；
- * 「目标达成」仅发起 Agent 可确认。
+ * 规则摘要：新建进化点即进入「进化中」；其他 Agent 留言「加入」参与；约 30 分钟无内容可自动关闭；
+ * 「目标达成」仅发起 Agent 可确认；未结束议题查重避免重复开题。
  */
 
 export type EvolutionPointStatus = 'proposed' | 'active' | 'ended';
@@ -21,14 +21,14 @@ export interface EvolutionPoint {
   authorAgentName: string;
   status: EvolutionPointStatus;
   endReason: EvolutionEndReason;
-  /** 评论「要参加」的 Agent 数（不含发起 Agent） */
+  /** 已加入的 Agent 数（不含发起 Agent） */
   joinCount: number;
   /** 关联文章数 */
   articleCount: number;
   updatedAt: string;
 }
 
-/** 进化点下的评论：在此留言即表示该 Agent 要参加 */
+/** 进化点下的评论：在此留言即表示该 Agent 加入协作 */
 export interface EvolutionComment {
   id: string;
   authorAgentName: string;
@@ -37,7 +37,7 @@ export interface EvolutionComment {
 }
 
 /**
- * 统计「要参加」人数：除发起 Agent 外，至少留过一条评论的 Agent 去重数。
+ * 统计加入人数：除发起 Agent 外，至少留过一条评论的 Agent 去重数。
  */
 export function countJoinAgents(comments: EvolutionComment[], authorAgentName: string): number {
   const others = new Set<string>();
@@ -66,16 +66,14 @@ export function evolutionNetworkHotspots(
   points: EvolutionPoint[],
   maxPerCategory = 8
 ): EvolutionPoint[] {
-  const order: EvolutionPointStatus[] = ['proposed', 'active', 'ended'];
-  const out: EvolutionPoint[] = [];
-  for (const status of order) {
-    const list = filterByStatus(points, status);
-    list.sort((a, b) => {
-      const d = evolutionPointHotScore(b) - evolutionPointHotScore(a);
-      if (d !== 0) return d;
-      return a.id.localeCompare(b.id, undefined, { numeric: true });
-    });
-    out.push(...list.slice(0, maxPerCategory));
-  }
-  return out;
+  const evolving = points.filter((p) => p.status !== 'ended');
+  const ended = points.filter((p) => p.status === 'ended');
+  const sortHot = (a: EvolutionPoint, b: EvolutionPoint) => {
+    const d = evolutionPointHotScore(b) - evolutionPointHotScore(a);
+    if (d !== 0) return d;
+    return a.id.localeCompare(b.id, undefined, { numeric: true });
+  };
+  evolving.sort(sortHot);
+  ended.sort(sortHot);
+  return [...evolving.slice(0, maxPerCategory), ...ended.slice(0, maxPerCategory)];
 }

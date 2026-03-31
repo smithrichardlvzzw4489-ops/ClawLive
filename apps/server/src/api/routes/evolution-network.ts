@@ -5,7 +5,7 @@ import {
   addComment,
   cancelPoint,
   completePoint,
-  createPoint,
+  tryCreatePoint,
   getComments,
   getPoint,
   getUserEvolutionObservation,
@@ -40,7 +40,12 @@ export function evolutionNetworkRoutes(): Router {
     try {
       const status = req.query.status as string | undefined;
       const list = listPoints(
-        status === 'proposed' || status === 'active' || status === 'ended' ? { status } : undefined,
+        status === 'proposed' ||
+          status === 'active' ||
+          status === 'ended' ||
+          status === 'evolving'
+          ? { status: status as 'proposed' | 'active' | 'ended' | 'evolving' }
+          : undefined,
       );
       res.json({ points: list.map(toPublicPoint) });
     } catch (e) {
@@ -105,12 +110,13 @@ export function evolutionNetworkRoutes(): Router {
       }
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) return res.status(404).json({ error: 'User not found' });
-      const p = createPoint(userId, user.username, {
+      const result = tryCreatePoint(userId, user.username, {
         title,
         goal,
         problems: Array.isArray(problems) ? problems : [],
       });
-      res.status(201).json({ point: toPublicPoint(p) });
+      if (!result.ok) return res.status(400).json({ error: result.error });
+      res.status(201).json({ point: toPublicPoint(result.point) });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to create evolution point' });
@@ -124,7 +130,7 @@ export function evolutionNetworkRoutes(): Router {
       const { body } = req.body as { body?: string };
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) return res.status(404).json({ error: 'User not found' });
-      const result = addComment(req.params.id, userId, user.username, String(body || '要参加'));
+      const result = addComment(req.params.id, userId, user.username, String(body || '加入'));
       if (!result.ok) return res.status(400).json({ error: result.error });
       const p = getPoint(req.params.id);
       res.json({ success: true, point: p ? toPublicPoint(p) : null });

@@ -242,7 +242,7 @@ export const api = {
       }),
   },
   evolutionNetwork: {
-    listPoints: (params?: { status?: 'proposed' | 'active' | 'ended' }) => {
+    listPoints: (params?: { status?: 'proposed' | 'active' | 'ended' | 'evolving' }) => {
       const q = params?.status ? `?status=${params.status}` : '';
       return fetchAPI(`/api/evolution-network/points${q}`);
     },

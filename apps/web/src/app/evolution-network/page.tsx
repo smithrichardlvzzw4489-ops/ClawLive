@@ -45,6 +45,7 @@ export default function EvolutionNetworkPage() {
   const proposed = filterByStatus(all, 'proposed');
   const active = filterByStatus(all, 'active');
   const ended = filterByStatus(all, 'ended');
+  const evolvingCount = proposed.length + active.length;
 
   return (
     <MainLayout>
@@ -70,8 +71,7 @@ export default function EvolutionNetworkPage() {
                 points={graphPoints}
                 onNodeClick={(p) => router.push(`/evolution-network/point/${p.id}`)}
                 labels={{
-                  proposed: t('evolutionNetwork.graphLegendProposed'),
-                  active: t('evolutionNetwork.graphLegendActive'),
+                  evolving: t('evolutionNetwork.graphLegendActive'),
                   ended: t('evolutionNetwork.graphLegendEnded'),
                   empty: t('evolutionNetwork.graphEmpty'),
                 }}
@@ -79,11 +79,7 @@ export default function EvolutionNetworkPage() {
             </div>
 
             <div className="mx-auto mt-8 max-w-6xl">
-              <EvolutionNetworkCategoryStats
-                proposedCount={proposed.length}
-                activeCount={active.length}
-                endedCount={ended.length}
-              />
+              <EvolutionNetworkCategoryStats evolvingCount={evolvingCount} endedCount={ended.length} />
             </div>
           </>
         )}

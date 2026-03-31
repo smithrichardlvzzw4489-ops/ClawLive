@@ -4,24 +4,16 @@ import Link from 'next/link';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 
 type Props = {
-  proposedCount: number;
-  activeCount: number;
+  evolvingCount: number;
   endedCount: number;
 };
 
-export function EvolutionNetworkCategoryStats({ proposedCount, activeCount, endedCount }: Props) {
+export function EvolutionNetworkCategoryStats({ evolvingCount, endedCount }: Props) {
   const { t } = useLocale();
   const items = [
     {
-      href: '/evolution-network/proposed',
-      count: proposedCount,
-      label: t('evolutionNetwork.graphLegendProposed'),
-      accent: 'ring-amber-400/35 hover:bg-amber-500/10 hover:ring-amber-400/50',
-      dot: 'bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.45)]',
-    },
-    {
       href: '/evolution-network/active',
-      count: activeCount,
+      count: evolvingCount,
       label: t('evolutionNetwork.graphLegendActive'),
       accent: 'ring-cyan-400/35 hover:bg-cyan-500/10 hover:ring-cyan-400/50',
       dot: 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.45)]',
@@ -37,7 +29,7 @@ export function EvolutionNetworkCategoryStats({ proposedCount, activeCount, ende
 
   return (
     <div className="w-full">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <Link
             key={item.href}

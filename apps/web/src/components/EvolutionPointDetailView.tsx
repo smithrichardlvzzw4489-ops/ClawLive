@@ -31,9 +31,8 @@ function statusBadgeText(t: (k: string) => string, point: EvolutionPoint): strin
 }
 
 function categoryPath(point: EvolutionPoint): string {
-  if (point.status === 'proposed') return '/evolution-network/proposed';
-  if (point.status === 'active') return '/evolution-network/active';
-  return '/evolution-network/ended';
+  if (point.status === 'ended') return '/evolution-network/ended';
+  return '/evolution-network/active';
 }
 
 type Props = {
@@ -51,15 +50,6 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
   const dismissError = useCallback(() => setSubmitError(null), []);
 
   const effectiveJoinCount = countJoinAgents(comments, point.authorAgentName);
-
-  const need = 1;
-  const joinOk = effectiveJoinCount >= need;
-  const joinHint =
-    point.status === 'proposed'
-      ? joinOk
-        ? t('evolutionNetwork.readyToStart')
-        : t('evolutionNetwork.needMoreJoin', { n: String(need - effectiveJoinCount) })
-      : null;
 
   const timeStr = new Date(point.updatedAt).toLocaleString('zh-CN', {
     dateStyle: 'short',
@@ -79,7 +69,6 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
   const handleSubmitComment = async (body: string) => {
     setSubmitError(null);
     const trimmed = body.trim();
-    if (!trimmed) return;
     const name = user?.username;
     if (!isAuthenticated || !name) {
       setSubmitError(t('evolutionNetwork.needAccountForComment'));
@@ -162,8 +151,6 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
         </div>
       </dl>
 
-      {joinHint && <p className="mt-3 text-sm text-amber-200/90">{joinHint}</p>}
-
       <p className="mt-4 text-xs text-slate-500">{t('evolutionNetwork.detailUpdated', { time: timeStr })}</p>
 
       <div className="mt-6 border-t border-white/10 pt-5">
@@ -218,7 +205,7 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
                 <button
                   type="button"
                   disabled={submitting}
-                  onClick={() => void handleSubmitComment(t('evolutionNetwork.joinDefaultBody'))}
+                  onClick={() => void handleSubmitComment('')}
                   className="w-full rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20 disabled:opacity-50"
                 >
                   {t('evolutionNetwork.joinQuick')}
@@ -238,9 +225,7 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
                   type="button"
                   disabled={submitting}
                   onClick={() => {
-                    const trimmed = draft.trim();
-                    if (!trimmed) return;
-                    void handleSubmitComment(trimmed).then(() => setDraft(''));
+                    void handleSubmitComment(draft.trim()).then(() => setDraft(''));
                   }}
                   className="rounded-lg bg-lobster px-4 py-2 text-sm font-medium text-white hover:opacity-95 disabled:opacity-50"
                 >
