@@ -116,6 +116,13 @@ export async function generateFeedPostExcerpt(context: {
   return text.slice(0, 100);
 }
 
+function stripMarkdownJsonFence(text: string): string {
+  let s = text.trim();
+  const fence = /^```(?:json)?\s*([\s\S]*?)```/im.exec(s);
+  if (fence) s = fence[1].trim();
+  return s;
+}
+
 /** Darwin 进化器一轮评估：与 generateResultSummary / generateFeedPostExcerpt 同 KEY、同模型；失败时返回 null */
 export async function generateEvolverAssessment(context: {
   username: string;
@@ -125,7 +132,7 @@ export async function generateEvolverAssessment(context: {
 }): Promise<{ summary: string; improvements: string[]; selfAssessment: string } | null> {
   try {
     const { client, model } = getPublishingLlmClient();
-    const prompt = `你是 Darwin Agent 的「进化顾问」。根据以下信息，输出**仅一段 JSON**（不要 markdown 围栏），格式：
+    const prompt = `你是 Darwin Agent 的「进化顾问」。根据以下信息，输出**仅一段 JSON 对象**（不要其它说明文字），格式如下（键名必须一致）：
 {"summary":"本轮能力评估一句话","selfAssessment":"自我能力简述（2-3句）","improvements":["改进项1（具体可执行）","改进项2","改进项3"]}
 改进项最多 3 条，与技能、工具、与主人协作相关；若信息不足可写通用能力提升方向。
 
@@ -134,20 +141,51 @@ Darwin 问卷/背景（节选）：${context.onboardingSnippet || '（无）'}
 最近对话节选：${context.recentMessages || '（无）'}
 待学习技能提示：${context.pendingSkill || '（无）'}`;
 
-    const response = await client.chat.completions.create({
+    const baseParams = {
       model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 500,
-      temperature: 0.4,
-    });
-    const raw = response.choices[0]?.message?.content?.trim() || '';
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      summary?: string;
-      selfAssessment?: string;
-      improvements?: unknown;
+      messages: [{ role: 'user' as const, content: prompt }],
+      max_tokens: 800,
+      temperature: 0.35,
     };
+
+    let response: OpenAI.Chat.Completions.ChatCompletion;
+    try {
+      response = await client.chat.completions.create({
+        ...baseParams,
+        response_format: { type: 'json_object' },
+      });
+    } catch (err) {
+      console.warn(
+        '[EvolverAssessment] response_format json_object not accepted, retrying without:',
+        err instanceof Error ? err.message : err,
+      );
+      response = await client.chat.completions.create(baseParams);
+    }
+
+    const raw = response.choices[0]?.message?.content?.trim() || '';
+    if (!raw) {
+      console.error('[EvolverAssessment] empty model content (model=%s)', model);
+      return null;
+    }
+
+    const cleaned = stripMarkdownJsonFence(raw);
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('[EvolverAssessment] no JSON object in response (model=%s): %s', model, raw.slice(0, 400));
+      return null;
+    }
+    let parsed: { summary?: string; selfAssessment?: string; improvements?: unknown };
+    try {
+      parsed = JSON.parse(jsonMatch[0]) as typeof parsed;
+    } catch (parseErr) {
+      console.error(
+        '[EvolverAssessment] JSON.parse failed (model=%s): %s | snippet=%s',
+        model,
+        parseErr instanceof Error ? parseErr.message : parseErr,
+        jsonMatch[0].slice(0, 300),
+      );
+      return null;
+    }
     const improvements = Array.isArray(parsed.improvements)
       ? parsed.improvements.map((x) => String(x).trim()).filter(Boolean).slice(0, 5)
       : [];
@@ -156,7 +194,11 @@ Darwin 问卷/背景（节选）：${context.onboardingSnippet || '（无）'}
       selfAssessment: String(parsed.selfAssessment || '').slice(0, 800),
       improvements: improvements.length ? improvements.slice(0, 3) : ['提升工具调用稳定性', '加强与主人目标对齐', '补充领域知识'],
     };
-  } catch {
+  } catch (err) {
+    console.error(
+      '[EvolverAssessment] call failed:',
+      err instanceof Error ? err.message : err,
+    );
     return null;
   }
 }
