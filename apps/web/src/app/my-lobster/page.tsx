@@ -41,7 +41,7 @@ const WELCOME_MESSAGE: LobsterMessage = {
   id: 'welcome',
   role: 'assistant',
   content:
-    `你好！我是 ${BRAND_ZH} ${DARWIN_ICON} 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n\n有什么我可以帮你的吗？`,
+    `你好！我是 ${BRAND_ZH} ${DARWIN_ICON} 你的专属 AI 助手。\n\n我现在支持：\n• 🔍 搜索最新网络资讯\n• 📄 查看你发布的内容\n• 🧩 调用 Skills 市场的技能\n• 🤔 多步骤自主推理\n• 🧬 进化网络：申请 Darwin 后系统会为你创建「个人进化起点」。在 /evolution-network 打开总览；或对我说「列出进化点」「我的进化点」，我会用工具帮你查并引导报名。\n\n有什么我可以帮你的吗？`,
   timestamp: new Date().toISOString(),
 };
 
@@ -67,8 +67,9 @@ function LobsterAvatar({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 function renderTextWithLinks(text: string, isUser: boolean): React.ReactNode[] {
   const linkColor = isUser ? 'text-white underline decoration-white/60' : 'text-lobster underline decoration-lobster/40';
   const parts: React.ReactNode[] = [];
-  // group1+2: Markdown 链接；group3: 绝对 URL；group4: /posts/ 相对路径
-  const pattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s，。！？、\]）)]+)|(\/posts\/[a-zA-Z0-9_-]+)/g;
+  // group1+2: Markdown 外链；group3: 裸 URL；group4: /posts/、/evolution-network 等站内路径
+  const pattern =
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s，。！？、\]）)]+)|(\/(?:posts\/[a-zA-Z0-9_-]+|evolution-network(?:\/[a-zA-Z0-9_-]+)*))/g;
   let last = 0;
   let match: RegExpExecArray | null;
   let key = 0;

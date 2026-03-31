@@ -145,7 +145,7 @@ export function LobsterWidget() {
                 {
                   id: 'welcome-widget',
                   role: 'assistant',
-                  content: `你好！我是 ${BRAND_ZH} ${DARWIN_ICON} 我已经看到你当前的页面了，有什么问题尽管问我！`,
+                  content: `你好！我是 ${BRAND_ZH} ${DARWIN_ICON} 我已经看到你当前的页面了。我还支持进化网络协作（侧栏「进化网络」或全屏「我的 Darwin」里有详细说明）。有什么问题尽管问我！`,
                   timestamp: new Date().toISOString(),
                 },
               ],
