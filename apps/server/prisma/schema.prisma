@@ -101,6 +101,10 @@ model EvolutionPoint {
   startedAt       DateTime?
   lastActivityAt  DateTime
   source          String?
+  /// 进化点关联的技能包（Markdown），用于验收测试与闭环后安装到 Darwin
+  linkedSkills    Json?
+  /// 验收状态与用例、最近一次运行结果
+  acceptanceJson  Json?
 
   comments EvolutionComment[]
   author   User     @relation("EvolutionPointAuthor", fields: [authorUserId], references: [id], onDelete: Cascade)

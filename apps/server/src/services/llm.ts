@@ -229,6 +229,93 @@ Darwin 问卷/背景（节选）：${context.onboardingSnippet || '（无）'}
   }
 }
 
+/** 进化点技能验收：为每个技能生成若干「字符串包含 / 最小长度」检查项，由服务端拼成 Python 在沙盒执行 */
+export async function generateEvolutionAcceptanceCases(context: {
+  title: string;
+  goal: string;
+  skills: Array<{ id: string; title: string; skillMarkdown: string }>;
+}): Promise<{
+  cases: Array<{
+    id: string;
+    skillId: string;
+    name: string;
+    checks: Array<{ type: 'contains'; substring: string } | { type: 'min_length'; n: number }>;
+  }>;
+} | null> {
+  try {
+    const { client, model } = getPublishingLlmClient();
+    const skillsJson = JSON.stringify(
+      context.skills.map((s) => ({
+        id: s.id,
+        title: s.title,
+        preview: s.skillMarkdown.slice(0, 1200),
+      })),
+    );
+    const prompt = `你是测试设计师。根据进化点标题、目标与技能列表预览，为**每个技能**设计 1～2 组**静态文本检查**，用于在 Python 中对整份 skillMarkdown 做 assert（仅允许 contains 与 min_length）。
+
+输出**仅一个 JSON 对象**：
+{"cases":[{"id":"唯一id","skillId":"技能id","name":"用例名称","checks":[{"type":"contains","substring":"必须在正文中出现的片段"},{"type":"min_length","n":数字}]}]}
+
+规则：
+- substring 必须来自该技能正文里真实会出现的短语（如 frontmatter 里的 name/description、或标题），不要用占位符。
+- min_length 建议 40～200 之间。
+- 每个 skillId 至少 1 个 case。
+- 不要要求网络、文件或执行 shell。
+
+进化点标题：${context.title}
+目标：${context.goal}
+技能摘要：${skillsJson}`;
+
+    const response = await client.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 2000,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+    });
+    const raw = response.choices[0]?.message?.content?.trim() || '';
+    if (!raw) return null;
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+    const parsed = JSON.parse(cleaned) as {
+      cases?: Array<{
+        id?: string;
+        skillId?: string;
+        name?: string;
+        checks?: unknown[];
+      }>;
+    };
+    if (!parsed.cases?.length) return null;
+    const cases = parsed.cases
+      .map((c, i) => {
+        const skillId = String(c.skillId || '').trim();
+        if (!skillId) return null;
+        const checks: Array<{ type: 'contains'; substring: string } | { type: 'min_length'; n: number }> = [];
+        for (const ch of c.checks || []) {
+          if (!ch || typeof ch !== 'object') continue;
+          const o = ch as Record<string, unknown>;
+          if (o.type === 'contains' && typeof o.substring === 'string' && o.substring.length > 0) {
+            checks.push({ type: 'contains', substring: o.substring.slice(0, 500) });
+          }
+          if (o.type === 'min_length' && typeof o.n === 'number' && o.n > 0) {
+            checks.push({ type: 'min_length', n: Math.min(50000, Math.floor(o.n)) });
+          }
+        }
+        if (!checks.length) return null;
+        return {
+          id: String(c.id || `case-${i}`).slice(0, 64),
+          skillId,
+          name: String(c.name || '验收用例').slice(0, 200),
+          checks,
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+    return cases.length ? { cases } : null;
+  } catch (e) {
+    console.error('[EvolutionAcceptanceCases]', e);
+    return null;
+  }
+}
+
 export type LlmTestResult = { reply: string; model: string };
 
 /**

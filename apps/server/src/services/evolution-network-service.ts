@@ -9,6 +9,27 @@ import { getFeedPostsMap } from './feed-posts-store';
 export type EvolutionPointStatus = 'proposed' | 'active' | 'ended';
 export type EvolutionEndReason = 'completed' | 'idle_timeout' | 'cancelled' | null;
 
+/** 进化点内关联的技能包（用于验收与闭环后安装） */
+export type EvolutionLinkedSkill = {
+  id: string;
+  title: string;
+  skillMarkdown: string;
+};
+
+/** 验收测试状态与用例（由系统生成并执行） */
+export type EvolutionAcceptanceState = {
+  status: 'none' | 'pending' | 'passed' | 'failed';
+  generatedAt?: string;
+  cases?: Array<{
+    id: string;
+    skillId: string;
+    name: string;
+    checks: Array<{ type: string; substring?: string; n?: number }>;
+  }>;
+  lastRunAt?: string;
+  lastResults?: Array<{ caseId: string; ok: boolean; stdout?: string; stderr?: string }>;
+};
+
 export type EvolutionPointRecord = {
   id: string;
   title: string;
@@ -27,6 +48,10 @@ export type EvolutionPointRecord = {
   lastActivityAt: string;
   /** 系统为 Darwin 首启自动创建 */
   source?: 'darwin_bootstrap' | 'user';
+  /** 关联技能包（Markdown） */
+  linkedSkills?: EvolutionLinkedSkill[];
+  /** 验收测试 */
+  acceptanceJson?: EvolutionAcceptanceState;
 };
 
 export type EvolutionCommentRecord = {
@@ -100,6 +125,27 @@ function findDuplicateAmongOpen(title: string, goal: string): EvolutionPointReco
 let pointsCache = new Map<string, EvolutionPointRecord>();
 let commentsByPoint = new Map<string, EvolutionCommentRecord[]>();
 
+function parseLinkedSkills(raw: unknown): EvolutionLinkedSkill[] | undefined {
+  if (!raw || !Array.isArray(raw)) return undefined;
+  const out: EvolutionLinkedSkill[] = [];
+  for (const x of raw) {
+    if (x && typeof x === 'object' && 'skillMarkdown' in x) {
+      const o = x as Record<string, unknown>;
+      out.push({
+        id: String(o.id || randomUUID().replace(/-/g, '').slice(0, 10)),
+        title: String(o.title || 'Skill').slice(0, 200),
+        skillMarkdown: String(o.skillMarkdown || ''),
+      });
+    }
+  }
+  return out.length ? out : undefined;
+}
+
+function parseAcceptanceJson(raw: unknown): EvolutionAcceptanceState | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  return raw as EvolutionAcceptanceState;
+}
+
 function prismaPointToRecord(p: EvolutionPointRow): EvolutionPointRecord {
   const raw = p.problems;
   const problems = Array.isArray(raw) ? (raw as unknown[]).map((x) => String(x)) : [];
@@ -117,6 +163,8 @@ function prismaPointToRecord(p: EvolutionPointRow): EvolutionPointRecord {
     startedAt: p.startedAt?.toISOString(),
     lastActivityAt: p.lastActivityAt.toISOString(),
     source: p.source as EvolutionPointRecord['source'],
+    linkedSkills: parseLinkedSkills((p as { linkedSkills?: unknown }).linkedSkills),
+    acceptanceJson: parseAcceptanceJson((p as { acceptanceJson?: unknown }).acceptanceJson),
   };
 }
 
@@ -164,6 +212,8 @@ async function upsertEvolutionPoint(p: EvolutionPointRecord): Promise<void> {
       startedAt: p.startedAt ? new Date(p.startedAt) : null,
       lastActivityAt: new Date(p.lastActivityAt),
       source: p.source ?? null,
+      linkedSkills: p.linkedSkills ?? undefined,
+      acceptanceJson: p.acceptanceJson ?? undefined,
     },
     update: {
       title: p.title,
@@ -178,8 +228,16 @@ async function upsertEvolutionPoint(p: EvolutionPointRecord): Promise<void> {
       startedAt: p.startedAt ? new Date(p.startedAt) : null,
       lastActivityAt: new Date(p.lastActivityAt),
       source: p.source ?? null,
+      linkedSkills: p.linkedSkills ?? undefined,
+      acceptanceJson: p.acceptanceJson ?? undefined,
     },
   });
+}
+
+/** 供验收服务：写回内存并持久化 */
+export async function upsertEvolutionPointRecord(p: EvolutionPointRecord): Promise<void> {
+  pointsCache.set(p.id, p);
+  await upsertEvolutionPoint(p);
 }
 
 function schedulePersistPoints(): void {
@@ -296,8 +354,11 @@ export function toPublicPoint(p: EvolutionPointRecord): {
   joinCount: number;
   articleCount: number;
   updatedAt: string;
+  linkedSkills?: EvolutionLinkedSkill[];
+  acceptance?: { status: EvolutionAcceptanceState['status']; lastRunAt?: string };
 } {
   const comments = commentsByPoint.get(p.id) ?? [];
+  const acc = p.acceptanceJson;
   return {
     id: p.id,
     title: p.title,
@@ -309,7 +370,46 @@ export function toPublicPoint(p: EvolutionPointRecord): {
     joinCount: countJoinAgents(p, comments),
     articleCount: countArticlesForPoint(p.id),
     updatedAt: p.updatedAt,
+    linkedSkills: p.linkedSkills,
+    acceptance: acc
+      ? { status: acc.status ?? 'none', lastRunAt: acc.lastRunAt }
+      : undefined,
   };
+}
+
+/** 发起者设置进化点关联技能（会重置验收状态为 pending） */
+export function setLinkedSkills(
+  pointId: string,
+  userId: string,
+  skills: EvolutionLinkedSkill[],
+): { ok: true } | { ok: false; error: string } {
+  initEvolutionNetwork();
+  const p = pointsCache.get(pointId);
+  if (!p) return { ok: false, error: '进化点不存在' };
+  if (p.authorUserId !== userId) return { ok: false, error: '仅发起者可编辑关联技能' };
+  if (p.status === 'ended') return { ok: false, error: '已结束，无法修改' };
+  p.linkedSkills = skills.map((s) => ({
+    id: s.id?.trim() || randomUUID().replace(/-/g, '').slice(0, 10),
+    title: s.title.trim(),
+    skillMarkdown: s.skillMarkdown,
+  }));
+  p.acceptanceJson = { status: 'pending' };
+  p.updatedAt = new Date().toISOString();
+  void upsertEvolutionPoint(p).catch((e) => console.error('[Evolution] setLinkedSkills:', e));
+  return { ok: true };
+}
+
+function canCompleteEvolutionPoint(p: EvolutionPointRecord): { ok: true } | { ok: false; error: string } {
+  const skills = p.linkedSkills ?? [];
+  if (skills.length === 0) return { ok: true };
+  if (p.acceptanceJson?.status !== 'passed') {
+    return {
+      ok: false,
+      error:
+        '该进化点已关联技能包：请先生成验收用例并运行测试，全部通过后再确认完成（闭环）。',
+    };
+  }
+  return { ok: true };
 }
 
 function createPointInternal(
@@ -453,6 +553,8 @@ export function completePoint(pointId: string, userId: string): { ok: true } | {
   if (!p) return { ok: false, error: '进化点不存在' };
   if (p.authorUserId !== userId) return { ok: false, error: '仅发起者可确认目标达成' };
   if (p.status !== 'active') return { ok: false, error: '仅进行中的进化点可确认完成' };
+  const gate = canCompleteEvolutionPoint(p);
+  if (!gate.ok) return gate;
   p.status = 'ended';
   p.endReason = 'completed';
   p.updatedAt = new Date().toISOString();

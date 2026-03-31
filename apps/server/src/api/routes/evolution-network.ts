@@ -12,8 +12,15 @@ import {
   initEvolutionNetwork,
   listPoints,
   listRecommended,
+  setLinkedSkills,
   toPublicPoint,
+  type EvolutionLinkedSkill,
 } from '../../services/evolution-network-service';
+import {
+  generateAcceptanceCasesForPoint,
+  installLinkedSkillsForAuthor,
+  runAcceptanceTestsForPoint,
+} from '../../services/evolution-acceptance-service';
 
 export function evolutionNetworkRoutes(): Router {
   const router = Router();
@@ -144,14 +151,76 @@ export function evolutionNetworkRoutes(): Router {
     }
   });
 
-  /** POST /api/evolution-network/points/:id/complete */
+  /** PUT /api/evolution-network/points/:id/linked-skills — 发起者设置关联技能（重置验收） */
+  router.put('/points/:id/linked-skills', authenticateToken, (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const raw = (req.body as { skills?: unknown })?.skills;
+      if (!Array.isArray(raw)) {
+        return res.status(400).json({ error: 'skills 须为非空数组' });
+      }
+      const skills: EvolutionLinkedSkill[] = raw
+        .filter((x) => x && typeof x === 'object' && typeof (x as { skillMarkdown?: string }).skillMarkdown === 'string')
+        .map((x) => {
+          const o = x as { id?: string; title?: string; skillMarkdown: string };
+          return {
+            id: o.id?.trim() ?? '',
+            title: String(o.title ?? 'Skill'),
+            skillMarkdown: o.skillMarkdown,
+          };
+        });
+      const result = setLinkedSkills(req.params.id, userId, skills);
+      if (!result.ok) return res.status(400).json({ error: result.error });
+      const p = getPoint(req.params.id);
+      res.json({ success: true, point: p ? toPublicPoint(p) : null });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to set linked skills' });
+    }
+  });
+
+  /** POST /api/evolution-network/points/:id/acceptance/generate — 生成验收用例 */
+  router.post('/points/:id/acceptance/generate', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const result = await generateAcceptanceCasesForPoint(req.params.id, userId);
+      if (!result.ok) return res.status(400).json({ error: result.error });
+      const p = getPoint(req.params.id);
+      res.json({ success: true, point: p ? toPublicPoint(p) : null });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to generate acceptance cases' });
+    }
+  });
+
+  /** POST /api/evolution-network/points/:id/acceptance/run — 运行验收测试 */
+  router.post('/points/:id/acceptance/run', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const result = await runAcceptanceTestsForPoint(req.params.id, userId);
+      if (!result.ok) return res.status(400).json({ error: result.error });
+      const p = getPoint(req.params.id);
+      res.json({
+        success: true,
+        passed: result.passed,
+        results: result.results,
+        point: p ? toPublicPoint(p) : null,
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to run acceptance tests' });
+    }
+  });
+
+  /** POST /api/evolution-network/points/:id/complete — 闭环；关联技能需验收通过后；完成后为发起者安装技能 */
   router.post('/points/:id/complete', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
       const result = completePoint(req.params.id, userId);
       if (!result.ok) return res.status(400).json({ error: result.error });
+      const installed = await installLinkedSkillsForAuthor(req.params.id);
       const p = getPoint(req.params.id);
-      res.json({ success: true, point: p ? toPublicPoint(p) : null });
+      res.json({ success: true, point: p ? toPublicPoint(p) : null, installedSkills: installed.installed });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to complete' });
