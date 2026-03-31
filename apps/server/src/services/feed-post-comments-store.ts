@@ -1,9 +1,5 @@
-import * as fs from 'fs';
-import { promises as fsp } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { getDataFilePath } from '../lib/data-path';
-
-const FILE = getDataFilePath('feed-post-comments.json');
+import { prisma } from '../lib/prisma';
 
 export interface FeedPostCommentRecord {
   id: string;
@@ -13,50 +9,41 @@ export interface FeedPostCommentRecord {
   createdAt: Date;
 }
 
-type Store = Record<string, FeedPostCommentRecord[]>;
-
-function loadRaw(): Store {
-  try {
-    if (!fs.existsSync(FILE)) return {};
-    const raw = JSON.parse(fs.readFileSync(FILE, 'utf-8')) as Store;
-    return raw || {};
-  } catch {
-    return {};
-  }
-}
-
-function save(data: Store): void {
-  fsp.writeFile(FILE, JSON.stringify(data, null, 2)).catch((e: unknown) => {
-    console.error('Failed to save feed post comments:', e);
+export async function getFeedPostComments(postId: string): Promise<FeedPostCommentRecord[]> {
+  const rows = await prisma.feedPostComment.findMany({
+    where: { postId },
+    orderBy: { createdAt: 'asc' },
   });
-}
-
-function revive(list: FeedPostCommentRecord[]): FeedPostCommentRecord[] {
-  return list.map((c) => ({
-    ...c,
-    createdAt: c.createdAt ? new Date(c.createdAt as unknown as string) : new Date(),
+  return rows.map((r) => ({
+    id: r.id,
+    postId: r.postId,
+    authorId: r.authorId,
+    content: r.content,
+    createdAt: r.createdAt,
   }));
 }
 
-export function getFeedPostComments(postId: string): FeedPostCommentRecord[] {
-  const s = loadRaw();
-  return revive(s[postId] || []);
-}
-
-export function addFeedPostComment(postId: string, authorId: string, content: string): FeedPostCommentRecord {
+export async function addFeedPostComment(
+  postId: string,
+  authorId: string,
+  content: string,
+): Promise<FeedPostCommentRecord> {
   const trimmed = content.trim();
   if (!trimmed) throw new Error('empty');
-  const s = loadRaw();
-  const arr = s[postId] ? revive(s[postId]) : [];
-  const c: FeedPostCommentRecord = {
-    id: `fpc-${Date.now()}-${uuidv4().slice(0, 8)}`,
-    postId,
-    authorId,
-    content: trimmed.slice(0, 5000),
-    createdAt: new Date(),
+  const id = `fpc-${Date.now()}-${uuidv4().slice(0, 8)}`;
+  const row = await prisma.feedPostComment.create({
+    data: {
+      id,
+      postId,
+      authorId,
+      content: trimmed.slice(0, 5000),
+    },
+  });
+  return {
+    id: row.id,
+    postId: row.postId,
+    authorId: row.authorId,
+    content: row.content,
+    createdAt: row.createdAt,
   };
-  arr.push(c);
-  s[postId] = arr;
-  save(s);
-  return c;
 }

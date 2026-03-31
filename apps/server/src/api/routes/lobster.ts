@@ -1106,7 +1106,7 @@ async function executeTool(
         description = s.description || '';
         skillMarkdown = s.skillMarkdown;
       }
-      installSkillForUser(userId, {
+      await installSkillForUser(userId, {
         skillId,
         title,
         description,
@@ -1146,7 +1146,7 @@ async function executeTool(
     case 'uninstall_skill': {
       const skillId = String(args.skillId || '').trim();
       if (!skillId) return '请提供要卸载的技能 ID。';
-      const removed = uninstallSkillForUser(userId, skillId);
+      const removed = await uninstallSkillForUser(userId, skillId);
       if (!removed) return `未找到已安装的技能 ${skillId}，请用 list_my_skills 查看已安装列表。`;
       return `✅ 技能 ${skillId} 已卸载。`;
     }
@@ -1159,7 +1159,7 @@ async function executeTool(
       if (!title || !skillMarkdown) return '技能名称和内容不能为空。';
       // 将学到的技能直接安装到当前用户，并以 web-learned 来源标记
       const learnedId = `learned-${Date.now()}`;
-      installSkillForUser(userId, {
+      await installSkillForUser(userId, {
         skillId: learnedId,
         title,
         description,

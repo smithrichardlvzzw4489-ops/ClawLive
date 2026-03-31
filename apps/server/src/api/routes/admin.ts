@@ -5,8 +5,7 @@
 import { Router } from 'express';
 import { works, workMessages } from './rooms-simple';
 import { WorksPersistence } from '../../services/works-persistence';
-import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store';
-import { FeedPostsPersistence } from '../../services/feed-posts-persistence';
+import { clearAllFeedPostsAndRelated, getFeedPostsMap } from '../../services/feed-posts-store';
 
 export function adminRoutes(): Router {
   const router = Router();
@@ -48,32 +47,37 @@ export function adminRoutes(): Router {
   });
 
   /** GET /api/admin/clear-feed-posts — 清空所有实验室帖子 */
-  router.get('/clear-feed-posts', (req, res) => {
+  router.get('/clear-feed-posts', async (req, res) => {
     if (!checkSecret(req, res)) return;
-    const map = getFeedPostsMap();
-    const count = map.size;
-    map.clear();
-    FeedPostsPersistence.save(map);
-    console.log(`[Admin] Cleared ${count} feed posts`);
-    res.json({ success: true, cleared: count });
+    try {
+      const count = await clearAllFeedPostsAndRelated();
+      console.log(`[Admin] Cleared ${count} feed posts (PostgreSQL + cache)`);
+      res.json({ success: true, cleared: count });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to clear feed posts' });
+    }
   });
 
   /** GET /api/admin/clear-all — 清空作品 + 帖子 */
-  router.get('/clear-all', (req, res) => {
+  router.get('/clear-all', async (req, res) => {
     if (!checkSecret(req, res)) return;
-    const worksCount = works.size;
-    const feedMap = getFeedPostsMap();
-    const feedCount = feedMap.size;
+    try {
+      const worksCount = works.size;
+      const feedCount = getFeedPostsMap().size;
 
-    works.clear();
-    workMessages.clear();
-    WorksPersistence.saveAll(works, workMessages);
+      works.clear();
+      workMessages.clear();
+      WorksPersistence.saveAll(works, workMessages);
 
-    feedMap.clear();
-    FeedPostsPersistence.save(feedMap);
+      await clearAllFeedPostsAndRelated();
 
-    console.log(`[Admin] Cleared ${worksCount} works + ${feedCount} feed posts`);
-    res.json({ success: true, clearedWorks: worksCount, clearedFeedPosts: feedCount });
+      console.log(`[Admin] Cleared ${worksCount} works + ${feedCount} feed posts`);
+      res.json({ success: true, clearedWorks: worksCount, clearedFeedPosts: feedCount });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to clear data' });
+    }
   });
 
   return router;

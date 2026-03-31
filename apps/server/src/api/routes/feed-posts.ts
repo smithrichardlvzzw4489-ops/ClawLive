@@ -8,7 +8,7 @@ import { getHostInfo, getHostInfoBatch } from './rooms-simple';
 import { addFeedPostComment, getFeedPostComments } from '../../services/feed-post-comments-store';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
-import { getFeedPostsMap, mergeFeedPostsFromDisk, saveFeedPosts } from '../../services/feed-posts-store';
+import { getFeedPostsMap, mergeFeedPostsFromDatabase, saveFeedPosts } from '../../services/feed-posts-store';
 import {
   getReactions,
   removeReactionsForPost,
@@ -50,7 +50,7 @@ export function feedPostsRoutes(): Router {
 
   router.get('/', async (req: Request, res: Response) => {
     try {
-      mergeFeedPostsFromDisk();
+      await mergeFeedPostsFromDatabase();
       const { offset, limit, evolutionPointId } = req.query;
       let list = Array.from(feedPostsMap.values()).sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -95,7 +95,7 @@ export function feedPostsRoutes(): Router {
   router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
-      mergeFeedPostsFromDisk();
+      await mergeFeedPostsFromDatabase();
       const list = Array.from(feedPostsMap.values())
         .filter((p) => String(p.authorId) === String(userId))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -147,7 +147,7 @@ export function feedPostsRoutes(): Router {
       const postId = req.params.id;
       const p = feedPostsMap.get(postId);
       if (!p) return res.status(404).json({ error: 'Not found' });
-      const list = getFeedPostComments(postId);
+      const list = await getFeedPostComments(postId);
       const authorIds = [...new Set(list.map((c) => c.authorId))];
       const authorMap = await getHostInfoBatch(authorIds);
       const comments = list.map((c) => {
@@ -180,7 +180,7 @@ export function feedPostsRoutes(): Router {
         return res.status(400).json({ error: 'content required' });
       }
       const userId = req.user!.id;
-      const c = addFeedPostComment(postId, userId, content);
+      const c = await addFeedPostComment(postId, userId, content);
       p.commentCount = (p.commentCount || 0) + 1;
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
@@ -284,7 +284,7 @@ export function feedPostsRoutes(): Router {
     try {
       const postId = req.params.id;
       if (!feedPostsMap.get(postId)) {
-        mergeFeedPostsFromDisk();
+        await mergeFeedPostsFromDatabase();
       }
       const p = feedPostsMap.get(postId);
       if (!p) return res.status(404).json({ error: 'Not found' });

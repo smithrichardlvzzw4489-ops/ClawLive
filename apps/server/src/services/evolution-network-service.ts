@@ -1,15 +1,10 @@
 /**
- * 进化网络：进化点与报名评论持久化（JSON），状态机与 Darwin 首启引导。
+ * 进化网络：进化点与评论持久化（PostgreSQL / Railway），状态机与 Darwin 首启引导。
  */
-import * as fs from 'fs';
-import { promises as fsp } from 'fs';
 import { randomUUID } from 'crypto';
-import { getDataFilePath } from '../lib/data-path';
+import type { EvolutionComment as EvolutionCommentRow, EvolutionPoint as EvolutionPointRow } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { getFeedPostsMap } from './feed-posts-store';
-
-const POINTS_FILE = getDataFilePath('evolution-points.json');
-const COMMENTS_FILE = getDataFilePath('evolution-comments.json');
 
 export type EvolutionPointStatus = 'proposed' | 'active' | 'ended';
 export type EvolutionEndReason = 'completed' | 'idle_timeout' | 'cancelled' | null;
@@ -96,7 +91,6 @@ export function isEvolutionPointDuplicateOf(
 }
 
 function findDuplicateAmongOpen(title: string, goal: string): EvolutionPointRecord | undefined {
-  ensureLoaded();
   for (const p of pointsCache.values()) {
     if (isEvolutionPointDuplicateOf(p, title, goal)) return p;
   }
@@ -106,65 +100,96 @@ function findDuplicateAmongOpen(title: string, goal: string): EvolutionPointReco
 let pointsCache = new Map<string, EvolutionPointRecord>();
 let commentsByPoint = new Map<string, EvolutionCommentRecord[]>();
 
-function loadPoints(): Map<string, EvolutionPointRecord> {
-  const map = new Map<string, EvolutionPointRecord>();
-  try {
-    if (!fs.existsSync(POINTS_FILE)) return map;
-    const raw = JSON.parse(fs.readFileSync(POINTS_FILE, 'utf-8')) as Record<string, EvolutionPointRecord>;
-    for (const [id, p] of Object.entries(raw)) {
-      map.set(id, p);
-    }
-  } catch (e) {
-    console.error('[Evolution] load points:', e);
-  }
-  return map;
+function prismaPointToRecord(p: EvolutionPointRow): EvolutionPointRecord {
+  const raw = p.problems;
+  const problems = Array.isArray(raw) ? (raw as unknown[]).map((x) => String(x)) : [];
+  return {
+    id: p.id,
+    title: p.title,
+    goal: p.goal,
+    problems,
+    authorUserId: p.authorUserId,
+    authorAgentName: p.authorAgentName,
+    status: p.status as EvolutionPointStatus,
+    endReason: p.endReason as EvolutionEndReason,
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
+    startedAt: p.startedAt?.toISOString(),
+    lastActivityAt: p.lastActivityAt.toISOString(),
+    source: p.source as EvolutionPointRecord['source'],
+  };
 }
 
-function loadComments(): Map<string, EvolutionCommentRecord[]> {
-  const map = new Map<string, EvolutionCommentRecord[]>();
-  try {
-    if (!fs.existsSync(COMMENTS_FILE)) return map;
-    const raw = JSON.parse(fs.readFileSync(COMMENTS_FILE, 'utf-8')) as Record<string, EvolutionCommentRecord[]>;
-    for (const [pid, list] of Object.entries(raw)) {
-      map.set(pid, Array.isArray(list) ? list : []);
-    }
-  } catch (e) {
-    console.error('[Evolution] load comments:', e);
-  }
-  return map;
+function prismaCommentToRecord(c: EvolutionCommentRow): EvolutionCommentRecord {
+  return {
+    id: c.id,
+    authorUserId: c.authorUserId,
+    authorAgentName: c.authorAgentName,
+    body: c.body,
+    createdAt: c.createdAt.toISOString(),
+  };
 }
 
-function savePoints(): void {
-  const obj: Record<string, EvolutionPointRecord> = {};
-  pointsCache.forEach((v, k) => {
-    obj[k] = v;
-  });
-  fsp.writeFile(POINTS_FILE, JSON.stringify(obj, null, 2), 'utf-8').catch((e) => {
-    console.error('[Evolution] save points:', e);
+export async function bootstrapEvolutionFromPostgres(): Promise<void> {
+  const [points, comments] = await Promise.all([
+    prisma.evolutionPoint.findMany(),
+    prisma.evolutionComment.findMany(),
+  ]);
+  pointsCache = new Map(points.map((p) => [p.id, prismaPointToRecord(p)]));
+  commentsByPoint = new Map();
+  for (const c of comments) {
+    const list = commentsByPoint.get(c.pointId) ?? [];
+    list.push(prismaCommentToRecord(c));
+    commentsByPoint.set(c.pointId, list);
+  }
+  console.log(
+    `[Evolution] Loaded ${pointsCache.size} point(s), ${comments.length} comment(s) from PostgreSQL`,
+  );
+}
+
+async function upsertEvolutionPoint(p: EvolutionPointRecord): Promise<void> {
+  await prisma.evolutionPoint.upsert({
+    where: { id: p.id },
+    create: {
+      id: p.id,
+      title: p.title,
+      goal: p.goal,
+      problems: p.problems,
+      authorUserId: p.authorUserId,
+      authorAgentName: p.authorAgentName,
+      status: p.status,
+      endReason: p.endReason,
+      createdAt: new Date(p.createdAt),
+      updatedAt: new Date(p.updatedAt),
+      startedAt: p.startedAt ? new Date(p.startedAt) : null,
+      lastActivityAt: new Date(p.lastActivityAt),
+      source: p.source ?? null,
+    },
+    update: {
+      title: p.title,
+      goal: p.goal,
+      problems: p.problems,
+      authorUserId: p.authorUserId,
+      authorAgentName: p.authorAgentName,
+      status: p.status,
+      endReason: p.endReason,
+      createdAt: new Date(p.createdAt),
+      updatedAt: new Date(p.updatedAt),
+      startedAt: p.startedAt ? new Date(p.startedAt) : null,
+      lastActivityAt: new Date(p.lastActivityAt),
+      source: p.source ?? null,
+    },
   });
 }
 
-function saveComments(): void {
-  const obj: Record<string, EvolutionCommentRecord[]> = {};
-  commentsByPoint.forEach((v, k) => {
-    obj[k] = v;
-  });
-  fsp.writeFile(COMMENTS_FILE, JSON.stringify(obj, null, 2), 'utf-8').catch((e) => {
-    console.error('[Evolution] save comments:', e);
-  });
-}
-
-function ensureLoaded(): void {
-  if (pointsCache.size === 0 && fs.existsSync(POINTS_FILE)) {
-    pointsCache = loadPoints();
-  }
-  if (commentsByPoint.size === 0 && fs.existsSync(COMMENTS_FILE)) {
-    commentsByPoint = loadComments();
-  }
+function schedulePersistPoints(): void {
+  const snapshot = Array.from(pointsCache.values());
+  void Promise.all(snapshot.map((p) => upsertEvolutionPoint(p))).catch((e) =>
+    console.error('[Evolution] persist points:', e),
+  );
 }
 
 export function initEvolutionNetwork(): void {
-  ensureLoaded();
   runTransitions();
 }
 
@@ -193,7 +218,6 @@ function countArticlesForPoint(pointId: string): number {
 
 /** 状态转换：遗留「提议中」并入「进化中」；active 冷清结束 */
 export function runTransitions(): void {
-  ensureLoaded();
   const now = Date.now();
   let changed = false;
 
@@ -215,7 +239,7 @@ export function runTransitions(): void {
     }
   }
 
-  if (changed) savePoints();
+  if (changed) schedulePersistPoints();
 }
 
 export type ListPointsFilterStatus = EvolutionPointStatus | 'evolving';
@@ -313,8 +337,7 @@ function createPointInternal(
   };
   pointsCache.set(id, p);
   commentsByPoint.set(id, []);
-  savePoints();
-  saveComments();
+  void upsertEvolutionPoint(p).catch((e) => console.error('[Evolution] create point:', e));
   console.log(`[Evolution] Created point ${id} by ${username} (active)`);
   return p;
 }
@@ -407,8 +430,20 @@ export function addComment(
   p.lastActivityAt = c.createdAt;
   p.updatedAt = c.createdAt;
 
-  saveComments();
-  savePoints();
+  void prisma.evolutionComment
+    .create({
+      data: {
+        id: c.id,
+        pointId,
+        authorUserId: c.authorUserId,
+        authorAgentName: c.authorAgentName,
+        body: c.body,
+        createdAt: new Date(c.createdAt),
+      },
+    })
+    .then(() => upsertEvolutionPoint(p))
+    .catch((e) => console.error('[Evolution] add comment persist:', e));
+
   return { ok: true };
 }
 
@@ -421,7 +456,7 @@ export function completePoint(pointId: string, userId: string): { ok: true } | {
   p.status = 'ended';
   p.endReason = 'completed';
   p.updatedAt = new Date().toISOString();
-  savePoints();
+  void upsertEvolutionPoint(p).catch((e) => console.error('[Evolution] complete:', e));
   return { ok: true };
 }
 
@@ -434,20 +469,18 @@ export function cancelPoint(pointId: string, userId: string): { ok: true } | { o
   p.status = 'ended';
   p.endReason = 'cancelled';
   p.updatedAt = new Date().toISOString();
-  savePoints();
+  void upsertEvolutionPoint(p).catch((e) => console.error('[Evolution] cancel:', e));
   return { ok: true };
 }
 
-/** 推荐：提议中 + 进行中，按热度排序 */
 /** 发帖关联进化点时刷新活跃时间 */
 export function touchActivityFromPublish(pointId: string): void {
-  ensureLoaded();
   const p = pointsCache.get(pointId);
   if (!p || p.status === 'ended') return;
   const now = new Date().toISOString();
   p.lastActivityAt = now;
   p.updatedAt = now;
-  savePoints();
+  void upsertEvolutionPoint(p).catch((e) => console.error('[Evolution] touch activity:', e));
 }
 
 export function listRecommended(limit = 8): EvolutionPointRecord[] {
@@ -672,7 +705,6 @@ export async function onDarwinClawFirstApply(userId: string): Promise<void> {
     return;
   }
 
-  // Darwin 创建/接入成功后立即启动第一轮进化器（之后由服务端定时持续执行）
   void import('./darwin-evolver-service')
     .then((m) =>
       m.runEvolverRound(userId).then((er) => {

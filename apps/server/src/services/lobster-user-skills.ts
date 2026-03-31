@@ -1,74 +1,100 @@
 /**
  * 虾米 — 用户级 Skill 安装（每位用户独立的技能扩展）
- *
- * 存储位置：DATA_DIR/lobster-user-skills/<userId>/skills.json
- * 每个用户可以安装平台 Skills 市场中的技能，也可以保存从网络上学习到的技能。
+ * 持久化：PostgreSQL（Railway），启动时载入内存缓存。
  */
-import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'fs';
-import * as path from 'path';
-import { DATA_DIR } from '../lib/data-path';
+import { randomUUID } from 'crypto';
+import { prisma } from '../lib/prisma';
 
 export interface UserInstalledSkill {
   skillId: string;
   title: string;
   description: string;
   skillMarkdown: string;
-  source: 'platform' | 'web-learned'; // 来源：平台市场 或 网络学习
+  source: 'platform' | 'web-learned';
   installedAt: string;
 }
 
-function userSkillsDir(userId: string): string {
-  return path.join(DATA_DIR, 'lobster-user-skills', userId);
-}
+const cache = new Map<string, Map<string, UserInstalledSkill>>();
 
-function userSkillsFile(userId: string): string {
-  return path.join(userSkillsDir(userId), 'skills.json');
-}
-
-function loadRaw(userId: string): Record<string, UserInstalledSkill> {
-  const file = userSkillsFile(userId);
-  if (!existsSync(file)) return {};
-  try {
-    return JSON.parse(readFileSync(file, 'utf-8'));
-  } catch {
-    return {};
+export async function bootstrapUserSkillsFromPostgres(): Promise<void> {
+  cache.clear();
+  const rows = await prisma.userInstalledSkill.findMany();
+  for (const r of rows) {
+    let m = cache.get(r.userId);
+    if (!m) {
+      m = new Map();
+      cache.set(r.userId, m);
+    }
+    m.set(r.skillId, {
+      skillId: r.skillId,
+      title: r.title,
+      description: r.description,
+      skillMarkdown: r.skillMarkdown,
+      source: r.source as UserInstalledSkill['source'],
+      installedAt: r.installedAt.toISOString(),
+    });
   }
+  console.log(`[Lobster] Loaded ${rows.length} user skill row(s) from PostgreSQL`);
 }
 
-function saveRaw(userId: string, data: Record<string, UserInstalledSkill>): void {
-  const dir = userSkillsDir(userId);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(userSkillsFile(userId), JSON.stringify(data, null, 2), 'utf-8');
+function ensureUserMap(userId: string): Map<string, UserInstalledSkill> {
+  let m = cache.get(userId);
+  if (!m) {
+    m = new Map();
+    cache.set(userId, m);
+  }
+  return m;
 }
 
 /** 获取用户已安装的所有技能 */
 export function getUserInstalledSkills(userId: string): UserInstalledSkill[] {
-  return Object.values(loadRaw(userId));
+  return Array.from(ensureUserMap(userId).values());
 }
 
 /** 安装一个技能到用户实例 */
-export function installSkillForUser(
+export async function installSkillForUser(
   userId: string,
   skill: Omit<UserInstalledSkill, 'installedAt'>,
-): void {
-  const data = loadRaw(userId);
-  data[skill.skillId] = {
+): Promise<void> {
+  const installedAt = new Date().toISOString();
+  await prisma.userInstalledSkill.upsert({
+    where: { userId_skillId: { userId, skillId: skill.skillId } },
+    create: {
+      id: randomUUID(),
+      userId,
+      skillId: skill.skillId,
+      title: skill.title,
+      description: skill.description,
+      skillMarkdown: skill.skillMarkdown,
+      source: skill.source,
+    },
+    update: {
+      title: skill.title,
+      description: skill.description,
+      skillMarkdown: skill.skillMarkdown,
+      source: skill.source,
+    },
+  });
+  ensureUserMap(userId).set(skill.skillId, {
     ...skill,
-    installedAt: new Date().toISOString(),
-  };
-  saveRaw(userId, data);
+    installedAt,
+  });
 }
 
 /** 卸载用户已安装的技能 */
-export function uninstallSkillForUser(userId: string, skillId: string): boolean {
-  const data = loadRaw(userId);
-  if (!data[skillId]) return false;
-  delete data[skillId];
-  saveRaw(userId, data);
+export async function uninstallSkillForUser(userId: string, skillId: string): Promise<boolean> {
+  try {
+    await prisma.userInstalledSkill.delete({
+      where: { userId_skillId: { userId, skillId } },
+    });
+  } catch {
+    return false;
+  }
+  cache.get(userId)?.delete(skillId);
   return true;
 }
 
 /** 检查用户是否已安装某技能 */
 export function isSkillInstalled(userId: string, skillId: string): boolean {
-  return Boolean(loadRaw(userId)[skillId]);
+  return Boolean(ensureUserMap(userId).get(skillId));
 }

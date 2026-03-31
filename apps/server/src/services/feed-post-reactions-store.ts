@@ -1,37 +1,32 @@
-import * as fs from 'fs';
-import { promises as fsp } from 'fs';
-import { getDataFilePath } from '../lib/data-path';
+import { prisma } from '../lib/prisma';
 import type { FeedPostRecord } from './feed-posts-persistence';
-
-const FILE = getDataFilePath('feed-post-reactions.json');
 
 type Reactions = { likes: string[]; favorites: string[] };
 
 const byPost = new Map<string, Reactions>();
 
-function load() {
-  if (!fs.existsSync(FILE)) return;
-  try {
-    const raw = JSON.parse(fs.readFileSync(FILE, 'utf-8')) as Record<string, Reactions>;
-    for (const [k, v] of Object.entries(raw)) {
-      byPost.set(k, { likes: v?.likes ?? [], favorites: v?.favorites ?? [] });
+/** 管理员清空 Feed 时同步清空内存中的点赞/收藏索引 */
+export function clearReactionsInMemory(): void {
+  byPost.clear();
+}
+
+export async function bootstrapFeedReactionsFromPostgres(): Promise<void> {
+  byPost.clear();
+  const rows = await prisma.feedPostReaction.findMany();
+  for (const r of rows) {
+    let rec = byPost.get(r.postId);
+    if (!rec) {
+      rec = { likes: [], favorites: [] };
+      byPost.set(r.postId, rec);
     }
-  } catch (e) {
-    console.error('Failed to load feed-post-reactions:', e);
+    if (r.kind === 'like') {
+      if (!rec.likes.includes(r.userId)) rec.likes.push(r.userId);
+    } else if (r.kind === 'favorite') {
+      if (!rec.favorites.includes(r.userId)) rec.favorites.push(r.userId);
+    }
   }
+  console.log(`[Feed] Loaded ${rows.length} reaction row(s) from PostgreSQL`);
 }
-
-function persist() {
-  const o: Record<string, Reactions> = {};
-  byPost.forEach((v, k) => {
-    o[k] = { likes: [...v.likes], favorites: [...v.favorites] };
-  });
-  fsp.writeFile(FILE, JSON.stringify(o, null, 2), 'utf-8').catch((e: unknown) => {
-    console.error('Failed to save feed-post-reactions:', e);
-  });
-}
-
-load();
 
 export function getReactions(postId: string): Reactions {
   return byPost.get(postId) || { likes: [], favorites: [] };
@@ -47,17 +42,30 @@ export function toggleLike(postId: string, userId: string, p: FeedPostRecord): {
   if (i >= 0) {
     r.likes.splice(i, 1);
     p.likeCount = Math.max(0, (p.likeCount ?? 0) - 1);
+    void prisma.feedPostReaction
+      .delete({
+        where: {
+          postId_userId_kind: { postId, userId, kind: 'like' },
+        },
+      })
+      .catch((e) => console.error('[Feed] unlike:', e));
   } else {
     r.likes.push(userId);
     p.likeCount = (p.likeCount ?? 0) + 1;
+    void prisma.feedPostReaction
+      .create({
+        data: { postId, userId, kind: 'like' },
+      })
+      .catch((e) => console.error('[Feed] like:', e));
   }
-  persist();
   return { liked: i < 0 };
 }
 
 export function removeReactionsForPost(postId: string): void {
   byPost.delete(postId);
-  persist();
+  void prisma.feedPostReaction.deleteMany({ where: { postId } }).catch((e) => {
+    console.error('[Feed] remove reactions:', e);
+  });
 }
 
 export function toggleFavorite(postId: string, userId: string, p: FeedPostRecord): { favorited: boolean } {
@@ -70,10 +78,21 @@ export function toggleFavorite(postId: string, userId: string, p: FeedPostRecord
   if (i >= 0) {
     r.favorites.splice(i, 1);
     p.favoriteCount = Math.max(0, (p.favoriteCount ?? 0) - 1);
+    void prisma.feedPostReaction
+      .delete({
+        where: {
+          postId_userId_kind: { postId, userId, kind: 'favorite' },
+        },
+      })
+      .catch((e) => console.error('[Feed] unfavorite:', e));
   } else {
     r.favorites.push(userId);
     p.favoriteCount = (p.favoriteCount ?? 0) + 1;
+    void prisma.feedPostReaction
+      .create({
+        data: { postId, userId, kind: 'favorite' },
+      })
+      .catch((e) => console.error('[Feed] favorite:', e));
   }
-  persist();
   return { favorited: i < 0 };
 }

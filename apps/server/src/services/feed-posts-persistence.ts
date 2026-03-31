@@ -1,9 +1,6 @@
-import * as fs from 'fs';
-import { promises as fsp } from 'fs';
-import { getDataFilePath } from '../lib/data-path';
-
-const FILE = getDataFilePath('feed-posts.json');
-
+/**
+ * Feed 帖子类型（持久化由 feed-posts-store + PostgreSQL 完成）
+ */
 export type FeedPostRecord = {
   id: string;
   authorId: string;
@@ -26,39 +23,3 @@ export type FeedPostRecord = {
   /** 关联的进化点 ID（实验室发帖） */
   evolutionPointId?: string;
 };
-
-function reviveDates(obj: unknown): FeedPostRecord {
-  const o = obj as FeedPostRecord;
-  if (typeof o.favoriteCount !== 'number' || Number.isNaN(o.favoriteCount)) {
-    o.favoriteCount = 0;
-  }
-  return o;
-}
-
-export class FeedPostsPersistence {
-  static load(): Map<string, FeedPostRecord> {
-    const map = new Map<string, FeedPostRecord>();
-    try {
-      if (!fs.existsSync(FILE)) return map;
-      const raw = JSON.parse(fs.readFileSync(FILE, 'utf-8')) as Record<string, FeedPostRecord>;
-      for (const [id, p] of Object.entries(raw)) {
-        map.set(id, reviveDates(p));
-      }
-    } catch (e) {
-      console.error('Failed to load feed-posts:', e);
-    }
-    return map;
-  }
-
-  static save(map: Map<string, FeedPostRecord>): void {
-    const obj: Record<string, FeedPostRecord> = {};
-    map.forEach((v, k) => {
-      obj[k] = v;
-    });
-    const json = JSON.stringify(obj, null, 2);
-    // 异步写入，不阻塞 event loop
-    fsp.writeFile(FILE, json, 'utf-8').catch((e: unknown) => {
-      console.error('Failed to save feed-posts:', e);
-    });
-  }
-}

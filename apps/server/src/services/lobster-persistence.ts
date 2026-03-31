@@ -1,12 +1,8 @@
 /**
- * 虾米 Nanobot — 持久化层
+ * 虾米 Nanobot — 持久化层（PostgreSQL / Railway，无本地 JSON）
  * 每位用户分配一只虾米实例，对话历史独立存储。
  */
-import { existsSync, readFileSync, mkdirSync } from 'fs';
-import { writeFile as writeFileAsync } from 'fs/promises';
-import { dirname } from 'path';
 import { Prisma } from '@prisma/client';
-import { getDataFilePath } from '../lib/data-path';
 import { prisma } from '../lib/prisma';
 
 /** 每用户每日最多发起多少次 DarwinClaw 对话（用户消息计 1 次） */
@@ -44,8 +40,6 @@ export interface LobsterConversation {
   updatedAt: string;
 }
 
-const INSTANCES_FILE = getDataFilePath('lobster-instances.json');
-const CONVERSATIONS_FILE = getDataFilePath('lobster-conversations.json');
 const MAX_MESSAGES_PER_USER = 60;
 
 function utcDateString(): string {
@@ -105,38 +99,103 @@ function bumpDarwinDailyUserCount(inst: LobsterInstance): void {
 let instances = new Map<string, LobsterInstance>();
 let conversations = new Map<string, LobsterConversation>();
 
-function ensureDir(file: string): void {
-  const dir = dirname(file);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+function instanceFromRow(r: {
+  userId: string;
+  name: string | null;
+  appliedAt: Date;
+  lastActiveAt: Date;
+  messageCount: number;
+  darwinDailyChatDate: string | null;
+  darwinDailyUserMessagesToday: number | null;
+  personalApiKey: string | null;
+  personalApiBaseUrl: string | null;
+  pendingSkillSuggestion: string | null;
+}): LobsterInstance {
+  return {
+    userId: r.userId,
+    name: r.name ?? undefined,
+    appliedAt: r.appliedAt.toISOString(),
+    lastActiveAt: r.lastActiveAt.toISOString(),
+    messageCount: r.messageCount,
+    darwinDailyChatDate: r.darwinDailyChatDate ?? undefined,
+    darwinDailyUserMessagesToday: r.darwinDailyUserMessagesToday ?? undefined,
+    personalApiKey: r.personalApiKey ?? undefined,
+    personalApiBaseUrl: r.personalApiBaseUrl ?? undefined,
+    pendingSkillSuggestion: r.pendingSkillSuggestion ?? undefined,
+  };
 }
 
-export function loadLobsterData(): void {
-  ensureDir(INSTANCES_FILE);
-  try {
-    if (existsSync(INSTANCES_FILE)) {
-      const arr: LobsterInstance[] = JSON.parse(readFileSync(INSTANCES_FILE, 'utf8'));
-      instances = new Map(arr.map((i) => [i.userId, i]));
-      console.log(`[Lobster] Loaded ${instances.size} lobster instances`);
-    }
-  } catch {
-    instances = new Map();
-  }
-  try {
-    if (existsSync(CONVERSATIONS_FILE)) {
-      const arr: LobsterConversation[] = JSON.parse(readFileSync(CONVERSATIONS_FILE, 'utf8'));
-      conversations = new Map(arr.map((c) => [c.userId, c]));
-    }
-  } catch {
-    conversations = new Map();
-  }
+export async function bootstrapLobsterFromPostgres(): Promise<void> {
+  const [instRows, convRows] = await Promise.all([
+    prisma.lobsterInstanceRow.findMany(),
+    prisma.lobsterConversationRow.findMany(),
+  ]);
+  instances = new Map(instRows.map((r) => [r.userId, instanceFromRow(r)]));
+  conversations = new Map(
+    convRows.map((r) => [
+      r.userId,
+      {
+        userId: r.userId,
+        messages: (r.messages as unknown as LobsterMessage[]) ?? [],
+        updatedAt: r.updatedAt.toISOString(),
+      },
+    ]),
+  );
+  console.log(
+    `[Lobster] Loaded ${instances.size} instance(s), ${conversations.size} conversation(s) from PostgreSQL`,
+  );
+}
+
+async function persistInstance(inst: LobsterInstance): Promise<void> {
+  await prisma.lobsterInstanceRow.upsert({
+    where: { userId: inst.userId },
+    create: {
+      userId: inst.userId,
+      name: inst.name ?? null,
+      appliedAt: new Date(inst.appliedAt),
+      lastActiveAt: new Date(inst.lastActiveAt),
+      messageCount: inst.messageCount,
+      darwinDailyChatDate: inst.darwinDailyChatDate ?? null,
+      darwinDailyUserMessagesToday: inst.darwinDailyUserMessagesToday ?? null,
+      personalApiKey: inst.personalApiKey ?? null,
+      personalApiBaseUrl: inst.personalApiBaseUrl ?? null,
+      pendingSkillSuggestion: inst.pendingSkillSuggestion ?? null,
+    },
+    update: {
+      name: inst.name ?? null,
+      appliedAt: new Date(inst.appliedAt),
+      lastActiveAt: new Date(inst.lastActiveAt),
+      messageCount: inst.messageCount,
+      darwinDailyChatDate: inst.darwinDailyChatDate ?? null,
+      darwinDailyUserMessagesToday: inst.darwinDailyUserMessagesToday ?? null,
+      personalApiKey: inst.personalApiKey ?? null,
+      personalApiBaseUrl: inst.personalApiBaseUrl ?? null,
+      pendingSkillSuggestion: inst.pendingSkillSuggestion ?? null,
+    },
+  });
+}
+
+async function persistConversation(conv: LobsterConversation): Promise<void> {
+  await prisma.lobsterConversationRow.upsert({
+    where: { userId: conv.userId },
+    create: {
+      userId: conv.userId,
+      messages: conv.messages as unknown as Prisma.InputJsonValue,
+      updatedAt: new Date(conv.updatedAt),
+    },
+    update: {
+      messages: conv.messages as unknown as Prisma.InputJsonValue,
+      updatedAt: new Date(conv.updatedAt),
+    },
+  });
 }
 
 async function saveInstances(): Promise<void> {
-  await writeFileAsync(INSTANCES_FILE, JSON.stringify(Array.from(instances.values()), null, 2), 'utf8');
+  await Promise.all(Array.from(instances.values()).map((i) => persistInstance(i)));
 }
 
 async function saveConversations(): Promise<void> {
-  await writeFileAsync(CONVERSATIONS_FILE, JSON.stringify(Array.from(conversations.values()), null, 2), 'utf8');
+  await Promise.all(Array.from(conversations.values()).map((c) => persistConversation(c)));
 }
 
 export function getLobsterInstance(userId: string): LobsterInstance | null {
@@ -148,9 +207,8 @@ export function getAllInstances(): LobsterInstance[] {
 }
 
 /**
- * Railway 等环境若未挂载持久卷，`lobster-instances.json` 会在部署后丢失，进程内无实例，
- * 导致定时进化器 `getAllInstances()` 为空、永远不跑。PostgreSQL 中的问卷与进化轮次仍在。
- * 启动时从 DB 补回内存实例，使定时任务能继续执行。
+ * Railway 等环境若 Lobster 表为空但 PostgreSQL 中仍有 Darwin 问卷/进化轮次，
+ * 补回内存与 DB 中的实例行，使定时进化器能继续执行。
  */
 export async function hydrateDarwinInstancesFromDatabase(): Promise<void> {
   try {
@@ -184,7 +242,7 @@ export async function hydrateDarwinInstancesFromDatabase(): Promise<void> {
     if (added > 0) {
       await saveInstances();
       console.log(
-        `[Lobster] Hydrated ${added} Darwin instance(s) from PostgreSQL (JSON store was empty or stale)`,
+        `[Lobster] Hydrated ${added} Darwin instance(s) from PostgreSQL user/evolver data`,
       );
     }
   } catch (e) {
@@ -203,7 +261,7 @@ export async function applyLobster(userId: string, name?: string): Promise<Lobst
     messageCount: 0,
   };
   instances.set(userId, instance);
-  await saveInstances();
+  await persistInstance(instance);
   return instance;
 }
 
@@ -228,22 +286,26 @@ export async function appendLobsterMessage(userId: string, message: LobsterMessa
     inst.lastActiveAt = new Date().toISOString();
     inst.messageCount += 1;
     bumpDarwinDailyUserCount(inst);
-    await Promise.all([saveInstances(), saveConversations()]);
+    await Promise.all([persistInstance(inst), persistConversation(conv)]);
   } else {
-    await saveConversations();
+    await persistConversation(conv);
   }
 }
 
 export async function clearLobsterConversation(userId: string): Promise<void> {
   conversations.delete(userId);
-  await saveConversations();
+  try {
+    await prisma.lobsterConversationRow.delete({ where: { userId } });
+  } catch {
+    /* 不存在则忽略 */
+  }
 }
 
 export async function renameLobster(userId: string, name: string): Promise<LobsterInstance> {
   const inst = instances.get(userId);
   if (!inst) throw new Error('请先申请 DarwinClaw');
   inst.name = name.trim() || undefined;
-  await saveInstances();
+  await persistInstance(inst);
   return inst;
 }
 
@@ -251,7 +313,7 @@ export async function setPendingSkillSuggestion(userId: string, skill: string | 
   const inst = instances.get(userId);
   if (!inst) return;
   inst.pendingSkillSuggestion = skill;
-  await saveInstances();
+  await persistInstance(inst);
 }
 
 export async function setPersonalApiKey(
@@ -263,7 +325,7 @@ export async function setPersonalApiKey(
   if (!inst) throw new Error('请先申请 DarwinClaw');
   inst.personalApiKey = key;
   inst.personalApiBaseUrl = baseUrl;
-  await saveInstances();
+  await persistInstance(inst);
 }
 
 export async function clearPersonalApiKey(userId: string): Promise<void> {
@@ -271,7 +333,5 @@ export async function clearPersonalApiKey(userId: string): Promise<void> {
   if (!inst) return;
   delete inst.personalApiKey;
   delete inst.personalApiBaseUrl;
-  await saveInstances();
+  await persistInstance(inst);
 }
-
-loadLobsterData();

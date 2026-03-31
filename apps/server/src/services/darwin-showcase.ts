@@ -130,10 +130,10 @@ export async function getDarwinPublicProfile(username: string): Promise<DarwinPu
 }
 
 /** 将源用户已安装技能复制到当前用户（覆盖同 skillId） */
-export function cloneInstalledSkillsFromUser(
+export async function cloneInstalledSkillsFromUser(
   targetUserId: string,
   sourceUserId: string,
-): { copied: number } {
+): Promise<{ copied: number }> {
   if (targetUserId === sourceUserId) {
     throw new Error('不能克隆自己的技能');
   }
@@ -142,7 +142,7 @@ export function cloneInstalledSkillsFromUser(
     return { copied: 0 };
   }
   for (const s of skills) {
-    installSkillForUser(targetUserId, {
+    await installSkillForUser(targetUserId, {
       skillId: s.skillId,
       title: s.title,
       description: s.description,

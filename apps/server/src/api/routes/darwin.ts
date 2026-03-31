@@ -78,7 +78,7 @@ export function darwinRoutes(): Router {
         return res.status(400).json({ error: '源用户未接入 Darwin' });
       }
 
-      const { copied } = cloneInstalledSkillsFromUser(targetUserId, sourceUserId);
+      const { copied } = await cloneInstalledSkillsFromUser(targetUserId, sourceUserId);
       res.json({ ok: true, copied, message: copied ? `已合并 ${copied} 个技能到你的账号` : '对方暂无已安装技能' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
