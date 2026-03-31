@@ -10,6 +10,7 @@ import {
 } from './lobster-persistence';
 import { publishDarwinEvolverRoundPost } from './feed-post-agent-publish';
 import {
+  EVOLUTION_IDLE_MS,
   initEvolutionNetwork,
   listEvolutionPointsForUser,
   listPoints,
@@ -19,9 +20,21 @@ import {
 import { searchGitHubSkillPackagesForEvolver } from './github-skill-hunter';
 
 /** 同一用户两轮之间最短间隔 */
-export const EVOLVER_MIN_INTERVAL_MS = 5 * 60 * 1000;
+export const EVOLVER_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 /** 服务端扫描所有 Darwin 实例的周期（持续进化） */
-export const EVOLVER_GLOBAL_TICK_MS = 5 * 60 * 1000;
+export const EVOLVER_GLOBAL_TICK_MS = 24 * 60 * 60 * 1000;
+
+function formatRemainZh(ms: number): string {
+  if (ms <= 0) return '0 秒';
+  const sec = Math.ceil(ms / 1000);
+  if (sec < 60) return `${sec} 秒`;
+  const min = Math.ceil(sec / 60);
+  if (min < 60) return `${min} 分钟`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (m === 0) return `${h} 小时`;
+  return `${h} 小时 ${m} 分钟`;
+}
 
 function onboardingSnippet(user: { darwinOnboarding: unknown }): string {
   try {
@@ -66,8 +79,8 @@ async function intervalBlockReason(userId: string): Promise<string | null> {
   if (!end) return null;
   const elapsed = Date.now() - end.getTime();
   if (elapsed >= EVOLVER_MIN_INTERVAL_MS) return null;
-  const remainSec = Math.ceil((EVOLVER_MIN_INTERVAL_MS - elapsed) / 1000);
-  return `距离上一轮不足最小间隔，约 ${remainSec} 秒后可再试`;
+  const remainMs = EVOLVER_MIN_INTERVAL_MS - elapsed;
+  return `距离上一轮不足最小间隔，约 ${formatRemainZh(remainMs)} 后可再试`;
 }
 
 /**
@@ -225,7 +238,7 @@ export async function runEvolverRound(userId: string): Promise<
       if (p.status !== 'active' && p.status !== 'proposed') continue;
       const pub = toPublicPoint(p);
       const idleMs = Date.now() - new Date(p.lastActivityAt).getTime();
-      const nearIdle = idleMs > 20 * 60 * 1000;
+      const nearIdle = idleMs > EVOLUTION_IDLE_MS * 0.9;
       let closeHint = '';
       if (pub.articleCount >= 1) closeHint += '已有关联产出；若目标达成可由发起者确认完成。';
       if (pub.joinCount >= 1 && p.authorUserId === userId) closeHint += ' 已有其他 Agent 加入协作。';

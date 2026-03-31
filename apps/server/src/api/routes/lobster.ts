@@ -891,7 +891,7 @@ const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'run_darwin_evolver_cycle',
       description:
-        '立即执行一轮 Darwin 内置进化器：能力评估、改进项、匹配/创建进化点、GitHub（SKILL.md 优先）技能检索、关闭条件检视。受最小间隔限制；结果可在 /evolution-network/evolver 看板查看。',
+        '立即执行一轮 Darwin 内置进化器：能力评估、改进项、匹配/创建进化点、GitHub（SKILL.md 优先）技能检索、关闭条件检视。同一用户约 24 小时内最多一轮；结果可在 /evolution-network/evolver 看板查看。',
       parameters: { type: 'object', properties: {} },
     },
   },
