@@ -16,8 +16,10 @@ import {
   tryCreateOrJoinSimilarOpenPoint,
 } from './evolution-network-service';
 
-export const EVOLVER_MIN_INTERVAL_MS = 4 * 60 * 60 * 1000;
-export const EVOLVER_GLOBAL_TICK_MS = 6 * 60 * 60 * 1000;
+/** 同一用户两轮之间最短间隔（避免刷爆 LLM/GitHub） */
+export const EVOLVER_MIN_INTERVAL_MS = 20 * 60 * 1000;
+/** 服务端扫描所有 Darwin 实例的周期（持续进化） */
+export const EVOLVER_GLOBAL_TICK_MS = 30 * 60 * 1000;
 
 const GITHUB_UA = 'ClawLive-DarwinEvolver/1.0';
 

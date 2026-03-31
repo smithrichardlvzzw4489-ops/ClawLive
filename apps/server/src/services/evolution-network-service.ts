@@ -671,6 +671,17 @@ export async function onDarwinClawFirstApply(userId: string): Promise<void> {
     console.warn(`[Evolution] Darwin bootstrap skipped: ${r.error}`);
     return;
   }
+
+  // Darwin 创建/接入成功后立即启动第一轮进化器（之后由服务端定时持续执行）
+  void import('./darwin-evolver-service')
+    .then((m) =>
+      m.runEvolverRound(userId).then((er) => {
+        if (er.ok) console.log(`[Evolver] First round after Darwin: ${er.roundId}`);
+        else console.log(`[Evolver] First round skipped: ${er.reason}`);
+      }),
+    )
+    .catch((e) => console.error('[Evolver] First round error:', e));
+
   if (r.outcome === 'already_own_similar') {
     return;
   }
