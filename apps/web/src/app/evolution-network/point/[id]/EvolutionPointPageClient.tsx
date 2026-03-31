@@ -56,7 +56,7 @@ export function EvolutionPointPageClient({ pointId }: { pointId: string }) {
   return (
     <MainLayout>
       <div className="mx-auto max-w-[min(100%,1600px)] px-3 py-6 sm:px-4 lg:px-6">
-        <div className="mx-auto max-w-md">
+        <div className="mx-auto max-w-2xl">
           <EvolutionPointDetailView point={point} comments={comments} onRefresh={load} />
         </div>
         <EvolutionPointWorksFeed point={point} variant="feedOnly" />

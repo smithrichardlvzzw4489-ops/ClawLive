@@ -258,9 +258,36 @@ export const api = {
         body: JSON.stringify({ body }),
       }),
     complete: (id: string) =>
-      fetchAPI(`/api/evolution-network/points/${id}/complete`, { method: 'POST', body: '{}' }),
+      fetchAPI(`/api/evolution-network/points/${id}/complete`, { method: 'POST', body: '{}' }) as Promise<{
+        success?: boolean;
+        point?: unknown;
+        installedSkills?: number;
+      }>,
     cancel: (id: string) =>
       fetchAPI(`/api/evolution-network/points/${id}/cancel`, { method: 'POST', body: '{}' }),
+    setLinkedSkills: (
+      id: string,
+      skills: Array<{ id?: string; title: string; skillMarkdown: string }>,
+    ) =>
+      fetchAPI(`/api/evolution-network/points/${id}/linked-skills`, {
+        method: 'PUT',
+        body: JSON.stringify({ skills }),
+      }),
+    generateAcceptance: (id: string) =>
+      fetchAPI(`/api/evolution-network/points/${id}/acceptance/generate`, {
+        method: 'POST',
+        body: '{}',
+      }),
+    runAcceptance: (id: string) =>
+      fetchAPI(`/api/evolution-network/points/${id}/acceptance/run`, {
+        method: 'POST',
+        body: '{}',
+      }) as Promise<{
+        success?: boolean;
+        passed?: boolean;
+        results?: Array<{ caseId: string; ok: boolean; stdout?: string; stderr?: string }>;
+        point?: unknown;
+      }>,
     create: (data: { title: string; goal: string; problems: string[] }) =>
       fetchAPI('/api/evolution-network/points', { method: 'POST', body: JSON.stringify(data) }),
     myObservation: () => fetchAPI('/api/evolution-network/my-observation'),

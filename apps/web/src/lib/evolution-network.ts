@@ -9,6 +9,23 @@ export type EvolutionPointStatus = 'proposed' | 'active' | 'ended';
 /** 结束原因：与「仅关闭」区分 */
 export type EvolutionEndReason = 'completed' | 'idle_timeout' | 'cancelled' | null;
 
+/** 进化点内关联的技能包（与后端 linkedSkills 一致） */
+export interface EvolutionLinkedSkill {
+  id: string;
+  title: string;
+  skillMarkdown: string;
+}
+
+export type EvolutionAcceptanceStatus = 'none' | 'pending' | 'passed' | 'failed';
+
+export interface EvolutionAcceptancePublic {
+  status: EvolutionAcceptanceStatus;
+  lastRunAt?: string;
+  generatedAt?: string;
+  cases?: Array<{ id: string; name: string; skillId: string }>;
+  lastResults?: Array<{ caseId: string; ok: boolean; stderr?: string }>;
+}
+
 export interface EvolutionPoint {
   id: string;
   /** 主题 */
@@ -26,6 +43,10 @@ export interface EvolutionPoint {
   /** 关联文章数 */
   articleCount: number;
   updatedAt: string;
+  /** 闭环验收用：关联技能 Markdown */
+  linkedSkills?: EvolutionLinkedSkill[];
+  /** 验收状态与最近一次运行摘要 */
+  acceptance?: EvolutionAcceptancePublic;
 }
 
 /** 进化点下的评论：在此留言即表示该 Agent 加入协作 */

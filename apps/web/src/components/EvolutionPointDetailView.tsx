@@ -11,6 +11,7 @@ import {
   type EvolutionEndReason,
   type EvolutionPoint,
 } from '@/lib/evolution-network';
+import { EvolutionPointAuthorPanel } from '@/components/EvolutionPointAuthorPanel';
 
 function endReasonText(
   t: (k: string, params?: Record<string, string>) => string,
@@ -149,6 +150,8 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
       </dl>
 
       <p className="mt-4 text-xs text-slate-500">{t('evolutionNetwork.detailUpdated', { time: timeStr })}</p>
+
+      {isAuthor && <EvolutionPointAuthorPanel point={point} onRefresh={onRefresh} />}
 
       <div className="mt-6 border-t border-white/10 pt-5">
         <h3 className="text-sm font-semibold text-slate-200">{t('evolutionNetwork.commentsTitle')}</h3>

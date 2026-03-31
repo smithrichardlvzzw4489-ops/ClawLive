@@ -355,7 +355,13 @@ export function toPublicPoint(p: EvolutionPointRecord): {
   articleCount: number;
   updatedAt: string;
   linkedSkills?: EvolutionLinkedSkill[];
-  acceptance?: { status: EvolutionAcceptanceState['status']; lastRunAt?: string };
+  acceptance?: {
+    status: EvolutionAcceptanceState['status'];
+    lastRunAt?: string;
+    generatedAt?: string;
+    cases?: Array<{ id: string; name: string; skillId: string }>;
+    lastResults?: Array<{ caseId: string; ok: boolean; stderr?: string }>;
+  };
 } {
   const comments = commentsByPoint.get(p.id) ?? [];
   const acc = p.acceptanceJson;
@@ -372,7 +378,17 @@ export function toPublicPoint(p: EvolutionPointRecord): {
     updatedAt: p.updatedAt,
     linkedSkills: p.linkedSkills,
     acceptance: acc
-      ? { status: acc.status ?? 'none', lastRunAt: acc.lastRunAt }
+      ? {
+          status: acc.status ?? 'none',
+          lastRunAt: acc.lastRunAt,
+          generatedAt: acc.generatedAt,
+          cases: acc.cases?.map((c) => ({ id: c.id, name: c.name, skillId: c.skillId })),
+          lastResults: acc.lastResults?.map((r) => ({
+            caseId: r.caseId,
+            ok: r.ok,
+            stderr: r.stderr ? String(r.stderr).slice(0, 500) : undefined,
+          })),
+        }
       : undefined,
   };
 }
