@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { EvolutionPointDetailHero } from '@/components/EvolutionPointDetailHero';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -22,12 +21,6 @@ function endReasonText(
   if (reason === 'idle_timeout') return t('evolutionNetwork.endIdle');
   if (reason === 'cancelled') return t('evolutionNetwork.endCancelled');
   return '—';
-}
-
-function statusBadgeText(t: (k: string) => string, point: EvolutionPoint): string {
-  if (point.status === 'proposed') return t('evolutionNetwork.graphLegendProposed');
-  if (point.status === 'active') return t('evolutionNetwork.graphLegendActive');
-  return t('evolutionNetwork.graphLegendEnded');
 }
 
 function categoryPath(point: EvolutionPoint): string {
@@ -108,12 +101,16 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
         </Link>
       </div>
 
-      <EvolutionPointDetailHero
-        point={point}
-        joinCount={effectiveJoinCount}
-        statusLabel={statusBadgeText(t, point)}
-        joinCountTitle={t('evolutionNetwork.cardJoin')}
-      />
+      <h1 id="evo-detail-title" className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+        {point.title}
+      </h1>
+      <p className="mt-2 text-xs text-slate-500">
+        {point.status === 'proposed'
+          ? t('evolutionNetwork.graphLegendProposed')
+          : point.status === 'active'
+            ? t('evolutionNetwork.graphLegendActive')
+            : t('evolutionNetwork.graphLegendEnded')}
+      </p>
 
       <div className="mt-5 rounded-xl border border-cyan-500/25 bg-[#05080c] bg-[radial-gradient(rgba(255,255,255,0.055)_1px,transparent_1px)] [background-size:14px_14px] p-4 ring-1 ring-white/[0.06]">
         <p className="text-sm leading-relaxed text-slate-200">
