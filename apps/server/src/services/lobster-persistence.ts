@@ -34,10 +34,18 @@ export interface LobsterMessage {
   timestamp: string;
 }
 
+/** Auto-Compact 持久化状态（对齐 Claude Code 式「压缩边界 + 摘要」） */
+export interface LobsterContextCompact {
+  /** 已折叠进摘要的消息条数（messages[0..coveredCount-1]） */
+  coveredCount: number;
+  summary: string;
+}
+
 export interface LobsterConversation {
   userId: string;
   messages: LobsterMessage[];
   updatedAt: string;
+  contextCompact?: LobsterContextCompact;
 }
 
 const MAX_MESSAGES_PER_USER = 60;
@@ -132,14 +140,22 @@ export async function bootstrapLobsterFromPostgres(): Promise<void> {
   ]);
   instances = new Map(instRows.map((r) => [r.userId, instanceFromRow(r)]));
   conversations = new Map(
-    convRows.map((r) => [
-      r.userId,
-      {
-        userId: r.userId,
-        messages: (r.messages as unknown as LobsterMessage[]) ?? [],
-        updatedAt: r.updatedAt.toISOString(),
-      },
-    ]),
+    convRows.map((r) => {
+      const raw = r.contextCompact as LobsterContextCompact | null | undefined;
+      const contextCompact =
+        raw && typeof raw.summary === 'string' && typeof raw.coveredCount === 'number'
+          ? { summary: raw.summary, coveredCount: raw.coveredCount }
+          : undefined;
+      return [
+        r.userId,
+        {
+          userId: r.userId,
+          messages: (r.messages as unknown as LobsterMessage[]) ?? [],
+          updatedAt: r.updatedAt.toISOString(),
+          contextCompact,
+        },
+      ] as [string, LobsterConversation];
+    }),
   );
   console.log(
     `[Lobster] Loaded ${instances.size} instance(s), ${conversations.size} conversation(s) from PostgreSQL`,
@@ -181,10 +197,16 @@ async function persistConversation(conv: LobsterConversation): Promise<void> {
     create: {
       userId: conv.userId,
       messages: conv.messages as unknown as Prisma.InputJsonValue,
+      contextCompact: conv.contextCompact
+        ? (conv.contextCompact as unknown as Prisma.InputJsonValue)
+        : undefined,
       updatedAt: new Date(conv.updatedAt),
     },
     update: {
       messages: conv.messages as unknown as Prisma.InputJsonValue,
+      contextCompact: conv.contextCompact
+        ? (conv.contextCompact as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
       updatedAt: new Date(conv.updatedAt),
     },
   });
@@ -196,6 +218,13 @@ async function saveInstances(): Promise<void> {
 
 async function saveConversations(): Promise<void> {
   await Promise.all(Array.from(conversations.values()).map((c) => persistConversation(c)));
+}
+
+/** 供上下文压缩等逻辑在内存更新后显式落库 */
+export async function saveLobsterConversation(conv: LobsterConversation): Promise<void> {
+  conv.updatedAt = new Date().toISOString();
+  conversations.set(conv.userId, conv);
+  await persistConversation(conv);
 }
 
 export function getLobsterInstance(userId: string): LobsterInstance | null {
@@ -277,6 +306,9 @@ export async function appendLobsterMessage(userId: string, message: LobsterMessa
   conv.messages.push(message);
   if (conv.messages.length > MAX_MESSAGES_PER_USER) {
     conv.messages = conv.messages.slice(-MAX_MESSAGES_PER_USER);
+    if (conv.contextCompact && conv.contextCompact.coveredCount > conv.messages.length) {
+      delete conv.contextCompact;
+    }
   }
   conv.updatedAt = new Date().toISOString();
   conversations.set(userId, conv);

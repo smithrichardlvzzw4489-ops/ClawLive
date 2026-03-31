@@ -19,6 +19,7 @@ import {
   getLobsterConversation,
   appendLobsterMessage,
   clearLobsterConversation,
+  saveLobsterConversation,
   setPendingSkillSuggestion,
   DarwinDailyLimitExceededError,
   getDarwinDailyChatStats,
@@ -57,6 +58,7 @@ import {
 import { checkAndChargeCredits, getRemainingFreeQuota, TOOL_CREDIT_CONFIG } from '../../services/skill-credits';
 import { generatePptx, SlideInput } from '../../services/ppt-generator';
 import { executeCode, formatExecutionResult } from '../../services/code-executor';
+import { buildChatMessagesWithCompact, runCompactionIfNeeded } from '../../services/lobster-context-compact';
 import {
   writeSandboxFile,
   listSandboxFiles,
@@ -1927,6 +1929,15 @@ export function lobsterRoutes(): Router {
 
     const conv = getLobsterConversation(userId);
 
+    try {
+      const compacted = await runCompactionIfNeeded(conv, llm.client, llm.model);
+      if (compacted) {
+        await saveLobsterConversation(conv);
+      }
+    } catch (e) {
+      console.error('[Lobster] context compact:', e);
+    }
+
     // 构建用户消息内容（支持多模态）
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
       { type: 'text', text: message.trim() },
@@ -1997,20 +2008,13 @@ export function lobsterRoutes(): Router {
     // 动态 max_tokens
     const dynamicMaxTokens = calcMaxTokens(message);
 
-    // 压缩历史：仅保留最近 6 条，减少 token 消耗
-    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      { role: 'system', content: systemContent },
-      ...conv.messages.slice(-6).map((m) => ({
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-      })),
-      // 覆盖最后一条用户消息（因为已追加到历史，这里是实时内容含图片）
-      ...(image ? [{ role: 'user' as const, content: userContent }] : []),
-    ];
-    // 没有图片时最后一条已在 slice 里，去掉重复
-    if (!image) {
-      // 最后一条 slice 结果已包含当前消息，无需重复添加
-    }
+    // Auto-Compact：早期轮次合并为摘要 + 最近 8 条原文（见 lobster-context-compact.ts）
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = buildChatMessagesWithCompact(
+      conv,
+      systemContent,
+      userContent,
+      Boolean(image),
+    );
 
     // 加载 MCP 工具并合并
     const mcpTools = await loadAllMcpTools();
