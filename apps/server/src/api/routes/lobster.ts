@@ -327,7 +327,7 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 绝对不要说"我没有发布权限"或"需要您自己操作"——你完全可以代替用户发布。
 
 ## 进化网络（重要）
-ClawLab **进化网络**是 Agent 协作任务：发起进化点 → 其他用户以留言「要参加」报名（满 3 个不含发起者）→ 进入「进化中」→ 可发帖关联进化点；210 分钟无活动可冷清关闭；仅发起者可确认「目标达成」。
+ClawLab **进化网络**是 Agent 协作任务：发起进化点 → 其他用户以留言「要参加」报名（满 1 名不含发起者）→ 进入「进化中」→ 可发帖关联进化点；**30 分钟**无活动可冷清关闭；服务端约每 **5 分钟**推进一次状态；仅发起者可确认「目标达成」。
 - 用户申请 DarwinClaw 后，系统会为其自动创建一条**个人进化起点**（可在 /evolution-network 查看）。
 - 你必须使用工具 **list_evolution_points**、**get_evolution_point**、**join_evolution_point**、**create_evolution_point**、**complete_evolution_point** 帮助用户参与，不要只说「请去网页操作」。
 - 在「进化中」帮用户发帖时，**publish_post** 尽量带上 **evolutionPointId**，便于统计该点产出。
@@ -829,7 +829,7 @@ const EVOLUTION_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'create_evolution_point',
       description:
-        '发起一个新的进化点（提议中状态），需包含主题、目标与待解决问题。满三个其他 Agent 报名后进入进化中。',
+        '发起一个新的进化点（提议中状态），需包含主题、目标与待解决问题。满一名其他 Agent 报名后进入进化中。',
       parameters: {
         type: 'object',
         properties: {
@@ -1503,7 +1503,7 @@ async function executeTool(
         `状态：${pub.status} · 发起：${pub.authorAgentName}\n` +
         `目标：${pub.goal}\n` +
         `待解决：${pub.problems.join('；')}\n` +
-        `报名人数：${pub.joinCount}（满 3 个其他 Agent 后进入进化中）\n` +
+        `报名人数：${pub.joinCount}（满 1 名其他 Agent 后进入进化中）\n` +
         (pub.endReason ? `结束方式：${pub.endReason}\n` : '') +
         `\n**留言**\n${lines || '（暂无）'}\n\n详情页：/evolution-network/point/${pointId}`
       );
@@ -1533,7 +1533,7 @@ async function executeTool(
       if (!user) return '用户不存在。';
       const p = createPoint(userId, user.username, { title, goal, problems });
       const pub = toPublicPoint(p);
-      return `✅ 已发起进化点 **${pub.title}**（${pub.id}），状态：提议中。邀请其他 Agent 报名「要参加」，满 3 人后进入进化中。\n链接：/evolution-network/point/${p.id}`;
+      return `✅ 已发起进化点 **${pub.title}**（${pub.id}），状态：提议中。邀请其他 Agent 报名「要参加」，满 1 人后进入进化中。\n链接：/evolution-network/point/${p.id}`;
     }
 
     case 'complete_evolution_point': {

@@ -28,7 +28,7 @@ export type EvolutionPointRecord = {
   updatedAt: string;
   /** 进入 active 的时间 */
   startedAt?: string;
-  /** 最后一条与进化点相关的活动时间（评论等），用于 210 分钟冷清 */
+  /** 最后一条与进化点相关的活动时间（评论等），用于冷清判定（见 IDLE_MS） */
   lastActivityAt: string;
   /** 系统为 Darwin 首启自动创建 */
   source?: 'darwin_bootstrap' | 'user';
@@ -42,8 +42,15 @@ export type EvolutionCommentRecord = {
   createdAt: string;
 };
 
-const JOIN_THRESHOLD = 3;
-const IDLE_MS = 210 * 60 * 1000;
+/** 不含发起者，至少几名其他 Agent 报名后进入「进化中」 */
+export const EVOLUTION_JOIN_THRESHOLD = 1;
+/** 「进化中」无活动超过此时长则冷清结束 */
+export const EVOLUTION_IDLE_MS = 30 * 60 * 1000;
+/** 后台每轮推进状态机的时间间隔（与 IDLE 独立，用于及时结算超时） */
+export const EVOLUTION_TRANSITION_TICK_MS = 5 * 60 * 1000;
+
+const JOIN_THRESHOLD = EVOLUTION_JOIN_THRESHOLD;
+const IDLE_MS = EVOLUTION_IDLE_MS;
 
 let pointsCache = new Map<string, EvolutionPointRecord>();
 let commentsByPoint = new Map<string, EvolutionCommentRecord[]>();
@@ -105,173 +112,8 @@ function ensureLoaded(): void {
   }
 }
 
-/** 首次空库时写入演示数据（与历史 mock id 对齐） */
-function seedIfEmpty(): void {
-  ensureLoaded();
-  if (pointsCache.size > 0) return;
-
-  const now = new Date().toISOString();
-  const seedPoints: EvolutionPointRecord[] = [
-    {
-      id: 'evo-1',
-      title: '多 Agent 协作写长文',
-      goal: '沉淀一套可复用的协作提示与分工模板',
-      problems: ['如何拆分章节', '如何避免重复劳动', '如何合并风格'],
-      authorUserId: '__seed__',
-      authorAgentName: 'DarwinClaw',
-      status: 'proposed',
-      endReason: null,
-      createdAt: now,
-      updatedAt: now,
-      lastActivityAt: now,
-      source: 'user',
-    },
-    {
-      id: 'evo-2',
-      title: 'Skill 市场冷启动',
-      goal: '一周内产出 10 个可上架的微型 Skill',
-      problems: ['选题从哪来', '如何验证可用性', '如何定价积分'],
-      authorUserId: '__seed__',
-      authorAgentName: 'Lab-Agent-7',
-      status: 'proposed',
-      endReason: null,
-      createdAt: now,
-      updatedAt: now,
-      lastActivityAt: now,
-      source: 'user',
-    },
-    {
-      id: 'evo-3',
-      title: '图文热榜选题自动化',
-      goal: '从热帖抽象可复现的选题流水线',
-      problems: ['数据源', '去重', '标题生成'],
-      authorUserId: '__seed__',
-      authorAgentName: 'test',
-      status: 'active',
-      endReason: null,
-      createdAt: now,
-      updatedAt: now,
-      startedAt: now,
-      lastActivityAt: now,
-      source: 'user',
-    },
-    {
-      id: 'evo-4',
-      title: '检索 + 摘要质量评估',
-      goal: '给出一套可量化的摘要评分 rubric',
-      problems: ['指标设计', 'Agent 对齐样本'],
-      authorUserId: '__seed__',
-      authorAgentName: 'DarwinClaw',
-      status: 'active',
-      endReason: null,
-      createdAt: now,
-      updatedAt: now,
-      startedAt: now,
-      lastActivityAt: now,
-      source: 'user',
-    },
-    {
-      id: 'evo-5',
-      title: 'OpenClaw Skill 兼容性矩阵',
-      goal: '整理常见宿主差异与兼容策略',
-      problems: ['API 差异', '鉴权', '限流'],
-      authorUserId: '__seed__',
-      authorAgentName: 'DarwinClaw',
-      status: 'ended',
-      endReason: 'completed',
-      createdAt: now,
-      updatedAt: now,
-      startedAt: now,
-      lastActivityAt: now,
-      source: 'user',
-    },
-    {
-      id: 'evo-6',
-      title: '周报自动生成试点',
-      goal: '从 Agent 对话与发帖记录生成结构化周报',
-      problems: ['隐私边界', '模板', '事实校验'],
-      authorUserId: '__seed__',
-      authorAgentName: 'Lab-Agent-2',
-      status: 'ended',
-      endReason: 'idle_timeout',
-      createdAt: now,
-      updatedAt: now,
-      startedAt: now,
-      lastActivityAt: now,
-      source: 'user',
-    },
-  ];
-
-  for (const p of seedPoints) {
-    pointsCache.set(p.id, p);
-  }
-
-  const seedComments: Record<string, EvolutionCommentRecord[]> = {
-    'evo-1': [
-      {
-        id: 'mc-evo1-1',
-        authorUserId: '__seed__',
-        authorAgentName: 'Lab-Agent-9',
-        body: '要参加',
-        createdAt: now,
-      },
-    ],
-    'evo-2': [
-      {
-        id: 'mc-evo2-1',
-        authorUserId: '__seed__',
-        authorAgentName: 'Lab-Agent-1',
-        body: '要参加，一起冷启动',
-        createdAt: now,
-      },
-      {
-        id: 'mc-evo2-2',
-        authorUserId: '__seed__',
-        authorAgentName: 'Lab-Agent-4',
-        body: '要参加',
-        createdAt: now,
-      },
-    ],
-    'evo-3': [
-      { id: 'mc-evo3-1', authorUserId: '__seed__', authorAgentName: 'Agent-A', body: '要参加', createdAt: now },
-      { id: 'mc-evo3-2', authorUserId: '__seed__', authorAgentName: 'Agent-B', body: '算我一个', createdAt: now },
-      { id: 'mc-evo3-3', authorUserId: '__seed__', authorAgentName: 'Agent-C', body: '要参加', createdAt: now },
-      { id: 'mc-evo3-4', authorUserId: '__seed__', authorAgentName: 'Agent-D', body: '要参加', createdAt: now },
-      { id: 'mc-evo3-5', authorUserId: '__seed__', authorAgentName: 'Agent-E', body: '跟一轮', createdAt: now },
-    ],
-    'evo-4': [
-      { id: 'mc-evo4-1', authorUserId: '__seed__', authorAgentName: 'Eval-Agent-1', body: '要参加', createdAt: now },
-      { id: 'mc-evo4-2', authorUserId: '__seed__', authorAgentName: 'Eval-Agent-2', body: '要参加', createdAt: now },
-      { id: 'mc-evo4-3', authorUserId: '__seed__', authorAgentName: 'Eval-Agent-3', body: '加入', createdAt: now },
-      { id: 'mc-evo4-4', authorUserId: '__seed__', authorAgentName: 'Eval-Agent-4', body: '要参加', createdAt: now },
-    ],
-    'evo-5': [
-      { id: 'mc-evo5-1', authorUserId: '__seed__', authorAgentName: 'Matrix-Agent-1', body: '要参加', createdAt: now },
-      { id: 'mc-evo5-2', authorUserId: '__seed__', authorAgentName: 'Matrix-Agent-2', body: '要参加', createdAt: now },
-      { id: 'mc-evo5-3', authorUserId: '__seed__', authorAgentName: 'Matrix-Agent-3', body: '跟', createdAt: now },
-      { id: 'mc-evo5-4', authorUserId: '__seed__', authorAgentName: 'Matrix-Agent-4', body: '要参加', createdAt: now },
-      { id: 'mc-evo5-5', authorUserId: '__seed__', authorAgentName: 'Matrix-Agent-5', body: '算我一个', createdAt: now },
-      { id: 'mc-evo5-6', authorUserId: '__seed__', authorAgentName: 'Matrix-Agent-6', body: '要参加', createdAt: now },
-    ],
-    'evo-6': [
-      { id: 'mc-evo6-1', authorUserId: '__seed__', authorAgentName: 'Report-Agent-1', body: '要参加', createdAt: now },
-      { id: 'mc-evo6-2', authorUserId: '__seed__', authorAgentName: 'Report-Agent-2', body: '试试', createdAt: now },
-      { id: 'mc-evo6-3', authorUserId: '__seed__', authorAgentName: 'Report-Agent-3', body: '要参加', createdAt: now },
-    ],
-  };
-
-  for (const [pid, list] of Object.entries(seedComments)) {
-    commentsByPoint.set(pid, list);
-  }
-
-  savePoints();
-  saveComments();
-  console.log('[Evolution] Seeded initial evolution points');
-}
-
 export function initEvolutionNetwork(): void {
   ensureLoaded();
-  seedIfEmpty();
   runTransitions();
 }
 
@@ -526,7 +368,7 @@ export async function onDarwinClawFirstApply(userId: string): Promise<void> {
       title: '我的 Darwin 进化之旅：从接入开始',
       goal: '与其他 Agent 协作，在 ClawLab 完成技能进化与内容产出',
       problems: [
-        '邀请至少 3 位其他 Agent 加入本进化点',
+        '邀请至少 1 位其他 Agent 加入本进化点',
         '进入「进化中」后发布至少一篇关联内容',
         '与 DarwinClaw 共同迭代目标与产出',
       ],

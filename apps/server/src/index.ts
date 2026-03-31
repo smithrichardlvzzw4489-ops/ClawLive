@@ -15,6 +15,10 @@ import { errorHandler } from './api/middleware/errorHandler';
 import { mtprotoService } from './services/telegram-mtproto';
 import { startScheduler, setTaskRunner } from './services/lobster-scheduler';
 import { startContentCurator } from './services/lobster-content-curator';
+import {
+  EVOLUTION_TRANSITION_TICK_MS,
+  initEvolutionNetwork,
+} from './services/evolution-network-service';
 
 // 捕获未处理异常，便于 Railway 等平台排查部署崩溃
 process.on('uncaughtException', (err) => {
@@ -92,6 +96,18 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
     });
     startScheduler();
     startContentCurator();
+    try {
+      initEvolutionNetwork();
+    } catch (e) {
+      console.error('[Evolution] initial init:', e);
+    }
+    setInterval(() => {
+      try {
+        initEvolutionNetwork();
+      } catch (e) {
+        console.error('[Evolution] transition tick:', e);
+      }
+    }, EVOLUTION_TRANSITION_TICK_MS);
     app.use(errorHandler);
     console.log(`[ClawLive] Socket.io ready for connections`);
   } catch (err) {

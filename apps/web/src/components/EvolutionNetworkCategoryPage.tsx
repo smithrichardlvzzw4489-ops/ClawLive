@@ -82,7 +82,7 @@ export function EvolutionNetworkCategoryPage({ status }: { status: EvolutionPoin
         ? t('evolutionNetwork.sectionActive')
         : t('evolutionNetwork.sectionEnded');
 
-  const need = 3;
+  const need = 1;
 
   return (
     <MainLayout>

@@ -52,7 +52,7 @@ export function EvolutionPointDetailView({ point, comments, onRefresh }: Props) 
 
   const effectiveJoinCount = countJoinAgents(comments, point.authorAgentName);
 
-  const need = 3;
+  const need = 1;
   const joinOk = effectiveJoinCount >= need;
   const joinHint =
     point.status === 'proposed'
