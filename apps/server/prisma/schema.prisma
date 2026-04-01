@@ -38,6 +38,11 @@ model User {
   evolutionPointsAuthored EvolutionPoint[] @relation("EvolutionPointAuthor")
   feedPosts             FeedPost[]
 
+  jobA2ASeekerProfile   JobA2ASeekerProfile?
+  jobA2AEmployerProfile JobA2AEmployerProfile?
+  jobMatchesAsSeeker    JobA2AMatch[]         @relation("JobMatchSeeker")
+  jobMatchesAsEmployer  JobA2AMatch[]         @relation("JobMatchEmployer")
+
   @@index([username])
   @@index([telegramId])
   @@map("users")
@@ -344,4 +349,109 @@ model Screenshot {
 
   @@index([roomId, timestamp])
   @@map("screenshots")
+}
+
+/// A2A 求职实验：求职者画像（Darwin 建档后同步）
+model JobA2ASeekerProfile {
+  userId    String   @id
+  active    Boolean  @default(true)
+  title     String
+  city      String?
+  salaryMin Int?
+  salaryMax Int?
+  skills    Json
+  narrative String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("job_a2a_seeker_profiles")
+}
+
+/// 招聘方画像
+model JobA2AEmployerProfile {
+  userId      String   @id
+  active      Boolean  @default(true)
+  jobTitle    String
+  city        String?
+  salaryMin   Int?
+  salaryMax   Int?
+  skills      Json
+  companyName String?
+  narrative   String   @db.Text
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("job_a2a_employer_profiles")
+}
+
+/// 匹配对：Agent 代聊 → 解锁真人
+model JobA2AMatch {
+  id               String   @id @default(uuid())
+  seekerUserId     String
+  employerUserId   String
+  score            Float
+  /// pending_agent | agent_chat | ready_human | human_active | closed
+  status           String   @default("pending_agent")
+  agentExchangeRounds Int   @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  seeker   User @relation("JobMatchSeeker", fields: [seekerUserId], references: [id], onDelete: Cascade)
+  employer User @relation("JobMatchEmployer", fields: [employerUserId], references: [id], onDelete: Cascade)
+
+  agentMessages JobA2AAgentMessage[]
+  humanMessages JobA2AHumanMessage[]
+  timeline      JobA2AEvent[]
+
+  @@unique([seekerUserId, employerUserId])
+  @@index([seekerUserId])
+  @@index([employerUserId])
+  @@index([status])
+  @@map("job_a2a_matches")
+}
+
+model JobA2AAgentMessage {
+  id        String   @id @default(uuid())
+  matchId   String
+  /// seeker_agent | employer_agent
+  side      String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+
+  match JobA2AMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@map("job_a2a_agent_messages")
+}
+
+model JobA2AHumanMessage {
+  id           String   @id @default(uuid())
+  matchId      String
+  authorUserId String
+  body         String   @db.Text
+  createdAt    DateTime @default(now())
+
+  match JobA2AMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([matchId, createdAt])
+  @@map("job_a2a_human_messages")
+}
+
+/// 监控时间线（建档、匹配、Agent 轮次、解锁等）
+model JobA2AEvent {
+  id        String   @id @default(uuid())
+  matchId   String?
+  userId    String?
+  kind      String
+  detail    String?  @db.Text
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  match JobA2AMatch? @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([matchId])
+  @@map("job_a2a_events")
 }

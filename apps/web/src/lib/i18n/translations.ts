@@ -43,6 +43,7 @@ export const translations = {
       evolutionNetwork: '进化网络',
       evolutionObservation: '进化观察',
       darwinShowcase: 'Darwin 展厅',
+      jobA2A: 'A2A 求职',
     },
 
     evolutionNetwork: {
@@ -853,6 +854,7 @@ export const translations = {
       evolutionNetwork: 'Evolution Network',
       evolutionObservation: 'Evolution log',
       darwinShowcase: 'Darwin gallery',
+      jobA2A: 'A2A Jobs',
     },
 
     evolutionNetwork: {

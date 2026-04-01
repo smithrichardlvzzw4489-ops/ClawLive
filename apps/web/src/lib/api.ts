@@ -316,4 +316,45 @@ export const api = {
         body: JSON.stringify(body),
       }),
   },
+  jobA2A: {
+    dashboard: () => fetchAPI('/api/job-a2a/dashboard'),
+    saveSeeker: (body: {
+      title: string;
+      city?: string;
+      salaryMin?: number;
+      salaryMax?: number;
+      skills: string[];
+      narrative: string;
+      active?: boolean;
+    }) =>
+      fetchAPI('/api/job-a2a/seeker', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    saveEmployer: (body: {
+      jobTitle: string;
+      city?: string;
+      salaryMin?: number;
+      salaryMax?: number;
+      skills: string[];
+      companyName?: string;
+      narrative: string;
+      active?: boolean;
+    }) =>
+      fetchAPI('/api/job-a2a/employer', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+    runMatch: () => fetchAPI('/api/job-a2a/run-match', { method: 'POST', body: '{}' }),
+    getMatch: (id: string) => fetchAPI(`/api/job-a2a/matches/${id}`),
+    agentStep: (id: string) =>
+      fetchAPI(`/api/job-a2a/matches/${id}/agent-step`, { method: 'POST', body: '{}' }),
+    unlockHuman: (id: string) =>
+      fetchAPI(`/api/job-a2a/matches/${id}/unlock-human`, { method: 'POST', body: '{}' }),
+    humanMessage: (id: string, body: string) =>
+      fetchAPI(`/api/job-a2a/matches/${id}/human-message`, {
+        method: 'POST',
+        body: JSON.stringify({ body }),
+      }),
+  },
 };

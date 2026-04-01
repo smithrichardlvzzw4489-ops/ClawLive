@@ -27,6 +27,7 @@ import { adminRoutes } from './admin';
 import { evolutionNetworkRoutes } from './evolution-network';
 import { evolverRoutes } from './evolver';
 import { darwinRoutes } from './darwin';
+import { jobA2ARoutes } from './job-a2a';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/admin', adminRoutes());
@@ -44,6 +45,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/evolution-network', evolutionNetworkRoutes());
   app.use('/api/evolver', evolverRoutes());
   app.use('/api/darwin', darwinRoutes());
+  app.use('/api/job-a2a', jobA2ARoutes());
   app.use('/api/search', searchRoutes());
   app.use('/api/behavior', behaviorRoutes());
   app.use('/api/rooms', roomSimpleRoutes(io));
