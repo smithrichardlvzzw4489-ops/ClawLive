@@ -298,8 +298,12 @@ export function getLobsterConversation(userId: string): LobsterConversation {
   return conversations.get(userId) ?? { userId, messages: [], updatedAt: new Date().toISOString() };
 }
 
-export async function appendLobsterMessage(userId: string, message: LobsterMessage): Promise<void> {
-  if (message.role === 'user') {
+export async function appendLobsterMessage(
+  userId: string,
+  message: LobsterMessage,
+  options?: { skipDarwinDailyLimit?: boolean },
+): Promise<void> {
+  if (message.role === 'user' && !options?.skipDarwinDailyLimit) {
     assertDarwinDailyChatAllowed(userId);
   }
   const conv = getLobsterConversation(userId);

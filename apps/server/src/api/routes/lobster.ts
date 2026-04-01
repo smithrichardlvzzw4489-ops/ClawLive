@@ -2496,3 +2496,121 @@ export function lobsterRoutes(): Router {
 
   return router;
 }
+
+/**
+ * A2A 求职实验室：用与 /api/lobster/chat 相同的 Darwin 人格、记忆与对话上下文，
+ * 生成一段**无工具**的纯文本回复，并写入对话历史（用户消息不计入 Darwin 每日条数限制）。
+ */
+export async function runDarwinJobA2AReply(
+  userId: string,
+  userMessage: string,
+): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+  const instance = getLobsterInstance(userId);
+  if (!instance) return { ok: false, error: '请先申请 DarwinClaw' };
+
+  const llm = await getLlmClient(resolveModel(), userId);
+  if (!llm) {
+    return {
+      ok: false,
+      error: 'DarwinClaw 需要平台虚拟 Key 才能运行，请先在积分兑换中申请 Key。',
+    };
+  }
+
+  const conv = getLobsterConversation(userId);
+  try {
+    const compacted = await runCompactionIfNeeded(conv, llm.client, llm.model);
+    if (compacted) await saveLobsterConversation(conv);
+  } catch (e) {
+    console.error('[Darwin A2A] context compact:', e);
+  }
+
+  const lobsterName = instance.name?.trim() || 'DarwinClaw';
+  let systemContent =
+    lobsterName !== 'DarwinClaw'
+      ? LOBSTER_SYSTEM_PROMPT.replace(/你是"DarwinClaw"/, `你是"${lobsterName}"（昵称，本质上你是 DarwinClaw）`)
+      : LOBSTER_SYSTEM_PROMPT;
+
+  const memoryContent = readMemory(userId);
+  if (memoryContent) {
+    systemContent += `\n\n---\n[用户记忆]\n${memoryContent}`;
+  }
+
+  const officialSkillsAll = loadOfficialSkills();
+  if (officialSkillsAll.length > 0) {
+    const officialIndex = officialSkillsAll
+      .map(
+        (s) =>
+          `- **${s.title}**: ${s.skillMarkdown.split('\n').find((l) => l.trim() && !l.startsWith('#'))?.slice(0, 120) ?? s.skillMarkdown.slice(0, 120)}`,
+      )
+      .join('\n');
+    systemContent += `\n\n---\n[平台官方技能索引]\n${officialIndex}`;
+  }
+  const installedSkills = getUserInstalledSkills(userId);
+  if (installedSkills.length > 0) {
+    const skillsBlock = installedSkills.map((s) => `### ${s.title}\n${s.skillMarkdown}`).join('\n\n---\n\n');
+    systemContent += `\n\n---\n[用户自定义技能]\n\n${skillsBlock}`;
+  }
+
+  systemContent += `\n\n---\n【A2A 求职匹配 — 仅本次回复】\n用户消息来自「A2A 求职实验室」自动流程，代表主人与对方 Darwin 做岗位/求职预沟通。\n你必须只输出一段自然语言（约 2–6 句），维护主人利益、专业礼貌。\n**禁止**调用任何工具、禁止 JSON/Markdown 代码围栏、禁止说「我无法调用 API」。`;
+
+  const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
+    { type: 'text', text: userMessage.trim().slice(0, 12000) },
+  ];
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = buildChatMessagesWithCompact(
+    conv,
+    systemContent,
+    userContent,
+    false,
+  );
+
+  const routedModel = await routeModel(userMessage, llm.model);
+  let finalText = '';
+
+  try {
+    const response = await llm.client.chat.completions.create({
+      model: routedModel,
+      messages,
+      max_tokens: Math.min(calcMaxTokens(userMessage), 900),
+      temperature: 0.65,
+    });
+    finalText = response.choices[0]?.message?.content?.trim() || '';
+  } catch (toolErr) {
+    const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+    const isInvalidModelId =
+      toolErrMsg.includes('is not a valid model ID') ||
+      (toolErrMsg.includes('400') && toolErrMsg.includes('model ID'));
+    if (isInvalidModelId && routedModel !== llm.model) {
+      const response = await llm.client.chat.completions.create({
+        model: llm.model,
+        messages,
+        max_tokens: Math.min(calcMaxTokens(userMessage), 900),
+        temperature: 0.65,
+      });
+      finalText = response.choices[0]?.message?.content?.trim() || '';
+    } else {
+      throw toolErr;
+    }
+  }
+
+  if (!finalText) {
+    finalText = '（Darwin 暂时无法生成回复，请稍后重试或检查模型配置）';
+  }
+
+  const userMsg = {
+    id: uuidv4(),
+    role: 'user' as const,
+    content: `[A2A 招聘匹配] ${userMessage.trim()}`,
+    timestamp: new Date().toISOString(),
+  };
+  const assistantMsg = {
+    id: uuidv4(),
+    role: 'assistant' as const,
+    content: `[A2A 招聘匹配] ${finalText}`,
+    timestamp: new Date().toISOString(),
+  };
+  await appendLobsterMessage(userId, userMsg, { skipDarwinDailyLimit: true });
+  await appendLobsterMessage(userId, assistantMsg);
+
+  return { ok: true, text: finalText };
+}

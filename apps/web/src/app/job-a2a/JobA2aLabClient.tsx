@@ -25,8 +25,8 @@ type EmployerForm = {
 };
 
 const STATUS_ZH: Record<string, string> = {
-  pending_agent: '待 Agent 开场',
-  agent_chat: 'Agent 代聊中',
+  pending_agent: '待 Darwin 开场',
+  agent_chat: 'Darwin 代聊中',
   ready_human: '已解锁真人',
   human_active: '真人沟通中',
   closed: '已关闭',
@@ -240,7 +240,7 @@ export function JobA2aLabClient() {
       setMatchDetail(detail);
       await loadDashboard();
     } catch (e) {
-      setErr(e instanceof APIError ? e.message : 'Agent 轮次失败');
+      setErr(e instanceof APIError ? e.message : 'Darwin 轮次失败');
     } finally {
       setBusy(false);
     }
@@ -302,7 +302,7 @@ export function JobA2aLabClient() {
         <div className="mb-6 border-b border-white/10 pb-4">
           <h1 className="text-2xl font-bold tracking-tight text-white">A2A 求职实验室</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-400">
-            双端 Darwin 建档（求职 / 招聘）→ 全站自动匹配 → 平台内 Agent 代聊 → 解锁后双方主人聊天。下方时间线可监控全流程事件。
+            双端 Darwin 建档（求职 / 招聘）→ 全站自动匹配 → 双方各自的 Darwin 代聊 → 解锁后双方主人聊天。下方时间线可监控全流程事件。
           </p>
           <p className="mt-2 text-xs text-slate-500">
             可与 <Link href="/my-lobster" className="text-lobster hover:underline">Darwin 对话</Link>{' '}
@@ -504,7 +504,7 @@ export function JobA2aLabClient() {
                           {m.seeker.username} ↔ {m.employer.username}
                         </div>
                         <div className="mt-1 text-xs text-slate-500">
-                          分 {(m.score * 100).toFixed(1)} · {STATUS_ZH[m.status] || m.status} · Agent 轮{' '}
+                          分 {(m.score * 100).toFixed(1)} · {STATUS_ZH[m.status] || m.status} · Darwin 轮{' '}
                           {m.agentExchangeRounds}
                         </div>
                       </button>
@@ -518,7 +518,7 @@ export function JobA2aLabClient() {
                   匹配详情与对话
                 </h3>
                 {!selectedId && (
-                  <p className="text-sm text-slate-500">点击左侧一条匹配查看 Agent 代聊与真人聊天。</p>
+                  <p className="text-sm text-slate-500">点击左侧一条匹配查看 Darwin 代聊与真人聊天。</p>
                 )}
                 {selectedId && matchDetail && (
                   <div className="space-y-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -530,15 +530,15 @@ export function JobA2aLabClient() {
                         招聘方 @{matchDetail.employerUser?.username}
                       </span>
                       <span className="text-slate-500">
-                        状态：{STATUS_ZH[matchDetail.match.status] || matchDetail.match.status}
+                        状态：{STATUS_ZH[matchDetail.match.status] || matchDetail.match.status}（对话与 /my-lobster 同源 Darwin）
                       </span>
                     </div>
 
                     <div>
-                      <h4 className="mb-2 text-xs font-semibold text-amber-200/90">Agent 代聊</h4>
+                      <h4 className="mb-2 text-xs font-semibold text-amber-200/90">Darwin 代聊（双方账号各用各自 Darwin）</h4>
                       <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
                         {matchDetail.match.agentMessages.length === 0 && (
-                          <p className="text-slate-500">尚无消息，点击下方推进一轮。</p>
+                          <p className="text-slate-500">尚无消息，点击下方推进一轮（会写入各自 Darwin 对话记录）。</p>
                         )}
                         {matchDetail.match.agentMessages.map((msg) => (
                           <div
@@ -550,7 +550,7 @@ export function JobA2aLabClient() {
                             }`}
                           >
                             <div className="text-[10px] uppercase text-slate-500">
-                              {msg.side === 'seeker_agent' ? '求职者 Agent' : '招聘方 Agent'}
+                              {msg.side === 'seeker_agent' ? '求职者 Darwin' : '招聘方 Darwin'}
                             </div>
                             <div className="whitespace-pre-wrap">{msg.body}</div>
                           </div>
@@ -567,7 +567,7 @@ export function JobA2aLabClient() {
                           onClick={() => void doAgentStep()}
                           className="rounded-lg bg-amber-600/80 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-40"
                         >
-                          推进一轮 Agent 代聊
+                          推进一轮 Darwin 代聊
                         </button>
                         <button
                           type="button"
@@ -605,7 +605,7 @@ export function JobA2aLabClient() {
                             matchDetail.match.status === 'ready_human' ||
                             matchDetail.match.status === 'human_active'
                               ? '输入消息…'
-                              : '请先完成 Agent 代聊并解锁'
+                              : '请先完成 Darwin 代聊并解锁'
                           }
                           value={humanDraft}
                           onChange={(e) => setHumanDraft(e.target.value)}

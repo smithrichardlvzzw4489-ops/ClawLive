@@ -4,7 +4,7 @@
 import { randomUUID } from 'crypto';
 import type { JobA2AMatch, JobA2ASeekerProfile, JobA2AEmployerProfile } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { getPublishingLlmClient } from './llm';
+import { runDarwinJobA2AReply } from '../api/routes/lobster';
 
 export type SeekerProfileInput = {
   title: string;
@@ -229,41 +229,68 @@ function fallbackAgentExchange(
   };
 }
 
-async function llmAgentExchange(
+function buildSeekerA2APrompt(
   seeker: JobA2ASeekerProfile,
   employer: JobA2AEmployerProfile,
   prior: { side: string; body: string }[],
-): Promise<{ seekerAgent: string; employerAgent: string } | null> {
-  try {
-    const { client, model } = getPublishingLlmClient();
-    const hist = prior
-      .slice(-8)
-      .map((m) => `${m.side}: ${m.body}`)
-      .join('\n');
-    const prompt = `你是招聘场景中的两个 Darwin Agent（中文）。只输出合法 JSON 对象，不要 markdown。
-求职者侧：职位意向 ${seeker.title}，技能 ${JSON.stringify(seeker.skills)}，城市 ${seeker.city || '不限'}，诉求摘要：${seeker.narrative.slice(0, 500)}
-招聘侧：岗位 ${employer.jobTitle}，公司 ${employer.companyName || '未填'}，技能 ${JSON.stringify(employer.skills)}，城市 ${employer.city || '不限'}，JD 摘要：${employer.narrative.slice(0, 500)}
-已有 Agent 对话：
-${hist || '（尚无）'}
-请各生成一段 2–4 句的代理发言，站在各自主人利益上澄清关键问题（技术栈、到岗、薪资范围、远程政策等）。不要编造具体 offer 数字承诺。
-格式：{"seekerAgent":"...","employerAgent":"..."}`;
+): string {
+  const sk = normSkills(seeker.skills).join('、');
+  const ek = normSkills(employer.skills).join('、');
+  const lastEmployer = [...prior].reverse().find((m) => m.side === 'employer_agent');
 
-    const res = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.6,
-      max_tokens: 800,
-    });
-    const text = res.choices[0]?.message?.content?.trim() || '';
-    const json = JSON.parse(text.replace(/^```json\s*|\s*```$/g, '')) as {
-      seekerAgent?: string;
-      employerAgent?: string;
-    };
-    if (!json.seekerAgent || !json.employerAgent) return null;
-    return { seekerAgent: json.seekerAgent.trim(), employerAgent: json.employerAgent.trim() };
-  } catch {
-    return null;
-  }
+  return `【A2A 招聘匹配】请代表主人发言（中文）。
+
+【对方招聘方档案】
+岗位：${employer.jobTitle}
+公司：${employer.companyName || '未填'}
+城市：${employer.city || '不限'}
+要求技能：${ek || '见描述'}
+薪资预算（k）：${employer.salaryMin ?? '?'}–${employer.salaryMax ?? '?'}
+JD 摘要：${employer.narrative.slice(0, 1200)}
+
+【主人求职档案】
+意向：${seeker.title}
+城市：${seeker.city || '不限'}
+技能：${sk || '见描述'}
+期望薪资（k）：${seeker.salaryMin ?? '?'}–${seeker.salaryMax ?? '?'}
+诉求：${seeker.narrative.slice(0, 800)}
+
+${
+  lastEmployer
+    ? `【对方 Darwin 上一轮说】\n${lastEmployer.body.slice(0, 2000)}\n\n请继续对话：回应对方并维护主人利益。`
+    : '【开场】请主动开场：表达匹配兴趣并确认岗位是否仍招人、技术栈与到岗方式是否契合。'
+}`;
+}
+
+function buildEmployerA2APrompt(
+  seeker: JobA2ASeekerProfile,
+  employer: JobA2AEmployerProfile,
+  seekerAgentText: string,
+): string {
+  const sk = normSkills(seeker.skills).join('、');
+  const ek = normSkills(employer.skills).join('、');
+
+  return `【A2A 招聘匹配】请作为招聘方 Darwin 回应（中文）。
+
+【求职者 Darwin 刚说】
+${seekerAgentText.slice(0, 2500)}
+
+【求职者档案】
+意向：${seeker.title}
+城市：${seeker.city || '不限'}
+技能：${sk || '见描述'}
+期望薪资（k）：${seeker.salaryMin ?? '?'}–${seeker.salaryMax ?? '?'}
+诉求：${seeker.narrative.slice(0, 800)}
+
+【我方招聘岗位】
+岗位：${employer.jobTitle}
+公司：${employer.companyName || '未填'}
+城市：${employer.city || '不限'}
+要求技能：${ek || '见描述'}
+预算（k）：${employer.salaryMin ?? '?'}–${employer.salaryMax ?? '?'}
+说明：${employer.narrative.slice(0, 1000)}
+
+请专业回应，说明团队关注点，并可询问 1–2 个关键澄清（如到岗时间、远程政策）。`;
 }
 
 export async function advanceAgentRound(matchId: string, actorUserId: string): Promise<{
@@ -279,7 +306,7 @@ export async function advanceAgentRound(matchId: string, actorUserId: string): P
     throw new Error('无权操作此匹配');
   }
   if (match.status !== 'pending_agent' && match.status !== 'agent_chat') {
-    throw new Error('当前状态不可进行 Agent 代聊');
+    throw new Error('当前状态不可进行 Darwin 代聊');
   }
 
   const [seeker, employer] = await Promise.all([
@@ -294,8 +321,23 @@ export async function advanceAgentRound(matchId: string, actorUserId: string): P
     select: { side: true, body: true },
   });
 
-  let pair = await llmAgentExchange(seeker, employer, prior);
-  if (!pair) pair = fallbackAgentExchange(seeker, employer, prior);
+  const seekerPrompt = buildSeekerA2APrompt(seeker, employer, prior);
+  const sr = await runDarwinJobA2AReply(match.seekerUserId, seekerPrompt);
+  let seekerText: string;
+  if (sr.ok) {
+    seekerText = sr.text;
+  } else {
+    seekerText = fallbackAgentExchange(seeker, employer, prior).seekerAgent;
+  }
+
+  const employerPrompt = buildEmployerA2APrompt(seeker, employer, seekerText);
+  const er = await runDarwinJobA2AReply(match.employerUserId, employerPrompt);
+  let employerText: string;
+  if (er.ok) {
+    employerText = er.text;
+  } else {
+    employerText = fallbackAgentExchange(seeker, employer, prior).employerAgent;
+  }
 
   const sId = randomUUID();
   const eId = randomUUID();
@@ -303,10 +345,10 @@ export async function advanceAgentRound(matchId: string, actorUserId: string): P
 
   await prisma.$transaction([
     prisma.jobA2AAgentMessage.create({
-      data: { id: sId, matchId, side: 'seeker_agent', body: pair.seekerAgent },
+      data: { id: sId, matchId, side: 'seeker_agent', body: seekerText },
     }),
     prisma.jobA2AAgentMessage.create({
-      data: { id: eId, matchId, side: 'employer_agent', body: pair.employerAgent },
+      data: { id: eId, matchId, side: 'employer_agent', body: employerText },
     }),
     prisma.jobA2AMatch.update({
       where: { id: matchId },
@@ -322,13 +364,13 @@ export async function advanceAgentRound(matchId: string, actorUserId: string): P
     matchId,
     kind: 'agent_round',
     detail: `round=${match.agentExchangeRounds + 1}`,
-    payload: { seekerSnippet: pair.seekerAgent.slice(0, 160), employerSnippet: pair.employerAgent.slice(0, 160) },
+    payload: { seekerSnippet: seekerText.slice(0, 160), employerSnippet: employerText.slice(0, 160) },
   });
 
   const updated = await prisma.jobA2AMatch.findUniqueOrThrow({ where: { id: matchId } });
   return {
-    seekerMsg: { id: sId, body: pair.seekerAgent },
-    employerMsg: { id: eId, body: pair.employerAgent },
+    seekerMsg: { id: sId, body: seekerText },
+    employerMsg: { id: eId, body: employerText },
     match: updated,
   };
 }
@@ -343,7 +385,7 @@ export async function unlockHumanChat(matchId: string, actorUserId: string): Pro
     throw new Error('当前状态不可解锁');
   }
   if (match.agentExchangeRounds < 1) {
-    throw new Error('请先至少进行一轮 Agent 代聊');
+    throw new Error('请先至少进行一轮 Darwin 代聊');
   }
 
   const m = await prisma.jobA2AMatch.update({
