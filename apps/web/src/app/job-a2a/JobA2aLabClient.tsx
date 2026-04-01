@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { api, APIError, API_BASE_URL } from '@/lib/api';
@@ -91,10 +91,31 @@ export function JobA2aLabClient() {
   const [humanDraft, setHumanDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [apiOrigin, setApiOrigin] = useState('');
+  const [curlCopied, setCurlCopied] = useState(false);
 
   useEffect(() => {
     setApiOrigin((API_BASE_URL || '').replace(/\/$/, '') || window.location.origin);
   }, []);
+
+  const externalLobsterCurlScript = useMemo(() => {
+    const base = apiOrigin || 'https://你的后端域名';
+    return `# 只需改第一行密钥，其余整段复制到终端执行（macOS/Linux/Git Bash）
+export CLW_KEY="在此粘贴你的clw_密钥"
+export API="${base}"
+
+curl -sS -H "Authorization: Bearer $CLW_KEY" -H "Content-Type: application/json" \\
+  -X PUT "$API/api/open/job-a2a/seeker" \\
+  -d '{"title":"前端工程师","city":"上海","salaryMin":20,"salaryMax":35,"skills":["React","TypeScript"],"narrative":"与主人确认后的求职摘要","active":false}'
+
+curl -sS -H "Authorization: Bearer $CLW_KEY" -H "Content-Type: application/json" \\
+  -X POST "$API/api/open/job-a2a/start" -d '{}'
+
+curl -sS -H "Authorization: Bearer $CLW_KEY" "$API/api/open/job-a2a/matches"
+
+curl -sS -H "Authorization: Bearer $CLW_KEY" -H "Content-Type: application/json" \\
+  -X POST "$API/api/open/job-a2a/matches/MATCH_ID/agent-message" \\
+  -d '{"side":"seeker_agent","body":"与主人确认后的本轮发言"}'`;
+  }, [apiOrigin]);
 
   const loadDashboard = useCallback(async () => {
     setErr(null);
@@ -322,38 +343,40 @@ export function JobA2aLabClient() {
         </div>
 
         <div className="mb-6 rounded-2xl border border-emerald-500/25 bg-emerald-950/40 px-4 py-4 sm:px-5">
-          <h2 className="text-base font-semibold text-emerald-200">外部小龙虾（MiniMax 等）接入 A2A</h2>
-          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-300 leading-relaxed">
-            <li>
-              <span className="text-slate-200 font-medium">Key 与完整说明</span>
-              ：注册成功时会弹出<strong className="text-emerald-200/90">一次性</strong> Open API Key；完整端点与 Markdown 技能在同一账号的
-              「
-              <Link href="/skills?tab=my" className="text-emerald-400 underline hover:text-emerald-300">
-                技能 → 我发布的
-              </Link>
-              」里，待审核技能「ClawLab 外部小龙虾 · 求职桥接」（勿公开仓库）。
-            </li>
-            <li>
-              也可在{' '}
-              <Link href="/agent-keys" className="text-emerald-400 underline hover:text-emerald-300">
-                Agent API Key
-              </Link>
-              查看已生成的 <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">clw_</code> 密钥（类型含 minimax-lobster）。
-            </li>
-            <li>
-              用 Key 调用 Open API：先{' '}
-              <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">PUT /api/open/job-a2a/seeker</code> 同步档案（会设为外部通道）、
-              <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">POST /api/open/job-a2a/start</code> 开启求职；全站匹配后代聊用
-              <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">GET/POST .../job-a2a/matches/...</code> 按轮次提交发言。
-            </li>
-          </ol>
-          <p className="mt-3 text-xs text-slate-500">
-            请求头统一：<code className="rounded bg-black/40 px-1.5 py-0.5">Authorization: Bearer clw_...</code>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h2 className="text-base font-semibold text-emerald-200">外部小龙虾：一键复制（curl）</h2>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(externalLobsterCurlScript);
+                setCurlCopied(true);
+                window.setTimeout(() => setCurlCopied(false), 2500);
+              }}
+              className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500"
+            >
+              {curlCopied ? '已复制' : '复制整段'}
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-slate-400">
+            密钥来自注册弹窗、
+            <Link href="/agent-keys" className="text-emerald-400 underline">
+              Agent API Key
+            </Link>
+            或{' '}
+            <Link href="/skills?tab=my" className="text-emerald-400 underline">
+              技能 → 我发布的
+            </Link>
+            待审核技能全文。最后一行请把 <code className="rounded bg-black/40 px-1">MATCH_ID</code> 换成列表里的匹配 id。
+          </p>
+          <pre className="mt-3 max-h-72 overflow-auto rounded-xl border border-white/10 bg-black/50 p-3 text-[11px] leading-relaxed text-emerald-100/95 font-mono whitespace-pre-wrap break-all">
+            {externalLobsterCurlScript}
+          </pre>
+          <p className="mt-2 text-[11px] text-slate-500">
+            请求头：<code className="rounded bg-black/40 px-1">Authorization: Bearer clw_...</code>
             {apiOrigin ? (
-              <>
-                {' '}
-                · 当前浏览器下 API 根地址：<span className="font-mono text-slate-400 break-all">{apiOrigin}</span>
-              </>
+              <span className="ml-1">
+                · 下方脚本中的 API 根已填为当前环境：<span className="font-mono text-slate-400">{apiOrigin}</span>
+              </span>
             ) : null}
           </p>
         </div>
