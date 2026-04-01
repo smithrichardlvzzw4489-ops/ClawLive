@@ -93,6 +93,11 @@ import { writeFile as writeFileAsync } from 'fs/promises';
 import { join } from 'path';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { exaWebSearch, fetchReadableViaJina } from '../../lib/public-url-fetch';
+import {
+  fetchAutocliStats,
+  getAutocliApiBase,
+  OPENCLI_AUTOCLOUD_HELP,
+} from '../../services/autocli-client';
 
 const MAX_REACT_STEPS = 100;
 
@@ -304,6 +309,7 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 - web_search：搜索互联网（Tavily），获取最新资讯和热点
 - url_read：通过 Jina Reader 读取任意公开网页的正文（推文/文章/GitHub 页等），**云端可用**，无需本机 agent-reach
 - exa_search：语义搜索（需配置 EXA_API_KEY），与 Agent Reach 中 Exa 渠道一致
+- autocli：对接 AutoCLI.ai（opencli-rs 云端）：可拉取社区统计（stats），或获取 OpenCLI/本机安装说明（help）。**任意网站结构化 CLI 输出**需用户本机安装 opencli-rs，见 help
 - search_clawlab：搜索 ClawLab 平台站内帖子。**用户提问时优先搜站内**，站内无结果再搜全网
 - get_my_posts：查看用户在本平台发布的内容
 - list_skills：列出平台 Skills 市场中的可用技能
@@ -459,6 +465,25 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           numResults: { type: 'number', description: '返回条数 1–10，默认 5' },
         },
         required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'autocli',
+      description:
+        'AutoCLI.ai / OpenCLI-RS：action=stats 时拉取云端公开统计（站点数、命令数等）；action=help 时返回与官网一致的安装与能力说明。用户要把网站变成结构化 CLI 输出时，先 help 再引导本机安装 opencli-rs；云端可读网页正文请用 url_read。',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: {
+            type: 'string',
+            enum: ['stats', 'help'],
+            description: 'stats=拉取 autocli.ai 公开统计；help=OpenCLI/AutoCLI 使用说明（含本机安装）',
+          },
+        },
+        required: ['action'],
       },
     },
   },
@@ -1004,6 +1029,8 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
     const costHint = remaining > 0 ? `（今日剩余免费 ${remaining} 次）` : `（消耗 ${cfg?.costPerCall ?? 2} 积分）`;
     return `正在 Exa 搜索「${a.query}」... ${costHint}`;
   },
+  autocli: (a) =>
+    a.action === 'stats' ? '正在拉取 AutoCLI 云端统计…' : '正在加载 OpenCLI / AutoCLI 说明…',
   get_my_posts: () => '正在获取你的发布记录...',
   list_skills: (a) => (a.keyword ? `正在查找「${a.keyword}」相关技能...` : '正在查询技能市场...'),
   get_skill_detail: (a) => `正在加载技能详情 (${a.skillId})...`,
@@ -1160,6 +1187,30 @@ async function executeTool(
         console.error('[Lobster] exa_search error:', err);
         return `Exa 搜索失败：${err instanceof Error ? err.message : String(err)}`;
       }
+    }
+
+    case 'autocli': {
+      const action = String(args.action || 'help').toLowerCase();
+      if (action === 'help') {
+        return OPENCLI_AUTOCLOUD_HELP;
+      }
+      if (action === 'stats') {
+        try {
+          const s = await fetchAutocliStats();
+          return (
+            `**AutoCLI.ai 云端统计**（${getAutocliApiBase()}）\n\n` +
+            `- 收录站点数：${s.total_sites}\n` +
+            `- 命令数：${s.total_commands}\n` +
+            (s.active_users != null ? `- 活跃相关用户：${s.active_users}\n` : '') +
+            (s.total_uses != null ? `- 总调用次数（若返回）：${s.total_uses}\n` : '') +
+            `\n更多命令与「网站→结构化输出」请在本机安装 opencli-rs，或调用 autocli(action=help)。`
+          );
+        } catch (e) {
+          console.error('[Lobster] autocli stats error:', e);
+          return `拉取 AutoCLI 统计失败：${e instanceof Error ? e.message : String(e)}。可设置环境变量 AUTOCLI_API_BASE 指向官方 https://www.autocli.ai 后重试。`;
+        }
+      }
+      return 'action 仅支持 stats 或 help。';
     }
 
     case 'search_clawlab': {
