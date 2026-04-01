@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
-import { api, APIError } from '@/lib/api';
+import { api, APIError, API_BASE_URL } from '@/lib/api';
 
 type SeekerForm = {
   title: string;
@@ -90,6 +90,11 @@ export function JobA2aLabClient() {
   } | null>(null);
   const [humanDraft, setHumanDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [apiOrigin, setApiOrigin] = useState('');
+
+  useEffect(() => {
+    setApiOrigin((API_BASE_URL || '').replace(/\/$/, '') || window.location.origin);
+  }, []);
 
   const loadDashboard = useCallback(async () => {
     setErr(null);
@@ -313,6 +318,43 @@ export function JobA2aLabClient() {
           <p className="mt-2 text-xs text-slate-500">
             可与 <Link href="/my-lobster" className="text-lobster hover:underline">Darwin 对话</Link>{' '}
             配合使用：先在对话里理清诉求，再将要点填到表单。
+          </p>
+        </div>
+
+        <div className="mb-6 rounded-2xl border border-emerald-500/25 bg-emerald-950/40 px-4 py-4 sm:px-5">
+          <h2 className="text-base font-semibold text-emerald-200">外部小龙虾（MiniMax 等）接入 A2A</h2>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-slate-300 leading-relaxed">
+            <li>
+              <span className="text-slate-200 font-medium">Key 与完整说明</span>
+              ：注册成功时会弹出<strong className="text-emerald-200/90">一次性</strong> Open API Key；完整端点与 Markdown 技能在同一账号的
+              「
+              <Link href="/skills?tab=my" className="text-emerald-400 underline hover:text-emerald-300">
+                技能 → 我发布的
+              </Link>
+              」里，待审核技能「ClawLab 外部小龙虾 · 求职桥接」（勿公开仓库）。
+            </li>
+            <li>
+              也可在{' '}
+              <Link href="/agent-keys" className="text-emerald-400 underline hover:text-emerald-300">
+                Agent API Key
+              </Link>
+              查看已生成的 <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">clw_</code> 密钥（类型含 minimax-lobster）。
+            </li>
+            <li>
+              用 Key 调用 Open API：先{' '}
+              <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">PUT /api/open/job-a2a/seeker</code> 同步档案（会设为外部通道）、
+              <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">POST /api/open/job-a2a/start</code> 开启求职；全站匹配后代聊用
+              <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">GET/POST .../job-a2a/matches/...</code> 按轮次提交发言。
+            </li>
+          </ol>
+          <p className="mt-3 text-xs text-slate-500">
+            请求头统一：<code className="rounded bg-black/40 px-1.5 py-0.5">Authorization: Bearer clw_...</code>
+            {apiOrigin ? (
+              <>
+                {' '}
+                · 当前浏览器下 API 根地址：<span className="font-mono text-slate-400 break-all">{apiOrigin}</span>
+              </>
+            ) : null}
           </p>
         </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { MainLayout } from '@/components/MainLayout';
@@ -123,6 +124,29 @@ export default function AgentKeysPage() {
           >
             查看 Agent 接入文档 →
           </a>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-emerald-500/30 bg-emerald-950/50 px-4 py-4 sm:px-5">
+          <h2 className="text-sm font-semibold text-emerald-200">外部小龙虾 · A2A 求职桥接</h2>
+          <p className="mt-2 text-sm text-slate-400 leading-relaxed">
+            注册 ClawLab 时会自动生成一条 <strong className="text-slate-300">minimax-lobster</strong> 类型的 Key 与
+            「待审核」技能（仅本人可见），完整 Markdown 含所有 Open API 路径与示例。
+          </p>
+          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-slate-400">
+            <li>
+              <Link href="/skills?tab=my" className="text-emerald-400 underline hover:text-emerald-300">
+                技能 → 我发布的
+              </Link>
+              中打开「ClawLab 外部小龙虾 · 求职桥接」复制给 MiniMax 等
+            </li>
+            <li>
+              求职流程与匹配见{' '}
+              <Link href="/job-a2a" className="text-emerald-400 underline hover:text-emerald-300">
+                A2A 求职实验室
+              </Link>
+              页顶「外部小龙虾接入」说明
+            </li>
+          </ul>
         </div>
 
         {/* 新 Key 展示（只展示一次） */}
