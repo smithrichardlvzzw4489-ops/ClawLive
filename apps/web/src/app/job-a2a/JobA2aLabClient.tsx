@@ -85,6 +85,8 @@ export function JobA2aLabClient() {
     };
     seekerUser: { username: string } | null;
     employerUser: { username: string } | null;
+    seekerProfile?: { jobChatChannel?: string | null } | null;
+    employerProfile?: { jobChatChannel?: string | null } | null;
   } | null>(null);
   const [humanDraft, setHumanDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -304,7 +306,9 @@ export function JobA2aLabClient() {
         <div className="mb-6 border-b border-white/10 pb-4">
           <h1 className="text-2xl font-bold tracking-tight text-white">A2A 求职实验室</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-400">
-            双端 Darwin 建档 → 全站自动匹配 → 双方 Darwin 先连续代聊满 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮后可解锁真人。单次点击默认一次跑满 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮。
+            双端建档 → 全站自动匹配 → Agent 代聊满 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮（双方 Darwin、或一方为外部小龙虾经 Open API
+            发言）后可解锁真人。单次「推进」在双方均为站内 Darwin 时会连续跑满多轮；若一方为外部通道，需由外部 Agent 与另一方
+            Darwin/外部 Agent 交替完成轮次。
           </p>
           <p className="mt-2 text-xs text-slate-500">
             可与 <Link href="/my-lobster" className="text-lobster hover:underline">Darwin 对话</Link>{' '}
@@ -532,20 +536,42 @@ export function JobA2aLabClient() {
                         招聘方 @{matchDetail.employerUser?.username}
                       </span>
                       <span className="text-slate-500">
-                        状态：{STATUS_ZH[matchDetail.match.status] || matchDetail.match.status}（对话与 /my-lobster 同源 Darwin）
+                        状态：{STATUS_ZH[matchDetail.match.status] || matchDetail.match.status}
+                        （代聊与 /my-lobster 同源 Darwin；一方为外部通道时由 Open API 发言）
                       </span>
                     </div>
 
+                    {(matchDetail.seekerProfile?.jobChatChannel === 'external' ||
+                      matchDetail.employerProfile?.jobChatChannel === 'external') && (
+                      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100/95">
+                        本匹配含 <strong>外部小龙虾</strong> 通道：该侧由外部 Agent 经 Open API 提交发言，与另一侧站内
+                        Darwin 或另一外部 Agent 对聊；网页「推进」仅在双方均为站内 Darwin 时连续跑满多轮。
+                      </div>
+                    )}
+
                     <div>
-                      <h4 className="mb-2 text-xs font-semibold text-amber-200/90">Darwin 代聊（双方账号各用各自 Darwin）</h4>
+                      <h4 className="mb-2 text-xs font-semibold text-amber-200/90">
+                        Agent 代聊（双方 Darwin 或一方外部小龙虾）
+                      </h4>
                       <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
                         {matchDetail.match.agentMessages.length === 0 && (
                           <p className="text-slate-500">
-                            尚无消息。点击下方将连续推进 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮 Darwin 代聊（会写入各自
-                            /my-lobster 对话）。
+                            尚无消息。若双方均为站内 Darwin，可点击下方推进（会写入各自 /my-lobster 对话）；若求职方走外部
+                            Open API，请先由外部小龙虾提交首条求职方消息。
                           </p>
                         )}
-                        {matchDetail.match.agentMessages.map((msg) => (
+                        {matchDetail.match.agentMessages.map((msg) => {
+                          const seekerExt = matchDetail.seekerProfile?.jobChatChannel === 'external';
+                          const empExt = matchDetail.employerProfile?.jobChatChannel === 'external';
+                          const role =
+                            msg.side === 'seeker_agent'
+                              ? seekerExt
+                                ? '求职者（外部小龙虾）'
+                                : '求职者 Darwin'
+                              : empExt
+                                ? '招聘方（外部小龙虾）'
+                                : '招聘方 Darwin';
+                          return (
                           <div
                             key={msg.id}
                             className={`rounded-lg px-3 py-2 ${
@@ -555,11 +581,12 @@ export function JobA2aLabClient() {
                             }`}
                           >
                             <div className="text-[10px] uppercase text-slate-500">
-                              {msg.side === 'seeker_agent' ? '求职者 Darwin' : '招聘方 Darwin'}
+                              {role}
                             </div>
                             <div className="whitespace-pre-wrap">{msg.body}</div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <button

@@ -17,6 +17,9 @@
  *  PUT    /api/open/job-a2a/seeker    提交/更新求职档案（API Key）
  *  GET    /api/open/job-a2a/seeker    查询求职档案（API Key）
  *  POST   /api/open/job-a2a/start     开启求职 active（API Key）
+ *  GET    /api/open/job-a2a/matches  我的 A2A 匹配列表（API Key）
+ *  GET    /api/open/job-a2a/matches/:id  匹配详情与代聊消息（API Key）
+ *  POST   /api/open/job-a2a/matches/:id/agent-message  外部小龙虾提交一条代聊（与对方 Darwin 或对方外部 Agent 对聊）
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
@@ -36,6 +39,9 @@ import {
   upsertSeekerProfile,
   getSeekerProfileForUser,
   activateSeekerJobSearch,
+  listMatchesForUser,
+  getMatchDetail,
+  postJobA2AExternalAgentMessage,
 } from '../../services/job-a2a-service';
 
 function numOrNull(v: unknown): number | null {
@@ -293,6 +299,7 @@ export function openApiRoutes(): Router {
         skills,
         narrative,
         active: body.active === undefined ? false : Boolean(body.active),
+        jobChatChannel: 'external',
       });
       return res.json({ profile });
     } catch (e) {
@@ -328,6 +335,50 @@ export function openApiRoutes(): Router {
       if (msg.includes('尚未提交')) return res.status(400).json({ error: msg });
       console.error('[open/job-a2a/start]', e);
       return res.status(500).json({ error: 'Failed to start job search' });
+    }
+  });
+
+  /**
+   * GET /api/open/job-a2a/matches
+   * 当前 Key 对应用户作为求职方或招聘方的匹配列表（摘要）。
+   */
+  router.get('/job-a2a/matches', authenticateAgentKey, async (req: AgentRequest, res: Response) => {
+    const userId = req.agentKey!.userId;
+    const matches = await listMatchesForUser(userId);
+    return res.json({ matches });
+  });
+
+  /**
+   * GET /api/open/job-a2a/matches/:id
+   * 匹配详情、双方档案、代聊消息（与站内 /api/job-a2a/matches/:id 结构一致）。
+   */
+  router.get('/job-a2a/matches/:id', authenticateAgentKey, async (req: AgentRequest, res: Response) => {
+    const userId = req.agentKey!.userId;
+    const detail = await getMatchDetail(req.params.id, userId);
+    if (!detail) return res.status(404).json({ error: 'Not found' });
+    return res.json(detail);
+  });
+
+  /**
+   * POST /api/open/job-a2a/matches/:id/agent-message
+   * Body: { side: "seeker_agent" | "employer_agent", body: string }
+   * 求职/招聘档案须为 jobChatChannel=external；与对方 Darwin 或对方外部 Agent 对聊。
+   */
+  router.post('/job-a2a/matches/:id/agent-message', authenticateAgentKey, async (req: AgentRequest, res: Response) => {
+    const userId = req.agentKey!.userId;
+    const raw = req.body as { side?: string; body?: string };
+    const side = raw.side === 'employer_agent' ? 'employer_agent' : 'seeker_agent';
+    const text = String(raw.body ?? '');
+    try {
+      const result = await postJobA2AExternalAgentMessage(req.params.id, userId, side, text);
+      return res.json(result);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('无权')) return res.status(403).json({ error: msg });
+      if (msg.includes('当前应') || msg.includes('未使用外部')) return res.status(400).json({ error: msg });
+      if (msg.includes('不存在') || msg.includes('不可')) return res.status(400).json({ error: msg });
+      console.error('[open/job-a2a/agent-message]', e);
+      return res.status(500).json({ error: msg || 'Failed' });
     }
   });
 
