@@ -1,8 +1,8 @@
 /**
- * AutoCLI.ai / OpenCLI-RS 云端对接（与 https://autocli.ai 一致）。
+ * AutoCLI.ai 统计与 OpenCLI-RS 说明（与 https://autocli.ai 一致）。
  *
- * 说明：公开站点列表接口在对方服务器上存在 slash 重定向环，故不在此拉取站点列表；
- * 完整「站点命令 + 结构化输出」需用户本机安装 opencli-rs（见 help 文案）。
+ * 「网站→结构化 CLI」在 **ClawLive 服务端** 通过配置 OPENCLI_RS_BIN 执行 opencli-rs（见 opencli-server.ts）；
+ * 统计接口仍可向 AutoCLI 云端拉取公开数据（可选）。
  */
 
 const DEFAULT_BASE = 'https://www.autocli.ai';
@@ -37,27 +37,28 @@ export async function fetchAutocliStats(): Promise<AutocliStats> {
   return (await resp.json()) as AutocliStats;
 }
 
-/** 供 Darwin 在无法执行本机 CLI 时使用的说明（与官网一致） */
-export const OPENCLI_AUTOCLOUD_HELP = `## AutoCLI.ai / OpenCLI-RS（与官网一致）
+/** Darwin 侧说明：服务端部署 opencli-rs + 可选 AutoCLI Token */
+export const OPENCLI_SERVER_HELP = `## AutoCLI.ai / OpenCLI-RS（服务端架构）
 
 - **官网**：https://autocli.ai  
 - **开源 CLI**：https://github.com/nashsu/opencli-rs  
-- **一键 Skill**：\`npx skills add https://github.com/nashsu/opencli-rs-skill\`
+- **一键 Skill（本机 Agent）**：\`npx skills add https://github.com/nashsu/opencli-rs-skill\`
 
-### 在 ClawLive 云端 Darwin 里
+### ClawLive 服务端（推荐）
 
-- 可使用工具 **autocli**（action=stats）查看 **AutoCLI 云端统计**（站点数、命令数等）。
-- **结构化拉取任意网站数据**依赖本机 **opencli-rs**（及可选 Chrome 扩展、\`opencli-rs auth\` 获取 Token）。云端无法直接执行你电脑上的二进制。
-- 若只需读公开网页正文，优先用 **url_read**（Jina）；需要 JSON/表格化站点数据时，请在本机安装 opencli-rs 后按官网步骤操作。
+1. 在 **与 Node 同一台机器或同一容器** 中安装 opencli-rs（见上游 README）。  
+2. 设置环境变量 **\`OPENCLI_RS_BIN\`** 为可执行文件绝对路径（如 \`/usr/local/bin/opencli-rs\`）。  
+3. Darwin 工具 **\`autocli\`（action=run）** 会在**服务端子进程**中执行白名单预设（Hacker News / dev.to / Lobsters / arxiv 等），输出 JSON。  
+4. 需要 **Chrome 扩展** 的站点命令无法在纯服务端运行；此类需求请用 **\`browser_*\`** 或在本机 OpenClaw 使用 opencli-rs。
 
-### 本机快速开始（摘自上游）
+### 可选：AutoCLI 社区统计
 
-\`\`\`bash
-curl -fsSL https://raw.githubusercontent.com/nashsu/opencli-rs/main/scripts/install.sh | sh
-opencli-rs auth
-opencli-rs generate https://example.com/ --goal list --ai
-opencli-rs <site> <command> --format json
-\`\`\`
+- **\`autocli\`（action=stats）** 拉取 AutoCLI 公开统计（需能访问 \`AUTOCLI_API_BASE\`，默认 https://www.autocli.ai）。  
+- **\`opencli-rs auth\`** 与 **\`generate --ai\`** 仍按上游文档在**有浏览器的环境**中执行；适配器可同步到 AutoCLI 社区。
 
-环境变量（上游）：\`AUTOCLI_API_BASE\` 默认 \`https://www.autocli.ai\`。
+### 读网页正文
+
+- 使用 **\`url_read\`**（Jina Reader，经服务端代请求）或 **\`browser_get_content\`**（Playwright 会话）。
+
+环境变量：**\`AUTOCLI_API_BASE\`**（可选）、**\`OPENCLI_RS_BIN\`**（服务端跑 opencli 预设时必填）。
 `;

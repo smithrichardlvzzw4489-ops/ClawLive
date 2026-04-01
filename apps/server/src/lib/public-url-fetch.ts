@@ -1,5 +1,5 @@
 /**
- * 云端 Darwin 对外部 URL 的请求：SSRF 防护 + Jina Reader / Exa。
+ * Darwin 服务端对外部 URL 的请求：SSRF 防护 + Jina Reader / Exa。
  */
 import dns from 'node:dns/promises';
 import net from 'node:net';

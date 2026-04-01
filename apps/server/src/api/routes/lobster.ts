@@ -96,8 +96,9 @@ import { exaWebSearch, fetchReadableViaJina } from '../../lib/public-url-fetch';
 import {
   fetchAutocliStats,
   getAutocliApiBase,
-  OPENCLI_AUTOCLOUD_HELP,
+  OPENCLI_SERVER_HELP,
 } from '../../services/autocli-client';
+import { runOpencliPreset, type OpencliRunPreset } from '../../services/opencli-server';
 
 const MAX_REACT_STEPS = 100;
 
@@ -307,9 +308,9 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 
 你拥有工具，请在有需要时主动使用：
 - web_search：搜索互联网（Tavily），获取最新资讯和热点
-- url_read：通过 Jina Reader 读取任意公开网页的正文（推文/文章/GitHub 页等），**云端可用**，无需本机 agent-reach
+- url_read：通过 Jina Reader 经**服务端**代取公开网页正文（推文/文章/GitHub 页等）；不可访问内网
 - exa_search：语义搜索（需配置 EXA_API_KEY），与 Agent Reach 中 Exa 渠道一致
-- autocli：对接 AutoCLI.ai（opencli-rs 云端）：可拉取社区统计（stats），或获取 OpenCLI/本机安装说明（help）。**任意网站结构化 CLI 输出**需用户本机安装 opencli-rs，见 help
+- autocli：OpenCLI-RS / AutoCLI — action=stats 拉 AutoCLI 公开统计；action=help 服务端部署说明；action=run 在**服务器**上执行 opencli-rs 白名单预设（需配置 OPENCLI_RS_BIN），输出 JSON
 - search_clawlab：搜索 ClawLab 平台站内帖子。**用户提问时优先搜站内**，站内无结果再搜全网
 - get_my_posts：查看用户在本平台发布的内容
 - list_skills：列出平台 Skills 市场中的可用技能
@@ -333,7 +334,7 @@ const LOBSTER_SYSTEM_PROMPT = `你是"DarwinClaw"，ClawLab 平台（clawlab.liv
 - browser_screenshot：对当前页面截图（返回图片，供多模态分析）
 - publish_post：**直接调用此工具即可将内容发布到 ClawLab 平台**，这是你真实拥有的能力，不要说"平台没有API"或"无法发布"。
 |- run_code：在安全沙盒中执行 Python 代码，用于数据分析、计算、批量处理。用户不需要懂编程，你负责写代码并执行。
-|- sandbox_write_file / sandbox_list_files / sandbox_start_preview / sandbox_clear_workspace：**云端网页沙箱**。用户要可点击预览的网页 Demo 时：必须先 sandbox_write_file 再 sandbox_start_preview；回复里必须粘贴工具返回的完整 URL（含 https 或带端口的 localhost），禁止编造无端口的 localhost 或「点击这里」假链接。本地 API 默认 3001 端口。沙箱约 30 分钟有效。
+|- sandbox_write_file / sandbox_list_files / sandbox_start_preview / sandbox_clear_workspace：**服务端网页沙箱**。用户要可点击预览的网页 Demo 时：必须先 sandbox_write_file 再 sandbox_start_preview；回复里必须粘贴工具返回的完整 URL（含 https 或带端口的 localhost），禁止编造无端口的 localhost 或「点击这里」假链接。本地 API 默认 3001 端口。沙箱约 30 分钟有效。
 |- create_ppt：根据大纲生成 .pptx 文件，用户直接下载使用。用户说“帮我做PPT”时直接调用。
 |- generate_image：根据文字描述生成图片，返回图片链接。需要配图、封面、示意图时使用。
 |- list_files：列出用户文件柜中所有文件（PPT、图片等生成或上传的文件）。用户说“我的文件”时调用。
@@ -442,7 +443,7 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'url_read',
       description:
-        '读取公开网页的正文内容（通过 Jina Reader，云端可用）。用户给出链接、或需要读推文/文章/GitHub/README/公众号网页版时使用；不可访问内网或本地地址。',
+        '读取公开网页的正文内容（通过 Jina Reader，由服务端代请求）。用户给出链接、或需要读推文/文章/GitHub/README/公众号网页版时使用；不可访问内网或本地地址。',
       parameters: {
         type: 'object',
         properties: {
@@ -473,15 +474,22 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'autocli',
       description:
-        'AutoCLI.ai / OpenCLI-RS：action=stats 时拉取云端公开统计（站点数、命令数等）；action=help 时返回与官网一致的安装与能力说明。用户要把网站变成结构化 CLI 输出时，先 help 再引导本机安装 opencli-rs；云端可读网页正文请用 url_read。',
+        'OpenCLI-RS / AutoCLI：action=stats 拉 AutoCLI 公开统计；action=help 服务端部署 opencli-rs 说明；action=run 在服务器上执行白名单 opencli 预设（需 OPENCLI_RS_BIN）。读网页正文用 url_read。',
       parameters: {
         type: 'object',
         properties: {
           action: {
             type: 'string',
-            enum: ['stats', 'help'],
-            description: 'stats=拉取 autocli.ai 公开统计；help=OpenCLI/AutoCLI 使用说明（含本机安装）',
+            enum: ['stats', 'help', 'run'],
+            description: 'stats | help | run（run 需服务端安装 opencli-rs 并配置 OPENCLI_RS_BIN）',
           },
+          preset: {
+            type: 'string',
+            enum: ['hackernews_top', 'devto_top', 'lobsters_hot', 'arxiv_search'],
+            description: '仅 action=run 时必填：公开 API 类站点预设',
+          },
+          limit: { type: 'number', description: 'run 时返回条数 1–15，默认 5' },
+          query: { type: 'string', description: '仅 preset=arxiv_search 时：搜索关键词' },
         },
         required: ['action'],
       },
@@ -798,7 +806,7 @@ const BASE_TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: 'sandbox_write_file',
       description:
-        '在 Darwin 云端沙箱工作区写入文本文件（如 index.html、styles.css）。仅允许相对路径，不能含 ..。用于可预览的网页 Demo：写入后需调用 sandbox_start_preview。',
+        '在 Darwin 服务端沙箱工作区写入文本文件（如 index.html、styles.css）。仅允许相对路径，不能含 ..。用于可预览的网页 Demo：写入后需调用 sandbox_start_preview。',
       parameters: {
         type: 'object',
         properties: {
@@ -1029,8 +1037,12 @@ const TOOL_STATUS: Record<string, (args: Record<string, unknown>, userId?: strin
     const costHint = remaining > 0 ? `（今日剩余免费 ${remaining} 次）` : `（消耗 ${cfg?.costPerCall ?? 2} 积分）`;
     return `正在 Exa 搜索「${a.query}」... ${costHint}`;
   },
-  autocli: (a) =>
-    a.action === 'stats' ? '正在拉取 AutoCLI 云端统计…' : '正在加载 OpenCLI / AutoCLI 说明…',
+  autocli: (a) => {
+    const act = String(a.action || '').toLowerCase();
+    if (act === 'stats') return '正在拉取 AutoCLI 公开统计…';
+    if (act === 'run') return '正在服务端执行 opencli-rs…';
+    return '正在加载 OpenCLI / AutoCLI 说明…';
+  },
   get_my_posts: () => '正在获取你的发布记录...',
   list_skills: (a) => (a.keyword ? `正在查找「${a.keyword}」相关技能...` : '正在查询技能市场...'),
   get_skill_detail: (a) => `正在加载技能详情 (${a.skillId})...`,
@@ -1192,25 +1204,56 @@ async function executeTool(
     case 'autocli': {
       const action = String(args.action || 'help').toLowerCase();
       if (action === 'help') {
-        return OPENCLI_AUTOCLOUD_HELP;
+        return OPENCLI_SERVER_HELP;
       }
       if (action === 'stats') {
         try {
           const s = await fetchAutocliStats();
           return (
-            `**AutoCLI.ai 云端统计**（${getAutocliApiBase()}）\n\n` +
+            `**AutoCLI 公开统计**（${getAutocliApiBase()}）\n\n` +
             `- 收录站点数：${s.total_sites}\n` +
             `- 命令数：${s.total_commands}\n` +
             (s.active_users != null ? `- 活跃相关用户：${s.active_users}\n` : '') +
             (s.total_uses != null ? `- 总调用次数（若返回）：${s.total_uses}\n` : '') +
-            `\n更多命令与「网站→结构化输出」请在本机安装 opencli-rs，或调用 autocli(action=help)。`
+            `\n服务端结构化数据：配置 OPENCLI_RS_BIN 后使用 autocli(action=run)。说明见 autocli(action=help)。`
           );
         } catch (e) {
           console.error('[Lobster] autocli stats error:', e);
           return `拉取 AutoCLI 统计失败：${e instanceof Error ? e.message : String(e)}。可设置环境变量 AUTOCLI_API_BASE 指向官方 https://www.autocli.ai 后重试。`;
         }
       }
-      return 'action 仅支持 stats 或 help。';
+      if (action === 'run') {
+        const presetRaw = String(args.preset || '').trim();
+        const allowed: OpencliRunPreset[] = ['hackernews_top', 'devto_top', 'lobsters_hot', 'arxiv_search'];
+        if (!allowed.includes(presetRaw as OpencliRunPreset)) {
+          return `请设置 preset 为之一：${allowed.join(', ')}。arxiv_search 需同时传 query。`;
+        }
+        if (presetRaw === 'arxiv_search') {
+          const q = String(args.query || '').trim();
+          if (!q) return 'arxiv_search 需提供 query。';
+        }
+        const creditCheck = await checkAndChargeCredits(userId, 'opencli_run');
+        if (!creditCheck.allowed) {
+          return `⚠️ ${creditCheck.reason}`;
+        }
+        try {
+          const out = await runOpencliPreset(presetRaw as OpencliRunPreset, {
+            limit: args.limit,
+            query: args.query,
+          });
+          let extra = '';
+          if (creditCheck.charged > 0) {
+            const remaining = getRemainingFreeQuota(userId, 'opencli_run');
+            extra = `\n\n（消耗 ${creditCheck.charged} 积分，剩余免费次数：${remaining}/今日）`;
+          }
+          return `**opencli-rs（服务端）** preset=\`${presetRaw}\`\n\n\`\`\`\n${out.slice(0, 350000)}\n\`\`\`${extra}`;
+        } catch (e) {
+          console.error('[Lobster] autocli run error:', e);
+          const msg = e instanceof Error ? e.message : String(e);
+          return `服务端执行 opencli-rs 失败：${msg}\n\n请确认已设置 OPENCLI_RS_BIN 且服务器已安装 opencli-rs；详见 autocli(action=help)。`;
+        }
+      }
+      return 'action 支持 stats、help、run。';
     }
 
     case 'search_clawlab': {

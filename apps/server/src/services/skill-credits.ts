@@ -28,7 +28,7 @@ export const TOOL_CREDIT_CONFIG: Record<string, ToolCreditConfig> = {
     costPerCall: parseInt(process.env.SKILL_CREDIT_WEB_SEARCH ?? '2', 10),
     freeDailyQuota: parseInt(process.env.SKILL_FREE_WEB_SEARCH ?? '5', 10),
   },
-  /** Jina Reader 读网页（对齐 Agent Reach 云端能力） */
+  /** Jina Reader 读网页（服务端代请求） */
   url_read: {
     costPerCall: parseInt(process.env.SKILL_CREDIT_URL_READ ?? '1', 10),
     freeDailyQuota: parseInt(process.env.SKILL_FREE_URL_READ ?? '15', 10),
@@ -37,6 +37,11 @@ export const TOOL_CREDIT_CONFIG: Record<string, ToolCreditConfig> = {
   exa_search: {
     costPerCall: parseInt(process.env.SKILL_CREDIT_EXA_SEARCH ?? '2', 10),
     freeDailyQuota: parseInt(process.env.SKILL_FREE_EXA_SEARCH ?? '5', 10),
+  },
+  /** 服务端子进程执行 opencli-rs（需 OPENCLI_RS_BIN） */
+  opencli_run: {
+    costPerCall: parseInt(process.env.SKILL_CREDIT_OPENCLI_RUN ?? '2', 10),
+    freeDailyQuota: parseInt(process.env.SKILL_FREE_OPENCLI_RUN ?? '5', 10),
   },
   browser_open: {
     costPerCall: parseInt(process.env.SKILL_CREDIT_BROWSER_OPEN ?? '1', 10),

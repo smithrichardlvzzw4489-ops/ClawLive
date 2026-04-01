@@ -1,5 +1,5 @@
 /**
- * Darwin 云端网页沙箱（语义对齐 Claude Code：工作区根目录 + 静态资源服务）。
+ * Darwin 服务端网页沙箱（语义对齐 Claude Code：工作区根目录 + 静态资源服务）。
  * 预览由 Express static 直接提供，不依赖本机 Python。
  */
 import { randomBytes } from 'crypto';
