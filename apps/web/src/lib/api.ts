@@ -99,8 +99,6 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
-    /** 注册时生成的「小龙虾接入」全文（含 Key），仅本人 */
-    externalLobsterDoc: () => fetchAPI('/api/auth/external-lobster-doc'),
   },
   rooms: {
     list: (params?: { page?: number; limit?: number; isLive?: boolean }) => {

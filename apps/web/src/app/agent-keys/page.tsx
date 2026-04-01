@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import { MainLayout } from '@/components/MainLayout';
@@ -124,35 +123,6 @@ export default function AgentKeysPage() {
           >
             查看 Agent 接入文档 →
           </a>
-        </div>
-
-        <div className="mb-8 rounded-2xl border border-emerald-500/30 bg-emerald-950/50 px-4 py-4 sm:px-5">
-          <h2 className="text-sm font-semibold text-emerald-200">外部小龙虾 · A2A 求职桥接</h2>
-          <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-            注册时会自动生成<strong className="text-slate-200">一份专属接入文档</strong>（含真实 Key 与全部 API）。最简单用法：打开
-            「小龙虾接入」页，一键复制全文发给 Agent。
-          </p>
-          <Link
-            href="/external-lobster-doc"
-            className="mt-3 inline-flex rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-          >
-            小龙虾接入文档（复制全文）→
-          </Link>
-          <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-slate-500">
-            <li>
-              同一份内容也在{' '}
-              <Link href="/skills?tab=my" className="text-emerald-400/90 underline">
-                技能 → 我发布的
-              </Link>{' '}
-              待审核技能中
-            </li>
-            <li>
-              求职匹配见{' '}
-              <Link href="/job-a2a" className="text-emerald-400/90 underline">
-                A2A 求职实验室
-              </Link>
-            </li>
-          </ul>
         </div>
 
         {/* 新 Key 展示（只展示一次） */}

@@ -2,7 +2,7 @@
  * Job A2A 实验室：双端建档、自动匹配、Agent 代聊、解锁真人。
  */
 
-/** 解锁真人前需完成的对轮次数（每轮 = 求职方一条 + 招聘方一条；任一侧可为 Darwin 或外部小龙虾 Open API） */
+/** 解锁真人前需完成的对轮次数（每轮 = 求职者 Darwin + 招聘方 Darwin 各一条） */
 export const JOB_A2A_MIN_ROUNDS_FOR_UNLOCK = 10;
 /** 单次请求最多连续推进的对轮次数 */
 export const JOB_A2A_MAX_BATCH_ROUNDS = 10;
@@ -10,9 +10,6 @@ import { randomUUID } from 'crypto';
 import type { JobA2AMatch, JobA2ASeekerProfile, JobA2AEmployerProfile } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { runDarwinJobA2AReply } from '../api/routes/lobster';
-
-/** darwin：站内 Darwin 代聊；external：外部小龙虾等通过 Open API 发言 */
-export type JobChatChannel = 'darwin' | 'external';
 
 export type SeekerProfileInput = {
   title: string;
@@ -22,7 +19,6 @@ export type SeekerProfileInput = {
   skills: string[];
   narrative: string;
   active?: boolean;
-  jobChatChannel?: JobChatChannel;
 };
 
 export type EmployerProfileInput = {
@@ -34,7 +30,6 @@ export type EmployerProfileInput = {
   companyName?: string | null;
   narrative: string;
   active?: boolean;
-  jobChatChannel?: JobChatChannel;
 };
 
 function normSkills(raw: unknown): string[] {
@@ -105,36 +100,11 @@ async function logEvent(data: {
   });
 }
 
-export async function getSeekerProfileForUser(userId: string): Promise<JobA2ASeekerProfile | null> {
-  return prisma.jobA2ASeekerProfile.findUnique({ where: { userId } });
-}
-
-/** Open API：在已有档案上开启求职（active=true） */
-export async function activateSeekerJobSearch(userId: string): Promise<JobA2ASeekerProfile> {
-  const existing = await prisma.jobA2ASeekerProfile.findUnique({ where: { userId } });
-  if (!existing) {
-    throw new Error('尚未提交求职档案，请先 PUT /api/open/job-a2a/seeker');
-  }
-  const skills = Array.isArray(existing.skills)
-    ? (existing.skills as unknown[]).map((x) => String(x))
-    : [];
-  return upsertSeekerProfile(userId, {
-    title: existing.title,
-    city: existing.city,
-    salaryMin: existing.salaryMin,
-    salaryMax: existing.salaryMax,
-    skills,
-    narrative: existing.narrative,
-    active: true,
-  });
-}
-
 export async function upsertSeekerProfile(userId: string, input: SeekerProfileInput): Promise<JobA2ASeekerProfile> {
   const row = await prisma.jobA2ASeekerProfile.upsert({
     where: { userId },
     create: {
       userId,
-      jobChatChannel: input.jobChatChannel === 'external' ? 'external' : 'darwin',
       title: input.title.trim(),
       city: input.city?.trim() || null,
       salaryMin: input.salaryMin ?? null,
@@ -151,9 +121,6 @@ export async function upsertSeekerProfile(userId: string, input: SeekerProfileIn
       skills: input.skills,
       narrative: input.narrative.trim(),
       active: input.active !== false,
-      ...(input.jobChatChannel !== undefined
-        ? { jobChatChannel: input.jobChatChannel === 'external' ? 'external' : 'darwin' }
-        : {}),
     },
   });
   await logEvent({
@@ -173,7 +140,6 @@ export async function upsertEmployerProfile(
     where: { userId },
     create: {
       userId,
-      jobChatChannel: input.jobChatChannel === 'external' ? 'external' : 'darwin',
       jobTitle: input.jobTitle.trim(),
       city: input.city?.trim() || null,
       salaryMin: input.salaryMin ?? null,
@@ -192,9 +158,6 @@ export async function upsertEmployerProfile(
       companyName: input.companyName?.trim() || null,
       narrative: input.narrative.trim(),
       active: input.active !== false,
-      ...(input.jobChatChannel !== undefined
-        ? { jobChatChannel: input.jobChatChannel === 'external' ? 'external' : 'darwin' }
-        : {}),
     },
   });
   await logEvent({
@@ -308,16 +271,13 @@ function buildEmployerA2APrompt(
   seeker: JobA2ASeekerProfile,
   employer: JobA2AEmployerProfile,
   seekerAgentText: string,
-  seekerChannel: JobChatChannel = 'darwin',
 ): string {
   const sk = normSkills(seeker.skills).join('、');
   const ek = normSkills(employer.skills).join('、');
-  const seekerLabel =
-    seekerChannel === 'external' ? '求职者方（外部小龙虾）' : '求职者 Darwin';
 
   return `【A2A 招聘匹配】请作为招聘方 Darwin 回应（中文）。
 
-【${seekerLabel}刚说】
+【求职者 Darwin 刚说】
 ${seekerAgentText.slice(0, 2500)}
 
 【求职者档案】
@@ -338,19 +298,6 @@ ${seekerAgentText.slice(0, 2500)}
 请专业回应，说明团队关注点，并可询问 1–2 个关键澄清（如到岗时间、远程政策）。`;
 }
 
-function getNextAgentTurn(prior: { side: string }[]): 'seeker_agent' | 'employer_agent' {
-  return prior.length % 2 === 0 ? 'seeker_agent' : 'employer_agent';
-}
-
-function channelOfSeeker(p: JobA2ASeekerProfile): JobChatChannel {
-  return p.jobChatChannel === 'external' ? 'external' : 'darwin';
-}
-
-function channelOfEmployer(p: JobA2AEmployerProfile): JobChatChannel {
-  return p.jobChatChannel === 'external' ? 'external' : 'darwin';
-}
-
-/** 双方均为站内 Darwin：一轮内连续生成两条并计入 agentExchangeRounds */
 async function advanceBothDarwinRound(
   matchId: string,
   match: JobA2AMatch,
@@ -361,7 +308,6 @@ async function advanceBothDarwinRound(
   seekerMsg: { id: string; body: string };
   employerMsg: { id: string; body: string };
   match: JobA2AMatch;
-  partialRound: false;
 }> {
   const seekerPrompt = buildSeekerA2APrompt(seeker, employer, prior);
   const sr = await runDarwinJobA2AReply(match.seekerUserId, seekerPrompt);
@@ -372,7 +318,7 @@ async function advanceBothDarwinRound(
     seekerText = fallbackAgentExchange(seeker, employer, prior).seekerAgent;
   }
 
-  const employerPrompt = buildEmployerA2APrompt(seeker, employer, seekerText, 'darwin');
+  const employerPrompt = buildEmployerA2APrompt(seeker, employer, seekerText);
   const er = await runDarwinJobA2AReply(match.employerUserId, employerPrompt);
   let employerText: string;
   if (er.ok) {
@@ -417,66 +363,13 @@ async function advanceBothDarwinRound(
     seekerMsg: { id: sId, body: seekerText },
     employerMsg: { id: eId, body: employerText },
     match: updated,
-    partialRound: false,
-  };
-}
-
-/** 求职方 Darwin、招聘方 external：仅生成求职方一条，等待对方外部 Agent POST */
-async function advanceSeekerDarwinOnlyRound(
-  matchId: string,
-  match: JobA2AMatch,
-  seeker: JobA2ASeekerProfile,
-  employer: JobA2AEmployerProfile,
-  prior: { side: string; body: string }[],
-): Promise<{
-  seekerMsg: { id: string; body: string };
-  employerMsg: null;
-  match: JobA2AMatch;
-  partialRound: true;
-}> {
-  const seekerPrompt = buildSeekerA2APrompt(seeker, employer, prior);
-  const sr = await runDarwinJobA2AReply(match.seekerUserId, seekerPrompt);
-  let seekerText: string;
-  if (sr.ok) {
-    seekerText = sr.text;
-  } else {
-    seekerText = fallbackAgentExchange(seeker, employer, prior).seekerAgent;
-  }
-
-  const sId = randomUUID();
-  const now = new Date();
-
-  await prisma.$transaction([
-    prisma.jobA2AAgentMessage.create({
-      data: { id: sId, matchId, side: 'seeker_agent', body: seekerText },
-    }),
-    prisma.jobA2AMatch.update({
-      where: { id: matchId },
-      data: { status: 'agent_chat', updatedAt: now },
-    }),
-  ]);
-
-  await logEvent({
-    matchId,
-    kind: 'agent_round',
-    detail: 'seeker_darwin_only',
-    payload: { seekerSnippet: seekerText.slice(0, 160) },
-  });
-
-  const updated = await prisma.jobA2AMatch.findUniqueOrThrow({ where: { id: matchId } });
-  return {
-    seekerMsg: { id: sId, body: seekerText },
-    employerMsg: null,
-    match: updated,
-    partialRound: true,
   };
 }
 
 async function advanceSingleDarwinRound(matchId: string, actorUserId: string): Promise<{
-  seekerMsg: { id: string; body: string } | null;
-  employerMsg: { id: string; body: string } | null;
+  seekerMsg: { id: string; body: string };
+  employerMsg: { id: string; body: string };
   match: JobA2AMatch;
-  partialRound: boolean;
 }> {
   const match = await prisma.jobA2AMatch.findUnique({
     where: { id: matchId },
@@ -495,193 +388,17 @@ async function advanceSingleDarwinRound(matchId: string, actorUserId: string): P
   ]);
   if (!seeker || !employer) throw new Error('档案不完整');
 
-  const seekerCh = channelOfSeeker(seeker);
-  const employerCh = channelOfEmployer(employer);
-
   const prior = await prisma.jobA2AAgentMessage.findMany({
     where: { matchId },
     orderBy: { createdAt: 'asc' },
     select: { side: true, body: true },
   });
 
-  const next = getNextAgentTurn(prior);
-
-  if (seekerCh === 'external' && employerCh === 'external') {
-    throw new Error(
-      '双方均为外部 Agent：请通过 Open API POST /api/open/job-a2a/matches/:id/agent-message 按轮次交替提交 seeker_agent / employer_agent',
-    );
-  }
-
-  if (seekerCh === 'external' && employerCh === 'darwin') {
-    throw new Error(
-      '求职方使用外部小龙虾：请由 Open API POST /api/open/job-a2a/matches/:id/agent-message（side=seeker_agent）提交求职方发言，系统将自动生成招聘方 Darwin 回复',
-    );
-  }
-
-  if (seekerCh === 'darwin' && employerCh === 'external') {
-    if (next === 'seeker_agent') {
-      return await advanceSeekerDarwinOnlyRound(matchId, match, seeker, employer, prior);
-    }
-    throw new Error(
-      '当前轮次应等待招聘方外部 Agent 提交（POST /api/open/job-a2a/matches/:id/agent-message，side=employer_agent）',
-    );
-  }
-
-  // 双方 Darwin
-  if (next !== 'seeker_agent') {
+  if (prior.length % 2 !== 0) {
     throw new Error('当前状态异常：请刷新匹配或联系支持');
   }
-  return await advanceBothDarwinRound(matchId, match, seeker, employer, prior);
-}
 
-/**
- * 外部小龙虾（Open API Key）提交本方一条 Agent 消息；若对方为 Darwin，则在同一轮内自动生成对方 Darwin 回复。
- */
-export async function postJobA2AExternalAgentMessage(
-  matchId: string,
-  authorUserId: string,
-  side: 'seeker_agent' | 'employer_agent',
-  body: string,
-): Promise<{
-  seekerMsg?: { id: string; body: string };
-  employerMsg?: { id: string; body: string };
-  match: JobA2AMatch;
-}> {
-  const text = body.trim();
-  if (!text) throw new Error('消息不能为空');
-
-  const match = await prisma.jobA2AMatch.findUnique({ where: { id: matchId } });
-  if (!match) throw new Error('匹配不存在');
-  if (match.seekerUserId !== authorUserId && match.employerUserId !== authorUserId) {
-    throw new Error('无权操作此匹配');
-  }
-  if (match.status !== 'pending_agent' && match.status !== 'agent_chat') {
-    throw new Error('当前状态不可进行 Agent 代聊');
-  }
-
-  const [seeker, employer] = await Promise.all([
-    prisma.jobA2ASeekerProfile.findUnique({ where: { userId: match.seekerUserId } }),
-    prisma.jobA2AEmployerProfile.findUnique({ where: { userId: match.employerUserId } }),
-  ]);
-  if (!seeker || !employer) throw new Error('档案不完整');
-
-  if (side === 'seeker_agent' && match.seekerUserId !== authorUserId) throw new Error('无权提交求职方消息');
-  if (side === 'employer_agent' && match.employerUserId !== authorUserId) throw new Error('无权提交招聘方消息');
-
-  if (side === 'seeker_agent' && channelOfSeeker(seeker) !== 'external') {
-    throw new Error('求职方未使用外部通道，请使用网页端 Darwin 推进');
-  }
-  if (side === 'employer_agent' && channelOfEmployer(employer) !== 'external') {
-    throw new Error('招聘方未使用外部通道');
-  }
-
-  const prior = await prisma.jobA2AAgentMessage.findMany({
-    where: { matchId },
-    orderBy: { createdAt: 'asc' },
-    select: { side: true, body: true },
-  });
-
-  const next = getNextAgentTurn(prior);
-  if (next !== side) {
-    throw new Error(
-      next === 'seeker_agent'
-        ? '当前应提交求职方（seeker_agent）消息'
-        : '当前应提交招聘方（employer_agent）消息',
-    );
-  }
-
-  const seekerCh = channelOfSeeker(seeker);
-  const employerCh = channelOfEmployer(employer);
-  const now = new Date();
-
-  // 求职方 external + 招聘方 Darwin：写入求职方后立即生成招聘方 Darwin，完成一整轮
-  if (side === 'seeker_agent' && employerCh === 'darwin') {
-    const sId = randomUUID();
-    const employerPrompt = buildEmployerA2APrompt(seeker, employer, text, seekerCh);
-    const er = await runDarwinJobA2AReply(match.employerUserId, employerPrompt);
-    let employerText: string;
-    if (er.ok) {
-      employerText = er.text;
-    } else {
-      employerText = fallbackAgentExchange(seeker, employer, [...prior, { side: 'seeker_agent', body: text }])
-        .employerAgent;
-    }
-    const eId = randomUUID();
-    await prisma.$transaction([
-      prisma.jobA2AAgentMessage.create({
-        data: { id: sId, matchId, side: 'seeker_agent', body: text },
-      }),
-      prisma.jobA2AAgentMessage.create({
-        data: { id: eId, matchId, side: 'employer_agent', body: employerText },
-      }),
-      prisma.jobA2AMatch.update({
-        where: { id: matchId },
-        data: {
-          status: 'agent_chat',
-          agentExchangeRounds: { increment: 1 },
-          updatedAt: now,
-        },
-      }),
-    ]);
-    await logEvent({
-      matchId,
-      kind: 'agent_round',
-      detail: 'external_seeker_darwin_employer',
-      payload: { seekerSnippet: text.slice(0, 160), employerSnippet: employerText.slice(0, 160) },
-    });
-    const updated = await prisma.jobA2AMatch.findUniqueOrThrow({ where: { id: matchId } });
-    return {
-      seekerMsg: { id: sId, body: text },
-      employerMsg: { id: eId, body: employerText },
-      match: updated,
-    };
-  }
-
-  // 求职方 external + 招聘方 external：只写求职方，等对方
-  if (side === 'seeker_agent' && employerCh === 'external') {
-    const sId = randomUUID();
-    await prisma.$transaction([
-      prisma.jobA2AAgentMessage.create({
-        data: { id: sId, matchId, side: 'seeker_agent', body: text },
-      }),
-      prisma.jobA2AMatch.update({
-        where: { id: matchId },
-        data: { status: 'agent_chat', updatedAt: now },
-      }),
-    ]);
-    await logEvent({
-      matchId,
-      kind: 'agent_round',
-      detail: 'external_seeker_only',
-      payload: { seekerSnippet: text.slice(0, 160) },
-    });
-    const updated = await prisma.jobA2AMatch.findUniqueOrThrow({ where: { id: matchId } });
-    return { seekerMsg: { id: sId, body: text }, match: updated };
-  }
-
-  // side === employer_agent（必为 external）
-  const eId = randomUUID();
-  await prisma.$transaction([
-    prisma.jobA2AAgentMessage.create({
-      data: { id: eId, matchId, side: 'employer_agent', body: text },
-    }),
-    prisma.jobA2AMatch.update({
-      where: { id: matchId },
-      data: {
-        status: 'agent_chat',
-        agentExchangeRounds: { increment: 1 },
-        updatedAt: now,
-      },
-    }),
-  ]);
-  await logEvent({
-    matchId,
-    kind: 'agent_round',
-    detail: seekerCh === 'darwin' ? 'darwin_seeker_external_employer' : 'both_external_employer_turn',
-    payload: { employerSnippet: text.slice(0, 160) },
-  });
-  const updated = await prisma.jobA2AMatch.findUniqueOrThrow({ where: { id: matchId } });
-  return { employerMsg: { id: eId, body: text }, match: updated };
+  return advanceBothDarwinRound(matchId, match, seeker, employer, prior);
 }
 
 export async function advanceAgentRound(
@@ -690,10 +407,9 @@ export async function advanceAgentRound(
   options?: { rounds?: number },
 ): Promise<{
   roundsCompleted: number;
-  seekerMsg: { id: string; body: string } | null;
-  employerMsg: { id: string; body: string } | null;
+  seekerMsg: { id: string; body: string };
+  employerMsg: { id: string; body: string };
   match: JobA2AMatch;
-  partialRound: boolean;
 }> {
   const raw = options?.rounds ?? JOB_A2A_MAX_BATCH_ROUNDS;
   const n = Math.floor(Number(raw));
@@ -703,19 +419,15 @@ export async function advanceAgentRound(
   );
 
   let last: Awaited<ReturnType<typeof advanceSingleDarwinRound>> | null = null;
-  let fullRounds = 0;
   for (let i = 0; i < rounds; i++) {
     last = await advanceSingleDarwinRound(matchId, actorUserId);
-    if (last.partialRound) break;
-    fullRounds += 1;
   }
   if (!last) throw new Error('未执行任何轮次');
   return {
-    roundsCompleted: fullRounds,
+    roundsCompleted: rounds,
     seekerMsg: last.seekerMsg,
     employerMsg: last.employerMsg,
     match: last.match,
-    partialRound: last.partialRound,
   };
 }
 
@@ -730,7 +442,7 @@ export async function unlockHumanChat(matchId: string, actorUserId: string): Pro
   }
   if (match.agentExchangeRounds < JOB_A2A_MIN_ROUNDS_FOR_UNLOCK) {
     throw new Error(
-      `请先完成至少 ${JOB_A2A_MIN_ROUNDS_FOR_UNLOCK} 轮 Agent 代聊（Darwin 与外部小龙虾交替计轮，当前 ${match.agentExchangeRounds} 轮）`,
+      `请先完成至少 ${JOB_A2A_MIN_ROUNDS_FOR_UNLOCK} 轮 Darwin 代聊（当前 ${match.agentExchangeRounds} 轮）`,
     );
   }
 

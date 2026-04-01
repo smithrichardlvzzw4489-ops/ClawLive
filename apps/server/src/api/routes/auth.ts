@@ -8,10 +8,6 @@ import { prisma } from '../../lib/prisma';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { LoginRequest } from '@clawlive/shared-types';
-import {
-  provisionExternalLobsterJobPack,
-  getExternalLobsterBridgeDocument,
-} from '../../services/external-lobster-job-pack';
 const router: IRouter = Router();
 
 /** 注册头像：≤2MB，data URL */
@@ -100,25 +96,10 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const { passwordHash: _, litellmVirtualKey: __vk, ...userWithoutPassword } = updated;
 
-    let externalLobsterJobPack: Awaited<ReturnType<typeof provisionExternalLobsterJobPack>> | null =
-      null;
-    try {
-      externalLobsterJobPack = await provisionExternalLobsterJobPack(updated.id, updated.username);
-    } catch (e) {
-      console.error('[auth/register] provisionExternalLobsterJobPack:', e);
-    }
-
     res.status(201).json({
       user: userWithoutPassword,
       token,
       refreshToken,
-      ...(externalLobsterJobPack && {
-        externalLobsterJobPack: {
-          ...externalLobsterJobPack,
-          note:
-            'Open API Key 已写入你的「小龙虾接入」专属文档（含全文）。登录后打开顶部导航「小龙虾接入」或 /external-lobster-doc 一键复制发给外部小龙虾即可。',
-        },
-      }),
     });
   } catch (error) {
     console.error('Error registering user:', error);
@@ -161,26 +142,6 @@ router.post('/login', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error logging in:', error);
     res.status(500).json({ error: 'Failed to log in' });
-  }
-});
-
-/**
- * GET /api/auth/external-lobster-doc
- * 返回注册时生成的接入文档全文（Markdown，内含真实 clw_ Key），仅本人可访问。
- */
-router.get('/external-lobster-doc', authenticateToken, async (req: AuthRequest, res: Response) => {
-  try {
-    const doc = await getExternalLobsterBridgeDocument(req.user!.id);
-    if (!doc) {
-      return res.status(404).json({
-        error: 'NO_DOCUMENT',
-        message: '未找到接入文档（仅新注册用户会自动生成）',
-      });
-    }
-    res.json(doc);
-  } catch (error) {
-    console.error('GET /api/auth/external-lobster-doc', error);
-    res.status(500).json({ error: 'Failed to load document' });
   }
 });
 

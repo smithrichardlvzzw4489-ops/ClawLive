@@ -355,8 +355,6 @@ model Screenshot {
 model JobA2ASeekerProfile {
   userId    String   @id
   active    Boolean  @default(true)
-  /// darwin：ClawLab Darwin 代聊；external：外部小龙虾等通过 Open API 发言，与对方 Darwin 或对方外部 Agent 对聊
-  jobChatChannel String @default("darwin")
   title     String
   city      String?
   salaryMin Int?
@@ -374,8 +372,6 @@ model JobA2ASeekerProfile {
 model JobA2AEmployerProfile {
   userId      String   @id
   active      Boolean  @default(true)
-  /// darwin | external — 与 JobA2ASeekerProfile.jobChatChannel 语义一致
-  jobChatChannel String @default("darwin")
   jobTitle    String
   city        String?
   salaryMin   Int?

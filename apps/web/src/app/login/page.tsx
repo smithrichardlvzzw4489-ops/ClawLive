@@ -53,12 +53,6 @@ function AuthForm() {
     return () => { clearTimeout(timer); ctrl.abort(); };
   }, []);
   const [userNotFound, setUserNotFound] = useState(false);
-  /** 注册成功后一次性展示外部小龙虾 Open API Key */
-  const [lobsterPack, setLobsterPack] = useState<{
-    apiKey: string;
-    skillTitle: string;
-    note: string;
-  } | null>(null);
   const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
@@ -111,27 +105,10 @@ function AuthForm() {
         formData.email,
         formData.password,
         avatarDataUrl
-      )) as {
-        token: string;
-        refreshToken: string;
-        externalLobsterJobPack?: {
-          apiKey: string;
-          skillTitle: string;
-          note: string;
-        };
-      };
+      )) as { token: string; refreshToken: string };
       localStorage.setItem('token', response.token);
       localStorage.setItem('refreshToken', response.refreshToken);
-      const pack = response.externalLobsterJobPack;
-      if (pack?.apiKey) {
-        setLobsterPack({
-          apiKey: pack.apiKey,
-          skillTitle: pack.skillTitle,
-          note: pack.note,
-        });
-      } else {
-        router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
-      }
+      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
     } catch (err: any) {
       const m = err?.message as string | undefined;
       if (m === 'AVATAR_REQUIRED') setError(t('auth.avatarRequired'));
@@ -409,53 +386,6 @@ function AuthForm() {
             ← {SHOW_LIVE_FEATURES ? t('auth.backToRooms') : t('auth.backToHome')}
           </Link>
         </div>
-
-        {lobsterPack && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-            <div
-              role="dialog"
-              aria-modal="true"
-              className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-emerald-400/30 bg-[#0c1018] p-6 shadow-2xl"
-            >
-              <h2 className="text-lg font-semibold text-white">小龙虾接入文档已生成</h2>
-              <p className="mt-2 text-sm text-slate-400">
-                已为你的账号生成<strong className="text-emerald-300/90">一份专属文档</strong>（含真实 Key 与全部 API 说明）。推荐给 MiniMax 的方式：打开「小龙虾接入」页，点<strong>复制全文</strong>粘贴给 Agent。
-              </p>
-              <p className="mt-1 text-xs text-amber-400/90">{lobsterPack.note}</p>
-              <p className="mt-3 text-xs text-slate-500">技能标题：{lobsterPack.skillTitle}</p>
-              <div className="mt-3 rounded-lg border border-white/10 bg-black/40 p-3 font-mono text-xs break-all text-emerald-300">
-                {lobsterPack.apiKey}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link
-                  href="/external-lobster-doc"
-                  className="inline-flex items-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-                >
-                  打开接入文档（复制全文发给小龙虾）
-                </Link>
-                <button
-                  type="button"
-                  className="rounded-lg border border-white/20 px-4 py-2 text-sm text-slate-200 hover:bg-white/5"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(lobsterPack.apiKey);
-                  }}
-                >
-                  仅复制 Key
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg bg-lobster px-4 py-2 text-sm font-medium text-white hover:bg-lobster-dark"
-                  onClick={() => {
-                    setLobsterPack(null);
-                    router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
-                  }}
-                >
-                  进入站点
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
