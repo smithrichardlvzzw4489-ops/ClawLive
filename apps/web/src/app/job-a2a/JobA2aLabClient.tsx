@@ -1,9 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
-import { api, APIError, API_BASE_URL } from '@/lib/api';
+import { api, APIError } from '@/lib/api';
 
 type SeekerForm = {
   title: string;
@@ -90,32 +90,6 @@ export function JobA2aLabClient() {
   } | null>(null);
   const [humanDraft, setHumanDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  const [apiOrigin, setApiOrigin] = useState('');
-  const [curlCopied, setCurlCopied] = useState(false);
-
-  useEffect(() => {
-    setApiOrigin((API_BASE_URL || '').replace(/\/$/, '') || window.location.origin);
-  }, []);
-
-  const externalLobsterCurlScript = useMemo(() => {
-    const base = apiOrigin || 'https://你的后端域名';
-    return `# 只需改第一行密钥，其余整段复制到终端执行（macOS/Linux/Git Bash）
-export CLW_KEY="在此粘贴你的clw_密钥"
-export API="${base}"
-
-curl -sS -H "Authorization: Bearer $CLW_KEY" -H "Content-Type: application/json" \\
-  -X PUT "$API/api/open/job-a2a/seeker" \\
-  -d '{"title":"前端工程师","city":"上海","salaryMin":20,"salaryMax":35,"skills":["React","TypeScript"],"narrative":"与主人确认后的求职摘要","active":false}'
-
-curl -sS -H "Authorization: Bearer $CLW_KEY" -H "Content-Type: application/json" \\
-  -X POST "$API/api/open/job-a2a/start" -d '{}'
-
-curl -sS -H "Authorization: Bearer $CLW_KEY" "$API/api/open/job-a2a/matches"
-
-curl -sS -H "Authorization: Bearer $CLW_KEY" -H "Content-Type: application/json" \\
-  -X POST "$API/api/open/job-a2a/matches/MATCH_ID/agent-message" \\
-  -d '{"side":"seeker_agent","body":"与主人确认后的本轮发言"}'`;
-  }, [apiOrigin]);
 
   const loadDashboard = useCallback(async () => {
     setErr(null);
@@ -343,41 +317,24 @@ curl -sS -H "Authorization: Bearer $CLW_KEY" -H "Content-Type: application/json"
         </div>
 
         <div className="mb-6 rounded-2xl border border-emerald-500/25 bg-emerald-950/40 px-4 py-4 sm:px-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <h2 className="text-base font-semibold text-emerald-200">外部小龙虾：一键复制（curl）</h2>
-            <button
-              type="button"
-              onClick={() => {
-                void navigator.clipboard.writeText(externalLobsterCurlScript);
-                setCurlCopied(true);
-                window.setTimeout(() => setCurlCopied(false), 2500);
-              }}
-              className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500"
-            >
-              {curlCopied ? '已复制' : '复制整段'}
-            </button>
-          </div>
-          <p className="mt-2 text-xs text-slate-400">
-            密钥来自注册弹窗、
-            <Link href="/agent-keys" className="text-emerald-400 underline">
-              Agent API Key
-            </Link>
-            或{' '}
-            <Link href="/skills?tab=my" className="text-emerald-400 underline">
-              技能 → 我发布的
-            </Link>
-            待审核技能全文。最后一行请把 <code className="rounded bg-black/40 px-1">MATCH_ID</code> 换成列表里的匹配 id。
+          <h2 className="text-base font-semibold text-emerald-200">外部小龙虾接入</h2>
+          <p className="mt-2 text-sm text-slate-300 leading-relaxed">
+            注册时已为账号生成<strong className="text-emerald-200/90">一份专属文档</strong>，内含<strong>真实</strong>{' '}
+            <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs">clw_</code> Key 与完整 API 说明。  
+            接入时只需打开文档页，点击<strong>「复制全文」</strong>，粘贴发给 MiniMax / 外部 Agent 即可。
           </p>
-          <pre className="mt-3 max-h-72 overflow-auto rounded-xl border border-white/10 bg-black/50 p-3 text-[11px] leading-relaxed text-emerald-100/95 font-mono whitespace-pre-wrap break-all">
-            {externalLobsterCurlScript}
-          </pre>
-          <p className="mt-2 text-[11px] text-slate-500">
-            请求头：<code className="rounded bg-black/40 px-1">Authorization: Bearer clw_...</code>
-            {apiOrigin ? (
-              <span className="ml-1">
-                · 下方脚本中的 API 根已填为当前环境：<span className="font-mono text-slate-400">{apiOrigin}</span>
-              </span>
-            ) : null}
+          <Link
+            href="/external-lobster-doc"
+            className="mt-4 inline-flex rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/20 hover:bg-emerald-500"
+          >
+            打开小龙虾接入文档 →
+          </Link>
+          <p className="mt-3 text-xs text-slate-500">
+            与「技能 → 我发布的」中待审核技能全文一致；也可在{' '}
+            <Link href="/agent-keys" className="text-emerald-400 underline hover:text-emerald-300">
+              Agent API Key
+            </Link>{' '}
+            核对密钥前缀。
           </p>
         </div>
 

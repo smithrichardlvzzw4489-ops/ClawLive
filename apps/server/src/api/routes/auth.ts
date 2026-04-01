@@ -8,7 +8,10 @@ import { prisma } from '../../lib/prisma';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { LoginRequest } from '@clawlive/shared-types';
-import { provisionExternalLobsterJobPack } from '../../services/external-lobster-job-pack';
+import {
+  provisionExternalLobsterJobPack,
+  getExternalLobsterBridgeDocument,
+} from '../../services/external-lobster-job-pack';
 const router: IRouter = Router();
 
 /** 注册头像：≤2MB，data URL */
@@ -112,7 +115,8 @@ router.post('/register', async (req: Request, res: Response) => {
       ...(externalLobsterJobPack && {
         externalLobsterJobPack: {
           ...externalLobsterJobPack,
-          note: 'Open API Key 仅展示一次，请立即保存；完整接入说明见「我的技能」中待审核技能。',
+          note:
+            'Open API Key 已写入你的「小龙虾接入」专属文档（含全文）。登录后打开顶部导航「小龙虾接入」或 /external-lobster-doc 一键复制发给外部小龙虾即可。',
         },
       }),
     });
@@ -157,6 +161,26 @@ router.post('/login', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error logging in:', error);
     res.status(500).json({ error: 'Failed to log in' });
+  }
+});
+
+/**
+ * GET /api/auth/external-lobster-doc
+ * 返回注册时生成的接入文档全文（Markdown，内含真实 clw_ Key），仅本人可访问。
+ */
+router.get('/external-lobster-doc', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const doc = await getExternalLobsterBridgeDocument(req.user!.id);
+    if (!doc) {
+      return res.status(404).json({
+        error: 'NO_DOCUMENT',
+        message: '未找到接入文档（仅新注册用户会自动生成）',
+      });
+    }
+    res.json(doc);
+  } catch (error) {
+    console.error('GET /api/auth/external-lobster-doc', error);
+    res.status(500).json({ error: 'Failed to load document' });
   }
 });
 

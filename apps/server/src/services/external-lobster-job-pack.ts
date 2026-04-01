@@ -130,3 +130,24 @@ export async function provisionExternalLobsterJobPack(
     agentKeyId: key.id,
   };
 }
+
+/** 注册时写入的「外部小龙虾」技能全文（含真实 Key），供用户一键复制发给外部 Agent */
+export async function getExternalLobsterBridgeDocument(userId: string): Promise<{
+  skillId: string;
+  title: string;
+  document: string;
+} | null> {
+  const skill = await prisma.publishedSkill.findFirst({
+    where: {
+      authorId: userId,
+      tags: { has: 'external-lobster' },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!skill) return null;
+  return {
+    skillId: skill.id,
+    title: skill.title,
+    document: skill.skillMarkdown,
+  };
+}
