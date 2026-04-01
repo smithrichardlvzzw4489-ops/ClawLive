@@ -37,6 +37,12 @@ export default function SkillsPage() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const [tab, setTab] = useState<Tab>('market');
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'my' || t === 'publish' || t === 'market') setTab(t);
+  }, []);
+
   return (
     <MainLayout>
       <div className="mx-auto max-w-3xl px-4 py-8">

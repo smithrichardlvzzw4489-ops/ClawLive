@@ -100,6 +100,30 @@ async function logEvent(data: {
   });
 }
 
+export async function getSeekerProfileForUser(userId: string): Promise<JobA2ASeekerProfile | null> {
+  return prisma.jobA2ASeekerProfile.findUnique({ where: { userId } });
+}
+
+/** Open API：在已有档案上开启求职（active=true） */
+export async function activateSeekerJobSearch(userId: string): Promise<JobA2ASeekerProfile> {
+  const existing = await prisma.jobA2ASeekerProfile.findUnique({ where: { userId } });
+  if (!existing) {
+    throw new Error('尚未提交求职档案，请先 PUT /api/open/job-a2a/seeker');
+  }
+  const skills = Array.isArray(existing.skills)
+    ? (existing.skills as unknown[]).map((x) => String(x))
+    : [];
+  return upsertSeekerProfile(userId, {
+    title: existing.title,
+    city: existing.city,
+    salaryMin: existing.salaryMin,
+    salaryMax: existing.salaryMax,
+    skills,
+    narrative: existing.narrative,
+    active: true,
+  });
+}
+
 export async function upsertSeekerProfile(userId: string, input: SeekerProfileInput): Promise<JobA2ASeekerProfile> {
   const row = await prisma.jobA2ASeekerProfile.upsert({
     where: { userId },

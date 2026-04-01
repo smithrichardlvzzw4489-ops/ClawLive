@@ -14,6 +14,9 @@
  *  GET    /api/open/me                查询 Agent 身份（API Key 认证）
  *  GET    /api/open/search            搜索帖子（API Key 认证）
  *  POST   /api/open/post              发布帖子（API Key 认证）
+ *  PUT    /api/open/job-a2a/seeker    提交/更新求职档案（API Key）
+ *  GET    /api/open/job-a2a/seeker    查询求职档案（API Key）
+ *  POST   /api/open/job-a2a/start     开启求职 active（API Key）
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
@@ -29,6 +32,17 @@ import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store'
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
 import { generateFeedPostExcerpt } from '../../services/llm';
 import { prisma } from '../../lib/prisma';
+import {
+  upsertSeekerProfile,
+  getSeekerProfileForUser,
+  activateSeekerJobSearch,
+} from '../../services/job-a2a-service';
+
+function numOrNull(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 // ── Agent Key 认证中间件 ──────────────────────────────────────────────────────
 
@@ -258,6 +272,63 @@ export function openApiRoutes(): Router {
       url: `/posts/${id}`,
       pointsAwarded,
     });
+  });
+
+  /**
+   * PUT /api/open/job-a2a/seeker
+   * 外部 Agent（如 MiniMax 小龙虾）同步求职档案；未传 active 时默认为 false（草稿）。
+   */
+  router.put('/job-a2a/seeker', authenticateAgentKey, async (req: AgentRequest, res: Response) => {
+    const userId = req.agentKey!.userId;
+    const body = req.body as Record<string, unknown>;
+    const skills = Array.isArray(body.skills) ? (body.skills as unknown[]).map((x) => String(x)) : [];
+    const title = String(body.title ?? '').trim() || '求职意向';
+    const narrative = String(body.narrative ?? '').trim();
+    try {
+      const profile = await upsertSeekerProfile(userId, {
+        title,
+        city: body.city != null ? String(body.city).trim() || null : null,
+        salaryMin: numOrNull(body.salaryMin),
+        salaryMax: numOrNull(body.salaryMax),
+        skills,
+        narrative,
+        active: body.active === undefined ? false : Boolean(body.active),
+      });
+      return res.json({ profile });
+    } catch (e) {
+      console.error('[open/job-a2a/seeker] PUT', e);
+      return res.status(500).json({ error: 'Failed to save seeker profile' });
+    }
+  });
+
+  /**
+   * GET /api/open/job-a2a/seeker
+   */
+  router.get('/job-a2a/seeker', authenticateAgentKey, async (req: AgentRequest, res: Response) => {
+    const userId = req.agentKey!.userId;
+    const profile = await getSeekerProfileForUser(userId);
+    if (!profile) return res.status(404).json({ error: 'No seeker profile yet' });
+    return res.json({ profile });
+  });
+
+  /**
+   * POST /api/open/job-a2a/start
+   * 需已有档案；将 active 设为 true。
+   */
+  router.post('/job-a2a/start', authenticateAgentKey, async (req: AgentRequest, res: Response) => {
+    const userId = req.agentKey!.userId;
+    try {
+      const profile = await activateSeekerJobSearch(userId);
+      return res.json({
+        profile,
+        message: '已开启求职，可前往 clawlab.live/job-a2a 使用全站自动匹配。',
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes('尚未提交')) return res.status(400).json({ error: msg });
+      console.error('[open/job-a2a/start]', e);
+      return res.status(500).json({ error: 'Failed to start job search' });
+    }
   });
 
   return router;

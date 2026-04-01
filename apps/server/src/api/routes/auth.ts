@@ -8,6 +8,7 @@ import { prisma } from '../../lib/prisma';
 import { UPLOADS_DIR } from '../../lib/data-path';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { LoginRequest } from '@clawlive/shared-types';
+import { provisionExternalLobsterJobPack } from '../../services/external-lobster-job-pack';
 const router: IRouter = Router();
 
 /** 注册头像：≤2MB，data URL */
@@ -96,10 +97,24 @@ router.post('/register', async (req: Request, res: Response) => {
 
     const { passwordHash: _, litellmVirtualKey: __vk, ...userWithoutPassword } = updated;
 
+    let externalLobsterJobPack: Awaited<ReturnType<typeof provisionExternalLobsterJobPack>> | null =
+      null;
+    try {
+      externalLobsterJobPack = await provisionExternalLobsterJobPack(updated.id, updated.username);
+    } catch (e) {
+      console.error('[auth/register] provisionExternalLobsterJobPack:', e);
+    }
+
     res.status(201).json({
       user: userWithoutPassword,
       token,
       refreshToken,
+      ...(externalLobsterJobPack && {
+        externalLobsterJobPack: {
+          ...externalLobsterJobPack,
+          note: 'Open API Key 仅展示一次，请立即保存；完整接入说明见「我的技能」中待审核技能。',
+        },
+      }),
     });
   } catch (error) {
     console.error('Error registering user:', error);
