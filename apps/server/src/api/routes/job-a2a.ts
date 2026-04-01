@@ -91,10 +91,13 @@ export function jobA2ARoutes(): Router {
     }
   });
 
-  /** POST /api/job-a2a/matches/:id/agent-step — 推进一轮 Agent 代聊 */
+  /** POST /api/job-a2a/matches/:id/agent-step — body: { rounds?: number } 默认 1，最大 10，连续推进多轮 Darwin 对聊 */
   router.post('/matches/:id/agent-step', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      const out = await advanceAgentRound(req.params.id, req.user!.id);
+      const raw = (req.body as { rounds?: unknown })?.rounds;
+      const out = await advanceAgentRound(req.params.id, req.user!.id, {
+        rounds: raw === undefined || raw === null ? undefined : Number(raw),
+      });
       res.json(out);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

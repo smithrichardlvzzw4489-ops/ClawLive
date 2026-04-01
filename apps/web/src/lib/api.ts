@@ -347,8 +347,11 @@ export const api = {
       }),
     runMatch: () => fetchAPI('/api/job-a2a/run-match', { method: 'POST', body: '{}' }),
     getMatch: (id: string) => fetchAPI(`/api/job-a2a/matches/${id}`),
-    agentStep: (id: string) =>
-      fetchAPI(`/api/job-a2a/matches/${id}/agent-step`, { method: 'POST', body: '{}' }),
+    agentStep: (id: string, rounds?: number) =>
+      fetchAPI(`/api/job-a2a/matches/${id}/agent-step`, {
+        method: 'POST',
+        body: JSON.stringify({ rounds: rounds === undefined ? 10 : rounds }),
+      }),
     unlockHuman: (id: string) =>
       fetchAPI(`/api/job-a2a/matches/${id}/unlock-human`, { method: 'POST', body: '{}' }),
     humanMessage: (id: string, body: string) =>

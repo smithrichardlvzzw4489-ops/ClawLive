@@ -1,6 +1,11 @@
 /**
  * Job A2A 实验室：双端建档、自动匹配、Agent 代聊、解锁真人。
  */
+
+/** 解锁真人前需完成的对轮次数（每轮 = 求职者 Darwin + 招聘方 Darwin 各一条） */
+export const JOB_A2A_MIN_ROUNDS_FOR_UNLOCK = 10;
+/** 单次请求最多连续推进的对轮次数 */
+export const JOB_A2A_MAX_BATCH_ROUNDS = 10;
 import { randomUUID } from 'crypto';
 import type { JobA2AMatch, JobA2ASeekerProfile, JobA2AEmployerProfile } from '@prisma/client';
 import { prisma } from '../lib/prisma';
@@ -293,7 +298,7 @@ ${seekerAgentText.slice(0, 2500)}
 请专业回应，说明团队关注点，并可询问 1–2 个关键澄清（如到岗时间、远程政策）。`;
 }
 
-export async function advanceAgentRound(matchId: string, actorUserId: string): Promise<{
+async function advanceSingleDarwinRound(matchId: string, actorUserId: string): Promise<{
   seekerMsg: { id: string; body: string };
   employerMsg: { id: string; body: string };
   match: JobA2AMatch;
@@ -375,6 +380,36 @@ export async function advanceAgentRound(matchId: string, actorUserId: string): P
   };
 }
 
+export async function advanceAgentRound(
+  matchId: string,
+  actorUserId: string,
+  options?: { rounds?: number },
+): Promise<{
+  roundsCompleted: number;
+  seekerMsg: { id: string; body: string };
+  employerMsg: { id: string; body: string };
+  match: JobA2AMatch;
+}> {
+  const raw = options?.rounds ?? JOB_A2A_MAX_BATCH_ROUNDS;
+  const n = Math.floor(Number(raw));
+  const rounds = Math.min(
+    JOB_A2A_MAX_BATCH_ROUNDS,
+    Math.max(1, Number.isFinite(n) && n > 0 ? n : JOB_A2A_MAX_BATCH_ROUNDS),
+  );
+
+  let last: Awaited<ReturnType<typeof advanceSingleDarwinRound>> | null = null;
+  for (let i = 0; i < rounds; i++) {
+    last = await advanceSingleDarwinRound(matchId, actorUserId);
+  }
+  if (!last) throw new Error('未执行任何轮次');
+  return {
+    roundsCompleted: rounds,
+    seekerMsg: last.seekerMsg,
+    employerMsg: last.employerMsg,
+    match: last.match,
+  };
+}
+
 export async function unlockHumanChat(matchId: string, actorUserId: string): Promise<JobA2AMatch> {
   const match = await prisma.jobA2AMatch.findUnique({ where: { id: matchId } });
   if (!match) throw new Error('匹配不存在');
@@ -384,8 +419,10 @@ export async function unlockHumanChat(matchId: string, actorUserId: string): Pro
   if (match.status !== 'agent_chat' && match.status !== 'pending_agent') {
     throw new Error('当前状态不可解锁');
   }
-  if (match.agentExchangeRounds < 1) {
-    throw new Error('请先至少进行一轮 Darwin 代聊');
+  if (match.agentExchangeRounds < JOB_A2A_MIN_ROUNDS_FOR_UNLOCK) {
+    throw new Error(
+      `请先完成至少 ${JOB_A2A_MIN_ROUNDS_FOR_UNLOCK} 轮 Darwin 代聊（当前 ${match.agentExchangeRounds} 轮）`,
+    );
   }
 
   const m = await prisma.jobA2AMatch.update({

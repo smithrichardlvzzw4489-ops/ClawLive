@@ -230,12 +230,14 @@ export function JobA2aLabClient() {
     }
   }
 
-  async function doAgentStep() {
+  const MIN_DARWIN_ROUNDS_FOR_UNLOCK = 10;
+
+  async function doAgentStep(rounds?: number) {
     if (!selectedId) return;
     setBusy(true);
     setErr(null);
     try {
-      await api.jobA2A.agentStep(selectedId);
+      await api.jobA2A.agentStep(selectedId, rounds);
       const detail = (await api.jobA2A.getMatch(selectedId)) as typeof matchDetail;
       setMatchDetail(detail);
       await loadDashboard();
@@ -302,7 +304,7 @@ export function JobA2aLabClient() {
         <div className="mb-6 border-b border-white/10 pb-4">
           <h1 className="text-2xl font-bold tracking-tight text-white">A2A 求职实验室</h1>
           <p className="mt-2 max-w-3xl text-sm text-slate-400">
-            双端 Darwin 建档（求职 / 招聘）→ 全站自动匹配 → 双方各自的 Darwin 代聊 → 解锁后双方主人聊天。下方时间线可监控全流程事件。
+            双端 Darwin 建档 → 全站自动匹配 → 双方 Darwin 先连续代聊满 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮后可解锁真人。单次点击默认一次跑满 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮。
           </p>
           <p className="mt-2 text-xs text-slate-500">
             可与 <Link href="/my-lobster" className="text-lobster hover:underline">Darwin 对话</Link>{' '}
@@ -538,7 +540,10 @@ export function JobA2aLabClient() {
                       <h4 className="mb-2 text-xs font-semibold text-amber-200/90">Darwin 代聊（双方账号各用各自 Darwin）</h4>
                       <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm">
                         {matchDetail.match.agentMessages.length === 0 && (
-                          <p className="text-slate-500">尚无消息，点击下方推进一轮（会写入各自 Darwin 对话记录）。</p>
+                          <p className="text-slate-500">
+                            尚无消息。点击下方将连续推进 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮 Darwin 代聊（会写入各自
+                            /my-lobster 对话）。
+                          </p>
                         )}
                         {matchDetail.match.agentMessages.map((msg) => (
                           <div
@@ -556,7 +561,7 @@ export function JobA2aLabClient() {
                           </div>
                         ))}
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
                         <button
                           type="button"
                           disabled={
@@ -564,16 +569,31 @@ export function JobA2aLabClient() {
                             (matchDetail.match.status !== 'pending_agent' &&
                               matchDetail.match.status !== 'agent_chat')
                           }
-                          onClick={() => void doAgentStep()}
+                          onClick={() => void doAgentStep(10)}
                           className="rounded-lg bg-amber-600/80 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-40"
                         >
-                          推进一轮 Darwin 代聊
+                          连续推进 {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮 Darwin 代聊
                         </button>
                         <button
                           type="button"
                           disabled={
                             busy ||
-                            matchDetail.match.agentExchangeRounds < 1 ||
+                            (matchDetail.match.status !== 'pending_agent' &&
+                              matchDetail.match.status !== 'agent_chat')
+                          }
+                          onClick={() => void doAgentStep(1)}
+                          className="rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs text-amber-100/90 hover:bg-amber-500/10 disabled:opacity-40"
+                        >
+                          仅 1 轮
+                        </button>
+                        <span className="text-[11px] text-slate-500">
+                          已 {matchDetail.match.agentExchangeRounds} / {MIN_DARWIN_ROUNDS_FOR_UNLOCK} 轮可解锁
+                        </span>
+                        <button
+                          type="button"
+                          disabled={
+                            busy ||
+                            matchDetail.match.agentExchangeRounds < MIN_DARWIN_ROUNDS_FOR_UNLOCK ||
                             (matchDetail.match.status !== 'pending_agent' &&
                               matchDetail.match.status !== 'agent_chat')
                           }
