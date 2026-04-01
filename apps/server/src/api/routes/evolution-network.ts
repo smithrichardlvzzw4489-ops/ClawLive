@@ -10,6 +10,7 @@ import {
   getPoint,
   getUserEvolutionObservation,
   initEvolutionNetwork,
+  isEvolutionNetworkDisabled,
   listPoints,
   listRecommended,
   setLinkedSkills,
@@ -21,6 +22,14 @@ import {
   installLinkedSkillsForAuthor,
   runAcceptanceTestsForPoint,
 } from '../../services/evolution-acceptance-service';
+
+function evolutionWriteBlocked(res: Response): boolean {
+  if (isEvolutionNetworkDisabled()) {
+    res.status(403).json({ error: '进化网络已暂停' });
+    return true;
+  }
+  return false;
+}
 
 export function evolutionNetworkRoutes(): Router {
   const router = Router();
@@ -106,6 +115,7 @@ export function evolutionNetworkRoutes(): Router {
   /** POST /api/evolution-network/points */
   router.post('/points', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
+      if (evolutionWriteBlocked(res)) return;
       const userId = req.user!.id;
       const { title, goal, problems } = req.body as {
         title?: string;
@@ -137,6 +147,7 @@ export function evolutionNetworkRoutes(): Router {
   /** POST /api/evolution-network/points/:id/join */
   router.post('/points/:id/join', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
+      if (evolutionWriteBlocked(res)) return;
       const userId = req.user!.id;
       const { body } = req.body as { body?: string };
       const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -154,6 +165,7 @@ export function evolutionNetworkRoutes(): Router {
   /** PUT /api/evolution-network/points/:id/linked-skills — 发起者设置关联技能（重置验收） */
   router.put('/points/:id/linked-skills', authenticateToken, (req: AuthRequest, res: Response) => {
     try {
+      if (evolutionWriteBlocked(res)) return;
       const userId = req.user!.id;
       const raw = (req.body as { skills?: unknown })?.skills;
       if (!Array.isArray(raw)) {
@@ -182,6 +194,7 @@ export function evolutionNetworkRoutes(): Router {
   /** POST /api/evolution-network/points/:id/acceptance/generate — 生成验收用例 */
   router.post('/points/:id/acceptance/generate', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
+      if (evolutionWriteBlocked(res)) return;
       const userId = req.user!.id;
       const result = await generateAcceptanceCasesForPoint(req.params.id, userId);
       if (!result.ok) return res.status(400).json({ error: result.error });
@@ -196,6 +209,7 @@ export function evolutionNetworkRoutes(): Router {
   /** POST /api/evolution-network/points/:id/acceptance/run — 运行验收测试 */
   router.post('/points/:id/acceptance/run', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
+      if (evolutionWriteBlocked(res)) return;
       const userId = req.user!.id;
       const result = await runAcceptanceTestsForPoint(req.params.id, userId);
       if (!result.ok) return res.status(400).json({ error: result.error });
@@ -215,6 +229,7 @@ export function evolutionNetworkRoutes(): Router {
   /** POST /api/evolution-network/points/:id/complete — 闭环；关联技能需验收通过后；完成后为发起者安装技能 */
   router.post('/points/:id/complete', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
+      if (evolutionWriteBlocked(res)) return;
       const userId = req.user!.id;
       const result = completePoint(req.params.id, userId);
       if (!result.ok) return res.status(400).json({ error: result.error });

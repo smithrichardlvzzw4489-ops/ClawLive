@@ -12,6 +12,7 @@ import { publishDarwinEvolverRoundPost } from './feed-post-agent-publish';
 import {
   EVOLUTION_IDLE_MS,
   initEvolutionNetwork,
+  isEvolutionNetworkDisabled,
   listEvolutionPointsForUser,
   listPoints,
   toPublicPoint,
@@ -165,25 +166,35 @@ export async function runEvolverRound(userId: string): Promise<
 
     const maxImp = 3;
     let linkedEvoPointId: string | undefined;
-    for (let i = 0; i < Math.min(improvements.length, maxImp); i++) {
-      const line = improvements[i].slice(0, 200);
-      await addEvent(round.id, 'improvement', `改进项 ${i + 1}`, line);
+    if (isEvolutionNetworkDisabled()) {
+      await addEvent(
+        round.id,
+        'evolution_match',
+        '进化网络已关闭',
+        '已跳过创建/匹配进化点（EVOLUTION_NETWORK_DISABLED）',
+        {},
+      );
+    } else {
+      for (let i = 0; i < Math.min(improvements.length, maxImp); i++) {
+        const line = improvements[i].slice(0, 200);
+        await addEvent(round.id, 'improvement', `改进项 ${i + 1}`, line);
 
-      const title = `改进：${line}`;
-      const goal = `围绕「${line}」持续进化与产出`;
-      const problems = [line, '在进化网络中协作并发布关联产出'];
+        const title = `改进：${line}`;
+        const goal = `围绕「${line}」持续进化与产出`;
+        const problems = [line, '在进化网络中协作并发布关联产出'];
 
-      const evo = tryCreateOrJoinSimilarOpenPoint(userId, user.username, { title, goal, problems }, 'user');
-      if (evo.ok) {
-        if (!linkedEvoPointId) linkedEvoPointId = evo.point.id;
-        const pub = toPublicPoint(evo.point);
-        await addEvent(round.id, 'evolution_match', `进化网络：${evo.outcome}`, pub.title, {
-          outcome: evo.outcome,
-          pointId: evo.point.id,
-          title: pub.title,
-        });
-      } else {
-        await addEvent(round.id, 'evolution_error', '进化网络操作失败', evo.error);
+        const evo = tryCreateOrJoinSimilarOpenPoint(userId, user.username, { title, goal, problems }, 'user');
+        if (evo.ok) {
+          if (!linkedEvoPointId) linkedEvoPointId = evo.point.id;
+          const pub = toPublicPoint(evo.point);
+          await addEvent(round.id, 'evolution_match', `进化网络：${evo.outcome}`, pub.title, {
+            outcome: evo.outcome,
+            pointId: evo.point.id,
+            title: pub.title,
+          });
+        } else {
+          await addEvent(round.id, 'evolution_error', '进化网络操作失败', evo.error);
+        }
       }
     }
 
@@ -232,34 +243,36 @@ export async function runEvolverRound(userId: string): Promise<
       '已自动发布本轮纪要；你仍可在 Darwin 对话中用 publish_post 发布更多图文并关联进化点。',
     );
 
-    const mine = listEvolutionPointsForUser(userId);
-    const evolving = listPoints({ status: 'evolving' });
-    for (const p of mine) {
-      if (p.status !== 'active' && p.status !== 'proposed') continue;
-      const pub = toPublicPoint(p);
-      const idleMs = Date.now() - new Date(p.lastActivityAt).getTime();
-      const nearIdle = idleMs > EVOLUTION_IDLE_MS * 0.9;
-      let closeHint = '';
-      if (pub.articleCount >= 1) closeHint += '已有关联产出；若目标达成可由发起者确认完成。';
-      if (pub.joinCount >= 1 && p.authorUserId === userId) closeHint += ' 已有其他 Agent 加入协作。';
-      if (nearIdle && pub.articleCount === 0) closeHint += ' 长时间无活动可能被冷清关闭，建议尽快发帖或评论。';
+    if (!isEvolutionNetworkDisabled()) {
+      const mine = listEvolutionPointsForUser(userId);
+      const evolving = listPoints({ status: 'evolving' });
+      for (const p of mine) {
+        if (p.status !== 'active' && p.status !== 'proposed') continue;
+        const pub = toPublicPoint(p);
+        const idleMs = Date.now() - new Date(p.lastActivityAt).getTime();
+        const nearIdle = idleMs > EVOLUTION_IDLE_MS * 0.9;
+        let closeHint = '';
+        if (pub.articleCount >= 1) closeHint += '已有关联产出；若目标达成可由发起者确认完成。';
+        if (pub.joinCount >= 1 && p.authorUserId === userId) closeHint += ' 已有其他 Agent 加入协作。';
+        if (nearIdle && pub.articleCount === 0) closeHint += ' 长时间无活动可能被冷清关闭，建议尽快发帖或评论。';
 
-      await addEvent(round.id, 'close_check', `关闭条件检视：${p.title}`, closeHint || '状态正常，继续推进。', {
-        pointId: p.id,
-        articleCount: pub.articleCount,
-        joinCount: pub.joinCount,
-        status: p.status,
-      });
-    }
+        await addEvent(round.id, 'close_check', `关闭条件检视：${p.title}`, closeHint || '状态正常，继续推进。', {
+          pointId: p.id,
+          articleCount: pub.articleCount,
+          joinCount: pub.joinCount,
+          status: p.status,
+        });
+      }
 
-    if (!mine.filter((p) => p.status === 'active' || p.status === 'proposed').length && evolving.length) {
-      await addEvent(
-        round.id,
-        'participation_hint',
-        '可参与的公开进化点',
-        `当前网络中有 ${evolving.length} 个进行中的进化点，可使用 join_evolution_point 参与相近议题。`,
-        { count: evolving.length },
-      );
+      if (!mine.filter((p) => p.status === 'active' || p.status === 'proposed').length && evolving.length) {
+        await addEvent(
+          round.id,
+          'participation_hint',
+          '可参与的公开进化点',
+          `当前网络中有 ${evolving.length} 个进行中的进化点，可使用 join_evolution_point 参与相近议题。`,
+          { count: evolving.length },
+        );
+      }
     }
 
     await prisma.evolverRound.update({

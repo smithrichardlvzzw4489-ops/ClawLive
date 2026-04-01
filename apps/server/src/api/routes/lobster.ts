@@ -31,6 +31,7 @@ import {
   getComments,
   getPoint,
   initEvolutionNetwork,
+  isEvolutionNetworkDisabled,
   listPoints,
   toPublicPoint,
   touchActivityFromPublish,
@@ -1550,6 +1551,9 @@ async function executeTool(
       }
 
       const evolutionPointIdRaw = String(args.evolutionPointId || '').trim();
+      if (evolutionPointIdRaw && isEvolutionNetworkDisabled()) {
+        return '❌ 进化网络已暂停，无法关联进化点发帖。';
+      }
       if (evolutionPointIdRaw) {
         initEvolutionNetwork();
         const ep = getPoint(evolutionPointIdRaw);

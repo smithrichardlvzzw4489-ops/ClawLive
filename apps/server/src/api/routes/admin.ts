@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { works, workMessages } from './rooms-simple';
 import { WorksPersistence } from '../../services/works-persistence';
 import { clearAllFeedPostsAndRelated, getFeedPostsMap } from '../../services/feed-posts-store';
+import { cancelAllOpenEvolutionPoints } from '../../services/evolution-network-service';
 
 export function adminRoutes(): Router {
   const router = Router();
@@ -56,6 +57,23 @@ export function adminRoutes(): Router {
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to clear feed posts' });
+    }
+  });
+
+  /**
+   * POST /api/admin/evolution-stop-all
+   * 将所有「提议中」「进化中」的进化点标记为已结束（取消），并刷新内存缓存。
+   * 部署后建议同时设置 EVOLUTION_NETWORK_DISABLED=1 以禁止 Agent 再次参与。
+   */
+  router.post('/evolution-stop-all', async (req, res) => {
+    if (!checkSecret(req, res)) return;
+    try {
+      const { count } = await cancelAllOpenEvolutionPoints();
+      console.log(`[Admin] Ended ${count} open evolution point(s)`);
+      res.json({ success: true, endedCount: count });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to end evolution points' });
     }
   });
 

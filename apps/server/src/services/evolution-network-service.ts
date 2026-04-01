@@ -69,6 +69,28 @@ export const EVOLUTION_IDLE_MS = 24 * 60 * 60 * 1000;
 /** 后台每轮推进状态机的时间间隔（与 IDLE 独立，用于及时结算超时） */
 export const EVOLUTION_TRANSITION_TICK_MS = 5 * 60 * 1000;
 
+/**
+ * 设为 `1` / `true` / `yes` 时：禁止新建/加入/留言/闭环等写入；Darwin 进化器内跳过进化网络步骤。
+ * 可与管理员「一键结束所有进行中进化点」配合使用。
+ */
+export function isEvolutionNetworkDisabled(): boolean {
+  const v = process.env.EVOLUTION_NETWORK_DISABLED;
+  return v === '1' || v === 'true' || v === 'yes';
+}
+
+/**
+ * 将所有「提议中」「进化中」的进化点标记为已结束（取消），并重新从数据库加载缓存。
+ */
+export async function cancelAllOpenEvolutionPoints(): Promise<{ count: number }> {
+  const now = new Date();
+  const result = await prisma.evolutionPoint.updateMany({
+    where: { status: { in: ['proposed', 'active'] } },
+    data: { status: 'ended', endReason: 'cancelled', updatedAt: now },
+  });
+  await bootstrapEvolutionFromPostgres();
+  return { count: result.count };
+}
+
 const IDLE_MS = EVOLUTION_IDLE_MS;
 
 function normalizeDupText(s: string): string {
@@ -399,6 +421,9 @@ export function setLinkedSkills(
   userId: string,
   skills: EvolutionLinkedSkill[],
 ): { ok: true } | { ok: false; error: string } {
+  if (isEvolutionNetworkDisabled()) {
+    return { ok: false, error: '进化网络已暂停，无法编辑关联技能。' };
+  }
   initEvolutionNetwork();
   const p = pointsCache.get(pointId);
   if (!p) return { ok: false, error: '进化点不存在' };
@@ -477,6 +502,9 @@ export function tryCreateOrJoinSimilarOpenPoint(
 ):
   | { ok: true; outcome: CreateEvolutionPointOutcome; point: EvolutionPointRecord }
   | { ok: false; error: string } {
+  if (isEvolutionNetworkDisabled()) {
+    return { ok: false, error: '进化网络已暂停，无法发起或加入进化点。' };
+  }
   initEvolutionNetwork();
   runTransitions();
   const dup = findDuplicateAmongOpen(input.title, input.goal);
@@ -510,6 +538,9 @@ export function addComment(
   username: string,
   body: string,
 ): { ok: true } | { ok: false; error: string } {
+  if (isEvolutionNetworkDisabled()) {
+    return { ok: false, error: '进化网络已暂停，无法留言或加入。' };
+  }
   initEvolutionNetwork();
   runTransitions();
   const p = pointsCache.get(pointId);
@@ -564,6 +595,9 @@ export function addComment(
 }
 
 export function completePoint(pointId: string, userId: string): { ok: true } | { ok: false; error: string } {
+  if (isEvolutionNetworkDisabled()) {
+    return { ok: false, error: '进化网络已暂停，无法确认完成。' };
+  }
   initEvolutionNetwork();
   const p = pointsCache.get(pointId);
   if (!p) return { ok: false, error: '进化点不存在' };
@@ -593,6 +627,7 @@ export function cancelPoint(pointId: string, userId: string): { ok: true } | { o
 
 /** 发帖关联进化点时刷新活跃时间 */
 export function touchActivityFromPublish(pointId: string): void {
+  if (isEvolutionNetworkDisabled()) return;
   const p = pointsCache.get(pointId);
   if (!p || p.status === 'ended') return;
   const now = new Date().toISOString();
@@ -794,6 +829,7 @@ export function getUserEvolutionObservation(userId: string): {
 }
 
 export async function onDarwinClawFirstApply(userId: string): Promise<void> {
+  if (isEvolutionNetworkDisabled()) return;
   initEvolutionNetwork();
   const existing = Array.from(pointsCache.values()).find(
     (p) => p.authorUserId === userId && p.source === 'darwin_bootstrap',
