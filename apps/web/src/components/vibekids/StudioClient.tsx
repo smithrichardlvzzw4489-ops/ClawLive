@@ -603,7 +603,7 @@ export function StudioClient() {
         const spot =
           useSpotlight ? " · 已使用精选曝光券，已加权进精选排序" : "";
         setNotice(
-          `已保存「${data.title ?? "作品"}」。${qs}${rp}${spot} ${xpParts.join(" · ")}。首页「精选展示」、作品区与发现可见；预览：${VK_BASE}/works/${data.id}`,
+          `已保存「${data.title ?? "作品"}」。${qs}${rp}${spot} ${xpParts.join(" · ")}。首页「精选展示」与作品广场可见；预览：${VK_BASE}/works/${data.id}`,
         );
         if (typeof Notification !== "undefined" && Notification.permission === "default") {
           void Notification.requestPermission();
@@ -849,7 +849,7 @@ export function StudioClient() {
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-4">
           <p className="mb-2 text-sm font-semibold text-emerald-900">保存作品</p>
           <p className="mb-3 text-xs text-emerald-800/90">
-            将当前预览的页面写入服务器，长期保留，并出现在「优秀案例」「作品展示区」列表中。
+            将当前预览的页面写入服务器，长期保留，并出现在作品广场（发现 / 长廊等视图）中。
           </p>
           <label htmlFor="save-title" className="mb-1 block text-xs font-medium text-emerald-900">
             标题（可选，不填则从页面自动提取）

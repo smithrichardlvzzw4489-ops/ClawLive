@@ -20,10 +20,10 @@ export function FeaturedStrip({ works }: Props) {
           </p>
         </div>
         <Link
-          href={`${VK_BASE}/feed`}
+          href={`${VK_BASE}/explore`}
           className="shrink-0 text-sm font-semibold text-violet-600 underline-offset-2 hover:underline"
         >
-          去发现 →
+          去作品广场 →
         </Link>
       </div>
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 pt-0.5 [scrollbar-width:thin]">

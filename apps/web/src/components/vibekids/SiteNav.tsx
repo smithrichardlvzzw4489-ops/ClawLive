@@ -4,7 +4,7 @@ import { VK_BASE } from "@/lib/vibekids/constants";
 
 type Props = {
   /** 当前高亮，用于无障碍与样式 */
-  active?: "home" | "cases" | "feed" | "gallery" | "studio";
+  active?: "home" | "explore" | "studio";
 };
 
 export function SiteNav({ active }: Props) {
@@ -37,9 +37,7 @@ export function SiteNav({ active }: Props) {
             {link(b, "home", "首页")}
             <NavQuestBadge />
           </span>
-          {link(`${b}/cases`, "cases", "优秀案例")}
-          {link(`${b}/feed`, "feed", "发现")}
-          {link(`${b}/gallery`, "gallery", "作品展示区")}
+          {link(`${b}/explore`, "explore", "作品广场")}
           <Link
             href={`${b}/studio`}
             className={
