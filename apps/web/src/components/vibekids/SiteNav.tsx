@@ -4,13 +4,13 @@ import { VK_BASE } from "@/lib/vibekids/constants";
 
 type Props = {
   /** 当前高亮，用于无障碍与样式 */
-  active?: "home" | "explore" | "studio";
+  active?: "home" | "explore" | "studio" | "myworks";
 };
 
 export function SiteNav({ active }: Props) {
   const b = VK_BASE;
 
-  const link = (href: string, key: Props["active"], label: string) => {
+  const link = (href: string, key: NonNullable<Props["active"]>, label: string) => {
     const isActive = active === key;
     return (
       <Link
@@ -38,6 +38,7 @@ export function SiteNav({ active }: Props) {
             <NavQuestBadge />
           </span>
           {link(`${b}/explore`, "explore", "作品广场")}
+          {link(`${b}/my-works`, "myworks", "我的作品")}
           <Link
             href={`${b}/studio`}
             className={

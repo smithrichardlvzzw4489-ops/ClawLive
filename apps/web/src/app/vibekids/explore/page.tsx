@@ -5,13 +5,13 @@ import {
   type ExploreTab,
 } from "@/components/vibekids/ExploreTabsClient";
 import { SiteNav } from "@/components/vibekids/SiteNav";
-import { getWorkSummaries } from "@/lib/vibekids/works-storage";
+import { getPublishedWorkSummaries } from "@/lib/vibekids/works-storage";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "作品广场 | VibeKids",
-  description: "官方案例与热门发现，浏览保存作品。",
+  description: "官方案例与已发布作品发现流；保存的作品在「我的作品」中管理与发布。",
 };
 
 function parseTab(raw: string | undefined): ExploreTab {
@@ -24,7 +24,7 @@ export default async function ExplorePage({
 }: {
   searchParams: { tab?: string };
 }) {
-  const saved = await getWorkSummaries();
+  const publishedWorks = await getPublishedWorkSummaries();
   const initialTab = parseTab(searchParams.tab);
 
   return (
@@ -35,7 +35,7 @@ export default async function ExplorePage({
           <div className="mx-auto flex-1 px-4 py-20 text-center text-slate-500">加载中…</div>
         }
       >
-        <ExploreTabsClient saved={saved} initialTab={initialTab} />
+        <ExploreTabsClient publishedWorks={publishedWorks} initialTab={initialTab} />
       </Suspense>
     </div>
   );

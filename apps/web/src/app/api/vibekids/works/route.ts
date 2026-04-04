@@ -61,6 +61,7 @@ export async function POST(req: Request) {
       createdAt: work.createdAt,
       qualityScore: qs,
       rewardPointsEarned,
+      published: work.published,
     });
   } catch (e) {
     const code = e instanceof Error ? e.message : "save_failed";

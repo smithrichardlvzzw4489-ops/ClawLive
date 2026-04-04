@@ -26,6 +26,15 @@ export default async function WorkPage({ params }: Props) {
     <div className="flex min-h-screen flex-col">
       <SiteNav />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 sm:px-6">
+        {!work.published ? (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            此作品<strong>未发布</strong>，不会出现在作品广场「发现」。若要公开，请到{" "}
+            <Link href={`${VK_BASE}/my-works`} className="font-semibold underline">
+              我的作品
+            </Link>{" "}
+            点击「发布到广场」。
+          </div>
+        ) : null}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{work.title}</h1>
@@ -35,7 +44,7 @@ export default async function WorkPage({ params }: Props) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
-              href={`${VK_BASE}/studio?age=${work.ageBand}&prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
+              href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
               className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
             >
               Remix 再创作

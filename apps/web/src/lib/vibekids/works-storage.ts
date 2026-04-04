@@ -20,6 +20,11 @@ export type SavedWorkSummary = {
   qualityScore?: number;
   /** 用户消耗积分申请的「精选候选」，用于展示加权 */
   spotlightRequested?: boolean;
+  /**
+   * 是否已在作品广场「发现」公开展示。
+   * 旧数据无此字段时视为 true（与历史行为一致）；新保存默认为 false。
+   */
+  published: boolean;
 };
 
 export type SavedWork = SavedWorkSummary & {
@@ -85,6 +90,10 @@ async function readRaw(): Promise<SavedWork[]> {
             Math.min(100, w.qualityScore)
           : undefined,
         spotlightRequested: Boolean(w.spotlightRequested),
+        published:
+          typeof (w as SavedWork).published === "boolean" ?
+            (w as SavedWork).published
+          : true,
       }));
   } catch {
     return [];
@@ -107,13 +116,20 @@ export async function getWorkSummaries(): Promise<SavedWorkSummary[]> {
     likes: rest.likes ?? 0,
     qualityScore: rest.qualityScore,
     spotlightRequested: rest.spotlightRequested,
+    published: rest.published,
   }));
+}
+
+/** 仅已发布，供作品广场「发现」与首页精选流使用 */
+export async function getPublishedWorkSummaries(): Promise<SavedWorkSummary[]> {
+  const list = await getWorkSummaries();
+  return list.filter((w) => w.published);
 }
 
 export async function getSpotlightSummaries(
   limit: number,
 ): Promise<SavedWorkSummary[]> {
-  const list = await getWorkSummaries();
+  const list = await getPublishedWorkSummaries();
   if (list.length === 0) return [];
   return [...list]
     .sort((a, b) => spotlightRank(b) - spotlightRank(a))
@@ -123,6 +139,18 @@ export async function getSpotlightSummaries(
 export async function getWorkById(id: string): Promise<SavedWork | null> {
   const works = await readRaw();
   return works.find((w) => w.id === id) ?? null;
+}
+
+export async function setWorkPublished(
+  id: string,
+  published: boolean,
+): Promise<boolean> {
+  const works = await readRaw();
+  const i = works.findIndex((w) => w.id === id);
+  if (i < 0) return false;
+  works[i] = { ...works[i]!, published };
+  await writeRaw(works);
+  return true;
 }
 
 export type SaveWorkInput = {
@@ -158,6 +186,7 @@ export async function saveWork(input: SaveWorkInput): Promise<SavedWork> {
     createdAt: new Date().toISOString(),
     likes: 0,
     qualityScore: qs,
+    published: false,
     ...(input.spotlightRequested ? { spotlightRequested: true } : {}),
     ...(input.prompt?.trim() ? { prompt: input.prompt.trim() } : {}),
     ...(input.kind && input.kind !== "any" ? { kind: input.kind } : {}),

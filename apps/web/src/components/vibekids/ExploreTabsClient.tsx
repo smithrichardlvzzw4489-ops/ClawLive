@@ -11,7 +11,6 @@ import {
 import { VK_BASE } from "@/lib/vibekids/constants";
 import { CREATIVE_KINDS } from "@/lib/vibekids/creative";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
-import { SavedWorksGrid } from "./SavedWorksGrid";
 import { WorkGridClient } from "./WorkGridClient";
 
 export type ExploreTab = "cases" | "feed";
@@ -31,11 +30,12 @@ function kindLabel(id: string) {
 }
 
 type Props = {
-  saved: SavedWorkSummary[];
+  /** 仅已发布，用于「发现」瀑布流 */
+  publishedWorks: SavedWorkSummary[];
   initialTab: ExploreTab;
 };
 
-export function ExploreTabsClient({ saved, initialTab }: Props) {
+export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ExploreTab>(initialTab);
@@ -100,7 +100,11 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
       <div className="mb-8 text-center sm:text-left">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">作品广场</h1>
         <p className="mt-3 max-w-2xl text-pretty text-slate-600">
-          优秀案例与发现两个入口：灵感向导与保存作品的瀑布流浏览。
+          优秀案例与发现：「发现」仅展示<strong>已发布</strong>作品；保存后请在{" "}
+          <Link href={`${VK_BASE}/my-works`} className="font-semibold text-violet-700 underline">
+            我的作品
+          </Link>{" "}
+          中发布到广场。
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2 sm:justify-start">
           {tabBtn("cases", "优秀案例")}
@@ -111,7 +115,11 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
       {tab === "cases" ? (
         <>
           <p className="mb-8 max-w-2xl text-pretty text-sm text-slate-600">
-            官方推荐的灵感方向；你在创作室<strong>保存</strong>的作品也会出现在下方「已保存作品」中，与「发现」页瀑布流为同一数据源。
+            官方推荐的灵感方向。创作室<strong>保存</strong>的作品会进入{" "}
+            <Link href={`${VK_BASE}/my-works`} className="font-semibold text-violet-700 underline">
+              我的作品
+            </Link>
+            ；在「我的作品」里点击「发布到广场」后，才会出现在「发现」瀑布流。
           </p>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-800">官方推荐</h2>
@@ -183,19 +191,16 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
               ))}
             </ul>
           )}
-          <h2 className="mb-4 text-lg font-semibold text-slate-800">已保存作品</h2>
-          <p className="mb-4 text-sm text-slate-600">
-            来自本机/服务器上的「保存作品」列表（与
-            <button
-              type="button"
-              onClick={() => setExploreTab("feed")}
-              className="mx-1 font-medium text-violet-600 underline"
-            >
-              发现
-            </button>
-            页相同数据源）。
+          <h2 className="mb-3 text-lg font-semibold text-slate-800">我的保存作品</h2>
+          <p className="mb-4 max-w-xl text-pretty text-sm text-slate-600">
+            保存的作品统一在「我的作品」中查看、预览与发布；未发布时不会出现在「发现」页。
           </p>
-          <SavedWorksGrid works={saved} />
+          <Link
+            href={`${VK_BASE}/my-works`}
+            className="mb-14 inline-flex items-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
+          >
+            打开我的作品 →
+          </Link>
         </>
       ) : null}
 
@@ -206,9 +211,18 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
             <Link href={`${VK_BASE}/studio`} className="font-semibold underline underline-offset-2">
               创作室
             </Link>
-            。下滑自动加载，越刷越有。
+            ；保存后请到{" "}
+            <Link href={`${VK_BASE}/my-works`} className="font-semibold underline underline-offset-2">
+              我的作品
+            </Link>{" "}
+            发布后再出现在这里。下滑自动加载，越刷越有。
           </div>
-          <WorkGridClient works={saved} defaultSort="hot" immersive />
+          <WorkGridClient
+            works={publishedWorks}
+            defaultSort="hot"
+            immersive
+            emptyHint="还没有已发布的作品。在创作室保存后，到「我的作品」点击「发布到广场」即可出现在此。"
+          />
         </>
       ) : null}
     </main>

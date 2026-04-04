@@ -22,6 +22,7 @@ type Props = {
   showSortTabs?: boolean;
   /** 瀑布流 + 自动无限滚动 + 大图卡片（信息流沉浸） */
   immersive?: boolean;
+  emptyHint?: string;
 };
 
 export function WorkGridClient({
@@ -29,6 +30,7 @@ export function WorkGridClient({
   defaultSort = "new",
   showSortTabs = true,
   immersive = false,
+  emptyHint,
 }: Props) {
   const [sort, setSort] = useState<WorkSortMode>(defaultSort);
   const [visible, setVisible] = useState(PAGE);
@@ -86,7 +88,7 @@ export function WorkGridClient({
   if (works.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-        还没有保存的作品。
+        {emptyHint ?? "还没有保存的作品。"}
       </p>
     );
   }

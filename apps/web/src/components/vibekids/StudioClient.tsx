@@ -738,7 +738,9 @@ export function StudioClient() {
         const spot =
           useSpotlight ? " · 已使用精选曝光券，已加权进精选排序" : "";
         setNotice(
-          `已保存「${data.title ?? "作品"}」。${qs}${rp}${spot} ${xpParts.join(" · ")}。首页「精选展示」与作品广场可见；预览：${VK_BASE}/works/${data.id}`,
+          `已保存「${data.title ?? "作品"}」。${qs}${rp}${spot} ${xpParts.join(
+            " · ",
+          )}。默认未发布：在「我的作品」中点「发布到广场」后才会出现在作品广场「发现」。预览：${VK_BASE}/works/${data.id}`,
         );
         if (typeof Notification !== "undefined" && Notification.permission === "default") {
           void Notification.requestPermission();
