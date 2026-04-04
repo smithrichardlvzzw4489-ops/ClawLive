@@ -25,6 +25,10 @@ import {
   clearDraft,
 } from "@/lib/vibekids/client-studio-draft";
 import { clientVibekidsFetchMs } from "@/lib/vibekids/generate-timeouts";
+import {
+  type VibekidsTokenUsage,
+  formatTokenUsageNotice,
+} from "@/lib/vibekids/token-usage";
 
 /** 略大于服务端墙钟截止，便于拿到 JSON 错误体 */
 const VIBEKIDS_CLIENT_FETCH_MS = clientVibekidsFetchMs();
@@ -314,6 +318,7 @@ export function StudioClient() {
         detail?: string;
         hint?: string;
         creditsBalance?: number;
+        tokenUsage?: VibekidsTokenUsage;
       },
       opts?: { intent?: "create" | "refine"; authFallback?: boolean },
     ) => {
@@ -345,7 +350,12 @@ export function StudioClient() {
           setPromptHist(getPromptHistory());
         }
         const prefix = opts?.authFallback ? "登录已失效，已改用访客生成。" : "";
-        setNotice(prefix ? `${prefix} 生成完成。` : "生成完成。");
+        const base = prefix ? `${prefix} 生成完成。` : "生成完成。";
+        const tok =
+          data.mode === "ai" && data.tokenUsage ?
+            ` ${formatTokenUsageNotice(data.tokenUsage)}`
+          : "";
+        setNotice(base + tok);
       } else {
         setNotice(null);
       }
@@ -378,6 +388,7 @@ export function StudioClient() {
         detail?: string;
         hint?: string;
         creditsBalance?: number;
+        tokenUsage?: VibekidsTokenUsage;
         error?: string;
         message?: string;
         balance?: number;
@@ -471,6 +482,7 @@ export function StudioClient() {
         detail?: string;
         hint?: string;
         creditsBalance?: number;
+        tokenUsage?: VibekidsTokenUsage;
         error?: string;
         message?: string;
         balance?: number;
@@ -713,7 +725,8 @@ export function StudioClient() {
 
         <p className="rounded-2xl border border-amber-100 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950">
           作品<strong>发布到广场</strong>计 <strong>5</strong> 分，每收到{" "}
-          <strong>1</strong> 个赞计 <strong>1</strong> 分。
+          <strong>1</strong> 个赞计 <strong>1</strong> 分。每次 AI 生成或修改成功后，下方提示会显示
+          <strong>本次 Token</strong>（输入 / 输出 / 合计，由模型接口返回）。
         </p>
 
         {creditsInfo ? (

@@ -15,6 +15,10 @@ import {
 } from "@/lib/vibekids/creative";
 import { getDemoHtml } from "@/lib/vibekids/demo-html";
 import { serverVibekidsDeadlineMs } from "@/lib/vibekids/generate-timeouts";
+import {
+  type VibekidsTokenUsage,
+  tokenUsageFromOpenAICompat,
+} from "@/lib/vibekids/token-usage";
 
 export const runtime = "nodejs";
 
@@ -119,12 +123,14 @@ function isTransientOpenRouterError(err: unknown): boolean {
   return false;
 }
 
+type OpenRouterCallResult = { html: string; usage?: VibekidsTokenUsage };
+
 async function callOpenRouterOnce(
   apiKey: string,
   messages: ChatMsg[],
   maxTokens: number,
   timeoutMs: number,
-): Promise<string> {
+): Promise<OpenRouterCallResult> {
   const model = process.env.OPENROUTER_MODEL?.trim() || DEFAULT_MODEL;
   const url =
     process.env.OPENROUTER_BASE_URL?.trim() || DEFAULT_OPENROUTER_URL;
@@ -164,6 +170,7 @@ async function callOpenRouterOnce(
 
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];
+    usage?: unknown;
   };
   const text = data.choices?.[0]?.message?.content?.trim();
   if (!text) throw new Error("模型未返回内容");
@@ -171,14 +178,15 @@ async function callOpenRouterOnce(
   if (!out.trim()) {
     throw new Error("模型返回的 HTML 为空，请重试或简化描述");
   }
-  return out;
+  const usage = tokenUsageFromOpenAICompat(data.usage);
+  return usage ? { html: out, usage } : { html: out };
 }
 
 async function callOpenRouter(
   apiKey: string,
   messages: ChatMsg[],
   maxTokens: number,
-): Promise<string> {
+): Promise<OpenRouterCallResult> {
   const wallMs = serverVibekidsDeadlineMs();
   const deadline = Date.now() + wallMs;
   const cap = openRouterSingleRequestCapMs(wallMs);
@@ -193,7 +201,8 @@ async function callOpenRouter(
     }
     const timeoutMs = Math.min(cap, remaining);
     try {
-      return await callOpenRouterOnce(apiKey, messages, maxTokens, timeoutMs);
+      const r = await callOpenRouterOnce(apiKey, messages, maxTokens, timeoutMs);
+      return r;
     } catch (e) {
       lastErr = e;
       const last = attempt === maxAttempts - 1;
@@ -253,7 +262,7 @@ async function createHtml(
   kind: CreativeKind,
   styles: VibeStyle[],
   apiKey: string,
-): Promise<string> {
+): Promise<OpenRouterCallResult> {
   const ctx = formatCreativeContext(kind, styles);
   const userBlock = [
     ageUserHint(age),
@@ -279,7 +288,7 @@ async function refineHtml(
   lockHint: string | undefined,
   age: AgeBand,
   apiKey: string,
-): Promise<string> {
+): Promise<OpenRouterCallResult> {
   const lock =
     lockHint?.trim() ?
       `\n\n【请尽量保持不动的部分】\n${lockHint.trim()}`
@@ -435,7 +444,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      const html = await refineHtml(
+      const { html, usage } = await refineHtml(
         currentHtml,
         refinement,
         lockHint,
@@ -446,6 +455,7 @@ export async function POST(req: Request) {
         html,
         mode: "ai" as const,
         creditsBalance: debit.balance,
+        ...(usage ? { tokenUsage: usage } : {}),
       });
     } catch (e) {
       await creditCredits(clientIdRaw, refineCost);
@@ -499,11 +509,12 @@ export async function POST(req: Request) {
   }
 
   try {
-    const html = await createHtml(prompt, ageBand, kind, styles, apiKey);
+    const { html, usage } = await createHtml(prompt, ageBand, kind, styles, apiKey);
     return Response.json({
       html,
       mode: "ai" as const,
       creditsBalance: debit.balance,
+      ...(usage ? { tokenUsage: usage } : {}),
     });
   } catch (e) {
     await creditCredits(clientIdRaw, createCost);

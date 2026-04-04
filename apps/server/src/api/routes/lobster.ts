@@ -2673,10 +2673,16 @@ export function lobsterRoutes(): Router {
 
     const memoryBlock = await formatVibekidsDarwinMemoryBlock(userId).catch(() => '');
 
+    type VibekidsTokenUsageJson = {
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+    };
+
     const runCompletion = async (
       system: string,
       userText: string,
-    ): Promise<string> => {
+    ): Promise<{ html: string; tokenUsage?: VibekidsTokenUsageJson }> => {
       const deadline = Date.now() + vibekidsLlmDeadlineMs();
       const runOnce = async (modelId: string) => {
         const ms = Math.max(1_000, deadline - Date.now());
@@ -2712,7 +2718,16 @@ export function lobsterRoutes(): Router {
       if (!text) throw new Error('模型未返回内容');
       const out = extractVibekidsHtml(text);
       if (!out.trim()) throw new Error('模型返回的 HTML 为空，请重试或简化描述');
-      return out;
+      const u = response.usage;
+      let tokenUsage: VibekidsTokenUsageJson | undefined;
+      if (u && typeof u.prompt_tokens === 'number') {
+        const pt = u.prompt_tokens;
+        const ct = typeof u.completion_tokens === 'number' ? u.completion_tokens : 0;
+        const tt =
+          typeof u.total_tokens === 'number' ? u.total_tokens : pt + ct;
+        tokenUsage = { promptTokens: pt, completionTokens: ct, totalTokens: tt };
+      }
+      return { html: out, tokenUsage };
     };
 
     try {
@@ -2744,12 +2759,16 @@ ${refinement}
 ${lock}
 
 请输出修改后的完整 HTML 文件源码。`;
-        const html = await runCompletion(VIBEKIDS_SYSTEM_REFINE, userBlock);
+        const { html, tokenUsage } = await runCompletion(VIBEKIDS_SYSTEM_REFINE, userBlock);
         void appendVibekidsDarwinMemory(userId, {
           intent: 'refine',
           snippet: refinement,
         }).catch((err) => console.warn('[vibekids-darwin-memory] refine', err));
-        return res.json({ html, mode: 'ai' as const });
+        return res.json({
+          html,
+          mode: 'ai' as const,
+          ...(tokenUsage ? { tokenUsage } : {}),
+        });
       }
 
       const prompt = typeof b.prompt === 'string' ? b.prompt.trim() : '';
@@ -2765,13 +2784,17 @@ ${lock}
       ]
         .filter(Boolean)
         .join('\n\n');
-      const html = await runCompletion(VIBEKIDS_SYSTEM_CREATE, userBlock);
+      const { html, tokenUsage } = await runCompletion(VIBEKIDS_SYSTEM_CREATE, userBlock);
       void appendVibekidsDarwinMemory(userId, {
         intent: 'create',
         snippet: prompt,
         kind: kind === 'any' ? undefined : kind,
       }).catch((err) => console.warn('[vibekids-darwin-memory] create', err));
-      return res.json({ html, mode: 'ai' as const });
+      return res.json({
+        html,
+        mode: 'ai' as const,
+        ...(tokenUsage ? { tokenUsage } : {}),
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Lobster vibekids-generate]', e);
