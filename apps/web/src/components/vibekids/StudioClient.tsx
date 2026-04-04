@@ -56,6 +56,12 @@ function getDarwinBrainstormUrl(): string {
   return base ? `${base}${path}` : path;
 }
 
+function getDarwinChipsUrl(): string {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const path = "/api/lobster/vibekids-chips";
+  return base ? `${base}${path}` : path;
+}
+
 /** Darwin 返回 401（登录过期或无效 token）时清除 token 并重试 Next 访客接口 */
 async function postVibekidsLlm(
   body: Record<string, unknown>,
@@ -113,6 +119,27 @@ function randomPickN<T>(arr: T[], n: number): T[] {
   return out;
 }
 
+/** Darwin 返回不足 6 条时用内置词补齐并去重 */
+function ensureSixChips(fromModel: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const c of fromModel) {
+    const t = c.trim().replace(/\s+/g, " ");
+    if (t.length < 4 || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+    if (out.length >= 6) return out;
+  }
+  const pool = randomPickN([...ALL_CHIPS], ALL_CHIPS.length);
+  for (const c of pool) {
+    if (seen.has(c)) continue;
+    seen.add(c);
+    out.push(c);
+    if (out.length >= 6) return out;
+  }
+  return out.length > 0 ? out : ALL_CHIPS.slice(0, 6);
+}
+
 function mergeChip(current: string, chip: string): string {
   const t = current.trim();
   if (!t) return chip;
@@ -133,9 +160,8 @@ export function StudioClient() {
     [sp],
   );
 
-  const chips = ALL_CHIPS;
-
   const [prompt, setPrompt] = useState("");
+  const promptRef = useRef("");
   const promptSeeded = useRef(false);
 
   useEffect(() => {
@@ -150,6 +176,11 @@ export function StudioClient() {
       promptSeeded.current = true;
     }
   }, [sp]);
+
+  useEffect(() => {
+    promptRef.current = prompt;
+  }, [prompt]);
+
   const [kind, setKind] = useState<CreativeKind>("any");
   const [styles, setStyles] = useState<VibeStyle[]>([]);
 
@@ -172,6 +203,92 @@ export function StudioClient() {
   const [darwinDirections, setDarwinDirections] = useState<string[]>([]);
   const [darwinBrainstormLoading, setDarwinBrainstormLoading] = useState(false);
 
+  const [quickChips, setQuickChips] = useState<string[]>([]);
+  const [chipsLoading, setChipsLoading] = useState(false);
+
+  const loadDarwinChips = useCallback(
+    async (opts?: { exclude?: string[] }) => {
+      let token: string | null = null;
+      try {
+        token = localStorage.getItem("token");
+      } catch {
+        token = null;
+      }
+      if (!token) {
+        setQuickChips(randomPickN([...ALL_CHIPS], 6));
+        return;
+      }
+
+      setChipsLoading(true);
+      try {
+        const res = await fetch(getDarwinChipsUrl(), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ageBand: age,
+            kind,
+            styles,
+            prompt: promptRef.current.trim() || undefined,
+            ...(opts?.exclude?.length ? { exclude: opts.exclude.slice(0, 12) } : {}),
+          }),
+          signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
+        });
+
+        if (res.status === 401) {
+          try {
+            localStorage.removeItem("token");
+          } catch {
+            /* ignore */
+          }
+          setHasMainSiteToken(false);
+          setQuickChips(randomPickN([...ALL_CHIPS], 6));
+          return;
+        }
+
+        const data = (await res.json()) as {
+          chips?: unknown;
+          error?: string;
+          detail?: string;
+          message?: string;
+        };
+
+        if (!res.ok) {
+          setQuickChips(ensureSixChips([]));
+          if (res.status === 402 && typeof data.message === "string") {
+            setNotice(data.message);
+          } else if (
+            res.status !== 401 &&
+            res.status !== 402 &&
+            res.status !== 403
+          ) {
+            setNotice(
+              typeof data.detail === "string" ?
+                data.detail
+              : "快捷灵感加载失败，已改用内置示例。",
+            );
+          }
+          return;
+        }
+
+        const raw =
+          Array.isArray(data.chips) ?
+            data.chips.filter(
+              (x): x is string => typeof x === "string" && x.trim().length > 2,
+            )
+          : [];
+        setQuickChips(ensureSixChips(raw.map((x) => x.trim().slice(0, 32))));
+      } catch {
+        setQuickChips(ensureSixChips([]));
+      } finally {
+        setChipsLoading(false);
+      }
+    },
+    [age, kind, styles],
+  );
+
   useEffect(() => {
     try {
       setHasMainSiteToken(!!localStorage.getItem("token"));
@@ -179,6 +296,14 @@ export function StudioClient() {
       setHasMainSiteToken(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (hasMainSiteToken) {
+      void loadDarwinChips();
+      return;
+    }
+    setQuickChips(randomPickN([...ALL_CHIPS], 6));
+  }, [hasMainSiteToken, age, kind, styles, loadDarwinChips]);
 
   useEffect(() => {
     setPromptHist(getPromptHistory());
@@ -692,13 +817,21 @@ export function StudioClient() {
 
         <div>
           <p className="mb-2 text-sm font-medium text-slate-800">快捷灵感（可多点）</p>
+          <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+            {hasMainSiteToken ?
+              chipsLoading ?
+                "正在根据你的 Darwin 画像与下方形态/风格生成 6 条…"
+              : "已由 Darwin 按用户画像（问卷、简介等）与当前形态/风格推荐 6 条；点「换一批」可再要一批。"
+            : "未登录时为内置示例，点「换一批」随机换 6 条；登录并接入 Darwin 后将按画像由系统推荐。"}
+          </p>
           <div className="flex flex-wrap gap-2">
-            {chips.map((c) => (
+            {quickChips.map((c, i) => (
               <button
-                key={c}
+                key={`${i}-${c}`}
                 type="button"
                 onClick={() => setPrompt((p) => mergeChip(p, c))}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50"
+                disabled={chipsLoading || loading !== null}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-50"
               >
                 {c}
               </button>
@@ -708,13 +841,16 @@ export function StudioClient() {
             <button
               type="button"
               onClick={() => {
-                const picks = randomPickN(ALL_CHIPS, 3);
-                setPrompt((p) => picks.reduce((acc, c) => mergeChip(acc, c), p));
+                if (hasMainSiteToken) {
+                  void loadDarwinChips({ exclude: quickChips });
+                } else {
+                  setQuickChips(randomPickN([...ALL_CHIPS], 6));
+                }
               }}
-              disabled={loading !== null}
+              disabled={loading !== null || (hasMainSiteToken && chipsLoading)}
               className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm text-sky-800 transition hover:bg-sky-100 disabled:opacity-50"
             >
-              随机抽 3 个灵感
+              {hasMainSiteToken && chipsLoading ? "加载中…" : "换一批"}
             </button>
             <button
               type="button"

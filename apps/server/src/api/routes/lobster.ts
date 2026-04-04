@@ -2099,6 +2099,61 @@ function parseVibekidsDirectionsJson(raw: string): string[] {
   }
 }
 
+const VIBEKIDS_CHIPS_SYSTEM = `你是少儿「氛围编程」创作助手。根据用户画像、学段、作品形态与风格，生成 6 条「快捷灵感」短句，供用户一键拼进描述里。
+
+只输出一个 JSON 对象，不要 Markdown，不要解释。格式严格为：
+{"chips":["...","...","...","...","...","..."]}
+
+要求：
+- chips 恰好 6 条字符串，中文；
+- 每条 6～24 字，像可点按钮的短灵感（小游戏、小工具、互动页、贺卡、画板等均可），不要句号结尾；
+- 6 条须明显不同；积极健康，适合 6～15 岁；不要联网、不要收集隐私；
+- 若用户消息里含有【上一批勿重复】下列出的短句，新 6 条不得与其中任一条相同或仅改一两个字的同义重复；
+- 输出须简短，便于快速生成。`;
+
+function parseVibekidsChipsJson(raw: string): string[] {
+  const t = raw.trim();
+  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = (fence ? fence[1] : t).trim();
+  try {
+    const o = JSON.parse(body) as { chips?: unknown };
+    if (!Array.isArray(o.chips)) return [];
+    return o.chips
+      .filter((x): x is string => typeof x === 'string' && x.trim().length >= 4)
+      .map((x) => x.trim().replace(/\s+/g, ' ').slice(0, 32))
+      .slice(0, 6);
+  } catch {
+    return [];
+  }
+}
+
+function formatVibekidsUserProfileBlock(user: {
+  username: string;
+  bio: string | null;
+  darwinOnboarding: unknown;
+}): string {
+  const parts: string[] = [];
+  parts.push(`【昵称】${user.username}`);
+  if (user.bio?.trim()) {
+    parts.push(`【简介】${user.bio.trim().slice(0, 240)}`);
+  }
+  if (user.darwinOnboarding != null) {
+    try {
+      const raw =
+        typeof user.darwinOnboarding === 'string' ?
+          user.darwinOnboarding
+        : JSON.stringify(user.darwinOnboarding);
+      const s = raw.replace(/\s+/g, ' ').trim().slice(0, 1400);
+      if (s.length > 2) {
+        parts.push(`【Darwin 问卷/画像（JSON 摘要，供偏好推断）】\n${s}`);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return parts.join('\n\n');
+}
+
 // ─── 路由 ─────────────────────────────────────────────────────────────────────
 
 export function lobsterRoutes(): Router {
@@ -2903,6 +2958,133 @@ ${lock}
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Lobster vibekids-brainstorm]', e);
+      return res.status(500).json({
+        error: 'llm_failed',
+        detail: msg.length > 500 ? `${msg.slice(0, 500)}…` : msg,
+      });
+    }
+  });
+
+  /**
+   * POST /api/lobster/vibekids-chips
+   * 基于 Darwin + 用户画像（问卷/简介等）+ 创作上下文，返回 6 条快捷灵感短句；exclude 用于「换一批」去重。
+   */
+  router.post('/vibekids-chips', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const instance = getLobsterInstance(userId);
+    if (!instance) {
+      return res.status(403).json({
+        error: 'darwin_required',
+        detail: '请先接入 Darwin 后再使用个性化快捷灵感。',
+      });
+    }
+
+    const b = req.body as {
+      ageBand?: unknown;
+      kind?: unknown;
+      styles?: unknown;
+      prompt?: unknown;
+      exclude?: unknown;
+      model?: unknown;
+    };
+    const ageBand = vkParseAge(b.ageBand);
+    const kind = vkParseKind(b.kind);
+    const styles = vkParseStyles(b.styles);
+    const prompt = typeof b.prompt === 'string' ? b.prompt.trim() : '';
+    const excludeRaw = Array.isArray(b.exclude) ? b.exclude : [];
+    const exclude = excludeRaw
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 2)
+      .map((x) => x.trim().slice(0, 40))
+      .slice(0, 12);
+    const requestModel = typeof b.model === 'string' ? b.model : undefined;
+
+    const llm = await getLlmClient(resolveModel(requestModel), userId);
+    if (!llm) {
+      return res.status(402).json({
+        error: 'NO_KEY',
+        message:
+          'Darwin 需要平台虚拟 Key 才能调用模型。请先在积分兑换中申请 Key，或与 /my-lobster 对话使用相同配置。',
+      });
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { username: true, bio: true, darwinOnboarding: true },
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'user_not_found' });
+      }
+
+      const deadline = Date.now() + vibekidsLlmDeadlineMs();
+      const memoryBlock = await formatVibekidsDarwinMemoryBlock(userId).catch(() => '');
+      const ctx = vkFormatCreativeContext(kind, styles);
+      const profileBlock = formatVibekidsUserProfileBlock(user);
+      const excludeBlock =
+        exclude.length > 0 ?
+          `【上一批勿重复】\n${exclude.map((s) => `- ${s}`).join('\n')}`
+        : '';
+
+      const userBlock = [
+        profileBlock,
+        memoryBlock || null,
+        vkAgeHint(ageBand),
+        ctx ? ctx : null,
+        prompt ? `当前描述草稿：\n${prompt.slice(0, 800)}` : null,
+        excludeBlock || null,
+        '请输出 6 条快捷灵感 JSON。',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+
+      const runChipsOnce = async (modelId: string) => {
+        const ms = Math.max(1_000, deadline - Date.now());
+        return llm.client.chat.completions.create(
+          {
+            model: modelId,
+            messages: [
+              { role: 'system', content: VIBEKIDS_CHIPS_SYSTEM },
+              { role: 'user', content: userBlock },
+            ],
+            max_tokens: 500,
+            temperature: 0.78,
+          },
+          { signal: AbortSignal.timeout(ms) },
+        );
+      };
+
+      const routedModel = await routeModel(userBlock.slice(0, 2000), llm.model);
+      let response: OpenAI.Chat.Completions.ChatCompletion;
+      try {
+        response = await runChipsOnce(routedModel);
+      } catch (toolErr) {
+        const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+        const isInvalidModelId =
+          toolErrMsg.includes('is not a valid model ID') ||
+          (toolErrMsg.includes('400') && toolErrMsg.includes('model ID'));
+        if (isInvalidModelId && routedModel !== llm.model && deadline - Date.now() > 1_200) {
+          response = await runChipsOnce(llm.model);
+        } else {
+          throw toolErr;
+        }
+      }
+
+      const text = response.choices[0]?.message?.content?.trim();
+      if (!text) {
+        return res.status(500).json({ error: 'empty_response' });
+      }
+      let chips = parseVibekidsChipsJson(text);
+      if (chips.length < 6) {
+        return res.status(500).json({
+          error: 'parse_failed',
+          detail: '模型返回的灵感不足 6 条，请重试',
+        });
+      }
+      chips = chips.slice(0, 6);
+      return res.json({ chips });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[Lobster vibekids-chips]', e);
       return res.status(500).json({
         error: 'llm_failed',
         detail: msg.length > 500 ? `${msg.slice(0, 500)}…` : msg,
