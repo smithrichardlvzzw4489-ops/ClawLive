@@ -140,7 +140,7 @@ export function StudioClient() {
     [sp],
   );
 
-  const chips = age === "middle" ? CHIPS_MIDDLE : CHIPS_PRIMARY;
+  const chips = ALL_CHIPS;
 
   const [prompt, setPrompt] = useState("");
   const promptSeeded = useRef(false);
@@ -246,7 +246,11 @@ export function StudioClient() {
     if (draftRestored.current) return;
     if (sp.get("prompt")) return;
     const d = loadDraft();
-    if (!d || d.age !== age) return;
+    const draftOk =
+      d &&
+      (d.age === age ||
+        (age === "unified" && (d.age === "primary" || d.age === "middle")));
+    if (!draftOk) return;
     draftRestored.current = true;
     setPrompt(d.prompt);
     setKind(d.kind);
@@ -758,13 +762,11 @@ export function StudioClient() {
       <section className="flex w-full shrink-0 flex-col gap-4 border-b border-slate-200/80 bg-white/95 p-4 shadow-sm sm:p-5 lg:max-w-[min(22rem,100vw)] lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:py-5 lg:pl-2 lg:pr-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-800">
-            {ageLabel(age)}模式
+            {ageLabel(age)}创作
           </span>
-          {age === "primary" ? (
-            <span className="text-sm text-slate-600">大字、少步骤，先玩起来</span>
-          ) : (
-            <span className="text-sm text-slate-600">更自由的描述与快捷词</span>
-          )}
+          <span className="text-sm text-slate-600">
+            可点快捷词快速上手，也可写长描述定规则与界面
+          </span>
         </div>
 
         <GamificationBar
@@ -906,11 +908,9 @@ export function StudioClient() {
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            rows={age === "primary" ? 5 : 6}
+            rows={6}
             placeholder={
-              age === "primary"
-                ? "例：我想做一个点点会冒星星的页面"
-                : "例：做一个能选主题色、记录点击次数的小计数器页面，带重置按钮"
+              "可短可长。短例：点点会冒星星的页面。长例：计数器，可选主题色、记录点击次数、带重置按钮。"
             }
             className="min-h-[8.5rem] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4"
           />

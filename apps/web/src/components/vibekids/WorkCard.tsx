@@ -6,6 +6,7 @@ import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import { bumpWeeklyLike } from "@/lib/vibekids/client-engagement";
 import { CREATIVE_KINDS } from "@/lib/vibekids/creative";
 import { gradientFromWorkId } from "@/lib/vibekids/work-card-visual";
+import { ageLabel } from "@/lib/vibekids/age";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 
 function kindLabel(id: string | undefined) {
@@ -96,7 +97,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
                 {kindLabel(work.kind)}
               </span>
               <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
-                {work.ageBand === "primary" ? "小学" : "初中"}
+                {ageLabel(work.ageBand)}
               </span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
@@ -151,7 +152,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
           {kindLabel(work.kind)}
         </span>
         <span className="text-xs text-slate-500">
-          {work.ageBand === "primary" ? "小学" : "初中"}
+          {ageLabel(work.ageBand)}
         </span>
       </div>
       <h2 className="text-lg font-semibold text-slate-900">{work.title}</h2>

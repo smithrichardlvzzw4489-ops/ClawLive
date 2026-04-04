@@ -22,33 +22,19 @@ export default async function Home() {
             说出想法，立刻看到作品
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-pretty text-lg text-slate-600">
-            面向小学和初中的氛围编程：场景不限——游戏、故事、小工具、页面都可以。先选模式，再在创作室里用一句话描述。
+            面向青少年的氛围编程：场景不限——游戏、故事、小工具、页面都可以。一句话可短可长：点快捷灵感快速开做，或把规则与界面写细。
           </p>
         </div>
 
-        <div className="mt-12 grid w-full max-w-3xl gap-4 sm:grid-cols-2">
+        <div className="mt-12 w-full max-w-xl">
           <Link
-            href="/studio?age=primary"
-            className="group rounded-3xl border-2 border-sky-200 bg-white/90 p-8 text-left shadow-sm transition hover:border-sky-400 hover:shadow-md"
+            href={`${VK_BASE}/studio`}
+            className="group block rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-white via-sky-50/40 to-violet-50/50 p-8 text-left shadow-sm transition hover:border-sky-400 hover:shadow-md"
           >
-            <span className="text-sm font-semibold text-sky-700">小学模式</span>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900">更大按钮，更快上手</h2>
+            <span className="text-sm font-semibold text-sky-700">创作室</span>
+            <h2 className="mt-2 text-2xl font-bold text-slate-900">简单一句或详细描述，同一套界面</h2>
             <p className="mt-2 text-slate-600">
-              快捷词多一点、说明短一点，先把东西「做出来、玩起来」。
-            </p>
-            <span className="mt-6 inline-flex items-center text-sm font-semibold text-sky-600 group-hover:underline">
-              进入创作室 →
-            </span>
-          </Link>
-
-          <Link
-            href={`${VK_BASE}/studio?age=middle`}
-            className="group rounded-3xl border-2 border-violet-200 bg-white/90 p-8 text-left shadow-sm transition hover:border-violet-400 hover:shadow-md"
-          >
-            <span className="text-sm font-semibold text-violet-700">初中模式</span>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900">描述更自由</h2>
-            <p className="mt-2 text-slate-600">
-              适合写得更细：规则、界面、交互都可以写进一句话里。
+              快捷灵感覆盖「先玩起来」与「写清楚规则」两种习惯；AI 会按你描述的长短自动对齐复杂度。
             </p>
             <span className="mt-6 inline-flex items-center text-sm font-semibold text-violet-600 group-hover:underline">
               进入创作室 →

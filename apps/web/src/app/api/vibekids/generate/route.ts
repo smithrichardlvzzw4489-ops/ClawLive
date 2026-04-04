@@ -223,6 +223,13 @@ async function callOpenRouter(
 }
 
 function ageUserHint(age: AgeBand): string {
+  if (age === "unified") {
+    return (
+      "用户可能是中小学生：界面按钮与可点区域要够大、说明简洁、反馈即时；" +
+      "若描述很短可优先「最小可玩原型」；" +
+      "若用户写得很细（规则、界面、交互），请认真按说明实现，整体仍要一目了然、适合未成年人。"
+    );
+  }
   return age === "primary"
     ? "用户是小学生：句子短、按钮大、说明少、反馈即时。"
     : "用户是初中生：可以稍复杂一点的逻辑与文案，但仍要一目了然。";
