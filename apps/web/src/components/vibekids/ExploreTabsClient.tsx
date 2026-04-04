@@ -8,7 +8,7 @@ import {
   EXCELLENT_CASES,
   type CaseDifficulty,
 } from "@/data/vibekids/cases";
-import { VK_BASE } from "@/lib/vibekids/constants";
+import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import { CREATIVE_KINDS } from "@/lib/vibekids/creative";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 import { WorkGridClient } from "./WorkGridClient";
@@ -35,14 +35,37 @@ type Props = {
   initialTab: ExploreTab;
 };
 
+function filterPublished(list: SavedWorkSummary[]): SavedWorkSummary[] {
+  return list.filter((w) => w.published === true);
+}
+
 export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<ExploreTab>(initialTab);
+  /** 发现流：客户端拉取，避免从「我的作品」发布后仍沿用导航缓存里的旧 RSC 数据 */
+  const [feedWorks, setFeedWorks] = useState<SavedWorkSummary[]>(publishedWorks);
 
   useEffect(() => {
     setTab(parseTab(searchParams.get("tab")));
   }, [searchParams]);
+
+  const refreshFeedWorks = useCallback(async () => {
+    try {
+      const res = await fetch(`${VK_API_BASE}/works`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = (await res.json()) as { works?: SavedWorkSummary[] };
+      const all = Array.isArray(data.works) ? data.works : [];
+      setFeedWorks(filterPublished(all));
+    } catch {
+      /* 保留当前 feedWorks */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab !== "feed") return;
+    void refreshFeedWorks();
+  }, [tab, refreshFeedWorks]);
 
   const setExploreTab = useCallback(
     (t: ExploreTab) => {
@@ -218,7 +241,7 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
             发布后再出现在这里。下滑自动加载，越刷越有。
           </div>
           <WorkGridClient
-            works={publishedWorks}
+            works={feedWorks}
             defaultSort="hot"
             immersive
             emptyHint="还没有已发布的作品。在创作室保存后，到「我的作品」点击「发布到广场」即可出现在此。"

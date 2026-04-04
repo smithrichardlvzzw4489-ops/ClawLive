@@ -5,13 +5,18 @@ import { rewardPointsFromQuality } from "@/lib/vibekids/work-quality";
 
 export const runtime = "nodejs";
 
+const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" };
+
 export async function GET() {
   try {
     const summaries = await getWorkSummaries();
-    return Response.json({ works: summaries });
+    return Response.json({ works: summaries }, { headers: NO_STORE });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "read_failed";
-    return Response.json({ error: msg, works: [] }, { status: 500 });
+    return Response.json(
+      { error: msg, works: [] },
+      { status: 500, headers: NO_STORE },
+    );
   }
 }
 
