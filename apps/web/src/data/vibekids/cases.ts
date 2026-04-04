@@ -1,6 +1,15 @@
 import type { AgeBand } from "@/lib/vibekids/age";
 import type { CreativeKind } from "@/lib/vibekids/creative";
 
+/** 官方案例难度（用于广场筛选） */
+export type CaseDifficulty = "beginner" | "intermediate" | "advanced";
+
+export const CASE_DIFFICULTY_LABEL: Record<CaseDifficulty, string> = {
+  beginner: "初级",
+  intermediate: "中级",
+  advanced: "高级",
+};
+
 export type CaseItem = {
   id: string;
   title: string;
@@ -10,6 +19,7 @@ export type CaseItem = {
   /** 带入创作室的一句话 */
   prompt: string;
   age: AgeBand;
+  difficulty: CaseDifficulty;
 };
 
 export const EXCELLENT_CASES: CaseItem[] = [
@@ -21,6 +31,7 @@ export const EXCELLENT_CASES: CaseItem[] = [
     kind: "game",
     prompt: "做一个接球小游戏：左右键移动托盘接球，有分数和重新开始",
     age: "primary",
+    difficulty: "beginner",
   },
   {
     id: "c2",
@@ -30,6 +41,7 @@ export const EXCELLENT_CASES: CaseItem[] = [
     kind: "tool",
     prompt: "做一个倒计时番茄钟：25 分钟，可开始暂停和重置，有大字显示剩余时间",
     age: "primary",
+    difficulty: "beginner",
   },
   {
     id: "c3",
@@ -39,6 +51,7 @@ export const EXCELLENT_CASES: CaseItem[] = [
     kind: "story",
     prompt: "做一个三段式互动小故事，每段有按钮进入下一段，最后有彩蛋句子",
     age: "primary",
+    difficulty: "intermediate",
   },
   {
     id: "c4",
@@ -48,6 +61,7 @@ export const EXCELLENT_CASES: CaseItem[] = [
     kind: "tool",
     prompt: "做一个长度单位换算小工具：米、厘米、毫米互转，输入一边另一边自动更新",
     age: "middle",
+    difficulty: "intermediate",
   },
   {
     id: "c5",
@@ -57,6 +71,7 @@ export const EXCELLENT_CASES: CaseItem[] = [
     kind: "game",
     prompt: "做一个简易像素画板：8x8 网格，选颜色点击填色，有清空按钮",
     age: "middle",
+    difficulty: "advanced",
   },
   {
     id: "c6",
@@ -66,5 +81,6 @@ export const EXCELLENT_CASES: CaseItem[] = [
     kind: "showcase",
     prompt: "做一个生日贺卡单页：大标题生日快乐、一句祝福、彩色按钮点击出现烟花或彩带动画",
     age: "middle",
+    difficulty: "intermediate",
   },
 ];
