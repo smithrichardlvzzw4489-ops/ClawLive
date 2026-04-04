@@ -70,16 +70,28 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-8 text-slate-900">
           <h1 className="text-lg font-semibold text-amber-950">暂时找不到这部作品</h1>
           <p className="mt-3 text-sm leading-relaxed text-amber-950/90">
-            链接若刚生成，在无持久磁盘或多实例部署下，预览页与保存接口可能不在同一台机器，会出现短暂
-            404。请从{" "}
+            在 Vercel 等多实例环境，若未配置共享存储，各机器上的作品列表互不可见。推荐在部署环境配置{" "}
+            <strong className="font-semibold">Upstash Redis</strong>（环境变量{" "}
+            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
+              VIBEKIDS_UPSTASH_REDIS_REST_URL
+            </code>{" "}
+            与{" "}
+            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
+              VIBEKIDS_UPSTASH_REDIS_REST_TOKEN
+            </code>
+            ，或通用{" "}
+            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
+              UPSTASH_REDIS_REST_*
+            </code>
+            ）。亦可使用可写持久卷并设置{" "}
+            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
+              VIBEKIDS_DATA_DIR
+            </code>
+            。也可从{" "}
             <Link href={`${VK_BASE}/my-works`} className="font-semibold text-violet-800 underline">
               我的作品
             </Link>{" "}
-            再点「预览」重试；长期稳定访问请在服务器配置{" "}
-            <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-xs">
-              VIBEKIDS_DATA_DIR
-            </code>{" "}
-            指向可写持久目录。
+            再点「预览」重试。
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link

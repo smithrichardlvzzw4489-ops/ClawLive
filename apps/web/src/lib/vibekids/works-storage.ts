@@ -4,6 +4,11 @@ import path from "path";
 import type { AgeBand } from "@/lib/vibekids/age";
 import { getVibekidsDataDir } from "@/lib/vibekids/data-dir";
 import type { CreativeKind } from "@/lib/vibekids/creative";
+import {
+  redisGetWorksJson,
+  redisSetWorksJson,
+  vibekidsWorksRedisEnabled,
+} from "@/lib/vibekids/works-redis";
 import { spotlightRank } from "@/lib/vibekids/work-sort";
 import { computeQualityScore } from "@/lib/vibekids/work-quality";
 
@@ -68,41 +73,61 @@ export function extractTitleFromHtml(html: string, fallback: string): string {
   return fallback.slice(0, 80) || "未命名作品";
 }
 
+function normalizeWorksArray(parsed: unknown): SavedWork[] {
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .filter(
+      (x): x is SavedWork =>
+        typeof x === "object" &&
+        x !== null &&
+        "id" in x &&
+        "html" in x &&
+        typeof (x as SavedWork).id === "string",
+    )
+    .map((w) => ({
+      ...w,
+      likes: typeof w.likes === "number" && w.likes >= 0 ? w.likes : 0,
+      qualityScore:
+        typeof w.qualityScore === "number" && w.qualityScore >= 0 ?
+          Math.min(100, w.qualityScore)
+        : undefined,
+      spotlightRequested: Boolean(w.spotlightRequested),
+      published:
+        typeof (w as SavedWork).published === "boolean" ?
+          (w as SavedWork).published
+        : true,
+    }));
+}
+
 async function readRaw(): Promise<SavedWork[]> {
+  if (vibekidsWorksRedisEnabled()) {
+    try {
+      const raw = await redisGetWorksJson();
+      if (raw == null) return [];
+      const parsed = JSON.parse(raw) as unknown;
+      return normalizeWorksArray(parsed);
+    } catch {
+      return [];
+    }
+  }
+
   try {
     const raw = await fs.readFile(worksFile(), "utf-8");
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(
-        (x): x is SavedWork =>
-          typeof x === "object" &&
-          x !== null &&
-          "id" in x &&
-          "html" in x &&
-          typeof (x as SavedWork).id === "string",
-      )
-      .map((w) => ({
-        ...w,
-        likes: typeof w.likes === "number" && w.likes >= 0 ? w.likes : 0,
-        qualityScore:
-          typeof w.qualityScore === "number" && w.qualityScore >= 0 ?
-            Math.min(100, w.qualityScore)
-          : undefined,
-        spotlightRequested: Boolean(w.spotlightRequested),
-        published:
-          typeof (w as SavedWork).published === "boolean" ?
-            (w as SavedWork).published
-          : true,
-      }));
+    return normalizeWorksArray(parsed);
   } catch {
     return [];
   }
 }
 
 async function writeRaw(works: SavedWork[]): Promise<void> {
+  const payload = JSON.stringify(works, null, 2);
+  if (vibekidsWorksRedisEnabled()) {
+    await redisSetWorksJson(payload);
+    return;
+  }
   await fs.mkdir(getVibekidsDataDir(), { recursive: true });
-  await fs.writeFile(worksFile(), JSON.stringify(works, null, 2), "utf-8");
+  await fs.writeFile(worksFile(), payload, "utf-8");
 }
 
 export async function getWorks(): Promise<SavedWork[]> {
