@@ -1,39 +1,30 @@
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
+import { workListingScore } from "@/lib/vibekids/work-points";
 
-export type WorkSortMode = "new" | "likes" | "hot" | "spotlight";
+export type WorkSortMode = "new" | "likes" | "score" | "hot";
 
 function daysSinceCreated(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 86_400_000;
 }
 
-/** 新发布温和加成（指数衰减），减轻「只有老作品占榜」的马太效应 */
+/** 新发布温和加成（指数衰减） */
 function newWorkBoost(days: number, scale: number): number {
   if (days >= 8 || days < 0) return 0;
   return scale * Math.exp(-days / 2.8);
 }
 
-/** 精选排序：综合质量分、赞、精选候选与时间新鲜度（供 client sort 与 server 列表共用） */
+/** 首页横滑与「作品分」排序：5 + 赞，并带一点新鲜度 */
 export function spotlightRank(w: SavedWorkSummary): number {
-  const q = w.qualityScore ?? 0;
-  const l = w.likes ?? 0;
-  const boost = w.spotlightRequested ? 25 : 0;
+  const base = workListingScore(w);
   const days = daysSinceCreated(w.createdAt);
-  const freshness = Math.max(0, 18 - days * 0.8);
-  return (
-    q * 1.2 +
-    4 * Math.log1p(l) +
-    boost +
-    freshness +
-    newWorkBoost(days, 5)
-  );
+  return base + newWorkBoost(days, 4);
 }
 
-/** 热度：赞数 + 新内容加权（时间衰减） */
+/** 热门：作品分 + 更强的新内容加权 */
 export function hotScore(w: SavedWorkSummary): number {
-  const likes = w.likes ?? 0;
+  const base = workListingScore(w);
   const days = daysSinceCreated(w.createdAt);
-  const base = likes * 3 + 28 / (1 + days * 0.35);
-  return base + newWorkBoost(days, 11);
+  return base + newWorkBoost(days, 6);
 }
 
 export function sortWorks(
@@ -50,8 +41,10 @@ export function sortWorks(
   if (mode === "likes") {
     return copy.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
   }
-  if (mode === "spotlight") {
-    return copy.sort((a, b) => spotlightRank(b) - spotlightRank(a));
+  if (mode === "score") {
+    return copy.sort(
+      (a, b) => workListingScore(b) - workListingScore(a),
+    );
   }
   return copy.sort((a, b) => hotScore(b) - hotScore(a));
 }

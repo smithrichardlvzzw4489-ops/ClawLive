@@ -238,7 +238,7 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
             <Link href={`${VK_BASE}/my-works`} className="font-semibold underline underline-offset-2">
               我的作品
             </Link>{" "}
-            发布后再出现在这里。「热门」排序会给<strong>新发布</strong>作品一小段曝光加成。下滑自动加载，越刷越有。
+            发布后再出现在这里。积分规则：发布 5 分、每赞 1 分；「热门」在分数基础上给新作品一点加成。下滑自动加载。
           </div>
           <WorkGridClient
             works={feedWorks}

@@ -1,7 +1,6 @@
 import { parseAgeBand } from "@/lib/vibekids/age";
 import { parseKind } from "@/lib/vibekids/creative";
 import { getWorkSummaries, saveWork } from "@/lib/vibekids/works-storage";
-import { rewardPointsFromQuality } from "@/lib/vibekids/work-quality";
 
 export const runtime = "nodejs";
 
@@ -34,7 +33,6 @@ export async function POST(req: Request) {
     prompt?: unknown;
     kind?: unknown;
     title?: unknown;
-    spotlightRequested?: unknown;
   };
 
   const html = typeof b.html === "string" ? b.html : "";
@@ -46,7 +44,6 @@ export async function POST(req: Request) {
   const prompt = typeof b.prompt === "string" ? b.prompt : undefined;
   const title = typeof b.title === "string" ? b.title : undefined;
   const kind = parseKind(b.kind);
-  const spotlightRequested = b.spotlightRequested === true;
 
   try {
     const work = await saveWork({
@@ -55,17 +52,12 @@ export async function POST(req: Request) {
       prompt,
       title,
       kind,
-      spotlightRequested,
     });
-    const qs = work.qualityScore ?? 0;
-    const rewardPointsEarned = rewardPointsFromQuality(qs);
     return Response.json({
       ok: true,
       id: work.id,
       title: work.title,
       createdAt: work.createdAt,
-      qualityScore: qs,
-      rewardPointsEarned,
       published: work.published,
     });
   } catch (e) {

@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { WorkEngagementBar } from "@/components/vibekids/WorkEngagementBar";
 import { WorkViewer } from "@/components/vibekids/WorkViewer";
 import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import type { AgeBand } from "@/lib/vibekids/age";
+import { getClientId } from "@/lib/vibekids/client-credits";
+import type { WorkComment } from "@/lib/vibekids/works-storage";
 
 export type VibekidsWorkPayload = {
   id: string;
@@ -13,6 +16,11 @@ export type VibekidsWorkPayload = {
   prompt?: string;
   published: boolean;
   ageBand: AgeBand;
+  likes: number;
+  shares: number;
+  favorites: number;
+  comments: WorkComment[];
+  viewerFavorited: boolean;
 };
 
 type Props = {
@@ -31,8 +39,10 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
     let cancelled = false;
     (async () => {
       try {
+        const cid = getClientId();
+        const q = cid ? `?clientId=${encodeURIComponent(cid)}` : "";
         const res = await fetch(
-          `${VK_API_BASE}/works/${encodeURIComponent(workId)}`,
+          `${VK_API_BASE}/works/${encodeURIComponent(workId)}${q}`,
           { cache: "no-store" },
         );
         if (!res.ok) {
@@ -55,6 +65,30 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
       cancelled = true;
     };
   }, [workId, serverWork]);
+
+  useEffect(() => {
+    if (!serverWork) return;
+    let cancelled = false;
+    const cid = getClientId();
+    if (!cid) return;
+    (async () => {
+      try {
+        const res = await fetch(
+          `${VK_API_BASE}/works/${encodeURIComponent(workId)}?clientId=${encodeURIComponent(cid)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { work?: VibekidsWorkPayload };
+        if (cancelled || !data.work?.html) return;
+        setWork(data.work);
+      } catch {
+        /* keep serverWork */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [serverWork, workId]);
 
   if (phase === "loading") {
     return (
@@ -145,6 +179,17 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
           </Link>
         </div>
       </div>
+
+      <WorkEngagementBar
+        workId={work.id}
+        published={work.published}
+        initialLikes={work.likes}
+        initialShares={work.shares}
+        initialFavorites={work.favorites}
+        initialComments={work.comments}
+        initialViewerFavorited={work.viewerFavorited}
+      />
+
       <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-2">
         <WorkViewer html={work.html} />
       </div>

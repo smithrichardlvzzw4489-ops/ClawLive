@@ -1,15 +1,11 @@
 import Link from "next/link";
-import { CreatorFlywheelPanel } from "@/components/vibekids/CreatorFlywheelPanel";
 import { VK_BASE } from "@/lib/vibekids/constants";
-import { DailyChallenge } from "@/components/vibekids/DailyChallenge";
 import { FeaturedStrip } from "@/components/vibekids/FeaturedStrip";
 import { SiteNav } from "@/components/vibekids/SiteNav";
-import { VibekidsIncentiveGuide } from "@/components/vibekids/VibekidsIncentiveGuide";
-import { WeeklyQuestsPanel } from "@/components/vibekids/WeeklyQuestsPanel";
 import { getSpotlightSummaries } from "@/lib/vibekids/works-storage";
 
 export default async function Home() {
-  const spotlight = await getSpotlightSummaries(8);
+  const featured = await getSpotlightSummaries(8);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -44,21 +40,7 @@ export default async function Home() {
         </div>
 
         <div className="mt-12 w-full max-w-4xl">
-          <FeaturedStrip works={spotlight} />
-        </div>
-
-        <div className="mt-8 w-full max-w-2xl px-1">
-          <VibekidsIncentiveGuide />
-        </div>
-
-        <DailyChallenge />
-
-        <div className="mt-10 w-full max-w-lg">
-          <WeeklyQuestsPanel />
-        </div>
-
-        <div className="mt-8 w-full max-w-lg">
-          <CreatorFlywheelPanel />
+          <FeaturedStrip works={featured} />
         </div>
 
         <p className="mt-10 max-w-lg text-center text-sm text-slate-500">

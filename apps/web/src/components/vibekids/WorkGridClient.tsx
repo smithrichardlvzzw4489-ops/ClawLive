@@ -104,7 +104,7 @@ export function WorkGridClient({
       {(
         [
           ["new", "最新"],
-          ["spotlight", "精选"],
+          ["score", "作品分"],
           ["likes", "最多赞"],
           ["hot", "热门"],
         ] as const

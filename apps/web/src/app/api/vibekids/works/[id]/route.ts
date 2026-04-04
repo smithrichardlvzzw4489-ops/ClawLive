@@ -1,12 +1,24 @@
+import {
+  favoriteDedupeHas,
+  favoriteDedupeKey,
+} from "@/lib/vibekids/favorite-dedupe";
 import { getWorkById, setWorkPublished } from "@/lib/vibekids/works-storage";
 
 export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" };
 
+function parseClientId(url: URL): string | null {
+  const raw = url.searchParams.get("clientId");
+  if (typeof raw !== "string" || !/^[a-zA-Z0-9_-]{8,80}$/.test(raw)) {
+    return null;
+  }
+  return raw;
+}
+
 /** 单条作品（含 html），供预览页在 SSR 未命中时由客户端重试；与页面 SSR 同源存储 */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { id: string } },
 ) {
   const { id } = params;
@@ -18,6 +30,13 @@ export async function GET(
     if (!work) {
       return Response.json({ error: "not_found" }, { status: 404, headers: NO_STORE });
     }
+    const url = new URL(req.url);
+    const clientId = parseClientId(url);
+    const viewerFavorited =
+      clientId ?
+        await favoriteDedupeHas(favoriteDedupeKey(clientId, id))
+      : false;
+    const comments = work.comments ?? [];
     return Response.json(
       {
         work: {
@@ -27,6 +46,11 @@ export async function GET(
           prompt: work.prompt,
           published: work.published,
           ageBand: work.ageBand,
+          likes: work.likes ?? 0,
+          shares: work.shares ?? 0,
+          favorites: work.favorites ?? 0,
+          comments,
+          viewerFavorited,
         },
       },
       { headers: NO_STORE },

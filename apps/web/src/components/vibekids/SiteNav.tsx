@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { NavQuestBadge } from "@/components/vibekids/NavQuestBadge";
 import { VK_BASE } from "@/lib/vibekids/constants";
 
 type Props = {
@@ -33,10 +32,7 @@ export function SiteNav({ active }: Props) {
           VibeKids
         </Link>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          <span className="relative inline-flex items-center">
-            {link(b, "home", "首页")}
-            <NavQuestBadge />
-          </span>
+          {link(b, "home", "首页")}
           {link(`${b}/explore`, "explore", "作品广场")}
           {link(`${b}/my-works`, "myworks", "我的作品")}
           <Link

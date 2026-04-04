@@ -14,38 +14,16 @@ import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
 import { GenerationSkeleton } from "@/components/vibekids/GenerationSkeleton";
-import { CreatorFlywheelPanel } from "@/components/vibekids/CreatorFlywheelPanel";
-import { GamificationBar } from "@/components/vibekids/GamificationBar";
-import { WeeklyQuestsPanel } from "@/components/vibekids/WeeklyQuestsPanel";
-import {
-  bumpWeeklyGen,
-  bumpWeeklySave,
-  getPromptHistory,
-  pushPromptHistory,
-} from "@/lib/vibekids/client-engagement";
 import { getClientId } from "@/lib/vibekids/client-credits";
 import {
-  consumeSpotlightCredit,
-  earnCreatorPoints,
-  hasSpotlightCredit,
-} from "@/lib/vibekids/client-rewards";
+  getPromptHistory,
+  pushPromptHistory,
+} from "@/lib/vibekids/client-prompt-history";
 import {
-  getEngagementNudge,
-  loadGamification,
-  touchStreak,
-  recordGenerationSuccess,
-  recordSaveSuccess,
   loadDraft,
   saveDraft,
   clearDraft,
-  type GamificationState,
-} from "@/lib/vibekids/client-gamification";
-import {
-  ENCOURAGEMENTS,
-  NEXT_EDIT_SUGGESTIONS,
-  randomPick,
-  randomPickN,
-} from "@/data/vibekids/gamification-messages";
+} from "@/lib/vibekids/client-studio-draft";
 import { clientVibekidsFetchMs } from "@/lib/vibekids/generate-timeouts";
 
 /** 略大于服务端墙钟截止，便于拿到 JSON 错误体 */
@@ -121,6 +99,16 @@ const CHIPS_MIDDLE = [
 
 const ALL_CHIPS = [...CHIPS_PRIMARY, ...CHIPS_MIDDLE];
 
+function randomPickN<T>(arr: T[], n: number): T[] {
+  const copy = [...arr];
+  const out: T[] = [];
+  while (copy.length && out.length < n) {
+    const i = Math.floor(Math.random() * copy.length);
+    out.push(copy.splice(i, 1)[0]!);
+  }
+  return out;
+}
+
 function mergeChip(current: string, chip: string): string {
   const t = current.trim();
   if (!t) return chip;
@@ -173,8 +161,6 @@ export function StudioClient() {
   const [saveTitle, setSaveTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [gState, setGState] = useState<GamificationState>(loadGamification);
-  const [nextChips, setNextChips] = useState<string[]>([]);
   const [promptHist, setPromptHist] = useState<string[]>([]);
   const draftRestored = useRef(false);
 
@@ -230,17 +216,7 @@ export function StudioClient() {
   }, []);
 
   useEffect(() => {
-    setGState(touchStreak());
-  }, []);
-
-  useEffect(() => {
     setPromptHist(getPromptHistory());
-  }, []);
-
-  useEffect(() => {
-    const up = () => setGState(loadGamification());
-    window.addEventListener("vibekids-gamification-refresh", up);
-    return () => window.removeEventListener("vibekids-gamification-refresh", up);
   }, []);
 
   useEffect(() => {
@@ -361,29 +337,17 @@ export function StudioClient() {
         const tech = data.detail.slice(0, 200);
         const extra = data.hint ? ` ${data.hint}` : "";
         setNotice(`AI 暂时不可用，已保留上一版或演示。技术信息：${tech}${extra}`);
-        setNextChips([]);
       } else if (data.warning === "refine_needs_ai" && data.detail) {
         setNotice(data.detail);
-        setNextChips([]);
       } else if (!data.warning) {
-        const r = recordGenerationSuccess();
-        setGState(r.state);
-        bumpWeeklyGen();
         if (opts?.intent !== "refine") {
           pushPromptHistory(prompt.trim());
           setPromptHist(getPromptHistory());
         }
-        setNextChips(randomPickN(NEXT_EDIT_SUGGESTIONS, 3));
-        const base = randomPick(ENCOURAGEMENTS);
-        const xpParts = [`+${r.totalXp} XP`];
-        if (r.megaCrit) xpParts.push("超级暴击");
-        if (r.weekendBoost) xpParts.push("周末×1.5");
         const prefix = opts?.authFallback ? "登录已失效，已改用访客生成。" : "";
-        const sep = prefix ? " " : "";
-        setNotice(`${prefix}${sep}${base}（${xpParts.join(" · ")}）`);
+        setNotice(prefix ? `${prefix} 生成完成。` : "生成完成。");
       } else {
         setNotice(null);
-        setNextChips([]);
       }
       return true;
     },
@@ -672,7 +636,6 @@ export function StudioClient() {
     setRefinePrompt("");
     setLockHint("");
     setSaveTitle("");
-    setNextChips([]);
     setDarwinDirections([]);
     clearDraft();
   }, []);
@@ -684,7 +647,6 @@ export function StudioClient() {
     }
     setSaving(true);
     setNotice(null);
-    const useSpotlight = hasSpotlightCredit();
     try {
       const res = await fetch(`${VK_API_BASE}/works`, {
         method: "POST",
@@ -695,7 +657,6 @@ export function StudioClient() {
           prompt: prompt.trim() || undefined,
           kind,
           title: saveTitle.trim() || undefined,
-          spotlightRequested: useSpotlight,
         }),
       });
       const data = (await res.json()) as {
@@ -704,8 +665,6 @@ export function StudioClient() {
         title?: string;
         error?: string;
         detail?: string;
-        qualityScore?: number;
-        rewardPointsEarned?: number;
       };
       if (!res.ok) {
         const msg =
@@ -718,30 +677,8 @@ export function StudioClient() {
         return;
       }
       if (data.ok && data.id) {
-        if (useSpotlight) consumeSpotlightCredit();
-        if (typeof data.rewardPointsEarned === "number") {
-          earnCreatorPoints(data.rewardPointsEarned);
-        }
-        const r = recordSaveSuccess();
-        setGState(r.state);
-        bumpWeeklySave();
-        const xpParts = [`+${r.totalXp} XP`];
-        if (r.megaCrit) xpParts.push("超级暴击");
-        if (r.weekendBoost) xpParts.push("周末×1.5");
-        const qs =
-          typeof data.qualityScore === "number" ?
-            ` 优质分 ${data.qualityScore}`
-          : "";
-        const rp =
-          typeof data.rewardPointsEarned === "number" ?
-            ` · 创作积分 +${data.rewardPointsEarned}`
-          : "";
-        const spot =
-          useSpotlight ? " · 已使用精选曝光券，已加权进精选排序" : "";
         setNotice(
-          `已保存「${data.title ?? "作品"}」。${qs}${rp}${spot} ${xpParts.join(
-            " · ",
-          )}。默认未发布：在「我的作品」中点「发布到广场」后才会出现在作品广场「发现」。预览：${VK_BASE}/works/${data.id}`,
+          `已保存「${data.title ?? "作品"}」。在「我的作品」中发布到广场后计 5 分；他人点赞每条计 1 分。默认未发布。预览：${VK_BASE}/works/${data.id}`,
         );
         if (typeof Notification !== "undefined" && Notification.permission === "default") {
           void Notification.requestPermission();
@@ -774,10 +711,10 @@ export function StudioClient() {
           </span>
         </div>
 
-        <GamificationBar
-          state={gState}
-          nudge={getEngagementNudge(gState)}
-        />
+        <p className="rounded-2xl border border-amber-100 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950">
+          作品<strong>发布到广场</strong>计 <strong>5</strong> 分，每收到{" "}
+          <strong>1</strong> 个赞计 <strong>1</strong> 分。
+        </p>
 
         {creditsInfo ? (
           <p className="rounded-2xl border border-sky-100 bg-sky-50/90 px-3 py-2 text-xs text-sky-950">
@@ -798,10 +735,6 @@ export function StudioClient() {
         ) : (
           <p className="text-xs text-slate-400">正在读取生成额度…</p>
         )}
-
-        <WeeklyQuestsPanel />
-
-        <CreatorFlywheelPanel />
 
         <div>
           <p className="mb-2 text-sm font-medium text-slate-800">作品形态（帮助对齐交互）</p>
@@ -1021,28 +954,10 @@ export function StudioClient() {
           </button>
         </div>
 
-        {nextChips.length > 0 ? (
-          <div className="rounded-2xl border border-violet-100 bg-violet-50/60 p-3">
-            <p className="mb-2 text-xs font-medium text-violet-900">推荐下一步（点一下填入快速修改）</p>
-            <div className="flex flex-wrap gap-2">
-              {nextChips.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setRefinePrompt(c)}
-                  className="rounded-full border border-violet-200 bg-white px-4 py-1.5 text-left text-sm text-violet-900 sm:max-w-[14rem]"
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
         <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-4">
           <p className="mb-2 text-sm font-semibold text-emerald-900">保存作品</p>
           <p className="mb-3 text-xs text-emerald-800/90">
-            将当前预览的页面写入服务器，长期保留，并出现在作品广场（发现 / 长廊等视图）中。
+            将当前预览写入服务器。默认不公开；在「我的作品」发布到广场后才会出现在「发现」，并可被转发、点赞、收藏、评论。
           </p>
           <label htmlFor="save-title" className="mb-1 block text-xs font-medium text-emerald-900">
             标题（可选，不填则从页面自动提取）

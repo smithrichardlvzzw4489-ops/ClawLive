@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
-import { bumpWeeklyLike } from "@/lib/vibekids/client-engagement";
 import { CREATIVE_KINDS } from "@/lib/vibekids/creative";
 import { gradientFromWorkId } from "@/lib/vibekids/work-card-visual";
 import { ageLabel } from "@/lib/vibekids/age";
 import { playHintLine } from "@/lib/vibekids/work-card-hint";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
+import { workListingScore } from "@/lib/vibekids/work-points";
 
 function kindLabel(id: string | undefined) {
   if (!id || id === "any") return "不限";
@@ -36,6 +36,7 @@ type Props = {
 
 export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
   const [likes, setLikes] = useState(work.likes ?? 0);
+  const [shares, setShares] = useState(work.shares ?? 0);
   const [busy, setBusy] = useState(false);
 
   const like = useCallback(
@@ -50,7 +51,6 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
         const data = (await res.json()) as { ok?: boolean; likes?: number };
         if (res.ok && typeof data.likes === "number") {
           setLikes(data.likes);
-          bumpWeeklyLike();
         }
       } catch {
         /* */
@@ -60,6 +60,27 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
     },
     [work.id],
   );
+
+  const share = useCallback(
+    async (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        const res = await fetch(`${VK_API_BASE}/works/${work.id}/share`, {
+          method: "POST",
+        });
+        const data = (await res.json()) as { shares?: number };
+        if (res.ok && typeof data.shares === "number") setShares(data.shares);
+      } catch {
+        /* */
+      }
+    },
+    [work.id],
+  );
+
+  const favs = work.favorites ?? 0;
+  const comments = work.commentCount ?? 0;
+  const score = workListingScore(work);
 
   if (variant === "feed") {
     const g = gradientFromWorkId(work.id);
@@ -84,16 +105,9 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
             <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-              {work.qualityScore != null && work.qualityScore >= 62 ? (
-                <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow-sm">
-                  优质
-                </span>
-              ) : null}
-              {work.spotlightRequested ? (
-                <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-                  精选候选
-                </span>
-              ) : null}
+              <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-800 shadow-sm">
+                分 {score}
+              </span>
               <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-800 shadow-sm">
                 {kindLabel(work.kind)}
               </span>
@@ -111,16 +125,27 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
               <p className="mt-2 text-[10px] text-white/65">{formatTime(work.createdAt)}</p>
             </div>
           </Link>
-          <div className="flex items-center justify-between gap-2 border-t border-slate-100 bg-white/95 px-3 py-2.5">
-            <button
-              type="button"
-              onClick={like}
-              disabled={busy}
-              className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-50 to-pink-50 px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200/80 transition hover:from-rose-100 hover:to-pink-100 disabled:opacity-50"
-            >
-              <span aria-hidden>❤️</span>
-              {likes}
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-white/95 px-3 py-2.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={share}
+                className="rounded-full border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-semibold text-sky-900"
+              >
+                转 {shares}
+              </button>
+              <button
+                type="button"
+                onClick={like}
+                disabled={busy}
+                className="inline-flex items-center gap-0.5 rounded-full bg-gradient-to-r from-rose-50 to-pink-50 px-2.5 py-1 text-[10px] font-semibold text-rose-700 ring-1 ring-rose-200/80 transition hover:from-rose-100 hover:to-pink-100 disabled:opacity-50"
+              >
+                <span aria-hidden>❤️</span>
+                {likes}
+              </button>
+              <span className="text-[10px] text-slate-500">⭐{favs}</span>
+              <span className="text-[10px] text-slate-500">💬{comments}</span>
+            </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Link
                 href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
@@ -151,6 +176,9 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
         <span className="text-xs text-slate-500">
           {ageLabel(work.ageBand)}
         </span>
+        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">
+          作品分 {score}
+        </span>
       </div>
       <h2 className="text-lg font-semibold text-slate-900">{work.title}</h2>
       <p className="mt-1.5 text-xs font-medium text-violet-700/90">
@@ -160,12 +188,21 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
+          onClick={share}
+          className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-900 transition hover:bg-sky-100"
+        >
+          转发 {shares}
+        </button>
+        <button
+          type="button"
           onClick={like}
           disabled={busy}
           className="rounded-full border border-pink-200 bg-pink-50 px-3 py-1 text-xs font-medium text-pink-800 transition hover:bg-pink-100 disabled:opacity-50"
         >
-          👍 {likes}
+          赞 {likes}
         </button>
+        <span className="text-xs text-slate-600">⭐{favs}</span>
+        <span className="text-xs text-slate-600">💬{comments}</span>
         <Link
           href={`${VK_BASE}/works/${work.id}`}
           className="inline-flex w-fit items-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-800 transition hover:bg-violet-100"

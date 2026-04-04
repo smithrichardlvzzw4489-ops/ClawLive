@@ -19,6 +19,11 @@ function toPayload(w: SavedWork): VibekidsWorkPayload {
     prompt: w.prompt,
     published: w.published,
     ageBand: w.ageBand,
+    likes: w.likes ?? 0,
+    shares: w.shares ?? 0,
+    favorites: w.favorites ?? 0,
+    comments: w.comments ?? [],
+    viewerFavorited: false,
   };
 }
 

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { EngagementReminder } from "@/components/vibekids/EngagementReminder";
 import "./vk-globals.css";
 
 export const metadata: Metadata = {
@@ -9,10 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function VibeKidsLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <EngagementReminder />
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }

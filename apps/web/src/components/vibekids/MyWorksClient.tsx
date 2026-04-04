@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
+import { workListingScore } from "@/lib/vibekids/work-points";
 
 function likeCount(n: number | undefined) {
   const v = n ?? 0;
@@ -134,15 +135,15 @@ export function MyWorksClient() {
               ) : null}
               {w.published ? (
                 <p className="mt-2 text-xs text-emerald-800/90">
-                  {likeCount(w.likes)} · 在{" "}
+                  作品分 {workListingScore(w)}（发布 5 分 + 赞 ×1）· {likeCount(w.likes)} · 在{" "}
                   <Link href={`${VK_BASE}/explore`} className="font-medium underline">
                     作品广场
                   </Link>{" "}
-                  被看到；撤回发布后点赞数仍保留
+                  可转发、点赞、收藏、评论；撤回发布后数据仍保留
                 </p>
               ) : (
                 <p className="mt-2 text-xs text-slate-500">
-                  未发布时仅自己可打开预览；发布后他人可在广场点赞
+                  未发布时仅自己可打开预览；发布后他人可在广场互动
                 </p>
               )}
             </div>

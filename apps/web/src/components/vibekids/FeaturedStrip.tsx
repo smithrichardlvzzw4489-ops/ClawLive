@@ -2,12 +2,13 @@ import Link from "next/link";
 import { VK_BASE } from "@/lib/vibekids/constants";
 import { playHintLine } from "@/lib/vibekids/work-card-hint";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
+import { workListingScore } from "@/lib/vibekids/work-points";
 
 type Props = {
   works: SavedWorkSummary[];
 };
 
-/** 可传播的展示位：首页横滑精选（按 spotlightRank 由服务端预排序） */
+/** 首页横滑（按作品分与新鲜度预排序） */
 export function FeaturedStrip({ works }: Props) {
   if (works.length === 0) return null;
 
@@ -17,7 +18,7 @@ export function FeaturedStrip({ works }: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-900">精选展示</h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            综合优质分、点赞、曝光券与新鲜度；新作品也有一小段加成，方便被看见
+            发布计 5 分、每赞 1 分；排序会参考分数与新鲜度
           </p>
         </div>
         <Link
@@ -36,16 +37,9 @@ export function FeaturedStrip({ works }: Props) {
           >
             <div className="flex aspect-[4/5] flex-col justify-between bg-gradient-to-br from-violet-100/90 via-fuchsia-50 to-amber-50 p-3">
               <div className="flex flex-wrap gap-1">
-                {w.qualityScore != null && w.qualityScore >= 62 ? (
-                  <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow-sm">
-                    优质
-                  </span>
-                ) : null}
-                {w.spotlightRequested ? (
-                  <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-                    精选候选
-                  </span>
-                ) : null}
+                <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-slate-800 shadow-sm">
+                  分 {workListingScore(w)}
+                </span>
               </div>
               <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900 group-hover:text-violet-900">
                 {w.title}
