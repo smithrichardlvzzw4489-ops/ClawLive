@@ -33,10 +33,10 @@ const LOG_LINES_REFINE = [
 ];
 
 const PATIENCE_LINES = [
-  "还在推理中，页面越长等得越久",
-  "复杂小游戏要多推演几步规则",
-  "快好了，正在把最后一屏写完整",
-  "若超过几分钟仍无结果，可刷新后缩短描述重试",
+  "产品硬性限时约 30 秒，请稍候",
+  "复杂描述更容易触顶，下次可先做最小版本",
+  "快好了，正在收口这一屏",
+  "若超时，请缩短功能点或拆成两版生成",
 ];
 
 type Props = {
@@ -97,7 +97,9 @@ export function GenerationSkeleton({ mode = "create" }: Props) {
         <div>
           <p className="text-sm font-semibold text-sky-900">{headline}</p>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-            下面是在「表演」创作过程，帮你感知进度；实际由模型在后台一次性完成。
+            下面是在「表演」创作过程，帮你感知进度；服务端对单次生成/修改有{" "}
+            <strong className="font-medium text-slate-600">约 30 秒</strong>{" "}
+            硬性上限，超时请简化描述后重试。
           </p>
         </div>
       </div>
@@ -174,8 +176,9 @@ export function GenerationSkeleton({ mode = "create" }: Props) {
           {PATIENCE_LINES[patienceIdx]}
         </p>
         <p className="text-xs text-slate-500">
-          长页面可能需要 <strong className="font-medium text-slate-600">1～3 分钟</strong>
-          ，请勿关闭标签页；完成后预览会自动出现。
+          请勿关闭标签页；正常情况下{" "}
+          <strong className="font-medium text-slate-600">数十秒内</strong>{" "}
+          会出结果，最长不超过约 30 秒（超时将失败并提示重试）。
         </p>
       </div>
 

@@ -46,6 +46,9 @@ import {
   randomPickN,
 } from "@/data/vibekids/gamification-messages";
 
+/** 略大于服务端 30s 硬性截止，便于拿到 JSON 错误体 */
+const VIBEKIDS_CLIENT_FETCH_MS = 32_000;
+
 /** 已登录时走 ClawLive 后端 Darwin（LiteLLM + 平台虚拟 Key），与 /my-lobster 同源；未登录走 Next 上 OpenRouter/演示 */
 function getVibekidsLlmEndpoint(): {
   url: string;
@@ -78,6 +81,7 @@ async function postVibekidsLlm(
     method: "POST",
     headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
   });
   if (res.status === 401 && extraHeaders.Authorization) {
     try {
@@ -89,6 +93,7 @@ async function postVibekidsLlm(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
     });
     return { res, usedAuthFallback: true };
   }
@@ -452,8 +457,15 @@ export function StudioClient() {
         return;
       }
       handleApiResponse(data, { intent: "create", authFallback: usedAuthFallback });
-    } catch {
-      setNotice("网络异常，检查一下连接后再试。");
+    } catch (e) {
+      if (
+        e instanceof DOMException &&
+        (e.name === "AbortError" || e.name === "TimeoutError")
+      ) {
+        setNotice("已超过约 30 秒未完成，请缩短描述后重试。");
+      } else {
+        setNotice("网络异常，检查一下连接后再试。");
+      }
     } finally {
       setLoading(null);
     }
@@ -541,8 +553,15 @@ export function StudioClient() {
       if (data.warning !== "ai_failed" && data.warning !== "refine_needs_ai") {
         setRefinePrompt("");
       }
-    } catch {
-      setNotice("网络异常，检查一下连接后再试。");
+    } catch (e) {
+      if (
+        e instanceof DOMException &&
+        (e.name === "AbortError" || e.name === "TimeoutError")
+      ) {
+        setNotice("已超过约 30 秒未完成，请简化修改说明后重试。");
+      } else {
+        setNotice("网络异常，检查一下连接后再试。");
+      }
     } finally {
       setLoading(null);
     }
@@ -575,6 +594,7 @@ export function StudioClient() {
           kind,
           styles,
         }),
+        signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
       });
       if (res.status === 401) {
         try {
@@ -623,8 +643,15 @@ export function StudioClient() {
         return;
       }
       setDarwinDirections(dirs.slice(0, 3));
-    } catch {
-      setNotice("网络异常，拓展方案请求失败。");
+    } catch (e) {
+      if (
+        e instanceof DOMException &&
+        (e.name === "AbortError" || e.name === "TimeoutError")
+      ) {
+        setNotice("拓展方案请求超时（约 30 秒），请稍后再试。");
+      } else {
+        setNotice("网络异常，拓展方案请求失败。");
+      }
     } finally {
       setDarwinBrainstormLoading(false);
     }
