@@ -1,10 +1,26 @@
 /** @type {import('next').NextConfig} */
+const isVercel = Boolean(process.env.VERCEL);
+
 const apiOrigin = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
-/** 本地子应用 @clawlive/vibekids（basePath=/vibekids）；生产可指向独立部署的 origin */
+/** 本地子应用 @clawlive/vibekids（basePath=/vibekids）；生产须为公网 https origin */
 const vibekidsProxyOrigin = (process.env.VIBEKIDS_PROXY_ORIGIN || 'http://localhost:3002').replace(
   /\/$/,
   '',
 );
+
+/** Vercel 边缘禁止把流量代理到 localhost/私有解析，否则会报 DNS_HOSTNAME_RESOLVED_PRIVATE */
+function allowOutboundProxy(origin) {
+  if (!origin) return false;
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      return !isVercel;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const nextConfig = {
   reactStrictMode: true,
@@ -20,26 +36,25 @@ const nextConfig = {
     ];
   },
   async rewrites() {
+    const afterFiles = [];
+
+    if (allowOutboundProxy(vibekidsProxyOrigin)) {
+      afterFiles.push(
+        { source: '/vibekids', destination: `${vibekidsProxyOrigin}/vibekids` },
+        { source: '/vibekids/:path*', destination: `${vibekidsProxyOrigin}/vibekids/:path*` },
+      );
+    }
+
+    if (allowOutboundProxy(apiOrigin)) {
+      afterFiles.push(
+        { source: '/uploads/:path*', destination: `${apiOrigin}/uploads/:path*` },
+        { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
+      );
+    }
+
     return {
       beforeFiles: [],
-      afterFiles: [
-        {
-          source: '/vibekids',
-          destination: `${vibekidsProxyOrigin}/vibekids`,
-        },
-        {
-          source: '/vibekids/:path*',
-          destination: `${vibekidsProxyOrigin}/vibekids/:path*`,
-        },
-        {
-          source: '/uploads/:path*',
-          destination: `${apiOrigin}/uploads/:path*`,
-        },
-        {
-          source: '/api/:path*',
-          destination: `${apiOrigin}/api/:path*`,
-        },
-      ],
+      afterFiles,
       fallback: [],
     };
   },
