@@ -33,8 +33,9 @@ export function CreatorFlywheelPanel() {
         </span>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-amber-900/85">
-        保存作品按<strong>优质分</strong>发放积分；完成周任务再送一点。积分可换经验或
-        <strong>精选曝光券</strong>（下次保存加权进首页精选）。
+        与顶部<strong>经验等级</strong>分开累计：这里只有<strong>创作积分</strong>（保存时按优质分、周挑战也会加一点）。
+        可换<strong>经验包</strong>，或<strong>精选曝光券</strong>——下次保存勾选后，更容易进首页「精选展示」。
+        想被点赞请到「我的作品」<strong>发布到广场</strong>。
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button

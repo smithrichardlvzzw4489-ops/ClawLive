@@ -5,6 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 
+function likeCount(n: number | undefined) {
+  const v = n ?? 0;
+  return v <= 0 ? "暂无点赞" : `❤️ ${v} 次点赞`;
+}
+
 function formatTime(iso: string) {
   try {
     return new Date(iso).toLocaleString("zh-CN", {
@@ -127,6 +132,19 @@ export function MyWorksClient() {
               {w.prompt ? (
                 <p className="mt-2 line-clamp-2 text-sm text-slate-600">{w.prompt}</p>
               ) : null}
+              {w.published ? (
+                <p className="mt-2 text-xs text-emerald-800/90">
+                  {likeCount(w.likes)} · 在{" "}
+                  <Link href={`${VK_BASE}/explore`} className="font-medium underline">
+                    作品广场
+                  </Link>{" "}
+                  被看到；撤回发布后点赞数仍保留
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-slate-500">
+                  未发布时仅自己可打开预览；发布后他人可在广场点赞
+                </p>
+              )}
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <Link

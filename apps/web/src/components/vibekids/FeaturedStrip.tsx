@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { VK_BASE } from "@/lib/vibekids/constants";
+import { playHintLine } from "@/lib/vibekids/work-card-hint";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 
 type Props = {
@@ -16,7 +17,7 @@ export function FeaturedStrip({ works }: Props) {
         <div>
           <h2 className="text-lg font-bold text-slate-900">精选展示</h2>
           <p className="mt-0.5 text-xs text-slate-500">
-            综合优质分、互动与新鲜度排序 · 保存好作品有机会上榜
+            综合优质分、点赞、曝光券与新鲜度；新作品也有一小段加成，方便被看见
           </p>
         </div>
         <Link
@@ -46,8 +47,11 @@ export function FeaturedStrip({ works }: Props) {
                   </span>
                 ) : null}
               </div>
-              <p className="line-clamp-3 text-sm font-semibold leading-snug text-slate-900 group-hover:text-violet-900">
+              <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900 group-hover:text-violet-900">
                 {w.title}
+              </p>
+              <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-600">
+                玩法 · {playHintLine(w, 52)}
               </p>
             </div>
           </Link>

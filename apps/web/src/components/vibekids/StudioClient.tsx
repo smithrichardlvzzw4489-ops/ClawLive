@@ -14,6 +14,7 @@ import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
 import { GenerationSkeleton } from "@/components/vibekids/GenerationSkeleton";
+import { CreatorFlywheelPanel } from "@/components/vibekids/CreatorFlywheelPanel";
 import { GamificationBar } from "@/components/vibekids/GamificationBar";
 import { WeeklyQuestsPanel } from "@/components/vibekids/WeeklyQuestsPanel";
 import {
@@ -799,6 +800,8 @@ export function StudioClient() {
         )}
 
         <WeeklyQuestsPanel />
+
+        <CreatorFlywheelPanel />
 
         <div>
           <p className="mb-2 text-sm font-medium text-slate-800">作品形态（帮助对齐交互）</p>

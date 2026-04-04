@@ -7,6 +7,7 @@ import { bumpWeeklyLike } from "@/lib/vibekids/client-engagement";
 import { CREATIVE_KINDS } from "@/lib/vibekids/creative";
 import { gradientFromWorkId } from "@/lib/vibekids/work-card-visual";
 import { ageLabel } from "@/lib/vibekids/age";
+import { playHintLine } from "@/lib/vibekids/work-card-hint";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 
 function kindLabel(id: string | undefined) {
@@ -104,13 +105,9 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
               <h2 className="text-balance text-base font-bold leading-snug drop-shadow-sm line-clamp-2">
                 {work.title}
               </h2>
-              {work.prompt ? (
-                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/90">
-                  {work.prompt}
-                </p>
-              ) : (
-                <p className="mt-1 text-xs text-white/60">（无描述）</p>
-              )}
+              <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-white/88">
+                玩法 · {playHintLine(work, 56)}
+              </p>
               <p className="mt-2 text-[10px] text-white/65">{formatTime(work.createdAt)}</p>
             </div>
           </Link>
@@ -126,7 +123,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
             </button>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Link
-                href={`${VK_BASE}/studio?age=${work.ageBand}&prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
+                href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
                 onClick={(e) => e.stopPropagation()}
                 className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:border-violet-300 hover:bg-violet-50"
               >
@@ -156,11 +153,9 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
         </span>
       </div>
       <h2 className="text-lg font-semibold text-slate-900">{work.title}</h2>
-      {work.prompt ? (
-        <p className="mt-2 line-clamp-3 text-sm text-slate-600">{work.prompt}</p>
-      ) : (
-        <p className="mt-2 text-sm text-slate-400">（无描述）</p>
-      )}
+      <p className="mt-1.5 text-xs font-medium text-violet-700/90">
+        玩法 · {playHintLine(work, 72)}
+      </p>
       <p className="mt-3 text-xs text-slate-400">{formatTime(work.createdAt)}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
@@ -178,7 +173,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
           打开作品 →
         </Link>
         <Link
-          href={`${VK_BASE}/studio?age=${work.ageBand}&prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
+          href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
           className="inline-flex w-fit items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-violet-300 hover:bg-violet-50"
         >
           Remix

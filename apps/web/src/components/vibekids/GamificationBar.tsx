@@ -28,6 +28,11 @@ export function GamificationBar({ state, nudge }: Props) {
           style={{ width: `${pct}%` }}
         />
       </div>
+      <p className="mt-2 text-[10px] leading-snug text-amber-900/78">
+        <strong className="font-semibold">经验</strong>记录创作习惯；<strong className="font-semibold">创作积分</strong>
+        在下方琥珀色卡片兑换曝光；保存后到「我的作品」<strong className="font-semibold">发布</strong>
+        才能在广场被点赞。
+      </p>
       {nudge ? (
         <p className="mt-2 text-[11px] leading-snug text-amber-950/85">{nudge}</p>
       ) : null}
@@ -43,6 +48,12 @@ export function GamificationBar({ state, nudge }: Props) {
           ))}
         </div>
       ) : null}
+      <p className="mt-2 border-t border-amber-200/60 pt-2 text-[10px] leading-snug text-amber-900/78">
+        <strong className="font-medium">经验</strong> = 成长线 ·{" "}
+        <strong className="font-medium">创作积分</strong> = 紧挨在「本周挑战」下面的琥珀色卡片 ·
+        保存后去「我的作品」<strong className="font-medium">发布</strong>
+        才会被广场点赞。
+      </p>
     </div>
   );
 }

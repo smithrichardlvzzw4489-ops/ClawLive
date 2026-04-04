@@ -4,6 +4,7 @@ import { VK_BASE } from "@/lib/vibekids/constants";
 import { DailyChallenge } from "@/components/vibekids/DailyChallenge";
 import { FeaturedStrip } from "@/components/vibekids/FeaturedStrip";
 import { SiteNav } from "@/components/vibekids/SiteNav";
+import { VibekidsIncentiveGuide } from "@/components/vibekids/VibekidsIncentiveGuide";
 import { WeeklyQuestsPanel } from "@/components/vibekids/WeeklyQuestsPanel";
 import { getSpotlightSummaries } from "@/lib/vibekids/works-storage";
 
@@ -46,14 +47,18 @@ export default async function Home() {
           <FeaturedStrip works={spotlight} />
         </div>
 
-        <div className="mt-8 w-full max-w-lg">
-          <CreatorFlywheelPanel />
+        <div className="mt-8 w-full max-w-2xl px-1">
+          <VibekidsIncentiveGuide />
         </div>
 
         <DailyChallenge />
 
         <div className="mt-10 w-full max-w-lg">
           <WeeklyQuestsPanel />
+        </div>
+
+        <div className="mt-8 w-full max-w-lg">
+          <CreatorFlywheelPanel />
         </div>
 
         <p className="mt-10 max-w-lg text-center text-sm text-slate-500">

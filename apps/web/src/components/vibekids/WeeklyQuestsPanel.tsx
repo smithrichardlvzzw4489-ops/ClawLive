@@ -49,6 +49,9 @@ export function WeeklyQuestsPanel() {
         <span className="font-semibold text-violet-900">本周挑战</span>
         <span className="text-xs text-violet-700/80">经验 {g.xp}</span>
       </div>
+      <p className="mt-1 text-[11px] leading-snug text-violet-800/80">
+        三项全满后可领 +80 XP，并到账少量<strong>创作积分</strong>（见琥珀色「创作积分 · 可兑现」板块）。
+      </p>
       <ul className="mt-3 space-y-3 text-xs text-violet-900/90">
         <li>
           <div className="mb-1 flex justify-between gap-2">
@@ -70,7 +73,7 @@ export function WeeklyQuestsPanel() {
         </li>
         <li>
           <div className="mb-1 flex justify-between gap-2">
-            <span>在展示区点赞 {WEEKLY_TARGETS.likes} 次</span>
+            <span>在作品广场「发现」点赞 {WEEKLY_TARGETS.likes} 次</span>
             <span>
               {q.likes}/{WEEKLY_TARGETS.likes}
             </span>
@@ -92,7 +95,7 @@ export function WeeklyQuestsPanel() {
           <span className="text-xs font-medium text-emerald-700">本周奖励已领</span>
         ) : null}
         {!done ? (
-          <span className="text-xs text-violet-700/75">全部完成后可领额外经验</span>
+          <span className="text-xs text-violet-700/75">全部完成后可领 +80 XP 与少量创作积分</span>
         ) : null}
       </div>
     </div>
