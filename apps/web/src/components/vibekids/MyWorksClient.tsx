@@ -44,15 +44,30 @@ export function MyWorksClient() {
       setBusyId(id);
       setErr(null);
       try {
-        const res = await fetch(`${VK_API_BASE}/works/${encodeURIComponent(id)}`, {
-          method: "PATCH",
+        const res = await fetch(`${VK_API_BASE}/works/publish-state`, {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ published }),
+          body: JSON.stringify({ id, published }),
         });
-        if (!res.ok) throw new Error();
+        const data = (await res.json().catch(() => ({}))) as {
+          error?: string;
+          detail?: string;
+        };
+        if (!res.ok) {
+          const hint =
+            data.error === "not_found" ?
+              "找不到该作品，请刷新列表后重试。"
+            : data.error === "storage_failed" && data.detail ?
+              `保存失败：${data.detail}（若部署在无磁盘环境，需配置可写存储）`
+            : data.error === "id_required" || data.error === "published_boolean_required" ?
+              "请求无效，请刷新页面后重试。"
+            : "更新发布状态失败，请稍后再试。";
+          setErr(hint);
+          return;
+        }
         await load();
       } catch {
-        setErr("更新发布状态失败，请稍后再试。");
+        setErr("网络异常，请检查连接后重试。");
       } finally {
         setBusyId(null);
       }
