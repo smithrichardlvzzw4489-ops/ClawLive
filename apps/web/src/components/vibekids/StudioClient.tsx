@@ -63,6 +63,12 @@ function getVibekidsLlmEndpoint(): {
   return { url: `${VK_API_BASE}/generate`, extraHeaders: {} };
 }
 
+function getDarwinBrainstormUrl(): string {
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const path = "/api/lobster/vibekids-brainstorm";
+  return base ? `${base}${path}` : path;
+}
+
 /** Darwin 返回 401（登录过期或无效 token）时清除 token 并重试 Next 访客接口 */
 async function postVibekidsLlm(
   body: Record<string, unknown>,
@@ -171,6 +177,10 @@ export function StudioClient() {
     costRefine: number;
   } | null>(null);
 
+  const [hasMainSiteToken, setHasMainSiteToken] = useState(false);
+  const [darwinDirections, setDarwinDirections] = useState<string[]>([]);
+  const [darwinBrainstormLoading, setDarwinBrainstormLoading] = useState(false);
+
   const refreshCredits = useCallback(() => {
     const id = getClientId();
     if (!id) return;
@@ -203,6 +213,14 @@ export function StudioClient() {
   useEffect(() => {
     refreshCredits();
   }, [refreshCredits]);
+
+  useEffect(() => {
+    try {
+      setHasMainSiteToken(!!localStorage.getItem("token"));
+    } catch {
+      setHasMainSiteToken(false);
+    }
+  }, []);
 
   useEffect(() => {
     setGState(touchStreak());
@@ -530,6 +548,88 @@ export function StudioClient() {
     }
   }, [age, canRefine, handleApiResponse, html, lockHint, refinePrompt]);
 
+  const runDarwinBrainstorm = useCallback(async () => {
+    let token: string | null = null;
+    try {
+      token = localStorage.getItem("token");
+    } catch {
+      /* ignore */
+    }
+    if (!token) {
+      setNotice("请先登录主站并接入 Darwin，即可使用云端创作记忆与拓展方案。");
+      return;
+    }
+    setDarwinBrainstormLoading(true);
+    setNotice(null);
+    try {
+      const url = getDarwinBrainstormUrl();
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          ageBand: age,
+          kind,
+          styles,
+        }),
+      });
+      if (res.status === 401) {
+        try {
+          localStorage.removeItem("token");
+        } catch {
+          /* ignore */
+        }
+        setHasMainSiteToken(false);
+        setNotice("登录已失效，请重新登录后再试 Darwin 拓展方案。");
+        return;
+      }
+      const data = (await res.json()) as {
+        directions?: unknown;
+        detail?: string;
+        message?: string;
+        error?: string;
+      };
+      if (res.status === 403 && data.error === "darwin_required") {
+        setNotice(data.detail ?? "请先接入 Darwin。");
+        return;
+      }
+      if (res.status === 402 && data.error === "NO_KEY") {
+        setNotice(
+          data.message ?? "Darwin 需要平台虚拟 Key，请在积分兑换中申请。",
+        );
+        return;
+      }
+      if (!res.ok) {
+        setNotice(
+          typeof data.detail === "string" ?
+            data.detail
+          : typeof data.message === "string" ?
+            data.message
+          : "拓展方案暂不可用",
+        );
+        return;
+      }
+      const dirs =
+        Array.isArray(data.directions) ?
+          data.directions.filter(
+            (x): x is string => typeof x === "string" && x.trim().length > 4,
+          )
+        : [];
+      if (dirs.length === 0) {
+        setNotice("未拿到有效方案，请稍后再试。");
+        return;
+      }
+      setDarwinDirections(dirs.slice(0, 3));
+    } catch {
+      setNotice("网络异常，拓展方案请求失败。");
+    } finally {
+      setDarwinBrainstormLoading(false);
+    }
+  }, [age, kind, prompt, styles]);
+
   const clearAll = useCallback(() => {
     setVers(initialVers());
     setOutMode("idle");
@@ -538,6 +638,7 @@ export function StudioClient() {
     setLockHint("");
     setSaveTitle("");
     setNextChips([]);
+    setDarwinDirections([]);
     clearDraft();
   }, []);
 
@@ -652,6 +753,12 @@ export function StudioClient() {
               · 生成约 {creditsInfo.costCreate} / 次 · 快速修改约 {creditsInfo.costRefine}{" "}
               / 次（仅 AI 成功时扣费；演示模式不扣）
             </span>
+            {hasMainSiteToken ? (
+              <span className="mt-1 block text-sky-900/80">
+                已登录且走 Darwin 路径时，创作室会把近期生成/修改摘要记在云端（与 Darwin
+                聊天正文分开），便于模型下次更连贯；也可用下方「智能拓展 3 方案」。
+              </span>
+            ) : null}
           </p>
         ) : (
           <p className="text-xs text-slate-400">正在读取生成额度…</p>
@@ -771,15 +878,66 @@ export function StudioClient() {
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            rows={age === "primary" ? 4 : 5}
+            rows={age === "primary" ? 5 : 6}
             placeholder={
               age === "primary"
                 ? "例：我想做一个点点会冒星星的页面"
                 : "例：做一个能选主题色、记录点击次数的小计数器页面，带重置按钮"
             }
-            className="w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4"
+            className="min-h-[8.5rem] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4"
           />
         </div>
+
+        {hasMainSiteToken ? (
+          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3">
+            <p className="mb-2 text-xs font-medium text-indigo-950">
+              Darwin · 智能拓展
+            </p>
+            <p className="mb-2 text-[11px] leading-relaxed text-indigo-900/85">
+              根据当前描述、作品形态与你在云端的近期创作线索，生成 3
+              条可落地的补充方向；点选后会合并进上方描述，再点「生成作品」即可。
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void runDarwinBrainstorm()}
+                disabled={darwinBrainstormLoading || loading !== null}
+                className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {darwinBrainstormLoading ? "正在想方案…" : "智能拓展 3 方案"}
+              </button>
+              {darwinDirections.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setDarwinDirections([])}
+                  className="text-xs font-medium text-indigo-800/80 underline-offset-2 hover:underline"
+                >
+                  收起方案
+                </button>
+              ) : null}
+            </div>
+            {darwinDirections.length > 0 ? (
+              <ul className="mt-2 space-y-2">
+                {darwinDirections.map((d, i) => (
+                  <li key={`${i}-${d.slice(0, 12)}`}>
+                    <button
+                      type="button"
+                      onClick={() => setPrompt((p) => mergeChip(p, d))}
+                      className="w-full rounded-xl border border-indigo-200/80 bg-white px-3 py-2 text-left text-sm leading-snug text-indigo-950 transition hover:border-indigo-400 hover:bg-indigo-50/80"
+                    >
+                      {d}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            登录主站并接入 Darwin
+            后，创作室可通过云端记忆延续你的创作主题，并一键生成多套描述方案（不占用访客额度逻辑）。
+          </p>
+        )}
 
         {notice ? (
           <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>

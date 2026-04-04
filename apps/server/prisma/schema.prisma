@@ -34,6 +34,8 @@ model User {
   /// Darwin / Lobster：与本地 JSON 脱钩，统一存 PostgreSQL（Railway）
   lobsterInstance     LobsterInstanceRow?
   lobsterConversation LobsterConversationRow?
+  /// VibeKids 创作室经 Darwin 生成时的近期线索（与 Lobster 对话正文分离）
+  vibekidsDarwinMemory  VibekidsDarwinMemory?
   installedUserSkills UserInstalledSkill[]
   evolutionPointsAuthored EvolutionPoint[] @relation("EvolutionPointAuthor")
   feedPosts             FeedPost[]
@@ -73,6 +75,16 @@ model LobsterConversationRow {
   updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// VibeKids：Darwin 路径下的创作交互摘要（用于后续生成时注入上下文）
+model VibekidsDarwinMemory {
+  userId    String   @id
+  entries   Json     @default("[]")
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("vibekids_darwin_memory")
 }
 
 /// 用户安装的 Skill（原 lobster-user-skills/.../skills.json）
