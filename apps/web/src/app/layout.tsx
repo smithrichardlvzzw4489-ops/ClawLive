@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import { Inter, Noto_Sans_SC, Noto_Serif_SC, ZCOOL_XiaoWei } from 'next/font/google'
 import './globals.css'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
@@ -43,7 +44,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: ReactNode
 }) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>

@@ -10,6 +10,10 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@clawlive/shared-types'],
   output: 'standalone',
+  /** Monorepo 中 vibekids 会提升 eslint@9；与 eslint-config-next@14 不兼容，易触发 ESLint 序列化循环引用 */
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async redirects() {
     return [
       { source: '/plaza', destination: '/lab', permanent: true },

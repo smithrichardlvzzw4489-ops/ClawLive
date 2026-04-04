@@ -4,6 +4,10 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@types/react': 18.3.28
+  '@types/react-dom': 18.3.7
+
 importers:
 
   .:
@@ -158,11 +162,11 @@ importers:
         specifier: ^20
         version: 20.19.37
       '@types/react':
-        specifier: ^19
-        version: 19.2.14
+        specifier: 18.3.28
+        version: 18.3.28
       '@types/react-dom':
-        specifier: ^19
-        version: 19.2.3(@types/react@19.2.14)
+        specifier: 18.3.7
+        version: 18.3.7(@types/react@18.3.28)
       eslint:
         specifier: ^9
         version: 9.39.4
@@ -234,10 +238,10 @@ importers:
         specifier: ^20.11.0
         version: 20.19.37
       '@types/react':
-        specifier: ^18.2.48
+        specifier: 18.3.28
         version: 18.3.28
       '@types/react-dom':
-        specifier: ^18.2.18
+        specifier: 18.3.7
         version: 18.3.7(@types/react@18.3.28)
       '@types/react-window':
         specifier: ^1.8.8
@@ -2071,17 +2075,9 @@ packages:
   /@types/react-dom@18.3.7(@types/react@18.3.28):
     resolution: {integrity: sha512-MEe3UeoENYVFXzoXEWsvcpg6ZvlrFNlOQ7EOsvhI3CfAXwzPfO8Qwuxd40nepsYKqyyVQnTdEfv68q91yLcKrQ==}
     peerDependencies:
-      '@types/react': ^18.0.0
+      '@types/react': 18.3.28
     dependencies:
       '@types/react': 18.3.28
-    dev: true
-
-  /@types/react-dom@19.2.3(@types/react@19.2.14):
-    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
-    peerDependencies:
-      '@types/react': ^19.2.0
-    dependencies:
-      '@types/react': 19.2.14
     dev: true
 
   /@types/react-window@1.8.8:
@@ -2095,12 +2091,6 @@ packages:
     dependencies:
       '@types/prop-types': 15.7.15
       csstype: 3.2.3
-
-  /@types/react@19.2.14:
-    resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
-    dependencies:
-      csstype: 3.2.3
-    dev: true
 
   /@types/request@2.48.13:
     resolution: {integrity: sha512-FGJ6udDNUCjd19pp0Q3iTiDkwhYup7J8hpMW9c4k53NrccQFFWKRho6hvtPPEhnXWKvukfwAlB6DbDz4yhH5Gg==}
@@ -6870,7 +6860,7 @@ packages:
   /react-markdown@10.1.0(@types/react@18.3.28)(react@18.3.1):
     resolution: {integrity: sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==}
     peerDependencies:
-      '@types/react': '>=18'
+      '@types/react': 18.3.28
       react: '>=18'
     dependencies:
       '@types/hast': 3.0.4
@@ -8535,7 +8525,7 @@ packages:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
     peerDependencies:
-      '@types/react': '>=16.8'
+      '@types/react': 18.3.28
       immer: '>=9.0.6'
       react: '>=16.8'
     peerDependenciesMeta:
