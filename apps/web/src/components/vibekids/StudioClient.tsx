@@ -168,48 +168,9 @@ export function StudioClient() {
   const [promptHist, setPromptHist] = useState<string[]>([]);
   const draftRestored = useRef(false);
 
-  const [creditsInfo, setCreditsInfo] = useState<{
-    balance: number;
-    costCreate: number;
-    costRefine: number;
-  } | null>(null);
-
   const [hasMainSiteToken, setHasMainSiteToken] = useState(false);
   const [darwinDirections, setDarwinDirections] = useState<string[]>([]);
   const [darwinBrainstormLoading, setDarwinBrainstormLoading] = useState(false);
-
-  const refreshCredits = useCallback(() => {
-    const id = getClientId();
-    if (!id) return;
-    void fetch(`${VK_API_BASE}/credits?clientId=${encodeURIComponent(id)}`)
-      .then((r) => r.json())
-      .then(
-        (d: {
-          balance?: unknown;
-          costCreate?: unknown;
-          costRefine?: unknown;
-        }) => {
-          if (
-            typeof d.balance === "number" &&
-            typeof d.costCreate === "number" &&
-            typeof d.costRefine === "number"
-          ) {
-            setCreditsInfo({
-              balance: d.balance,
-              costCreate: d.costCreate,
-              costRefine: d.costRefine,
-            });
-          }
-        },
-      )
-      .catch(() => {
-        /* */
-      });
-  }, []);
-
-  useEffect(() => {
-    refreshCredits();
-  }, [refreshCredits]);
 
   useEffect(() => {
     try {
@@ -317,7 +278,6 @@ export function StudioClient() {
         warning?: string;
         detail?: string;
         hint?: string;
-        creditsBalance?: number;
         tokenUsage?: VibekidsTokenUsage;
       },
       opts?: { intent?: "create" | "refine"; authFallback?: boolean },
@@ -325,17 +285,6 @@ export function StudioClient() {
       const nextHtml =
         typeof data.html === "string" ? data.html.trim() : "";
       if (!nextHtml) return false;
-      if (typeof data.creditsBalance === "number") {
-        setCreditsInfo((prev) =>
-          prev ?
-            { ...prev, balance: data.creditsBalance! }
-          : {
-              balance: data.creditsBalance!,
-              costCreate: 10,
-              costRefine: 6,
-            },
-        );
-      }
       pushVersion(nextHtml);
       setOutMode(data.mode === "ai" ? "ai" : "demo");
       if (data.warning === "ai_failed" && data.detail) {
@@ -418,17 +367,6 @@ export function StudioClient() {
         setNotice(
           `生成额度不足（本次需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。未配置 AI 时演示生成不扣费；配置 OpenRouter 后每次成功生成会扣额度。`,
         );
-        if (typeof data.balance === "number") {
-          setCreditsInfo((prev) =>
-            prev ?
-              { ...prev, balance: data.balance! }
-            : {
-                balance: data.balance!,
-                costCreate: data.costCreate ?? 10,
-                costRefine: data.costRefine ?? 6,
-              },
-          );
-        }
         return;
       }
       if (res.status === 400 && data.error === "client_id_required") {
@@ -512,17 +450,6 @@ export function StudioClient() {
         setNotice(
           `生成额度不足（快速修改需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。`,
         );
-        if (typeof data.balance === "number") {
-          setCreditsInfo((prev) =>
-            prev ?
-              { ...prev, balance: data.balance! }
-            : {
-                balance: data.balance!,
-                costCreate: data.costCreate ?? 10,
-                costRefine: data.costRefine ?? 6,
-              },
-          );
-        }
         return;
       }
       if (res.status === 400 && data.error === "client_id_required") {
@@ -722,32 +649,6 @@ export function StudioClient() {
             可点快捷词快速上手，也可写长描述定规则与界面
           </span>
         </div>
-
-        <p className="rounded-2xl border border-amber-100 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950">
-          作品<strong>发布到广场</strong>计 <strong>5</strong> 分，每收到{" "}
-          <strong>1</strong> 个赞计 <strong>1</strong> 分。每次 AI 生成或修改成功后，下方提示会显示
-          <strong>本次 Token</strong>（输入 / 输出 / 合计，由模型接口返回）。
-        </p>
-
-        {creditsInfo ? (
-          <p className="rounded-2xl border border-sky-100 bg-sky-50/90 px-3 py-2 text-xs text-sky-950">
-            <span className="font-semibold">生成额度</span>{" "}
-            <span className="tabular-nums font-bold">{creditsInfo.balance}</span>
-            <span className="text-sky-800/85">
-              {" "}
-              · 生成约 {creditsInfo.costCreate} / 次 · 快速修改约 {creditsInfo.costRefine}{" "}
-              / 次（仅 AI 成功时扣费；演示模式不扣）
-            </span>
-            {hasMainSiteToken ? (
-              <span className="mt-1 block text-sky-900/80">
-                已登录且走 Darwin 路径时，创作室会把近期生成/修改摘要记在云端（与 Darwin
-                聊天正文分开），便于模型下次更连贯；也可用下方「智能拓展 3 方案」。
-              </span>
-            ) : null}
-          </p>
-        ) : (
-          <p className="text-xs text-slate-400">正在读取生成额度…</p>
-        )}
 
         <div>
           <p className="mb-2 text-sm font-medium text-slate-800">作品形态（帮助对齐交互）</p>
