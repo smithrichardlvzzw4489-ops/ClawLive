@@ -340,7 +340,9 @@ export function StudioClient() {
       },
       opts?: { intent?: "create" | "refine"; authFallback?: boolean },
     ) => {
-      if (!data.html) return false;
+      const nextHtml =
+        typeof data.html === "string" ? data.html.trim() : "";
+      if (!nextHtml) return false;
       if (typeof data.creditsBalance === "number") {
         setCreditsInfo((prev) =>
           prev ?
@@ -352,7 +354,7 @@ export function StudioClient() {
             },
         );
       }
-      pushVersion(data.html);
+      pushVersion(nextHtml);
       setOutMode(data.mode === "ai" ? "ai" : "demo");
       if (data.warning === "ai_failed" && data.detail) {
         const tech = data.detail.slice(0, 200);
@@ -457,7 +459,7 @@ export function StudioClient() {
         setNotice(data.detail ?? "请刷新页面后重试。");
         return;
       }
-      if (!res.ok || !data.html) {
+      if (!res.ok || typeof data.html !== "string" || !data.html.trim()) {
         setNotice("生成失败，请稍后再试。");
         return;
       }
@@ -550,7 +552,7 @@ export function StudioClient() {
         setNotice(data.detail ?? "请刷新页面后重试。");
         return;
       }
-      if (!res.ok || !data.html) {
+      if (!res.ok || typeof data.html !== "string" || !data.html.trim()) {
         setNotice("修改失败，请稍后再试。");
         return;
       }
@@ -758,7 +760,7 @@ export function StudioClient() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:gap-0">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
       <section className="flex w-full shrink-0 flex-col gap-4 border-b border-slate-200/80 bg-white/95 p-4 shadow-sm sm:p-5 lg:max-w-[min(22rem,100vw)] lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:py-5 lg:pl-2 lg:pr-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-800">
@@ -1102,7 +1104,7 @@ export function StudioClient() {
         </p>
       </section>
 
-      <section className="flex min-h-[min(480px,54vh)] min-w-0 flex-1 flex-col gap-2 px-3 pb-4 pt-2 sm:px-4 lg:h-full lg:min-w-0 lg:flex-1 lg:px-5 lg:pb-5 lg:pt-4">
+      <section className="flex min-h-[min(480px,54vh)] min-w-0 flex-1 flex-col gap-2 px-3 pb-4 pt-2 sm:px-4 lg:h-full lg:min-h-0 lg:min-w-0 lg:flex-1 lg:px-5 lg:pb-5 lg:pt-4">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-slate-900">实时预览</h2>
@@ -1114,9 +1116,11 @@ export function StudioClient() {
             {outMode === "ai" ? "AI 生成" : outMode === "demo" ? "演示 / 离线" : "欢迎"}
           </span>
         </div>
-        <div className="relative flex min-h-[min(400px,50vh)] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 lg:min-h-[min(540px,60dvh)]">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 lg:min-h-[min(540px,60dvh)]">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <PreviewFrame html={html} />
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col [min-height:min(400px,50vh)] lg:[min-height:0]">
+            <PreviewFrame html={html} frameKey={vers.index} />
+          </div>
         </div>
       </section>
     </div>
