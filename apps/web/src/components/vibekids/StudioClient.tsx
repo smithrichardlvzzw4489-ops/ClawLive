@@ -63,6 +63,32 @@ function getVibekidsLlmEndpoint(): {
   return { url: `${VK_API_BASE}/generate`, extraHeaders: {} };
 }
 
+/** Darwin 返回 401（登录过期或无效 token）时清除 token 并重试 Next 访客接口 */
+async function postVibekidsLlm(
+  body: Record<string, unknown>,
+): Promise<{ res: Response; usedAuthFallback: boolean }> {
+  const { url, extraHeaders } = getVibekidsLlmEndpoint();
+  let res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...extraHeaders },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401 && extraHeaders.Authorization) {
+    try {
+      localStorage.removeItem("token");
+    } catch {
+      /* ignore */
+    }
+    res = await fetch(`${VK_API_BASE}/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return { res, usedAuthFallback: true };
+  }
+  return { res, usedAuthFallback: false };
+}
+
 const CHIPS_PRIMARY = [
   "接球小游戏",
   "点击冒星星",
@@ -284,7 +310,7 @@ export function StudioClient() {
         hint?: string;
         creditsBalance?: number;
       },
-      opts?: { intent?: "create" | "refine" },
+      opts?: { intent?: "create" | "refine"; authFallback?: boolean },
     ) => {
       if (!data.html) return false;
       if (typeof data.creditsBalance === "number") {
@@ -321,7 +347,9 @@ export function StudioClient() {
         const xpParts = [`+${r.totalXp} XP`];
         if (r.megaCrit) xpParts.push("超级暴击");
         if (r.weekendBoost) xpParts.push("周末×1.5");
-        setNotice(`${base}（${xpParts.join(" · ")}）`);
+        const prefix = opts?.authFallback ? "登录已失效，已改用访客生成。" : "";
+        const sep = prefix ? " " : "";
+        setNotice(`${prefix}${sep}${base}（${xpParts.join(" · ")}）`);
       } else {
         setNotice(null);
         setNextChips([]);
@@ -340,18 +368,13 @@ export function StudioClient() {
     setLoading("create");
     setNotice(null);
     try {
-      const { url, extraHeaders } = getVibekidsLlmEndpoint();
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...extraHeaders },
-        body: JSON.stringify({
-          intent: "create",
-          prompt: text,
-          ageBand: age,
-          kind,
-          styles,
-          clientId: getClientId(),
-        }),
+      const { res, usedAuthFallback } = await postVibekidsLlm({
+        intent: "create",
+        prompt: text,
+        ageBand: age,
+        kind,
+        styles,
+        clientId: getClientId(),
       });
       const data = (await res.json()) as {
         html?: string;
@@ -410,7 +433,7 @@ export function StudioClient() {
         setNotice("生成失败，请稍后再试。");
         return;
       }
-      handleApiResponse(data, { intent: "create" });
+      handleApiResponse(data, { intent: "create", authFallback: usedAuthFallback });
     } catch {
       setNotice("网络异常，检查一下连接后再试。");
     } finally {
@@ -431,18 +454,13 @@ export function StudioClient() {
     setLoading("refine");
     setNotice(null);
     try {
-      const { url, extraHeaders } = getVibekidsLlmEndpoint();
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...extraHeaders },
-        body: JSON.stringify({
-          intent: "refine",
-          ageBand: age,
-          currentHtml: html,
-          refinementPrompt: r,
-          lockHint: lockHint.trim() || undefined,
-          clientId: getClientId(),
-        }),
+      const { res, usedAuthFallback } = await postVibekidsLlm({
+        intent: "refine",
+        ageBand: age,
+        currentHtml: html,
+        refinementPrompt: r,
+        lockHint: lockHint.trim() || undefined,
+        clientId: getClientId(),
       });
       const data = (await res.json()) as {
         html?: string;
@@ -501,7 +519,7 @@ export function StudioClient() {
         setNotice("修改失败，请稍后再试。");
         return;
       }
-      handleApiResponse(data, { intent: "refine" });
+      handleApiResponse(data, { intent: "refine", authFallback: usedAuthFallback });
       if (data.warning !== "ai_failed" && data.warning !== "refine_needs_ai") {
         setRefinePrompt("");
       }
