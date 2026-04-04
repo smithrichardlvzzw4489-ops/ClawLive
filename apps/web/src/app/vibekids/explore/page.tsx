@@ -11,11 +11,11 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "作品广场 | VibeKids",
-  description: "官方案例、热门发现、作品长廊，一站浏览。",
+  description: "官方案例与热门发现，浏览保存作品。",
 };
 
 function parseTab(raw: string | undefined): ExploreTab {
-  if (raw === "cases" || raw === "gallery") return raw;
+  if (raw === "cases") return "cases";
   return "feed";
 }
 

@@ -13,12 +13,11 @@ import { CREATIVE_KINDS } from "@/lib/vibekids/creative";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 import { SavedWorksGrid } from "./SavedWorksGrid";
 import { WorkGridClient } from "./WorkGridClient";
-import { WorksGalleryClient } from "./WorksGalleryClient";
 
-export type ExploreTab = "cases" | "feed" | "gallery";
+export type ExploreTab = "cases" | "feed";
 
 function parseTab(raw: string | null): ExploreTab {
-  if (raw === "cases" || raw === "gallery") return raw;
+  if (raw === "cases") return "cases";
   return "feed";
 }
 
@@ -52,13 +51,9 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
         router.replace(`${VK_BASE}/explore`, { scroll: false });
         return;
       }
-      if (t === "cases") {
-        const d = parseCaseDifficulty(searchParams.get("caseDifficulty"));
-        const q = d ? `tab=cases&caseDifficulty=${d}` : "tab=cases";
-        router.replace(`${VK_BASE}/explore?${q}`, { scroll: false });
-        return;
-      }
-      router.replace(`${VK_BASE}/explore?tab=${t}`, { scroll: false });
+      const d = parseCaseDifficulty(searchParams.get("caseDifficulty"));
+      const q = d ? `tab=cases&caseDifficulty=${d}` : "tab=cases";
+      router.replace(`${VK_BASE}/explore?${q}`, { scroll: false });
     },
     [router, searchParams],
   );
@@ -105,19 +100,18 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
       <div className="mb-8 text-center sm:text-left">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">作品广场</h1>
         <p className="mt-3 max-w-2xl text-pretty text-slate-600">
-          官方向导、热门发现、作品长廊，同一入口；下方切换子页即可。
+          优秀案例与发现两个入口：灵感向导与保存作品的瀑布流浏览。
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2 sm:justify-start">
           {tabBtn("cases", "优秀案例")}
           {tabBtn("feed", "发现")}
-          {tabBtn("gallery", "作品展示区")}
         </div>
       </div>
 
       {tab === "cases" ? (
         <>
           <p className="mb-8 max-w-2xl text-pretty text-sm text-slate-600">
-            官方推荐的灵感方向；你在创作室<strong>保存</strong>的作品也会出现在下方「已保存作品」中，与「作品展示区」子页为同一数据源。
+            官方推荐的灵感方向；你在创作室<strong>保存</strong>的作品也会出现在下方「已保存作品」中，与「发现」页瀑布流为同一数据源。
           </p>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-800">官方推荐</h2>
@@ -194,12 +188,12 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
             来自本机/服务器上的「保存作品」列表（与
             <button
               type="button"
-              onClick={() => setExploreTab("gallery")}
+              onClick={() => setExploreTab("feed")}
               className="mx-1 font-medium text-violet-600 underline"
             >
-              作品展示区
+              发现
             </button>
-            子页相同数据源）。
+            页相同数据源）。
           </p>
           <SavedWorksGrid works={saved} />
         </>
@@ -212,51 +206,9 @@ export function ExploreTabsClient({ saved, initialTab }: Props) {
             <Link href={`${VK_BASE}/studio`} className="font-semibold underline underline-offset-2">
               创作室
             </Link>
-            ；完整瀑布流见
-            <button
-              type="button"
-              onClick={() => setExploreTab("gallery")}
-              className="mx-1 font-semibold underline underline-offset-2"
-            >
-              作品展示区
-            </button>
-            子页。下滑自动加载，越刷越有。
+            。下滑自动加载，越刷越有。
           </div>
           <WorkGridClient works={saved} defaultSort="hot" immersive />
-        </>
-      ) : null}
-
-      {tab === "gallery" ? (
-        <>
-          <p className="mb-6 max-w-2xl text-pretty text-slate-600">
-            <strong>小红书式瀑布流</strong>：多彩封面卡片、下滑自动加载更多、点心与 Remix 不离手。数据来自{" "}
-            <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">data/works.json</code>
-            （本地开发长期有效；无盘部署需数据库或对象存储）。
-          </p>
-          <div className="mb-8 rounded-2xl border border-dashed border-violet-200 bg-violet-50/50 px-4 py-4 text-sm text-violet-900 sm:text-left">
-            还没有作品？去{" "}
-            <Link href={`${VK_BASE}/studio`} className="font-semibold underline underline-offset-2">
-              创作室
-            </Link>{" "}
-            生成后点「保存作品」。也可先看
-            <button
-              type="button"
-              onClick={() => setExploreTab("feed")}
-              className="mx-1 font-semibold underline underline-offset-2"
-            >
-              发现
-            </button>
-            或
-            <button
-              type="button"
-              onClick={() => setExploreTab("cases")}
-              className="mx-1 font-semibold underline underline-offset-2"
-            >
-              优秀案例
-            </button>
-            。
-          </div>
-          <WorksGalleryClient works={saved} />
         </>
       ) : null}
     </main>
