@@ -14,7 +14,7 @@ export default function VibeKidsPage() {
         <div className="mb-2 shrink-0">
           <h1 className="text-lg font-semibold text-white">VibeKids</h1>
           <p className="text-xs text-slate-500">
-            独立子应用，通过下方区域访问；未配置地址时请先设置环境变量。
+            独立子应用，通过下方区域访问；需配置已部署上线的 VibeKids 地址。
           </p>
         </div>
         {src ? (
@@ -34,13 +34,18 @@ export default function VibeKidsPage() {
               <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs text-lobster">
                 NEXT_PUBLIC_VIBEKIDS_URL
               </code>
-              。请在{' '}
-              <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs">apps/web/.env.local</code>{' '}
-              中设置嵌入地址（例如线上部署的 https 域名，或本地{' '}
+              。请将 VibeKids 部署到线上后，把其{' '}
+              <strong className="font-medium text-slate-200">https 根地址</strong>（如{' '}
               <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs">
-                http://localhost:3002
-              </code>{' '}
-              并另开终端运行 VibeKids）。
+                https://你的项目.vercel.app
+              </code>
+              ）写入本站的{' '}
+              <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs">
+                NEXT_PUBLIC_VIBEKIDS_URL
+              </code>
+              ，并在部署平台重新构建前端（本地开发可写在{' '}
+              <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-xs">apps/web/.env.local</code>
+              ）。
             </p>
           </div>
         )}
