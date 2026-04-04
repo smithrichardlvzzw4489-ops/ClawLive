@@ -45,9 +45,10 @@ import {
   randomPick,
   randomPickN,
 } from "@/data/vibekids/gamification-messages";
+import { clientVibekidsFetchMs } from "@/lib/vibekids/generate-timeouts";
 
-/** 略大于服务端 30s 硬性截止，便于拿到 JSON 错误体 */
-const VIBEKIDS_CLIENT_FETCH_MS = 32_000;
+/** 略大于服务端墙钟截止，便于拿到 JSON 错误体 */
+const VIBEKIDS_CLIENT_FETCH_MS = clientVibekidsFetchMs();
 
 /** 已登录时走 ClawLive 后端 Darwin（LiteLLM + 平台虚拟 Key），与 /my-lobster 同源；未登录走 Next 上 OpenRouter/演示 */
 function getVibekidsLlmEndpoint(): {
@@ -462,7 +463,7 @@ export function StudioClient() {
         e instanceof DOMException &&
         (e.name === "AbortError" || e.name === "TimeoutError")
       ) {
-        setNotice("已超过约 30 秒未完成，请缩短描述后重试。");
+        setNotice("请求等待过久已中断，请稍后再试或简化描述。");
       } else {
         setNotice("网络异常，检查一下连接后再试。");
       }
@@ -558,7 +559,7 @@ export function StudioClient() {
         e instanceof DOMException &&
         (e.name === "AbortError" || e.name === "TimeoutError")
       ) {
-        setNotice("已超过约 30 秒未完成，请简化修改说明后重试。");
+        setNotice("请求等待过久已中断，请简化修改说明后重试。");
       } else {
         setNotice("网络异常，检查一下连接后再试。");
       }
@@ -648,7 +649,7 @@ export function StudioClient() {
         e instanceof DOMException &&
         (e.name === "AbortError" || e.name === "TimeoutError")
       ) {
-        setNotice("拓展方案请求超时（约 30 秒），请稍后再试。");
+        setNotice("拓展方案请求超时，请稍后再试。");
       } else {
         setNotice("网络异常，拓展方案请求失败。");
       }
