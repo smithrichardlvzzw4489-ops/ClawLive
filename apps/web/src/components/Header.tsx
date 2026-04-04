@@ -117,6 +117,12 @@ export function Header({}: HeaderProps) {
               icon="🤝"
               active={pathname.startsWith('/job-a2a')}
             />
+            <NavItem
+              href="/vibekids"
+              label={t('nav.vibeKids')}
+              icon="🎨"
+              active={pathname.startsWith('/vibekids')}
+            />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={active('/rooms')} />
             )}
