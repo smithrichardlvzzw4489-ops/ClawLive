@@ -1,0 +1,18 @@
+{
+  "name": "VibeKids",
+  "short_name": "VibeKids",
+  "description": "少儿氛围编程：一句话生成可玩作品",
+  "start_url": "/vibekids/",
+  "display": "standalone",
+  "background_color": "#f0f9ff",
+  "theme_color": "#0ea5e9",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
