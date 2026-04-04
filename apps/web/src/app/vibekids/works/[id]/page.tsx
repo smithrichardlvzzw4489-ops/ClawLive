@@ -1,12 +1,26 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { notFound } from "next/navigation";
 import { SiteNav } from "@/components/vibekids/SiteNav";
-import { WorkViewer } from "@/components/vibekids/WorkViewer";
-import { VK_BASE } from "@/lib/vibekids/constants";
+import {
+  VibekidsWorkView,
+  type VibekidsWorkPayload,
+} from "@/components/vibekids/VibekidsWorkView";
+import type { SavedWork } from "@/lib/vibekids/works-storage";
 import { getWorkById } from "@/lib/vibekids/works-storage";
 
+export const dynamic = "force-dynamic";
+
 type Props = { params: { id: string } };
+
+function toPayload(w: SavedWork): VibekidsWorkPayload {
+  return {
+    id: w.id,
+    title: w.title,
+    html: w.html,
+    prompt: w.prompt,
+    published: w.published,
+    ageBand: w.ageBand,
+  };
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = params;
@@ -19,48 +33,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function WorkPage({ params }: Props) {
   const { id } = params;
-  const work = await getWorkById(id);
-  if (!work) notFound();
+  const serverWork = await getWorkById(id);
+  const payload = serverWork ? toPayload(serverWork) : null;
 
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 sm:px-6">
-        {!work.published ? (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            此作品<strong>未发布</strong>，不会出现在作品广场「发现」。若要公开，请到{" "}
-            <Link href={`${VK_BASE}/my-works`} className="font-semibold underline">
-              我的作品
-            </Link>{" "}
-            点击「发布到广场」。
-          </div>
-        ) : null}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{work.title}</h1>
-            {work.prompt ? (
-              <p className="mt-1 text-sm text-slate-600">{work.prompt}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
-              className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
-            >
-              Remix 再创作
-            </Link>
-            <Link
-              href={`${VK_BASE}/studio`}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-            >
-              去创作室
-            </Link>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-2">
-          <WorkViewer html={work.html} />
-        </div>
-      </main>
+      <VibekidsWorkView workId={id} serverWork={payload} />
     </div>
   );
 }
