@@ -82,7 +82,7 @@ export function getDemoHtml(prompt: string, age: AgeBand): string {
   <h1>接球挑战</h1>
   <p>${hint}</p>
   <p>你的想法：<strong>${escapeHtml(prompt)}</strong></p>
-  <canvas id="c" width="320" height="240"></canvas>
+  <canvas id="c" width="400" height="260"></canvas>
   <p style="text-align:center;margin-top:10px;font-size:0.9rem;">用 ← → 移动托盘接球</p>
 </div>
 <script>

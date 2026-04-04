@@ -916,7 +916,7 @@ export function StudioClient() {
         </p>
       </section>
 
-      <section className="flex min-h-[min(420px,50vh)] min-w-0 flex-1 flex-col gap-2 px-3 pb-4 pt-2 sm:px-4 lg:h-full lg:min-w-0 lg:flex-1 lg:px-5 lg:pb-5 lg:pt-4">
+      <section className="flex min-h-[min(480px,54vh)] min-w-0 flex-1 flex-col gap-2 px-3 pb-4 pt-2 sm:px-4 lg:h-full lg:min-w-0 lg:flex-1 lg:px-5 lg:pb-5 lg:pt-4">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-semibold text-slate-900">实时预览</h2>
@@ -928,7 +928,7 @@ export function StudioClient() {
             {outMode === "ai" ? "AI 生成" : outMode === "demo" ? "演示 / 离线" : "欢迎"}
           </span>
         </div>
-        <div className="relative flex min-h-[min(360px,45vh)] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 lg:min-h-[min(480px,55dvh)]">
+        <div className="relative flex min-h-[min(400px,50vh)] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 lg:min-h-[min(540px,60dvh)]">
           {loading !== null ? <GenerationSkeleton /> : null}
           <PreviewFrame html={html} />
         </div>
