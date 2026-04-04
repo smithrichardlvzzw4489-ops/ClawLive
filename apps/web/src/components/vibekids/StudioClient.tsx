@@ -46,6 +46,23 @@ import {
   randomPickN,
 } from "@/data/vibekids/gamification-messages";
 
+/** 已登录时走 ClawLive 后端 Darwin（LiteLLM + 平台虚拟 Key），与 /my-lobster 同源；未登录走 Next 上 OpenRouter/演示 */
+function getVibekidsLlmEndpoint(): {
+  url: string;
+  extraHeaders: Record<string, string>;
+} {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  if (token) {
+    const url = base
+      ? `${base}/api/lobster/vibekids-generate`
+      : "/api/lobster/vibekids-generate";
+    return { url, extraHeaders: { Authorization: `Bearer ${token}` } };
+  }
+  return { url: `${VK_API_BASE}/generate`, extraHeaders: {} };
+}
+
 const CHIPS_PRIMARY = [
   "接球小游戏",
   "点击冒星星",
@@ -323,9 +340,10 @@ export function StudioClient() {
     setLoading("create");
     setNotice(null);
     try {
-      const res = await fetch(`${VK_API_BASE}/generate`, {
+      const { url, extraHeaders } = getVibekidsLlmEndpoint();
+      const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...extraHeaders },
         body: JSON.stringify({
           intent: "create",
           prompt: text,
@@ -343,11 +361,30 @@ export function StudioClient() {
         hint?: string;
         creditsBalance?: number;
         error?: string;
+        message?: string;
         balance?: number;
         need?: number;
         costCreate?: number;
         costRefine?: number;
       };
+      if (res.status === 402 && data.error === "NO_KEY") {
+        setNotice(
+          data.message ??
+            "Darwin 需要平台虚拟 Key。请先在积分兑换中申请 Key（与 /my-lobster 相同）。",
+        );
+        return;
+      }
+      if (res.status === 403 && data.error === "darwin_required") {
+        setNotice(
+          data.detail ??
+            "请先申请 DarwinClaw（Darwin）后再使用 AI 生成；或退出登录后使用演示/OpenRouter。",
+        );
+        return;
+      }
+      if (res.status === 500 && data.error === "llm_failed") {
+        setNotice(data.detail ?? "模型调用失败，请稍后再试。");
+        return;
+      }
       if (res.status === 402 && data.error === "insufficient_credits") {
         setNotice(
           `生成额度不足（本次需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。未配置 AI 时演示生成不扣费；配置 OpenRouter 后每次成功生成会扣额度。`,
@@ -394,9 +431,10 @@ export function StudioClient() {
     setLoading("refine");
     setNotice(null);
     try {
-      const res = await fetch(`${VK_API_BASE}/generate`, {
+      const { url, extraHeaders } = getVibekidsLlmEndpoint();
+      const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...extraHeaders },
         body: JSON.stringify({
           intent: "refine",
           ageBand: age,
@@ -414,11 +452,30 @@ export function StudioClient() {
         hint?: string;
         creditsBalance?: number;
         error?: string;
+        message?: string;
         balance?: number;
         need?: number;
         costCreate?: number;
         costRefine?: number;
       };
+      if (res.status === 402 && data.error === "NO_KEY") {
+        setNotice(
+          data.message ??
+            "Darwin 需要平台虚拟 Key。请先在积分兑换中申请 Key（与 /my-lobster 相同）。",
+        );
+        return;
+      }
+      if (res.status === 403 && data.error === "darwin_required") {
+        setNotice(
+          data.detail ??
+            "请先申请 DarwinClaw（Darwin）后再使用 AI 生成；或退出登录后使用演示/OpenRouter。",
+        );
+        return;
+      }
+      if (res.status === 500 && data.error === "llm_failed") {
+        setNotice(data.detail ?? "模型调用失败，请稍后再试。");
+        return;
+      }
       if (res.status === 402 && data.error === "insufficient_credits") {
         setNotice(
           `生成额度不足（快速修改需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。`,

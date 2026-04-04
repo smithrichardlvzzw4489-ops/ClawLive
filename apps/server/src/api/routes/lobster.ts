@@ -1963,6 +1963,86 @@ async function streamText(res: Response, text: string): Promise<void> {
   }
 }
 
+// ─── VibeKids：经 Darwin（LiteLLM 与用户虚拟 Key）生成单页 HTML，不写入 Darwin 对话历史 ───
+
+const VIBEKIDS_SYSTEM_CREATE = `你是面向 6–15 岁学习者的「氛围编程」助手。用户会用中文描述想做的作品（游戏、故事、动画、小工具、页面等，题材不限）。
+
+硬性要求：
+1. 只输出一个完整的 HTML 文件源码，不要 Markdown，不要解释文字。
+2. 使用内联 <style> 和 <script>，尽量不使用外部脚本；如必须，仅可使用可信 CDN（优先不用）。
+3. 界面清晰、色彩友好、字体适中；在移动设备上基本可用（可加 viewport）。
+4. 内容积极健康，适合未成年人；避免恐怖、暴力、成人内容；不要收集个人信息。
+5. 尽量可交互（按钮、键盘、鼠标、简单动画等），让用户「马上能玩、能点」。
+6. 单文件即可运行；中文界面优先。`;
+
+const VIBEKIDS_SYSTEM_REFINE = `你是面向 6–15 岁学习者的「氛围编程」编辑助手。你会收到一份已存在的单文件 HTML 源码，以及用户的修改说明。
+
+硬性要求：
+1. 只输出修改后的完整 HTML 文件源码，不要 Markdown，不要解释文字。
+2. 在满足修改说明的前提下，尽量保留未提及部分的布局、文案与逻辑；改动要克制、可预期。
+3. 若用户提供了「不要改动」的说明，这些部分必须保持不变（除非修改说明明确要求动到它们）。
+4. 仍使用内联 <style> 与 <script>，安全、健康、适合未成年人。
+5. 单文件即可运行。`;
+
+type VkAge = 'primary' | 'middle';
+type VkKind = 'any' | 'game' | 'tool' | 'story' | 'showcase';
+type VkStyle = 'cute' | 'scifi' | 'minimal' | 'pixel' | 'pastel';
+
+const VK_KINDS: { id: VkKind; label: string; hint: string }[] = [
+  { id: 'any', label: '不限', hint: '由模型自由发挥' },
+  { id: 'game', label: '小游戏', hint: '有规则、得分、操作' },
+  { id: 'tool', label: '小工具', hint: '换算、计时、记录等' },
+  { id: 'story', label: '互动故事', hint: '分段、选择、叙事' },
+  { id: 'showcase', label: '展示页', hint: '介绍、贺卡、作品集' },
+];
+
+const VK_STYLES: { id: VkStyle; label: string }[] = [
+  { id: 'cute', label: '可爱' },
+  { id: 'scifi', label: '科幻' },
+  { id: 'minimal', label: '极简' },
+  { id: 'pixel', label: '像素风' },
+  { id: 'pastel', label: '马卡龙' },
+];
+
+function vkParseAge(raw: unknown): VkAge {
+  return raw === 'middle' ? 'middle' : 'primary';
+}
+
+function vkParseKind(raw: unknown): VkKind {
+  const k = typeof raw === 'string' ? raw : 'any';
+  return ['any', 'game', 'tool', 'story', 'showcase'].includes(k) ? (k as VkKind) : 'any';
+}
+
+function vkParseStyles(raw: unknown): VkStyle[] {
+  if (!Array.isArray(raw)) return [];
+  const allowed = new Set(['cute', 'scifi', 'minimal', 'pixel', 'pastel']);
+  return raw.filter((x): x is VkStyle => typeof x === 'string' && allowed.has(x));
+}
+
+function vkFormatCreativeContext(kind: VkKind, styles: VkStyle[]): string {
+  const k = VK_KINDS.find((x) => x.id === kind);
+  const kindLine =
+    kind === 'any' ? '' : `【形态】${k?.label ?? kind}（${k?.hint ?? ''}）`;
+  const styleLabels = styles
+    .map((s) => VK_STYLES.find((v) => v.id === s)?.label ?? s)
+    .filter(Boolean);
+  const styleLine = styleLabels.length === 0 ? '' : `【风格】${styleLabels.join('、')}`;
+  return [kindLine, styleLine].filter(Boolean).join('\n');
+}
+
+function vkAgeHint(age: VkAge): string {
+  return age === 'primary'
+    ? '用户是小学生：句子短、按钮大、说明少、反馈即时。'
+    : '用户是初中生：可以稍复杂一点的逻辑与文案，但仍要一目了然。';
+}
+
+function extractVibekidsHtml(raw: string): string {
+  const t = raw.trim();
+  const fence = t.match(/```(?:html)?\s*([\s\S]*?)```/i);
+  if (fence) return fence[1].trim();
+  return t;
+}
+
 // ─── 路由 ─────────────────────────────────────────────────────────────────────
 
 export function lobsterRoutes(): Router {
@@ -2492,6 +2572,146 @@ export function lobsterRoutes(): Router {
     const filePath = getUserFilePath(userId, filename);
     if (!filePath) return res.status(404).json({ error: '文件不存在' });
     return res.download(filePath, filename);
+  });
+
+  /**
+   * POST /api/lobster/vibekids-generate
+   * VibeKids 创作室：与 Darwin 使用同一套 LiteLLM + 平台虚拟 Key；不写入 Darwin 对话历史。
+   * Body 与 Next /api/vibekids/generate 对齐：intent create|refine、prompt、ageBand、kind、styles、currentHtml、refinementPrompt、lockHint、model（可选）
+   */
+  router.post('/vibekids-generate', authenticateToken, async (req: AuthRequest, res: Response) => {
+    const userId = req.user!.id;
+    const instance = getLobsterInstance(userId);
+    if (!instance) {
+      return res.status(403).json({
+        error: 'darwin_required',
+        detail: '请先申请 DarwinClaw（Darwin）后再使用 AI 生成；也可退出登录后使用演示模式。',
+      });
+    }
+
+    const b = req.body as {
+      intent?: unknown;
+      prompt?: unknown;
+      ageBand?: unknown;
+      kind?: unknown;
+      styles?: unknown;
+      currentHtml?: unknown;
+      refinementPrompt?: unknown;
+      lockHint?: unknown;
+      model?: unknown;
+    };
+    const intent = b.intent === 'refine' ? 'refine' : 'create';
+    const ageBand = vkParseAge(b.ageBand);
+    const kind = vkParseKind(b.kind);
+    const styles = vkParseStyles(b.styles);
+    const requestModel = typeof b.model === 'string' ? b.model : undefined;
+
+    const llm = await getLlmClient(resolveModel(requestModel), userId);
+    if (!llm) {
+      return res.status(402).json({
+        error: 'NO_KEY',
+        message:
+          'Darwin 需要平台虚拟 Key 才能调用模型。请先在积分兑换中申请 Key，或与 /my-lobster 对话使用相同配置。',
+      });
+    }
+
+    const runCompletion = async (
+      system: string,
+      userText: string,
+    ): Promise<string> => {
+      const routedModel = await routeModel(userText.slice(0, 2000), llm.model);
+      let response: OpenAI.Chat.Completions.ChatCompletion;
+      try {
+        response = await llm.client.chat.completions.create({
+          model: routedModel,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userText },
+          ],
+          max_tokens: 8192,
+          temperature: 0.55,
+        });
+      } catch (toolErr) {
+        const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+        const isInvalidModelId =
+          toolErrMsg.includes('is not a valid model ID') ||
+          (toolErrMsg.includes('400') && toolErrMsg.includes('model ID'));
+        if (isInvalidModelId && routedModel !== llm.model) {
+          response = await llm.client.chat.completions.create({
+            model: llm.model,
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: userText },
+            ],
+            max_tokens: 8192,
+            temperature: 0.55,
+          });
+        } else {
+          throw toolErr;
+        }
+      }
+      const text = response.choices[0]?.message?.content?.trim();
+      if (!text) throw new Error('模型未返回内容');
+      const out = extractVibekidsHtml(text);
+      if (!out.trim()) throw new Error('模型返回的 HTML 为空，请重试或简化描述');
+      return out;
+    };
+
+    try {
+      if (intent === 'refine') {
+        const currentHtml =
+          typeof b.currentHtml === 'string' ? b.currentHtml.trim() : '';
+        const refinement =
+          typeof b.refinementPrompt === 'string' ? b.refinementPrompt.trim() : '';
+        const lockHint =
+          typeof b.lockHint === 'string' ? b.lockHint.trim() : undefined;
+        if (!currentHtml) {
+          return res.status(400).json({ error: 'empty_html' });
+        }
+        if (!refinement) {
+          return res.status(400).json({ error: 'empty_refinement' });
+        }
+        const lock =
+          lockHint ? `\n\n【请尽量保持不动的部分】\n${lockHint}` : '';
+        const userBlock = `${vkAgeHint(ageBand)}
+
+以下是当前完整 HTML 源码：
+
+\`\`\`html
+${currentHtml}
+\`\`\`
+
+【修改要求】
+${refinement}
+${lock}
+
+请输出修改后的完整 HTML 文件源码。`;
+        const html = await runCompletion(VIBEKIDS_SYSTEM_REFINE, userBlock);
+        return res.json({ html, mode: 'ai' as const });
+      }
+
+      const prompt = typeof b.prompt === 'string' ? b.prompt.trim() : '';
+      if (!prompt) {
+        return res.status(400).json({ error: 'empty_prompt' });
+      }
+      const ctx = vkFormatCreativeContext(kind, styles);
+      const userBlock = [
+        vkAgeHint(ageBand),
+        ctx ? ctx : null,
+        `用户想法：\n${prompt}`,
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      const html = await runCompletion(VIBEKIDS_SYSTEM_CREATE, userBlock);
+      return res.json({ html, mode: 'ai' as const });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('[Lobster vibekids-generate]', e);
+      return res.status(500).json({
+        error: 'llm_failed',
+        detail: msg.length > 500 ? `${msg.slice(0, 500)}…` : msg,
+      });
+    }
   });
 
   return router;
