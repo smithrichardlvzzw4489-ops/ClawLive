@@ -9,7 +9,7 @@ import { gradientFromWorkId } from "@/lib/vibekids/work-card-visual";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 
 function kindLabel(id: string | undefined) {
-  if (!id || id === "any") return "??";
+  if (!id || id === "any") return "不限";
   return CREATIVE_KINDS.find((k) => k.id === id)?.label ?? id;
 }
 
@@ -26,9 +26,9 @@ function formatTime(iso: string) {
 
 type Props = {
   work: SavedWorkSummary;
-  /** ???????feed?????????????? */
+  /** 默认：列表格；feed：瀑布流大图卡片（小红书式） */
   variant?: "default" | "feed";
-  /** ???????? */
+  /** 用于进入动画错峰 */
   animIndex?: number;
 };
 
@@ -84,19 +84,19 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
             <div className="absolute left-2 top-2 flex flex-wrap gap-1">
               {work.qualityScore != null && work.qualityScore >= 62 ? (
                 <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold text-amber-950 shadow-sm">
-                  ??
+                  优质
                 </span>
               ) : null}
               {work.spotlightRequested ? (
                 <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
-                  ????
+                  精选候选
                 </span>
               ) : null}
               <span className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-slate-800 shadow-sm">
                 {kindLabel(work.kind)}
               </span>
               <span className="rounded-full bg-black/25 px-2 py-0.5 text-[10px] text-white backdrop-blur-sm">
-                {work.ageBand === "primary" ? "??" : "??"}
+                {work.ageBand === "primary" ? "小学" : "初中"}
               </span>
             </div>
             <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
@@ -108,7 +108,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
                   {work.prompt}
                 </p>
               ) : (
-                <p className="mt-1 text-xs text-white/60">?????</p>
+                <p className="mt-1 text-xs text-white/60">（无描述）</p>
               )}
               <p className="mt-2 text-[10px] text-white/65">{formatTime(work.createdAt)}</p>
             </div>
@@ -120,7 +120,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
               disabled={busy}
               className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-50 to-pink-50 px-3 py-1.5 text-xs font-semibold text-rose-700 ring-1 ring-rose-200/80 transition hover:from-rose-100 hover:to-pink-100 disabled:opacity-50"
             >
-              <span aria-hidden>??</span>
+              <span aria-hidden>❤️</span>
               {likes}
             </button>
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -135,7 +135,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
                 href={`${VK_BASE}/works/${work.id}`}
                 className="rounded-full bg-violet-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-violet-700"
               >
-                ???
+                全屏看
               </Link>
             </div>
           </div>
@@ -151,14 +151,14 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
           {kindLabel(work.kind)}
         </span>
         <span className="text-xs text-slate-500">
-          {work.ageBand === "primary" ? "??" : "??"}
+          {work.ageBand === "primary" ? "小学" : "初中"}
         </span>
       </div>
       <h2 className="text-lg font-semibold text-slate-900">{work.title}</h2>
       {work.prompt ? (
         <p className="mt-2 line-clamp-3 text-sm text-slate-600">{work.prompt}</p>
       ) : (
-        <p className="mt-2 text-sm text-slate-400">?????</p>
+        <p className="mt-2 text-sm text-slate-400">（无描述）</p>
       )}
       <p className="mt-3 text-xs text-slate-400">{formatTime(work.createdAt)}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -168,13 +168,13 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
           disabled={busy}
           className="rounded-full border border-pink-200 bg-pink-50 px-3 py-1 text-xs font-medium text-pink-800 transition hover:bg-pink-100 disabled:opacity-50"
         >
-          ?? {likes}
+          👍 {likes}
         </button>
         <Link
           href={`${VK_BASE}/works/${work.id}`}
           className="inline-flex w-fit items-center rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-800 transition hover:bg-violet-100"
         >
-          ???? ?
+          打开作品 →
         </Link>
         <Link
           href={`${VK_BASE}/studio?age=${work.ageBand}&prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
