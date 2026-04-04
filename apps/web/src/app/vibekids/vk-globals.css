@@ -19,3 +19,24 @@
     animation: none;
   }
 }
+
+/* 创作室生成遮罩：当前步骤下的流动条 */
+@keyframes vk-gen-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(380%);
+  }
+}
+
+.vk-gen-shimmer-bar {
+  animation: vk-gen-shimmer 1.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vk-gen-shimmer-bar {
+    animation: none;
+    opacity: 0.75;
+  }
+}

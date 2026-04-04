@@ -1087,7 +1087,7 @@ export function StudioClient() {
           </span>
         </div>
         <div className="relative flex min-h-[min(400px,50vh)] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 lg:min-h-[min(540px,60dvh)]">
-          {loading !== null ? <GenerationSkeleton /> : null}
+          {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
           <PreviewFrame html={html} />
         </div>
       </section>
