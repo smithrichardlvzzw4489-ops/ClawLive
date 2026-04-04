@@ -1,0 +1,21 @@
+/* VibeKids：仅补充动画；样式由主站 Tailwind 与页面类名提供 */
+@keyframes work-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.work-card-enter {
+  animation: work-card-in 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .work-card-enter {
+    animation: none;
+  }
+}

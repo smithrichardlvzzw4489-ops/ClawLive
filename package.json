@@ -8,9 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n server,web,vk -c yellow,cyan,magenta \"pnpm --filter @clawlive/server exec tsx src/index.ts\" \"pnpm --filter @clawlive/web exec next dev -p 3000\" \"pnpm --filter @clawlive/vibekids exec next dev -p 3002\"",
+    "dev": "concurrently -n server,web -c yellow,cyan \"pnpm --filter @clawlive/server exec tsx src/index.ts\" \"pnpm --filter @clawlive/web exec next dev -p 3000\"",
     "dev:web": "pnpm --filter @clawlive/web exec next dev -p 3000",
-    "dev:vibekids": "pnpm --filter @clawlive/vibekids exec next dev -p 3002",
     "dev:server": "pnpm --filter @clawlive/server exec tsx src/index.ts",
     "dev:turbo": "turbo run dev --no-color",
     "dev:win": "chcp 65001 >nul & turbo run dev --no-color",

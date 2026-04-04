@@ -67,3 +67,7 @@ apps/server/.data/
 
 # User-uploaded media
 uploads/
+
+# VibeKids（合并至 web）本地作品与积分数据
+apps/web/data/vibekids/works.json
+apps/web/data/vibekids/credits.json

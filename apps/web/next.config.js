@@ -2,11 +2,6 @@
 const isVercel = Boolean(process.env.VERCEL);
 
 const apiOrigin = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
-/** 本地子应用 @clawlive/vibekids（basePath=/vibekids）；生产须为公网 https origin */
-const vibekidsProxyOrigin = (process.env.VIBEKIDS_PROXY_ORIGIN || 'http://localhost:3002').replace(
-  /\/$/,
-  '',
-);
 
 /** Vercel 边缘禁止把流量代理到 localhost/私有解析，否则会报 DNS_HOSTNAME_RESOLVED_PRIVATE */
 function allowOutboundProxy(origin) {
@@ -37,13 +32,6 @@ const nextConfig = {
   },
   async rewrites() {
     const afterFiles = [];
-
-    if (allowOutboundProxy(vibekidsProxyOrigin)) {
-      afterFiles.push(
-        { source: '/vibekids', destination: `${vibekidsProxyOrigin}/vibekids` },
-        { source: '/vibekids/:path*', destination: `${vibekidsProxyOrigin}/vibekids/:path*` },
-      );
-    }
 
     if (allowOutboundProxy(apiOrigin)) {
       afterFiles.push(
