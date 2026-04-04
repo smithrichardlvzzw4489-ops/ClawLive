@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { promises as fs } from "fs";
 import path from "path";
 import type { AgeBand } from "@/lib/vibekids/age";
+import { getVibekidsDataDir } from "@/lib/vibekids/data-dir";
 import type { CreativeKind } from "@/lib/vibekids/creative";
 import { spotlightRank } from "@/lib/vibekids/work-sort";
 import { computeQualityScore } from "@/lib/vibekids/work-quality";
@@ -35,8 +36,9 @@ export async function incrementWorkLike(id: string): Promise<number | null> {
   return next;
 }
 
-const DATA_DIR = path.join(process.cwd(), "data", "vibekids");
-const WORKS_FILE = path.join(DATA_DIR, "works.json");
+function worksFile(): string {
+  return path.join(getVibekidsDataDir(), "works.json");
+}
 
 const MAX_HTML_BYTES = 900_000;
 const MAX_WORKS = 300;
@@ -63,7 +65,7 @@ export function extractTitleFromHtml(html: string, fallback: string): string {
 
 async function readRaw(): Promise<SavedWork[]> {
   try {
-    const raw = await fs.readFile(WORKS_FILE, "utf-8");
+    const raw = await fs.readFile(worksFile(), "utf-8");
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed
@@ -90,8 +92,8 @@ async function readRaw(): Promise<SavedWork[]> {
 }
 
 async function writeRaw(works: SavedWork[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(WORKS_FILE, JSON.stringify(works, null, 2), "utf-8");
+  await fs.mkdir(getVibekidsDataDir(), { recursive: true });
+  await fs.writeFile(worksFile(), JSON.stringify(works, null, 2), "utf-8");
 }
 
 export async function getWorks(): Promise<SavedWork[]> {

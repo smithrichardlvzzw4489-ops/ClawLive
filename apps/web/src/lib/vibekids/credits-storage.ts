@@ -1,8 +1,10 @@
 import { promises as fs } from "fs";
+import { getVibekidsDataDir } from "@/lib/vibekids/data-dir";
 import path from "path";
 
-const DATA_DIR = path.join(process.cwd(), "data", "vibekids");
-const CREDITS_FILE = path.join(DATA_DIR, "credits.json");
+function creditsFile(): string {
+  return path.join(getVibekidsDataDir(), "credits.json");
+}
 
 type CreditsFile = {
   accounts: Record<string, number>;
@@ -38,7 +40,7 @@ export function isValidClientId(id: string): boolean {
 
 async function readFile(): Promise<CreditsFile> {
   try {
-    const raw = await fs.readFile(CREDITS_FILE, "utf-8");
+    const raw = await fs.readFile(creditsFile(), "utf-8");
     const p = JSON.parse(raw) as unknown;
     if (
       typeof p === "object" &&
@@ -56,8 +58,9 @@ async function readFile(): Promise<CreditsFile> {
 }
 
 async function writeFile(data: CreditsFile): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(CREDITS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  const dir = getVibekidsDataDir();
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(creditsFile(), JSON.stringify(data, null, 2), "utf-8");
 }
 
 export async function getCreditsBalance(clientId: string): Promise<number> {
