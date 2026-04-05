@@ -211,14 +211,14 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
   return (
     <div
       ref={wrapRef}
-      className="relative isolate min-h-0 w-full min-w-0 flex-1 overflow-hidden rounded-2xl bg-white [min-height:min(200px,32dvh)] [color-scheme:light] lg:[min-height:min(380px,44dvh)] lg:min-h-0"
+      className="relative isolate h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden rounded-2xl bg-white [color-scheme:light] lg:[min-height:min(380px,44dvh)]"
     >
       <iframe
         key={frameKey}
         ref={iframeRef}
         title={title}
-        className="absolute inset-0 box-border h-full min-h-[180px] w-full rounded-2xl border border-slate-200 bg-white shadow-inner"
-        sandbox="allow-scripts allow-forms"
+        className="absolute inset-0 box-border h-full min-h-0 w-full rounded-2xl border border-slate-200 bg-white shadow-inner"
+        sandbox="allow-scripts allow-forms allow-same-origin"
         srcDoc={trimmed}
         onLoad={() => {
           clearFitTimers();
