@@ -130,13 +130,6 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
 
       {tab === "cases" ? (
         <>
-          <p className="mb-8 max-w-2xl text-pretty text-sm text-slate-600">
-            官方推荐的灵感方向。创作室<strong>保存</strong>的作品会进入{" "}
-            <Link href={`${VK_BASE}/my-works`} className="font-semibold text-violet-700 underline">
-              我的作品
-            </Link>
-            ；在「我的作品」里点击「发布到广场」后，才会出现在「发现」瀑布流。
-          </p>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-800">官方推荐</h2>
             <div
