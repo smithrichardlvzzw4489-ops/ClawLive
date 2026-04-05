@@ -6,10 +6,9 @@ WORKDIR /app
 # 复制整个 monorepo（需以仓库根为构建上下文）
 COPY . .
 
-# 安装 pnpm
-RUN npm install -g pnpm
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
 # 生成 Prisma 客户端
 RUN cd apps/server && pnpm prisma generate

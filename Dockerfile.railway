@@ -5,10 +5,9 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm install -g pnpm
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-# 必须用 --no-frozen-lockfile：Railway Root Directory 非空时 lockfile 不在上下文中
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
 RUN cd apps/server && pnpm prisma generate
 

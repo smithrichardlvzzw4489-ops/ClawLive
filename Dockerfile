@@ -21,9 +21,9 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm install -g pnpm
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
 RUN cd apps/server && pnpm prisma generate
 

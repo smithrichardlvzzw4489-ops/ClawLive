@@ -9,9 +9,10 @@ WORKDIR /app
 
 COPY . .
 
-RUN npm install -g pnpm
+# 与 package.json packageManager 一致，避免 lock v6 + pnpm 9 混用导致安装偶发损坏
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
 RUN cd apps/server && pnpm prisma generate
 
