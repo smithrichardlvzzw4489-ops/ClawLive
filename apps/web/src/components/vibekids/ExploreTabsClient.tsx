@@ -122,13 +122,6 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6">
       <div className="mb-8 text-center sm:text-left">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">作品广场</h1>
-        <p className="mt-3 max-w-2xl text-pretty text-slate-600">
-          优秀案例与发现：「发现」仅展示<strong>已发布</strong>作品；保存后请在{" "}
-          <Link href={`${VK_BASE}/my-works`} className="font-semibold text-violet-700 underline">
-            我的作品
-          </Link>{" "}
-          中发布到广场。
-        </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2 sm:justify-start">
           {tabBtn("cases", "优秀案例")}
           {tabBtn("feed", "发现")}
@@ -228,25 +221,12 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
       ) : null}
 
       {tab === "feed" ? (
-        <>
-          <div className="mb-6 rounded-2xl border border-dashed border-sky-200 bg-sky-50/40 px-4 py-3 text-sm text-sky-900">
-            想自己做？去{" "}
-            <Link href={`${VK_BASE}/studio`} className="font-semibold underline underline-offset-2">
-              创作室
-            </Link>
-            ；保存后请到{" "}
-            <Link href={`${VK_BASE}/my-works`} className="font-semibold underline underline-offset-2">
-              我的作品
-            </Link>{" "}
-            发布后再出现在这里。积分规则：发布 5 分、每赞 1 分；「热门」在分数基础上给新作品一点加成。下滑自动加载。
-          </div>
-          <WorkGridClient
-            works={feedWorks}
-            defaultSort="hot"
-            immersive
-            emptyHint="还没有已发布的作品。在创作室保存后，到「我的作品」点击「发布到广场」即可出现在此。"
-          />
-        </>
+        <WorkGridClient
+          works={feedWorks}
+          defaultSort="hot"
+          immersive
+          emptyHint="还没有已发布的作品。在创作室保存后，到「我的作品」点击「发布到广场」即可出现在此。"
+        />
       ) : null}
     </main>
   );

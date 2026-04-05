@@ -733,9 +733,6 @@ export function StudioClient() {
             disabled={saving || loading !== null}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-400/30 focus:border-sky-400 focus:ring-2 disabled:opacity-50"
           />
-          <p className="text-xs text-slate-500">
-            点「保存作品」时会检查是否已命名。保存后默认不公开，可在「我的作品」发布到广场。
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
