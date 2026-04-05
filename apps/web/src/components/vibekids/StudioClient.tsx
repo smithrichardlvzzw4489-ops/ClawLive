@@ -31,10 +31,19 @@ function isLoopbackHost(hostname: string): boolean {
   );
 }
 
+/** 常见「仅后端」托管域：浏览器应走当前站点 /api 反代，避免小程序 web-view 合法域名不含该主机 */
+function isSeparateBackendDeployHost(hostname: string): boolean {
+  return (
+    hostname.endsWith(".up.railway.app") ||
+    hostname.endsWith(".railway.app")
+  );
+}
+
 /**
  * 已登录时 Lobster API 使用的「站点根」。
- * 构建里若误把 NEXT_PUBLIC_API_URL 设为 localhost，而用户实际在公网（含小程序 web-view）打开，
- * 则改为走当前页的相对路径 /api/...，由 Next 反代到 Node，避免「网络异常」。
+ * - 构建里若误把 NEXT_PUBLIC_API_URL 设为 localhost，而用户实际在公网打开 → 走相对 /api。
+ * - 若指向 Railway 等独立域名，而当前页是 www.clawlab.live 等前台域 → 仍走相对 /api（Next 反代），
+ *   否则微信 web-view 往往未把 *.railway.app 加入 request 合法域名，会「网络异常」。
  */
 function resolveLobsterApiBase(): string {
   const raw = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/$/, "");
@@ -42,9 +51,17 @@ function resolveLobsterApiBase(): string {
   if (typeof window === "undefined") return raw;
   const pageOrigin = window.location.origin.replace(/\/$/, "");
   if (raw === pageOrigin) return "";
+  const pageHost = window.location.hostname;
   try {
     const envUrl = new URL(raw.includes("://") ? raw : `https://${raw}`);
-    if (isLoopbackHost(envUrl.hostname) && !isLoopbackHost(window.location.hostname)) {
+    if (isLoopbackHost(envUrl.hostname) && !isLoopbackHost(pageHost)) {
+      return "";
+    }
+    if (
+      envUrl.hostname !== pageHost &&
+      !isLoopbackHost(pageHost) &&
+      isSeparateBackendDeployHost(envUrl.hostname)
+    ) {
       return "";
     }
   } catch {
