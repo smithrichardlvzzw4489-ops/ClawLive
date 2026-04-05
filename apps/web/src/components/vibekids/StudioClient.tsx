@@ -788,11 +788,11 @@ export function StudioClient() {
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            rows={6}
+            rows={3}
             placeholder={
               "可短可长。短例：点点会冒星星的页面。长例：计数器，可选主题色、记录点击次数、带重置按钮。"
             }
-            className="min-h-[8.5rem] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4"
+            className="min-h-[4.25rem] w-full resize-y rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4 sm:text-base"
           />
         </div>
 
@@ -870,9 +870,9 @@ export function StudioClient() {
       </section>
 
       <section className="order-1 flex min-h-0 min-w-0 flex-1 flex-col gap-0 px-3 pb-3 pt-1 sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex h-[min(260px,36dvh)] max-h-[min(320px,42dvh)] min-h-[200px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:h-[min(280px,38dvh)] lg:h-full lg:min-h-[min(480px,54dvh)] lg:max-h-none lg:flex-1">
+        <div className="relative flex h-[min(340px,50dvh)] max-h-[min(440px,58dvh)] min-h-[260px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:h-[min(380px,52dvh)] lg:h-full lg:min-h-[min(520px,58dvh)] lg:max-h-none lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [min-height:min(140px,22dvh)] lg:[min-height:0]">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0.5 [min-height:min(200px,30dvh)] lg:[min-height:0]">
             <PreviewFrame html={html} frameKey={vers.index} />
           </div>
         </div>
