@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { VK_BASE } from "@/lib/vibekids/constants";
+import { VibekidsMeButton } from "@/components/vibekids/VibekidsMeButton";
 
 type Props = {
   /** 当前高亮，用于无障碍与样式 */
@@ -31,7 +32,7 @@ export function SiteNav({ active }: Props) {
         <Link href={b} className="text-lg font-bold tracking-tight text-slate-900">
           VibeKids
         </Link>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:gap-x-5">
           {link(`${b}/explore`, "explore", "作品广场")}
           {link(`${b}/my-works`, "myworks", "我的作品")}
           <Link
@@ -44,6 +45,7 @@ export function SiteNav({ active }: Props) {
           >
             创作室
           </Link>
+          <VibekidsMeButton />
         </div>
       </nav>
     </header>
