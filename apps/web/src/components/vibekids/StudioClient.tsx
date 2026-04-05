@@ -3,13 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { AgeBand } from "@/lib/vibekids/age";
-import { ageLabel, parseAgeBand } from "@/lib/vibekids/age";
-import {
-  CREATIVE_KINDS,
-  VIBE_STYLES,
-  type CreativeKind,
-  type VibeStyle,
-} from "@/lib/vibekids/creative";
+import { parseAgeBand } from "@/lib/vibekids/age";
 import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
 import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
@@ -48,12 +42,6 @@ function getVibekidsLlmEndpoint(): {
     return { url, extraHeaders: { Authorization: `Bearer ${token}` } };
   }
   return { url: `${VK_API_BASE}/generate`, extraHeaders: {} };
-}
-
-function getDarwinBrainstormUrl(): string {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
-  const path = "/api/lobster/vibekids-brainstorm";
-  return base ? `${base}${path}` : path;
 }
 
 function getDarwinChipsUrl(): string {
@@ -181,18 +169,13 @@ export function StudioClient() {
     promptRef.current = prompt;
   }, [prompt]);
 
-  const [kind, setKind] = useState<CreativeKind>("any");
-  const [styles, setStyles] = useState<VibeStyle[]>([]);
-
   const [vers, setVers] = useState<Vers>(initialVers);
   const html = vers.list[vers.index] ?? welcomeHtml();
 
-  const [loading, setLoading] = useState<null | "create" | "refine">(null);
+  const [loading, setLoading] = useState<null | "create">(null);
   const [outMode, setOutMode] = useState<"idle" | "demo" | "ai">("idle");
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [refinePrompt, setRefinePrompt] = useState("");
-  const [lockHint, setLockHint] = useState("");
   const [saveTitle, setSaveTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -200,8 +183,6 @@ export function StudioClient() {
   const draftRestored = useRef(false);
 
   const [hasMainSiteToken, setHasMainSiteToken] = useState(false);
-  const [darwinDirections, setDarwinDirections] = useState<string[]>([]);
-  const [darwinBrainstormLoading, setDarwinBrainstormLoading] = useState(false);
 
   const [quickChips, setQuickChips] = useState<string[]>([]);
   const [chipsLoading, setChipsLoading] = useState(false);
@@ -229,8 +210,8 @@ export function StudioClient() {
           },
           body: JSON.stringify({
             ageBand: age,
-            kind,
-            styles,
+            kind: "any",
+            styles: [],
             prompt: promptRef.current.trim() || undefined,
             ...(opts?.exclude?.length ? { exclude: opts.exclude.slice(0, 12) } : {}),
           }),
@@ -286,7 +267,7 @@ export function StudioClient() {
         setChipsLoading(false);
       }
     },
-    [age, kind, styles],
+    [age],
   );
 
   useEffect(() => {
@@ -303,7 +284,7 @@ export function StudioClient() {
       return;
     }
     setQuickChips(randomPickN([...ALL_CHIPS], 6));
-  }, [hasMainSiteToken, age, kind, styles, loadDarwinChips]);
+  }, [hasMainSiteToken, age, loadDarwinChips]);
 
   useEffect(() => {
     setPromptHist(getPromptHistory());
@@ -320,11 +301,7 @@ export function StudioClient() {
     if (!draftOk) return;
     draftRestored.current = true;
     setPrompt(d.prompt);
-    setKind(d.kind);
-    setStyles(d.styles);
     setSaveTitle(d.saveTitle);
-    setRefinePrompt(d.refinePrompt);
-    setLockHint(d.lockHint);
     const list = d.versList.length ? d.versList : [welcomeHtml()];
     const idx = Math.min(Math.max(0, d.versIndex), list.length - 1);
     setVers({ list, index: idx });
@@ -337,44 +314,34 @@ export function StudioClient() {
       const idx = Math.min(vers.index, list.length - 1);
       saveDraft({
         prompt,
-        kind,
-        styles,
+        kind: "any",
+        styles: [],
         age,
         saveTitle,
-        refinePrompt,
-        lockHint,
+        refinePrompt: "",
+        lockHint: "",
         versList: list,
         versIndex: idx >= 0 ? idx : 0,
       });
     }, 800);
     return () => window.clearTimeout(t);
-  }, [
-    prompt,
-    kind,
-    styles,
-    age,
-    saveTitle,
-    refinePrompt,
-    lockHint,
-    vers.list,
-    vers.index,
-  ]);
+  }, [prompt, age, saveTitle, vers.list, vers.index]);
 
   const canUndo = vers.index > 0;
   const canRedo = vers.index < vers.list.length - 1;
-  /** 仅欢迎页且唯一版本时不能「应用修改」 */
-  const canRefine = !(vers.list.length === 1 && vers.index === 0);
+  /** 仍为欢迎页唯一版本时不可保存 */
+  const hasGeneratedPreview = !(vers.list.length === 1 && vers.index === 0);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (canRefine) {
+      if (hasGeneratedPreview) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [canRefine]);
+  }, [hasGeneratedPreview]);
 
   const pushVersion = useCallback((nextHtml: string) => {
     setVers((v) => {
@@ -405,7 +372,7 @@ export function StudioClient() {
         hint?: string;
         tokenUsage?: VibekidsTokenUsage;
       },
-      opts?: { intent?: "create" | "refine"; authFallback?: boolean },
+      opts?: { authFallback?: boolean },
     ) => {
       const nextHtml =
         typeof data.html === "string" ? data.html.trim() : "";
@@ -416,13 +383,9 @@ export function StudioClient() {
         const tech = data.detail.slice(0, 200);
         const extra = data.hint ? ` ${data.hint}` : "";
         setNotice(`AI 暂时不可用，已保留上一版或演示。技术信息：${tech}${extra}`);
-      } else if (data.warning === "refine_needs_ai" && data.detail) {
-        setNotice(data.detail);
       } else if (!data.warning) {
-        if (opts?.intent !== "refine") {
-          pushPromptHistory(prompt.trim());
-          setPromptHist(getPromptHistory());
-        }
+        pushPromptHistory(prompt.trim());
+        setPromptHist(getPromptHistory());
         const prefix = opts?.authFallback ? "登录已失效，已改用访客生成。" : "";
         const base = prefix ? `${prefix} 生成完成。` : "生成完成。";
         const tok =
@@ -451,8 +414,8 @@ export function StudioClient() {
         intent: "create",
         prompt: text,
         ageBand: age,
-        kind,
-        styles,
+        kind: "any",
+        styles: [],
         clientId: getClientId(),
       });
       const data = (await res.json()) as {
@@ -502,7 +465,7 @@ export function StudioClient() {
         setNotice("生成失败，请稍后再试。");
         return;
       }
-      handleApiResponse(data, { intent: "create", authFallback: usedAuthFallback });
+      handleApiResponse(data, { authFallback: usedAuthFallback });
     } catch (e) {
       if (
         e instanceof DOMException &&
@@ -515,197 +478,18 @@ export function StudioClient() {
     } finally {
       setLoading(null);
     }
-  }, [age, handleApiResponse, kind, prompt, styles]);
-
-  const applyRefine = useCallback(async () => {
-    const r = refinePrompt.trim();
-    if (!r) {
-      setNotice("先写清楚要改什么，例如：把按钮改成绿色、加一条计分规则。");
-      return;
-    }
-    if (!canRefine) {
-      setNotice("请先用「生成作品」得到一版页面，再在这里做快速修改。");
-      return;
-    }
-    setLoading("refine");
-    setNotice(null);
-    try {
-      const { res, usedAuthFallback } = await postVibekidsLlm({
-        intent: "refine",
-        ageBand: age,
-        currentHtml: html,
-        refinementPrompt: r,
-        lockHint: lockHint.trim() || undefined,
-        clientId: getClientId(),
-      });
-      const data = (await res.json()) as {
-        html?: string;
-        mode?: "demo" | "ai";
-        warning?: string;
-        detail?: string;
-        hint?: string;
-        creditsBalance?: number;
-        tokenUsage?: VibekidsTokenUsage;
-        error?: string;
-        message?: string;
-        balance?: number;
-        need?: number;
-        costCreate?: number;
-        costRefine?: number;
-      };
-      if (res.status === 402 && data.error === "NO_KEY") {
-        setNotice(
-          data.message ??
-            "Darwin 需要平台虚拟 Key。请先在积分兑换中申请 Key（与 /my-lobster 相同）。",
-        );
-        return;
-      }
-      if (res.status === 403 && data.error === "darwin_required") {
-        setNotice(
-          data.detail ??
-            "请先申请 DarwinClaw（Darwin）后再使用 AI 生成；或退出登录后使用演示/OpenRouter。",
-        );
-        return;
-      }
-      if (res.status === 500 && data.error === "llm_failed") {
-        setNotice(data.detail ?? "模型调用失败，请稍后再试。");
-        return;
-      }
-      if (res.status === 402 && data.error === "insufficient_credits") {
-        setNotice(
-          `生成额度不足（快速修改需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。`,
-        );
-        return;
-      }
-      if (res.status === 400 && data.error === "client_id_required") {
-        setNotice(data.detail ?? "请刷新页面后重试。");
-        return;
-      }
-      if (!res.ok || typeof data.html !== "string" || !data.html.trim()) {
-        setNotice("修改失败，请稍后再试。");
-        return;
-      }
-      handleApiResponse(data, { intent: "refine", authFallback: usedAuthFallback });
-      if (data.warning !== "ai_failed" && data.warning !== "refine_needs_ai") {
-        setRefinePrompt("");
-      }
-    } catch (e) {
-      if (
-        e instanceof DOMException &&
-        (e.name === "AbortError" || e.name === "TimeoutError")
-      ) {
-        setNotice("请求等待过久已中断，请简化修改说明后重试。");
-      } else {
-        setNotice("网络异常，检查一下连接后再试。");
-      }
-    } finally {
-      setLoading(null);
-    }
-  }, [age, canRefine, handleApiResponse, html, lockHint, refinePrompt]);
-
-  const runDarwinBrainstorm = useCallback(async () => {
-    let token: string | null = null;
-    try {
-      token = localStorage.getItem("token");
-    } catch {
-      /* ignore */
-    }
-    if (!token) {
-      setNotice("请先登录主站并接入 Darwin，即可使用云端创作记忆与拓展方案。");
-      return;
-    }
-    setDarwinBrainstormLoading(true);
-    setNotice(null);
-    try {
-      const url = getDarwinBrainstormUrl();
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          ageBand: age,
-          kind,
-          styles,
-        }),
-        signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
-      });
-      if (res.status === 401) {
-        try {
-          localStorage.removeItem("token");
-        } catch {
-          /* ignore */
-        }
-        setHasMainSiteToken(false);
-        setNotice("登录已失效，请重新登录后再试 Darwin 拓展方案。");
-        return;
-      }
-      const data = (await res.json()) as {
-        directions?: unknown;
-        detail?: string;
-        message?: string;
-        error?: string;
-      };
-      if (res.status === 403 && data.error === "darwin_required") {
-        setNotice(data.detail ?? "请先接入 Darwin。");
-        return;
-      }
-      if (res.status === 402 && data.error === "NO_KEY") {
-        setNotice(
-          data.message ?? "Darwin 需要平台虚拟 Key，请在积分兑换中申请。",
-        );
-        return;
-      }
-      if (!res.ok) {
-        setNotice(
-          typeof data.detail === "string" ?
-            data.detail
-          : typeof data.message === "string" ?
-            data.message
-          : "拓展方案暂不可用",
-        );
-        return;
-      }
-      const dirs =
-        Array.isArray(data.directions) ?
-          data.directions.filter(
-            (x): x is string => typeof x === "string" && x.trim().length > 4,
-          )
-        : [];
-      if (dirs.length === 0) {
-        setNotice("未拿到有效方案，请稍后再试。");
-        return;
-      }
-      setDarwinDirections(dirs.slice(0, 3));
-    } catch (e) {
-      if (
-        e instanceof DOMException &&
-        (e.name === "AbortError" || e.name === "TimeoutError")
-      ) {
-        setNotice("拓展方案请求超时，请稍后再试。");
-      } else {
-        setNotice("网络异常，拓展方案请求失败。");
-      }
-    } finally {
-      setDarwinBrainstormLoading(false);
-    }
-  }, [age, kind, prompt, styles]);
+  }, [age, handleApiResponse, prompt]);
 
   const clearAll = useCallback(() => {
     setVers(initialVers());
     setOutMode("idle");
     setNotice(null);
-    setRefinePrompt("");
-    setLockHint("");
     setSaveTitle("");
-    setDarwinDirections([]);
     clearDraft();
   }, []);
 
   const saveWork = useCallback(async () => {
-    if (!canRefine) {
+    if (!hasGeneratedPreview) {
       setNotice("请先生成可预览的作品，再保存。");
       return;
     }
@@ -719,7 +503,7 @@ export function StudioClient() {
           html,
           ageBand: age,
           prompt: prompt.trim() || undefined,
-          kind,
+          kind: "any",
           title: saveTitle.trim() || undefined,
         }),
       });
@@ -755,73 +539,18 @@ export function StudioClient() {
     } finally {
       setSaving(false);
     }
-  }, [age, canRefine, html, kind, prompt, saveTitle]);
-
-  const toggleStyle = (id: VibeStyle) => {
-    setStyles((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
+  }, [age, hasGeneratedPreview, html, prompt, saveTitle]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
       <section className="flex w-full shrink-0 flex-col gap-4 border-b border-slate-200/80 bg-white/95 p-4 shadow-sm sm:p-5 lg:max-w-[min(22rem,100vw)] lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:py-5 lg:pl-2 lg:pr-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-sky-100 px-3 py-1 text-sm font-medium text-sky-800">
-            {ageLabel(age)}创作
-          </span>
-          <span className="text-sm text-slate-600">
-            可点快捷词快速上手，也可写长描述定规则与界面
-          </span>
-        </div>
-
-        <div>
-          <p className="mb-2 text-sm font-medium text-slate-800">作品形态（帮助对齐交互）</p>
-          <div className="flex flex-wrap gap-2">
-            {CREATIVE_KINDS.map((k) => (
-              <button
-                key={k.id}
-                type="button"
-                onClick={() => setKind(k.id)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                  kind === k.id
-                    ? "border-sky-500 bg-sky-50 font-medium text-sky-900"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-sky-300"
-                }`}
-              >
-                {k.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="mb-2 text-sm font-medium text-slate-800">风格（可多选）</p>
-          <div className="flex flex-wrap gap-2">
-            {VIBE_STYLES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => toggleStyle(s.id)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                  styles.includes(s.id)
-                    ? "border-violet-500 bg-violet-50 font-medium text-violet-900"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-violet-300"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         <div>
           <p className="mb-2 text-sm font-medium text-slate-800">快捷灵感（可多点）</p>
           <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
             {hasMainSiteToken ?
               chipsLoading ?
-                "正在根据你的 Darwin 画像与下方形态/风格生成 6 条…"
-              : "已由 Darwin 按用户画像（问卷、简介等）与当前形态/风格推荐 6 条；点「换一批」可再要一批。"
+                "正在根据你的 Darwin 用户画像生成 6 条…"
+              : "已由 Darwin 按用户画像（问卷、简介等）推荐 6 条；点「换一批」可再要一批。"
             : "未登录时为内置示例，点「换一批」随机换 6 条；登录并接入 Darwin 后将按画像由系统推荐。"}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -906,57 +635,6 @@ export function StudioClient() {
           />
         </div>
 
-        {hasMainSiteToken ? (
-          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3">
-            <p className="mb-2 text-xs font-medium text-indigo-950">
-              Darwin · 智能拓展
-            </p>
-            <p className="mb-2 text-[11px] leading-relaxed text-indigo-900/85">
-              根据当前描述、作品形态与你在云端的近期创作线索，生成 3
-              条可落地的补充方向；点选后会合并进上方描述，再点「生成作品」即可。
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void runDarwinBrainstorm()}
-                disabled={darwinBrainstormLoading || loading !== null}
-                className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {darwinBrainstormLoading ? "正在想方案…" : "智能拓展 3 方案"}
-              </button>
-              {darwinDirections.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setDarwinDirections([])}
-                  className="text-xs font-medium text-indigo-800/80 underline-offset-2 hover:underline"
-                >
-                  收起方案
-                </button>
-              ) : null}
-            </div>
-            {darwinDirections.length > 0 ? (
-              <ul className="mt-2 space-y-2">
-                {darwinDirections.map((d, i) => (
-                  <li key={`${i}-${d.slice(0, 12)}`}>
-                    <button
-                      type="button"
-                      onClick={() => setPrompt((p) => mergeChip(p, d))}
-                      className="w-full rounded-xl border border-indigo-200/80 bg-white px-3 py-2 text-left text-sm leading-snug text-indigo-950 transition hover:border-indigo-400 hover:bg-indigo-50/80"
-                    >
-                      {d}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-        ) : (
-          <p className="text-[11px] leading-relaxed text-slate-500">
-            登录主站并接入 Darwin
-            后，创作室可通过云端记忆延续你的创作主题，并一键生成多套描述方案（不占用访客额度逻辑）。
-          </p>
-        )}
-
         {notice ? (
           <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>
         ) : null}
@@ -1024,54 +702,12 @@ export function StudioClient() {
           <button
             type="button"
             onClick={() => void saveWork()}
-            disabled={saving || loading !== null || !canRefine}
+            disabled={saving || loading !== null || !hasGeneratedPreview}
             className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
           >
             {saving ? "保存中…" : "保存作品"}
           </button>
         </div>
-
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4">
-          <p className="mb-1 text-sm font-semibold text-slate-800">快速修改</p>
-          <p className="mb-3 text-xs text-slate-500">
-            在上一版基础上局部调整，不必重写整段描述。未配置 API 时不可用。
-          </p>
-          <label htmlFor="refine" className="sr-only">
-            修改说明
-          </label>
-          <textarea
-            id="refine"
-            value={refinePrompt}
-            onChange={(e) => setRefinePrompt(e.target.value)}
-            rows={3}
-            placeholder="例：把主色改成绿色；加「重新开始」按钮；手机端字再大一号"
-            className="mb-2 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          />
-          <label htmlFor="lock" className="mb-1 block text-xs font-medium text-slate-600">
-            尽量别动这些（可选）
-          </label>
-          <textarea
-            id="lock"
-            value={lockHint}
-            onChange={(e) => setLockHint(e.target.value)}
-            rows={2}
-            placeholder="例：顶部标题和背景图不要动"
-            className="mb-3 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          />
-          <button
-            type="button"
-            onClick={() => void applyRefine()}
-            disabled={loading !== null || !canRefine}
-            className="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
-          >
-            {loading === "refine" ? "修改中…" : "应用修改"}
-          </button>
-        </div>
-
-        <p className="text-xs leading-relaxed text-slate-500">
-          预览在沙箱中运行；请勿输入隐私信息。家长可在 .env.local 中配置 OPENROUTER_API_KEY 以启用完整
-          AI 生成（OpenRouter）。
-        </p>
       </section>
 
       <section className="flex min-h-[min(480px,54vh)] min-w-0 flex-1 flex-col gap-2 px-3 pb-4 pt-2 sm:px-4 lg:h-full lg:min-h-0 lg:min-w-0 lg:flex-1 lg:px-5 lg:pb-5 lg:pt-4">

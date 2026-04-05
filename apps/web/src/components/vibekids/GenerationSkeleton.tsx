@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 type Mode = "create" | "refine";
 
 const CREATE_STEPS: { title: string; detail: string }[] = [
-  { title: "读懂你的想法", detail: "年龄、作品形态和风格会对齐到提示里" },
+  { title: "读懂你的想法", detail: "年龄与描述会对齐到提示里" },
   { title: "搭页面骨架", detail: "标题区、主操作区、反馈文案先就位" },
   { title: "写样式与动效", detail: "配色、圆角、小动画让页面活起来" },
   { title: "补上交互逻辑", detail: "按钮、键盘或计分等可玩部分" },
