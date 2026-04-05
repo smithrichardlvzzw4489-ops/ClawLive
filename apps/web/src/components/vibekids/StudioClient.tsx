@@ -247,8 +247,10 @@ function randomPickN<T>(arr: T[], n: number): T[] {
   return out;
 }
 
-/** Darwin 返回不足 6 条时用内置词补齐并去重 */
-function ensureSixChips(fromModel: string[]): string[] {
+const INSPIRATION_COUNT = 3;
+
+/** Darwin 返回不足 3 条时用内置词补齐并去重 */
+function ensureThreeChips(fromModel: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const c of fromModel) {
@@ -256,17 +258,23 @@ function ensureSixChips(fromModel: string[]): string[] {
     if (t.length < 4 || seen.has(t)) continue;
     seen.add(t);
     out.push(t);
-    if (out.length >= 6) return out;
+    if (out.length >= INSPIRATION_COUNT) return out;
   }
   const pool = randomPickN([...ALL_CHIPS], ALL_CHIPS.length);
   for (const c of pool) {
     if (seen.has(c)) continue;
     seen.add(c);
     out.push(c);
-    if (out.length >= 6) return out;
+    if (out.length >= INSPIRATION_COUNT) return out;
   }
-  return out.length > 0 ? out : ALL_CHIPS.slice(0, 6);
+  return out.length > 0 ? out : ALL_CHIPS.slice(0, INSPIRATION_COUNT);
 }
+
+/** 创作室主操作与灵感标签：统一小圆角（含小程序 web-view） */
+const STUDIO_OUTLINE_BTN =
+  "inline-flex shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:px-3 sm:text-xs";
+const STUDIO_PRIMARY_BTN =
+  "inline-flex shrink-0 items-center justify-center rounded-full border border-violet-600 bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:pointer-events-none disabled:opacity-40 sm:px-3 sm:text-xs";
 
 type Vers = { list: string[]; index: number };
 
@@ -332,7 +340,7 @@ export function StudioClient() {
         token = null;
       }
       if (!token) {
-        setQuickChips(randomPickN([...ALL_CHIPS], 6));
+        setQuickChips(randomPickN([...ALL_CHIPS], INSPIRATION_COUNT));
         return;
       }
 
@@ -361,7 +369,7 @@ export function StudioClient() {
             /* ignore */
           }
           setHasMainSiteToken(false);
-          setQuickChips(randomPickN([...ALL_CHIPS], 6));
+          setQuickChips(randomPickN([...ALL_CHIPS], INSPIRATION_COUNT));
           return;
         }
 
@@ -373,7 +381,7 @@ export function StudioClient() {
         };
 
         if (!res.ok) {
-          setQuickChips(ensureSixChips([]));
+          setQuickChips(ensureThreeChips([]));
           if (res.status === 402 && typeof data.message === "string") {
             setNotice(data.message);
           } else if (
@@ -384,7 +392,7 @@ export function StudioClient() {
             setNotice(
               typeof data.detail === "string" ?
                 data.detail
-              : "快捷灵感加载失败，已改用内置示例。",
+              : "灵感提示加载失败，已改用内置示例。",
             );
           }
           return;
@@ -396,9 +404,9 @@ export function StudioClient() {
               (x): x is string => typeof x === "string" && x.trim().length > 2,
             )
           : [];
-        setQuickChips(ensureSixChips(raw.map((x) => x.trim().slice(0, 32))));
+        setQuickChips(ensureThreeChips(raw.map((x) => x.trim().slice(0, 32))));
       } catch {
-        setQuickChips(ensureSixChips([]));
+        setQuickChips(ensureThreeChips([]));
       } finally {
         setChipsLoading(false);
       }
@@ -419,7 +427,7 @@ export function StudioClient() {
       void loadDarwinChips();
       return;
     }
-    setQuickChips(randomPickN([...ALL_CHIPS], 6));
+    setQuickChips(randomPickN([...ALL_CHIPS], INSPIRATION_COUNT));
   }, [hasMainSiteToken, age, loadDarwinChips]);
 
   useEffect(() => {
@@ -782,35 +790,33 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
-      <section className="flex w-full shrink-0 flex-col gap-4 border-b border-slate-200/80 bg-white/95 p-4 shadow-sm sm:p-5 lg:max-w-[min(22rem,100vw)] lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:py-5 lg:pl-2 lg:pr-5">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
+      <section className="order-2 flex w-full shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
         <div>
-          <p className="mb-2 text-sm font-medium text-slate-800">快捷灵感</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="mb-1.5 text-xs font-medium text-slate-700">灵感提示</p>
+          <div className="flex flex-wrap items-center gap-1.5">
             {quickChips.map((c, i) => (
               <button
                 key={`${i}-${c}`}
                 type="button"
                 onClick={() => setPrompt(c)}
                 disabled={chipsLoading || loading !== null}
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-50"
+                className={STUDIO_OUTLINE_BTN}
               >
                 {c}
               </button>
             ))}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => {
                 if (hasMainSiteToken) {
                   void loadDarwinChips({ exclude: quickChips });
                 } else {
-                  setQuickChips(randomPickN([...ALL_CHIPS], 6));
+                  setQuickChips(randomPickN([...ALL_CHIPS], INSPIRATION_COUNT));
                 }
               }}
               disabled={loading !== null || (hasMainSiteToken && chipsLoading)}
-              className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm text-sky-800 transition hover:bg-sky-100 disabled:opacity-50"
+              className={STUDIO_OUTLINE_BTN}
             >
               {hasMainSiteToken && chipsLoading ? "加载中…" : "换一批"}
             </button>
@@ -861,12 +867,12 @@ export function StudioClient() {
           <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
           <button
             type="button"
             onClick={() => void generate()}
             disabled={loading !== null}
-            className="rounded-2xl bg-gradient-to-r from-sky-500 to-violet-500 px-5 py-2.5 text-base font-semibold text-white shadow-md transition hover:brightness-105 disabled:opacity-60"
+            className={STUDIO_PRIMARY_BTN}
           >
             {loading === "create" ? "生成中…" : "生成作品"}
           </button>
@@ -876,7 +882,7 @@ export function StudioClient() {
             disabled={
               loading !== null || !hasGeneratedPreview || !prompt.trim()
             }
-            className="rounded-xl border border-violet-300 bg-white px-3 py-2 text-sm font-medium text-violet-900 transition hover:bg-violet-50 disabled:opacity-40"
+            className={STUDIO_OUTLINE_BTN}
           >
             {loading === "refine" ? "修改中…" : "修改作品"}
           </button>
@@ -884,7 +890,7 @@ export function StudioClient() {
             type="button"
             onClick={() => void generate()}
             disabled={loading !== null || !prompt.trim()}
-            className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-800 disabled:opacity-40"
+            className={STUDIO_OUTLINE_BTN}
           >
             再来一版
           </button>
@@ -892,28 +898,28 @@ export function StudioClient() {
             type="button"
             onClick={openSaveDialog}
             disabled={saving || loading !== null || !hasGeneratedPreview}
-            className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50"
+            className={STUDIO_OUTLINE_BTN}
           >
             保存作品
           </button>
         </div>
       </section>
 
-      <section className="flex min-h-[min(480px,54vh)] min-w-0 flex-1 flex-col gap-2 px-3 pb-4 pt-2 sm:px-4 lg:h-full lg:min-h-0 lg:min-w-0 lg:flex-1 lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">实时预览</h2>
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+      <section className="order-1 flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 px-3 pb-3 pt-1 sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:gap-2 lg:px-5 lg:pb-5 lg:pt-4">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h2 className="text-base font-semibold text-slate-900 lg:text-lg">实时预览</h2>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 lg:text-xs">
               版本 {vers.index + 1} / {vers.list.length}
             </span>
           </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 lg:px-3 lg:py-1 lg:text-xs">
             {outMode === "ai" ? "AI 生成" : outMode === "demo" ? "演示 / 离线" : "欢迎"}
           </span>
         </div>
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 lg:min-h-[min(540px,60dvh)]">
+        <div className="relative flex h-[min(260px,36dvh)] max-h-[min(320px,42dvh)] min-h-[200px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:h-[min(280px,38dvh)] lg:h-full lg:min-h-[min(480px,54dvh)] lg:max-h-none lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col [min-height:min(400px,50vh)] lg:[min-height:0]">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [min-height:min(140px,22dvh)] lg:[min-height:0]">
             <PreviewFrame html={html} frameKey={vers.index} />
           </div>
         </div>

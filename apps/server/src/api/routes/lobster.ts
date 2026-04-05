@@ -2100,16 +2100,16 @@ function parseVibekidsDirectionsJson(raw: string): string[] {
   }
 }
 
-const VIBEKIDS_CHIPS_SYSTEM = `你是少儿「氛围编程」创作助手。根据用户画像、学段、作品形态与风格，生成 6 条「快捷灵感」短句，供用户一键拼进描述里。
+const VIBEKIDS_CHIPS_SYSTEM = `你是少儿「氛围编程」创作助手。根据用户画像、学段、作品形态与风格，生成 3 条「灵感提示」短句，供用户一键填入描述。
 
 只输出一个 JSON 对象，不要 Markdown，不要解释。格式严格为：
-{"chips":["...","...","...","...","...","..."]}
+{"chips":["...","...","..."]}
 
 要求：
-- chips 恰好 6 条字符串，中文；
-- 每条 6～24 字，像可点按钮的短灵感（小游戏、小工具、互动页、贺卡、画板等均可），不要句号结尾；
-- 6 条须明显不同；积极健康，适合 6～15 岁；不要联网、不要收集隐私；
-- 若用户消息里含有【上一批勿重复】下列出的短句，新 6 条不得与其中任一条相同或仅改一两个字的同义重复；
+- chips 恰好 3 条字符串，中文；
+- 每条 6～24 字，像可点按钮的短提示（小游戏、小工具、互动页、贺卡、画板等均可），不要句号结尾；
+- 3 条须明显不同；积极健康，适合 6～15 岁；不要联网、不要收集隐私；
+- 若用户消息里含有【上一批勿重复】下列出的短句，新 3 条不得与其中任一条相同或仅改一两个字的同义重复；
 - 输出须简短，便于快速生成。`;
 
 function parseVibekidsChipsJson(raw: string): string[] {
@@ -2122,7 +2122,7 @@ function parseVibekidsChipsJson(raw: string): string[] {
     return o.chips
       .filter((x): x is string => typeof x === 'string' && x.trim().length >= 4)
       .map((x) => x.trim().replace(/\s+/g, ' ').slice(0, 32))
-      .slice(0, 6);
+      .slice(0, 3);
   } catch {
     return [];
   }
@@ -2972,7 +2972,7 @@ ${lock}
 
   /**
    * POST /api/lobster/vibekids-chips
-   * 基于 Darwin + 用户画像（问卷/简介等）+ 创作上下文，返回 6 条快捷灵感短句；exclude 用于「换一批」去重。
+   * 基于 Darwin + 用户画像（问卷/简介等）+ 创作上下文，返回 3 条灵感提示短句；exclude 用于「换一批」去重。
    */
   router.post('/vibekids-chips', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
@@ -2980,7 +2980,7 @@ ${lock}
     if (!instance) {
       return res.status(403).json({
         error: 'darwin_required',
-        detail: '请先接入 Darwin 后再使用个性化快捷灵感。',
+        detail: '请先接入 Darwin 后再使用个性化灵感提示。',
       });
     }
 
@@ -3037,7 +3037,7 @@ ${lock}
         ctx ? ctx : null,
         prompt ? `当前描述草稿：\n${prompt.slice(0, 800)}` : null,
         excludeBlock || null,
-        '请输出 6 条快捷灵感 JSON。',
+        '请输出 3 条灵感提示 JSON。',
       ]
         .filter(Boolean)
         .join('\n\n');
@@ -3079,13 +3079,13 @@ ${lock}
         return res.status(500).json({ error: 'empty_response' });
       }
       let chips = parseVibekidsChipsJson(text);
-      if (chips.length < 6) {
+      if (chips.length < 3) {
         return res.status(500).json({
           error: 'parse_failed',
-          detail: '模型返回的灵感不足 6 条，请重试',
+          detail: '模型返回的灵感不足 3 条，请重试',
         });
       }
-      chips = chips.slice(0, 6);
+      chips = chips.slice(0, 3);
       return res.json({ chips });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
