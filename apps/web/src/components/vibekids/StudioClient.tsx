@@ -19,6 +19,11 @@ import {
   vibekidsFetchAbortSignal,
 } from "@/lib/vibekids/generate-timeouts";
 import {
+  VibekidsRequestError,
+  logVibekidsConnectivityDiag,
+  noticeFromVibekidsFailure,
+} from "@/lib/vibekids/client-request-errors";
+import {
   type VibekidsTokenUsage,
   formatTokenUsageNotice,
 } from "@/lib/vibekids/token-usage";
@@ -101,24 +106,35 @@ async function postVibekidsLlm(
   body: Record<string, unknown>,
 ): Promise<{ res: Response; usedAuthFallback: boolean }> {
   const { url, extraHeaders } = getVibekidsLlmEndpoint();
-  let res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...extraHeaders },
-    body: JSON.stringify(body),
-    signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
-  });
+  const firstPhase = extraHeaders.Authorization ? "auth_llm" : "guest_llm";
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...extraHeaders },
+      body: JSON.stringify(body),
+      signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
+    });
+  } catch (err) {
+    throw new VibekidsRequestError(firstPhase, url, err);
+  }
   if (res.status === 401 && extraHeaders.Authorization) {
     try {
       localStorage.removeItem("token");
     } catch {
       /* ignore */
     }
-    res = await fetch(`${VK_API_BASE}/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
-    });
+    const guestUrl = `${VK_API_BASE}/generate`;
+    try {
+      res = await fetch(guestUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
+      });
+    } catch (err) {
+      throw new VibekidsRequestError("guest_fallback", guestUrl, err);
+    }
     return { res, usedAuthFallback: true };
   }
   return { res, usedAuthFallback: false };
@@ -540,21 +556,16 @@ export function StudioClient() {
         return;
       }
       if (!res.ok || typeof data.html !== "string" || !data.html.trim()) {
-        setNotice("生成失败，请稍后再试。");
+        const errTag =
+          typeof data.error === "string" ? `（${data.error}）` : "";
+        setNotice(`生成失败（HTTP ${res.status}）${errTag}，请稍后再试。`);
         return;
       }
       handleApiResponse(data, { authFallback: usedAuthFallback });
     } catch (e) {
-      if (
-        e instanceof DOMException &&
-        (e.name === "AbortError" || e.name === "TimeoutError")
-      ) {
-        setNotice("请求等待过久已中断，请稍后再试或简化描述。");
-      } else if (e instanceof TypeError) {
-        setNotice("网络异常，检查一下连接后再试。");
-      } else {
-        setNotice("请求异常，请刷新页面后重试。");
-      }
+      void logVibekidsConnectivityDiag("generate");
+      console.error("[VibeKids] generate failed:", e);
+      setNotice(noticeFromVibekidsFailure(e));
     } finally {
       setLoading(null);
     }
@@ -617,7 +628,9 @@ export function StudioClient() {
         return;
       }
       if (!res.ok || typeof data.html !== "string" || !data.html.trim()) {
-        setNotice("修改失败，请稍后再试。");
+        const errTag =
+          typeof data.error === "string" ? `（${data.error}）` : "";
+        setNotice(`修改失败（HTTP ${res.status}）${errTag}，请稍后再试。`);
         return;
       }
       handleApiResponse(data, {
@@ -625,16 +638,9 @@ export function StudioClient() {
         resultKind: "refine",
       });
     } catch (e) {
-      if (
-        e instanceof DOMException &&
-        (e.name === "AbortError" || e.name === "TimeoutError")
-      ) {
-        setNotice("请求等待过久已中断，请稍后再试或简化修改说明。");
-      } else if (e instanceof TypeError) {
-        setNotice("网络异常，检查一下连接后再试。");
-      } else {
-        setNotice("请求异常，请刷新页面后重试。");
-      }
+      void logVibekidsConnectivityDiag("refine");
+      console.error("[VibeKids] refine failed:", e);
+      setNotice(noticeFromVibekidsFailure(e, { refine: true }));
     } finally {
       setLoading(null);
     }
@@ -720,11 +726,9 @@ export function StudioClient() {
         }
       }
     } catch (e) {
-      setNotice(
-        e instanceof TypeError ?
-          "网络异常，保存未成功。"
-        : "保存请求异常，请刷新页面后重试。",
-      );
+      void logVibekidsConnectivityDiag("save work");
+      console.error("[VibeKids] save failed:", e);
+      setNotice(noticeFromVibekidsFailure(e));
     } finally {
       setSaving(false);
     }
