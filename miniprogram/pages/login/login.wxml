@@ -1,0 +1,10 @@
+<view class="wrap">
+  <view class="card">
+    <text class="title">使用微信登录</text>
+    <text class="muted block">将调用 wx.login 获取 code，并请求服务端 /api/mp/login 换取令牌（需先在服务端实现该接口）。</text>
+    <button class="btn-primary" bindtap="doLogin" loading="{{loading}}" disabled="{{loading}}">
+      一键登录
+    </button>
+    <text wx:if="{{err}}" class="err block">{{err}}</text>
+  </view>
+</view>

@@ -1,0 +1,31 @@
+.wrap {
+  padding-top: 48rpx;
+}
+
+.title {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 700;
+  margin-bottom: 16rpx;
+}
+
+.block {
+  display: block;
+  margin-top: 16rpx;
+}
+
+.err {
+  color: #dc2626;
+  font-size: 24rpx;
+  margin-top: 24rpx;
+}
+
+button.btn-primary {
+  width: 100%;
+  margin-top: 40rpx;
+  font-size: 28rpx;
+}
+
+button.btn-primary::after {
+  border: none;
+}

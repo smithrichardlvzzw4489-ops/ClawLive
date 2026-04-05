@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/vibekids/vibekids",
+    "pages/login/login"
+  ],
+  "window": {
+    "navigationBarTitleText": "VibeKids",
+    "navigationBarBackgroundColor": "#f8fafc",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f1f5f9"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

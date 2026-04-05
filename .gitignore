@@ -71,3 +71,7 @@ uploads/
 # VibeKids（合并至 web）本地作品与积分数据
 apps/web/data/vibekids/works.json
 apps/web/data/vibekids/credits.json
+
+# 微信小程序本地私密配置（勿提交）
+miniprogram/project.private.config.json
+project.private.config.json
