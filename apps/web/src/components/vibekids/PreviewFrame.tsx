@@ -12,8 +12,8 @@ type Props = {
 const MEASURE_MIN_W = 320;
 const MEASURE_MIN_H = 240;
 const MEASURE_CAP = 12000;
-/** cover 缩放：略留 1px 避免亚像素描边 */
-const FIT_INSET = 1;
+/** contain 缩放：内缩 2px，避免贴边裁切感 */
+const FIT_INSET = 2;
 /** 内容小于预览框时最大放大倍数 */
 const MAX_UPSCALE = 2.25;
 
@@ -139,8 +139,8 @@ function fitIframeToContainer(
 
     const innerW = Math.max(8, cw - FIT_INSET * 2);
     const innerH = Math.max(8, ch - FIT_INSET * 2);
-    // cover：铺满预览区，裁掉「信纸」式留白（原 contain 会在一侧留空）
-    let s = Math.max(innerW / w, innerH / h);
+    // contain：整页缩进可视区，不裁切；留白与外层 bg-slate-50 一致，弱化「展示框」
+    let s = Math.min(innerW / w, innerH / h);
     if (s > 1) {
       s = Math.min(s, MAX_UPSCALE);
     }
@@ -202,7 +202,7 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
 
   if (!trimmed) {
     return (
-      <div className="flex min-h-[min(160px,26dvh)] w-full flex-1 items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-2 text-center text-xs text-slate-500 lg:min-h-[min(320px,40dvh)] lg:text-sm">
+      <div className="flex min-h-[min(160px,26dvh)] w-full flex-1 items-center justify-center px-2 text-center text-xs text-slate-500 max-lg:rounded-none max-lg:bg-slate-50 lg:min-h-[min(320px,40dvh)] lg:rounded-2xl lg:border lg:border-dashed lg:border-slate-200 lg:bg-slate-50 lg:text-sm">
         暂无预览内容（生成成功但 HTML 为空时可刷新重试）
       </div>
     );
@@ -211,13 +211,13 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
   return (
     <div
       ref={wrapRef}
-      className="vk-preview-root relative isolate h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden rounded-2xl bg-white [color-scheme:light] lg:[min-height:min(380px,44dvh)]"
+      className="vk-preview-root relative isolate h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden max-lg:rounded-none max-lg:bg-slate-50 [color-scheme:light] lg:rounded-2xl lg:bg-white lg:[min-height:min(380px,44dvh)]"
     >
       <iframe
         key={frameKey}
         ref={iframeRef}
         title={title}
-        className="absolute inset-0 box-border h-full min-h-0 w-full rounded-2xl border border-slate-200 bg-white shadow-inner"
+        className="absolute inset-0 box-border h-full min-h-0 w-full max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ring-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner"
         sandbox="allow-scripts allow-forms allow-same-origin"
         srcDoc={trimmed}
         onLoad={() => {

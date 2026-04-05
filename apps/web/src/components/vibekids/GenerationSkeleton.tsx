@@ -86,7 +86,7 @@ export function GenerationSkeleton({ mode = "create" }: Props) {
     mode === "refine" ? "AI 正在按你的说明修改…" : "AI 正在创作这一页…";
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col gap-4 overflow-hidden rounded-2xl bg-white/96 p-4 shadow-inner backdrop-blur-sm">
+    <div className="absolute inset-0 z-10 flex max-lg:rounded-none flex-col gap-4 overflow-hidden rounded-2xl bg-white/96 p-4 shadow-inner backdrop-blur-sm">
       <div className="flex items-start gap-3">
         <span
           className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100"
