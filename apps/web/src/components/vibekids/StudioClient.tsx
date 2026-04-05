@@ -23,6 +23,36 @@ import {
 /** 略大于服务端墙钟截止，便于拿到 JSON 错误体 */
 const VIBEKIDS_CLIENT_FETCH_MS = clientVibekidsFetchMs();
 
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]"
+  );
+}
+
+/**
+ * 已登录时 Lobster API 使用的「站点根」。
+ * 构建里若误把 NEXT_PUBLIC_API_URL 设为 localhost，而用户实际在公网（含小程序 web-view）打开，
+ * 则改为走当前页的相对路径 /api/...，由 Next 反代到 Node，避免「网络异常」。
+ */
+function resolveLobsterApiBase(): string {
+  const raw = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/$/, "");
+  if (!raw) return "";
+  if (typeof window === "undefined") return raw;
+  const pageOrigin = window.location.origin.replace(/\/$/, "");
+  if (raw === pageOrigin) return "";
+  try {
+    const envUrl = new URL(raw.includes("://") ? raw : `https://${raw}`);
+    if (isLoopbackHost(envUrl.hostname) && !isLoopbackHost(window.location.hostname)) {
+      return "";
+    }
+  } catch {
+    return raw;
+  }
+  return raw;
+}
+
 /** 已登录时走 ClawLive 后端 Darwin（LiteLLM + 平台虚拟 Key），与 /my-lobster 同源；未登录走 Next 上 OpenRouter/演示 */
 function getVibekidsLlmEndpoint(): {
   url: string;
@@ -30,7 +60,7 @@ function getVibekidsLlmEndpoint(): {
 } {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
-  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const base = resolveLobsterApiBase();
   if (token) {
     const url = base
       ? `${base}/api/lobster/vibekids-generate`
@@ -41,7 +71,7 @@ function getVibekidsLlmEndpoint(): {
 }
 
 function getDarwinChipsUrl(): string {
-  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+  const base = resolveLobsterApiBase();
   const path = "/api/lobster/vibekids-chips";
   return base ? `${base}${path}` : path;
 }
