@@ -779,7 +779,16 @@ export function StudioClient() {
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-slate-50 max-lg:overscroll-y-contain lg:h-[calc(100dvh-3.25rem)] lg:overflow-visible lg:flex-row lg:items-stretch lg:gap-0">
-      <section className="order-2 flex w-full shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
+      <section className="flex min-h-[min(240px,40dvh)] min-w-0 flex-1 flex-col gap-0 px-3 pb-2 pt-1 sm:min-h-[min(260px,42dvh)] sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:px-5 lg:pb-5 lg:pt-4">
+        <div className="relative flex min-h-[min(320px,52dvh)] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:min-h-[min(340px,54dvh)] lg:h-full lg:min-h-[min(520px,58dvh)] lg:flex-1">
+          {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [min-height:min(200px,32dvh)] lg:[min-height:0]">
+            <PreviewFrame html={html} frameKey={vers.index} />
+          </div>
+        </div>
+      </section>
+
+      <section className="flex w-full shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
         <div className="flex flex-col gap-2">
           <label htmlFor="prompt" className="text-sm font-medium text-slate-800">
             用一句话说出你的想法（任意场景）
@@ -866,15 +875,6 @@ export function StudioClient() {
           >
             保存作品
           </button>
-        </div>
-      </section>
-
-      <section className="order-1 flex min-h-[min(280px,46dvh)] min-w-0 flex-1 flex-col gap-0 px-3 pb-2 pt-1 sm:min-h-[min(300px,48dvh)] sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex min-h-[min(380px,62dvh)] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:min-h-[min(420px,64dvh)] lg:h-full lg:min-h-[min(520px,58dvh)] lg:flex-1">
-          {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [min-height:min(240px,38dvh)] lg:[min-height:0]">
-            <PreviewFrame html={html} frameKey={vers.index} />
-          </div>
         </div>
       </section>
 
