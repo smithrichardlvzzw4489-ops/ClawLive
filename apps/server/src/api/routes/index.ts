@@ -28,9 +28,11 @@ import { evolutionNetworkRoutes } from './evolution-network';
 import { evolverRoutes } from './evolver';
 import { darwinRoutes } from './darwin';
 import { jobA2ARoutes } from './job-a2a';
+import { mpRoutes } from './mp';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/admin', adminRoutes());
+  app.use('/api/mp', mpRoutes);
   app.use('/api/auth', authRoutes);
   app.use('/api/open', openApiRoutes());
   app.use('/api/points', pointsRoutes());

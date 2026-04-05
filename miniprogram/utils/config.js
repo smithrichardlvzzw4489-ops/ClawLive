@@ -1,6 +1,8 @@
 /**
- * 小程序请求的后端根地址（需 https，且在微信公众平台配置为 request 合法域名）
- * 本地调试：开发者工具「详情 → 本地设置」勾选「不校验合法域名」
+ * 后端根地址（不要以 / 结尾）
+ * - 与 Next 同域且 next.config 把 /api 反代到 Node：填网站 https 域名，如 https://xxx.com
+ * - 直连 ClawLive 服务端（默认 3001）：本地可填 http://127.0.0.1:3001 ，并勾选「不校验合法域名」
+ * 登录接口：POST {API_BASE}/api/mp/login（由 apps/server 提供）
  */
 const API_BASE = "https://你的线上域名";
 
