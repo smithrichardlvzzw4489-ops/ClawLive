@@ -13,11 +13,7 @@ import {
   getPromptHistory,
   pushPromptHistory,
 } from "@/lib/vibekids/client-prompt-history";
-import {
-  loadDraft,
-  saveDraft,
-  clearDraft,
-} from "@/lib/vibekids/client-studio-draft";
+import { loadDraft, saveDraft } from "@/lib/vibekids/client-studio-draft";
 import { clientVibekidsFetchMs } from "@/lib/vibekids/generate-timeouts";
 import {
   type VibekidsTokenUsage,
@@ -328,8 +324,6 @@ export function StudioClient() {
     return () => window.clearTimeout(t);
   }, [prompt, age, saveTitle, vers.list, vers.index]);
 
-  const canUndo = vers.index > 0;
-  const canRedo = vers.index < vers.list.length - 1;
   /** 仍为欢迎页唯一版本时不可保存 */
   const hasGeneratedPreview = !(vers.list.length === 1 && vers.index === 0);
 
@@ -350,17 +344,6 @@ export function StudioClient() {
       list.push(nextHtml);
       return { list, index: list.length - 1 };
     });
-  }, []);
-
-  const undo = useCallback(() => {
-    setVers((v) => ({ ...v, index: Math.max(0, v.index - 1) }));
-  }, []);
-
-  const redo = useCallback(() => {
-    setVers((v) => ({
-      ...v,
-      index: Math.min(v.list.length - 1, v.index + 1),
-    }));
   }, []);
 
   const handleApiResponse = useCallback(
@@ -573,14 +556,6 @@ export function StudioClient() {
     }
   }, [age, handleApiResponse, hasGeneratedPreview, html, prompt]);
 
-  const clearAll = useCallback(() => {
-    setVers(initialVers());
-    setOutMode("idle");
-    setNotice(null);
-    setSaveTitle("");
-    clearDraft();
-  }, []);
-
   const saveWork = useCallback(async () => {
     if (!hasGeneratedPreview) {
       setNotice("请先生成可预览的作品，再保存。");
@@ -769,33 +744,6 @@ export function StudioClient() {
             className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50"
           >
             {saving ? "保存中…" : "保存作品"}
-          </button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-          <button
-            type="button"
-            onClick={undo}
-            disabled={!canUndo || loading !== null}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-40"
-          >
-            撤销
-          </button>
-          <button
-            type="button"
-            onClick={redo}
-            disabled={!canRedo || loading !== null}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 disabled:opacity-40"
-          >
-            重做
-          </button>
-          <button
-            type="button"
-            onClick={clearAll}
-            disabled={loading !== null}
-            className="text-sm font-medium text-slate-600 underline-offset-4 hover:underline"
-          >
-            清空
           </button>
         </div>
       </section>
