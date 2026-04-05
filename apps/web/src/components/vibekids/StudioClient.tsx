@@ -801,16 +801,10 @@ export function StudioClient() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="save-dialog-title"
+            aria-label="保存作品"
             className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
           >
-            <h2
-              id="save-dialog-title"
-              className="text-lg font-semibold text-slate-900"
-            >
-              命名作品
-            </h2>
-            <label htmlFor="save-dialog-title-input" className="mt-4 block text-sm font-medium text-slate-800">
+            <label htmlFor="save-dialog-title-input" className="block text-sm font-medium text-slate-800">
               作品名称
             </label>
             <input
@@ -829,9 +823,6 @@ export function StudioClient() {
             {saveNameError ? (
               <p className="mt-2 text-sm text-red-600">{saveNameError}</p>
             ) : null}
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              点「确认保存」时会检查是否已命名。保存后默认不公开，可在「我的作品」发布到广场。
-            </p>
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
