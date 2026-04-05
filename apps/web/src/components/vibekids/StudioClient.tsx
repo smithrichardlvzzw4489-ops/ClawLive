@@ -101,10 +101,15 @@ function getDarwinChipsUrl(): string {
   return base ? `${base}${path}` : path;
 }
 
-/** Darwin 返回 401（登录过期或无效 token）时清除 token 并重试 Next 访客接口 */
+type VibekidsGuestFallbackReason = "session_expired" | "darwin_required";
+
+/** Darwin：401 清 token 后走访客；403 darwin_required 仍保留登录，仅本次改走访客演示/OpenRouter */
 async function postVibekidsLlm(
   body: Record<string, unknown>,
-): Promise<{ res: Response; usedAuthFallback: boolean }> {
+): Promise<{
+  res: Response;
+  guestFallbackReason?: VibekidsGuestFallbackReason;
+}> {
   const { url, extraHeaders } = getVibekidsLlmEndpoint();
   const firstPhase = extraHeaders.Authorization ? "auth_llm" : "guest_llm";
   let res: Response;
@@ -135,9 +140,32 @@ async function postVibekidsLlm(
     } catch (err) {
       throw new VibekidsRequestError("guest_fallback", guestUrl, err);
     }
-    return { res, usedAuthFallback: true };
+    return { res, guestFallbackReason: "session_expired" };
   }
-  return { res, usedAuthFallback: false };
+  if (res.status === 403 && extraHeaders.Authorization) {
+    let darwinRequired = false;
+    try {
+      const peek = (await res.clone().json()) as { error?: string };
+      darwinRequired = peek?.error === "darwin_required";
+    } catch {
+      /* 非 JSON 体时不回退 */
+    }
+    if (darwinRequired) {
+      const guestUrl = `${VK_API_BASE}/generate`;
+      try {
+        res = await fetch(guestUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
+        });
+      } catch (err) {
+        throw new VibekidsRequestError("guest_fallback", guestUrl, err);
+      }
+      return { res, guestFallbackReason: "darwin_required" };
+    }
+  }
+  return { res };
 }
 
 type VibekidsLlmResponseBody = {
@@ -467,7 +495,10 @@ export function StudioClient() {
         hint?: string;
         tokenUsage?: VibekidsTokenUsage;
       },
-      opts?: { authFallback?: boolean; resultKind?: "create" | "refine" },
+      opts?: {
+        guestFallbackReason?: VibekidsGuestFallbackReason;
+        resultKind?: "create" | "refine";
+      },
     ) => {
       const nextHtml =
         typeof data.html === "string" ? data.html.trim() : "";
@@ -488,7 +519,12 @@ export function StudioClient() {
       } else if (!data.warning) {
         pushPromptHistory(prompt.trim());
         setPromptHist(getPromptHistory());
-        const prefix = opts?.authFallback ? "登录已失效，已改用访客生成。" : "";
+        const prefix =
+          opts?.guestFallbackReason === "session_expired" ?
+            "登录已失效，已改用访客生成。"
+          : opts?.guestFallbackReason === "darwin_required" ?
+            "尚未接入 Darwin，已改用访客演示通道。"
+          : "";
         const verb = opts?.resultKind === "refine" ? "修改" : "生成";
         const base = prefix ? `${prefix} ${verb}完成。` : `${verb}完成。`;
         const tok =
@@ -513,7 +549,7 @@ export function StudioClient() {
     setLoading("create");
     setNotice(null);
     try {
-      const { res, usedAuthFallback } = await postVibekidsLlm({
+      const { res, guestFallbackReason } = await postVibekidsLlm({
         intent: "create",
         prompt: text,
         ageBand: age,
@@ -537,7 +573,7 @@ export function StudioClient() {
       if (res.status === 403 && data.error === "darwin_required") {
         setNotice(
           data.detail ??
-            "请先申请 DarwinClaw（Darwin）后再使用 AI 生成；或退出登录后使用演示/OpenRouter。",
+            "暂无 Darwin 创作权限。请稍后再试或刷新页面；若仍失败请退出登录后使用演示。",
         );
         return;
       }
@@ -561,7 +597,7 @@ export function StudioClient() {
         setNotice(`生成失败（HTTP ${res.status}）${errTag}，请稍后再试。`);
         return;
       }
-      handleApiResponse(data, { authFallback: usedAuthFallback });
+      handleApiResponse(data, { guestFallbackReason });
     } catch (e) {
       void logVibekidsConnectivityDiag("generate");
       console.error("[VibeKids] generate failed:", e);
@@ -584,7 +620,7 @@ export function StudioClient() {
     setLoading("refine");
     setNotice(null);
     try {
-      const { res, usedAuthFallback } = await postVibekidsLlm({
+      const { res, guestFallbackReason } = await postVibekidsLlm({
         intent: "refine",
         currentHtml: html,
         refinementPrompt: text,
@@ -609,7 +645,7 @@ export function StudioClient() {
       if (res.status === 403 && data.error === "darwin_required") {
         setNotice(
           data.detail ??
-            "请先申请 DarwinClaw（Darwin）后再使用 AI 修改；或退出登录后使用演示/OpenRouter。",
+            "暂无 Darwin 创作权限。请稍后再试或刷新页面；若仍失败请退出登录后使用演示。",
         );
         return;
       }
@@ -634,7 +670,7 @@ export function StudioClient() {
         return;
       }
       handleApiResponse(data, {
-        authFallback: usedAuthFallback,
+        guestFallbackReason,
         resultKind: "refine",
       });
     } catch (e) {
