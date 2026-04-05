@@ -29,7 +29,7 @@ export function MyWorksClient() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${VK_API_BASE}/works`);
+      const res = await fetch(`${VK_API_BASE}/works`, { cache: "no-store" });
       const data = (await res.json()) as { works?: SavedWorkSummary[]; error?: string };
       if (!res.ok) throw new Error(data.error ?? "load_failed");
       const list = Array.isArray(data.works) ? data.works : [];
@@ -54,6 +54,7 @@ export function MyWorksClient() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, published }),
+          cache: "no-store",
         });
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;

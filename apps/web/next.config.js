@@ -36,7 +36,12 @@ const nextConfig = {
     if (allowOutboundProxy(apiOrigin)) {
       afterFiles.push(
         { source: '/uploads/:path*', destination: `${apiOrigin}/uploads/:path*` },
-        { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
+        // VibeKids 作品/额度等由 Next App Router 的 /api/vibekids/* 处理（works.json / Redis），
+        // 不可代理到 Express：后端无对应路由时会导致「保存成功但列表为空」等现象。
+        {
+          source: '/api/:path((?!vibekids).*)',
+          destination: `${apiOrigin}/api/:path`,
+        },
       );
     }
 
