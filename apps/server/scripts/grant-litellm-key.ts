@@ -61,7 +61,16 @@ async function resolveUserId(): Promise<{ id: string; username: string }> {
 
 async function main() {
   if (!isLitellmConfigured()) {
-    console.error('LITELLM_BASE_URL / LITELLM_MASTER_KEY 未配置，无法生成虚拟 Key');
+    console.error(
+      [
+        'LITELLM_BASE_URL / LITELLM_MASTER_KEY 未配置，无法生成虚拟 Key。',
+        '请在以下任一文件中设置（与运行中的 ClawLive 服务端一致，勿提交密钥）：',
+        '  - 仓库根目录 .env',
+        '  - apps/server/.env',
+        '示例见仓库 .env.example 中 LITELLM_BASE_URL、LITELLM_MASTER_KEY。',
+        '若 LiteLLM 只部署在线上，可在 Railway 控制台 Variables 查看同名变量，复制到本机 .env 再执行本脚本。',
+      ].join('\n'),
+    );
     process.exit(1);
   }
 
