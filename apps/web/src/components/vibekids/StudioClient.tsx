@@ -314,7 +314,6 @@ export function StudioClient() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveNameError, setSaveNameError] = useState<string | null>(null);
   const saveDialogInputRef = useRef<HTMLInputElement>(null);
-  const [outMode, setOutMode] = useState<"idle" | "demo" | "ai">("idle");
   const [notice, setNotice] = useState<string | null>(null);
 
   const [saveTitle, setSaveTitle] = useState("");
@@ -441,7 +440,6 @@ export function StudioClient() {
     const list = d.versList.length ? d.versList : [welcomeHtml()];
     const idx = Math.min(Math.max(0, d.versIndex), list.length - 1);
     setVers({ list, index: idx });
-    setOutMode("demo");
   }, [age, sp]);
 
   useEffect(() => {
@@ -511,7 +509,6 @@ export function StudioClient() {
         return false;
       }
       pushVersion(nextHtml);
-      setOutMode(data.mode === "ai" ? "ai" : "demo");
       if (data.warning === "ai_failed" && data.detail) {
         const tech = data.detail.slice(0, 200);
         const extra = data.hint ? ` ${data.hint}` : "";
@@ -872,18 +869,7 @@ export function StudioClient() {
         </div>
       </section>
 
-      <section className="order-1 flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 px-3 pb-3 pt-1 sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:gap-2 lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h2 className="text-base font-semibold text-slate-900 lg:text-lg">实时预览</h2>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 lg:text-xs">
-              版本 {vers.index + 1} / {vers.list.length}
-            </span>
-          </div>
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 lg:px-3 lg:py-1 lg:text-xs">
-            {outMode === "ai" ? "AI 生成" : outMode === "demo" ? "演示 / 离线" : "欢迎"}
-          </span>
-        </div>
+      <section className="order-1 flex min-h-0 min-w-0 flex-1 flex-col gap-0 px-3 pb-3 pt-1 sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:px-5 lg:pb-5 lg:pt-4">
         <div className="relative flex h-[min(260px,36dvh)] max-h-[min(320px,42dvh)] min-h-[200px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:h-[min(280px,38dvh)] lg:h-full lg:min-h-[min(480px,54dvh)] lg:max-h-none lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [min-height:min(140px,22dvh)] lg:[min-height:0]">
