@@ -26,3 +26,19 @@ export function clientVibekidsFetchMs(): number {
   }
   return VIBEKIDS_GENERATE_DEADLINE_MS_DEFAULT + 15_000;
 }
+
+/**
+ * 微信内置 WebView 等环境常无 `AbortSignal.timeout`；若直接调用会抛 TypeError，
+ * 易被上层误判为「网络异常」。优先用原生 timeout，否则 AbortController + setTimeout。
+ */
+export function vibekidsFetchAbortSignal(ms: number): AbortSignal {
+  const AS = AbortSignal as typeof AbortSignal & {
+    timeout?: (n: number) => AbortSignal;
+  };
+  if (typeof AS.timeout === "function") {
+    return AS.timeout(ms);
+  }
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), ms);
+  return ctrl.signal;
+}

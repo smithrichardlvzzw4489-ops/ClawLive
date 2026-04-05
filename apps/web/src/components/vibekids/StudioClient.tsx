@@ -14,7 +14,10 @@ import {
   pushPromptHistory,
 } from "@/lib/vibekids/client-prompt-history";
 import { loadDraft, saveDraft } from "@/lib/vibekids/client-studio-draft";
-import { clientVibekidsFetchMs } from "@/lib/vibekids/generate-timeouts";
+import {
+  clientVibekidsFetchMs,
+  vibekidsFetchAbortSignal,
+} from "@/lib/vibekids/generate-timeouts";
 import {
   type VibekidsTokenUsage,
   formatTokenUsageNotice,
@@ -102,7 +105,7 @@ async function postVibekidsLlm(
     method: "POST",
     headers: { "Content-Type": "application/json", ...extraHeaders },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
+    signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
   });
   if (res.status === 401 && extraHeaders.Authorization) {
     try {
@@ -114,7 +117,7 @@ async function postVibekidsLlm(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
+      signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
     });
     return { res, usedAuthFallback: true };
   }
@@ -304,7 +307,7 @@ export function StudioClient() {
             prompt: promptRef.current.trim() || undefined,
             ...(opts?.exclude?.length ? { exclude: opts.exclude.slice(0, 12) } : {}),
           }),
-          signal: AbortSignal.timeout(VIBEKIDS_CLIENT_FETCH_MS),
+          signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
         });
 
         if (res.status === 401) {
