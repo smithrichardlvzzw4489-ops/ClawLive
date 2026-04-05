@@ -1,12 +1,19 @@
 /**
- * 管理员接口 — 数据清理
- * 通过 ADMIN_SECRET 环境变量保护，URL 参数传入 secret 验证
+ * 管理员接口 — 数据清理、线上发放 LiteLLM 虚拟 Key 等
+ * 通过 ADMIN_SECRET 环境变量保护（query ?secret= 或 Header X-Admin-Secret）
  */
 import { Router } from 'express';
 import { works, workMessages } from './rooms-simple';
 import { WorksPersistence } from '../../services/works-persistence';
 import { clearAllFeedPostsAndRelated, getFeedPostsMap } from '../../services/feed-posts-store';
 import { cancelAllOpenEvolutionPoints } from '../../services/evolution-network-service';
+import { prisma } from '../../lib/prisma';
+import { config } from '../../config';
+import {
+  generateVirtualKey,
+  increaseVirtualKeyBudget,
+  isLitellmConfigured,
+} from '../../services/litellm-budget';
 
 export function adminRoutes(): Router {
   const router = Router();
@@ -74,6 +81,116 @@ export function adminRoutes(): Router {
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to end evolution points' });
+    }
+  });
+
+  /**
+   * POST /api/admin/grant-litellm-key
+   * 线上为指定用户创建 LiteLLM 虚拟 Key 或追加预算（无需本机脚本/.env）。
+   * Body JSON（三选一指定用户）: { userId?, username?, latestWechatMp?: true, usd?: number }
+   * usd 默认 2；需服务端已配置 LITELLM_BASE_URL + LITELLM_MASTER_KEY。
+   */
+  router.post('/grant-litellm-key', async (req, res) => {
+    if (!checkSecret(req, res)) return;
+    if (!isLitellmConfigured()) {
+      return res.status(503).json({
+        error: 'LITELLM_NOT_CONFIGURED',
+        message: '服务端未配置 LITELLM_BASE_URL / LITELLM_MASTER_KEY',
+      });
+    }
+
+    const body = req.body as {
+      userId?: string;
+      username?: string;
+      latestWechatMp?: boolean;
+      usd?: number;
+    };
+    const fromEnv = Number(process.env.GRANT_LLM_USD);
+    const usd =
+      typeof body.usd === 'number' && Number.isFinite(body.usd) && body.usd > 0 ?
+        body.usd
+      : Number.isFinite(fromEnv) && fromEnv > 0 ?
+        fromEnv
+      : 2;
+
+    let user: { id: string; username: string } | null = null;
+    if (typeof body.userId === 'string' && body.userId.trim()) {
+      user = await prisma.user.findUnique({
+        where: { id: body.userId.trim() },
+        select: { id: true, username: true },
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'USER_NOT_FOUND', field: 'userId' });
+      }
+    } else if (typeof body.username === 'string' && body.username.trim()) {
+      user = await prisma.user.findUnique({
+        where: { username: body.username.trim() },
+        select: { id: true, username: true },
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'USER_NOT_FOUND', field: 'username' });
+      }
+    } else if (body.latestWechatMp === true) {
+      user = await prisma.user.findFirst({
+        where: { wechatMpOpenid: { not: null } },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, username: true },
+      });
+      if (!user) {
+        return res.status(404).json({ error: 'NO_WECHAT_MP_USER' });
+      }
+    } else {
+      return res.status(400).json({
+        error: 'TARGET_REQUIRED',
+        message: 'Provide one of: userId, username, or latestWechatMp: true',
+      });
+    }
+
+    const models = config.litellm.models;
+
+    try {
+      const row = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { litellmVirtualKey: true },
+      });
+
+      if (!row?.litellmVirtualKey) {
+        const { key } = await generateVirtualKey({
+          userId: user.id,
+          maxBudgetUsd: usd,
+          models,
+        });
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { litellmVirtualKey: key },
+        });
+        console.log(`[Admin] grant-litellm-key created for ${user.username} (${user.id}) max_budget=${usd}`);
+        return res.json({
+          ok: true,
+          action: 'created',
+          userId: user.id,
+          username: user.username,
+          maxBudgetUsd: usd,
+          virtualKeyMasked: `${key.slice(0, 8)}…`,
+        });
+      }
+
+      await increaseVirtualKeyBudget(row.litellmVirtualKey, usd);
+      console.log(`[Admin] grant-litellm-key budget +${usd} USD for ${user.username} (${user.id})`);
+      return res.json({
+        ok: true,
+        action: 'budget_added',
+        userId: user.id,
+        username: user.username,
+        addUsd: usd,
+        virtualKeyMasked: `${row.litellmVirtualKey.slice(0, 8)}…`,
+      });
+    } catch (e) {
+      console.error('[Admin] grant-litellm-key', e);
+      return res.status(502).json({
+        error: 'LITELLM_ERROR',
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   });
 

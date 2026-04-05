@@ -3,6 +3,8 @@
  *
  * 依赖环境（与线上一致）：DATABASE_URL、LITELLM_BASE_URL、LITELLM_MASTER_KEY；可选 LITELLM_MODELS。
  * 可选：GRANT_LLM_USD — 首次建 Key 的 max_budget（默认 2）；追加预算时同值。
+ * 若不想配置本机 .env：在 Railway 等已配好 LiteLLM 的线上服务设 ADMIN_SECRET，用
+ *   curl -X POST "https://你的API域名/api/admin/grant-litellm-key" -H "Content-Type: application/json" -H "X-Admin-Secret: $SECRET" -d "{\"latestWechatMp\":true}"
  *
  * 用法：
  *   pnpm exec tsx scripts/grant-litellm-key.ts <username>
