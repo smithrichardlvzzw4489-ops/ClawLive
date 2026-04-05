@@ -1,4 +1,9 @@
 /* VibeKids：仅补充动画；样式由主站 Tailwind 与页面类名提供 */
+
+/* 小程序 web-view 里 iframe 未绘制前常露黑底，与主站 body #07090f 叠在一起 */
+.vk-preview-root iframe {
+  background-color: #fff !important;
+}
 @keyframes work-card-in {
   from {
     opacity: 0;

@@ -778,17 +778,17 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    <div className="h-full min-h-0 flex-1 gap-0 bg-slate-50 max-lg:grid max-lg:grid-cols-1 max-lg:[grid-template-rows:minmax(200px,min(42dvh,340px))_auto] max-lg:overflow-y-auto max-lg:overscroll-y-contain lg:flex lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
-      <section className="flex min-h-0 min-w-0 flex-col gap-0 px-3 pb-0 pt-1 sm:px-4 max-lg:h-full max-lg:max-h-full max-lg:min-h-0 max-lg:overflow-hidden lg:order-2 lg:h-full lg:flex-1 lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex h-full min-h-0 max-h-full flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-h-[min(520px,58dvh)]">
+    <div className="flex h-full min-h-0 flex-1 flex-col justify-start gap-0 overflow-y-auto overscroll-y-contain bg-slate-50 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
+      <section className="flex w-full max-lg:flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 px-3 pb-0 pt-1 sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
+        <div className="relative flex min-h-0 w-full max-lg:h-[40vh] max-lg:max-h-[400px] max-lg:min-h-[200px] max-lg:shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <PreviewFrame html={html} frameKey={vers.index} />
           </div>
         </div>
       </section>
 
-      <section className="flex w-full shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 max-lg:min-h-0 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
+      <section className="flex w-full flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
         <div className="flex flex-col gap-2">
           <label htmlFor="prompt" className="text-sm font-medium text-slate-800">
             用一句话说出你的想法（任意场景）
