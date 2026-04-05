@@ -41,6 +41,7 @@ import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { formatSkillHitsForLobster, searchGitHubSkillPackages } from '../../services/github-skill-hunter';
 import { getDefaultPlatformModel, loadPlatformModels } from '../../services/platform-models';
 import { prisma } from '../../lib/prisma';
+import { defaultDarwinDisplayName } from '../../lib/darwin-defaults';
 import { validateDarwinOnboarding } from '../../lib/darwin-onboarding';
 import { saveNote, listNotes, readNote, readMemory, upsertMemory } from '../../services/lobster-notes';
 import {
@@ -2179,7 +2180,7 @@ export function lobsterRoutes(): Router {
     const { name, onboarding } = req.body as { name?: string; onboarding?: unknown };
     try {
       const alreadyApplied = getLobsterInstance(userId);
-      if (!alreadyApplied) {
+      if (!alreadyApplied && onboarding !== undefined && onboarding !== null) {
         const parsed = validateDarwinOnboarding(onboarding);
         if (!parsed.ok) {
           return res.status(400).json({ error: parsed.error });
@@ -2190,7 +2191,11 @@ export function lobsterRoutes(): Router {
         });
       }
 
-      const instance = await applyLobster(userId, name);
+      const resolvedName =
+        typeof name === 'string' && name.trim().length > 0 ?
+          name.trim()
+        : defaultDarwinDisplayName();
+      const instance = await applyLobster(userId, resolvedName);
       // 幂等：内部若已有 darwin_bootstrap 进化点则跳过；避免首次 bootstrap 失败后无法重试（第二次 apply 非新用户）
       {
         const { onDarwinClawFirstApply } = await import('../../services/evolution-network-service');

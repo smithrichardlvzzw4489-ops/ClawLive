@@ -3,6 +3,7 @@ import type { IRouter } from 'express';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import { prisma } from '../../lib/prisma';
+import { ensureWeChatDarwinForUser } from '../../services/darwin-mp-bootstrap';
 
 const router: IRouter = Router();
 
@@ -91,6 +92,8 @@ router.post('/login', async (req: Request, res: Response) => {
         },
       });
     }
+
+    await ensureWeChatDarwinForUser(user.id);
 
     const token = jwt.sign(
       { userId: user.id },
