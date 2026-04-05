@@ -121,6 +121,56 @@ async function postVibekidsLlm(
   return { res, usedAuthFallback: false };
 }
 
+type VibekidsLlmResponseBody = {
+  html?: string;
+  mode?: "demo" | "ai";
+  warning?: string;
+  detail?: string;
+  hint?: string;
+  creditsBalance?: number;
+  tokenUsage?: VibekidsTokenUsage;
+  error?: string;
+  message?: string;
+  balance?: number;
+  need?: number;
+  costCreate?: number;
+  costRefine?: number;
+};
+
+type VibekidsSaveWorkBody = {
+  ok?: boolean;
+  id?: string;
+  title?: string;
+  error?: string;
+  detail?: string;
+};
+
+/** 代理/网关若返回 HTML 或空体，`res.json()` 会抛错并被误判为「网络异常」 */
+async function readJsonBody<T>(res: Response): Promise<
+  { ok: true; data: T } | { ok: false; message: string }
+> {
+  const raw = await res.text();
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return {
+      ok: false,
+      message: res.ok
+        ? "服务返回为空，请稍后重试。"
+        : `服务暂时不可用（HTTP ${res.status}），请稍后重试。`,
+    };
+  }
+  try {
+    return { ok: true, data: JSON.parse(trimmed) as T };
+  } catch {
+    return {
+      ok: false,
+      message: res.ok
+        ? "服务返回格式异常，请稍后重试。"
+        : `服务暂时不可用（HTTP ${res.status}），请稍后重试。`,
+    };
+  }
+}
+
 const CHIPS_PRIMARY = [
   "接球小游戏",
   "点击冒星星",
@@ -452,21 +502,12 @@ export function StudioClient() {
         styles: [],
         clientId: getClientId(),
       });
-      const data = (await res.json()) as {
-        html?: string;
-        mode?: "demo" | "ai";
-        warning?: string;
-        detail?: string;
-        hint?: string;
-        creditsBalance?: number;
-        tokenUsage?: VibekidsTokenUsage;
-        error?: string;
-        message?: string;
-        balance?: number;
-        need?: number;
-        costCreate?: number;
-        costRefine?: number;
-      };
+      const parsed = await readJsonBody<VibekidsLlmResponseBody>(res);
+      if (!parsed.ok) {
+        setNotice(parsed.message);
+        return;
+      }
+      const data = parsed.data;
       if (res.status === 402 && data.error === "NO_KEY") {
         setNotice(
           data.message ??
@@ -506,8 +547,10 @@ export function StudioClient() {
         (e.name === "AbortError" || e.name === "TimeoutError")
       ) {
         setNotice("请求等待过久已中断，请稍后再试或简化描述。");
-      } else {
+      } else if (e instanceof TypeError) {
         setNotice("网络异常，检查一下连接后再试。");
+      } else {
+        setNotice("请求异常，请刷新页面后重试。");
       }
     } finally {
       setLoading(null);
@@ -536,18 +579,12 @@ export function StudioClient() {
         styles: [],
         clientId: getClientId(),
       });
-      const data = (await res.json()) as {
-        html?: string;
-        mode?: "demo" | "ai";
-        warning?: string;
-        detail?: string;
-        hint?: string;
-        tokenUsage?: VibekidsTokenUsage;
-        error?: string;
-        message?: string;
-        balance?: number;
-        need?: number;
-      };
+      const parsed = await readJsonBody<VibekidsLlmResponseBody>(res);
+      if (!parsed.ok) {
+        setNotice(parsed.message);
+        return;
+      }
+      const data = parsed.data;
       if (res.status === 402 && data.error === "NO_KEY") {
         setNotice(
           data.message ??
@@ -590,8 +627,10 @@ export function StudioClient() {
         (e.name === "AbortError" || e.name === "TimeoutError")
       ) {
         setNotice("请求等待过久已中断，请稍后再试或简化修改说明。");
-      } else {
+      } else if (e instanceof TypeError) {
         setNotice("网络异常，检查一下连接后再试。");
+      } else {
+        setNotice("请求异常，请刷新页面后重试。");
       }
     } finally {
       setLoading(null);
@@ -650,13 +689,12 @@ export function StudioClient() {
           title,
         }),
       });
-      const data = (await res.json()) as {
-        ok?: boolean;
-        id?: string;
-        title?: string;
-        error?: string;
-        detail?: string;
-      };
+      const parsed = await readJsonBody<VibekidsSaveWorkBody>(res);
+      if (!parsed.ok) {
+        setNotice(parsed.message);
+        return;
+      }
+      const data = parsed.data;
       if (!res.ok) {
         const msg =
           data.error === "storage_failed" ?
@@ -678,8 +716,12 @@ export function StudioClient() {
           new Notification("VibeKids", { body: `已保存：${data.title ?? "作品"}` });
         }
       }
-    } catch {
-      setNotice("网络异常，保存未成功。");
+    } catch (e) {
+      setNotice(
+        e instanceof TypeError ?
+          "网络异常，保存未成功。"
+        : "保存请求异常，请刷新页面后重试。",
+      );
     } finally {
       setSaving(false);
     }
