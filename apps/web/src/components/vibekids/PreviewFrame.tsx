@@ -11,9 +11,64 @@ type Props = {
 
 const MEASURE_MIN_W = 320;
 const MEASURE_MIN_H = 240;
-/** 避免异常页撑爆布局 */
 const MEASURE_CAP = 12000;
 const FIT_PAD = 10;
+
+/** 展开内部 overflow 区域，避免 scrollHeight 只反映「小视口内」高度 */
+function expandInnerScrollers(doc: Document): void {
+  const win = doc.defaultView;
+  if (!win || !doc.body) return;
+
+  const nodes = [doc.body, ...doc.body.querySelectorAll<HTMLElement>("*")];
+  for (const el of nodes) {
+    const cs = win.getComputedStyle(el);
+    const oy = cs.overflowY;
+    const ox = cs.overflowX;
+    const tallInner = el.scrollHeight > el.clientHeight + 2;
+    const wideInner = el.scrollWidth > el.clientWidth + 2;
+    if (
+      oy === "auto" ||
+      oy === "scroll" ||
+      ox === "auto" ||
+      ox === "scroll" ||
+      tallInner ||
+      wideInner
+    ) {
+      el.style.overflow = "visible";
+      el.style.overflowX = "visible";
+      el.style.overflowY = "visible";
+      if (cs.maxHeight && cs.maxHeight !== "none") el.style.maxHeight = "none";
+      if (cs.maxWidth && cs.maxWidth !== "none") el.style.maxWidth = "none";
+    }
+  }
+}
+
+/** 用子元素包围盒补全测量（卡片、拼图块等） */
+function unionContentRect(doc: Document): { w: number; h: number } {
+  const body = doc.body;
+  const win = doc.defaultView;
+  if (!win) return { w: 0, h: 0 };
+
+  const bodyRect = body.getBoundingClientRect();
+  let maxRight = bodyRect.left;
+  let maxBottom = bodyRect.top;
+
+  const walk = (root: Element) => {
+    const children = root.querySelectorAll("*");
+    for (const el of children) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        maxRight = Math.max(maxRight, r.right);
+        maxBottom = Math.max(maxBottom, r.bottom);
+      }
+    }
+  };
+  walk(doc.documentElement);
+
+  const uw = Math.max(0, Math.ceil(maxRight - bodyRect.left));
+  const uh = Math.max(0, Math.ceil(maxBottom - bodyRect.top));
+  return { w: uw, h: uh };
+}
 
 function readContentSize(doc: Document): { w: number; h: number } {
   const body = doc.body;
@@ -53,27 +108,36 @@ function fitIframeToContainer(
     const ch = container.clientHeight;
     if (cw < 8 || ch < 8) return;
 
-    // 在过小视口里测量会得到偏小的 scroll 尺寸；先拉大布局再量
     iframe.style.transform = "none";
     const probeW = Math.max(cw * 4, 2000);
     const probeH = Math.max(ch * 4, 2800);
     iframe.style.width = `${probeW}px`;
     iframe.style.height = `${probeH}px`;
     void iframe.offsetWidth;
+
+    expandInnerScrollers(doc);
     void doc.body.offsetHeight;
 
     let { w, h } = readContentSize(doc);
+    const u = unionContentRect(doc);
+    w = Math.max(w, u.w, MEASURE_MIN_W);
+    h = Math.max(h, u.h, MEASURE_MIN_H);
 
     void iframe.offsetWidth;
+    expandInnerScrollers(doc);
+    void doc.body.offsetHeight;
     const second = readContentSize(doc);
-    w = Math.max(w, second.w);
-    h = Math.max(h, second.h);
+    const u2 = unionContentRect(doc);
+    w = Math.min(MEASURE_CAP, Math.max(w, second.w, u2.w));
+    h = Math.min(MEASURE_CAP, Math.max(h, second.h, u2.h));
+
+    w = Math.ceil(w);
+    h = Math.ceil(h);
 
     const innerW = Math.max(FIT_PAD * 2, cw - FIT_PAD * 2);
     const innerH = Math.max(FIT_PAD * 2, ch - FIT_PAD * 2);
     const s = Math.min(1, innerW / w, innerH / h);
 
-    // 整页按比例缩进可视区后，关闭文档级滚动避免双滚动条
     doc.documentElement.style.overflow = "hidden";
     doc.body.style.overflow = "hidden";
     doc.documentElement.style.margin = "0";
@@ -85,10 +149,17 @@ function fitIframeToContainer(
     iframe.style.transformOrigin = "top left";
     iframe.style.maxWidth = "none";
     iframe.style.maxHeight = "none";
+
+    const sw = w * s;
+    const sh = h * s;
+    iframe.style.left = `${Math.max(0, (cw - sw) / 2)}px`;
+    iframe.style.top = `${Math.max(0, (ch - sh) / 2)}px`;
   } catch {
     iframe.style.width = "100%";
     iframe.style.height = "100%";
     iframe.style.transform = "";
+    iframe.style.left = "0";
+    iframe.style.top = "0";
   }
 }
 
@@ -139,7 +210,7 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
         key={frameKey}
         ref={iframeRef}
         title={title}
-        className="absolute left-0 top-0 rounded-2xl border border-slate-200 bg-white shadow-inner"
+        className="absolute rounded-2xl border border-slate-200 bg-white shadow-inner"
         sandbox="allow-scripts allow-forms"
         srcDoc={trimmed}
         onLoad={() => {
