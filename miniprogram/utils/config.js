@@ -4,7 +4,7 @@
  * - 直连 ClawLive 服务端（默认 3001）：本地可填 http://127.0.0.1:3001 ，并勾选「不校验合法域名」
  * 登录接口：POST {API_BASE}/api/mp/login（由 apps/server 提供）
  */
-const API_BASE = "https://你的线上域名";
+const API_BASE = "https://www.clawlab.live";
 
 /** VibeKids 接口前缀（与 Next 应用一致时为 /api/vibekids） */
 const VK_API_PREFIX = "/api/vibekids";
