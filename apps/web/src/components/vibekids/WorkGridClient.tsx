@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   useCallback,
   useEffect,
@@ -20,6 +21,8 @@ type Props = {
   works: SavedWorkSummary[];
   defaultSort?: WorkSortMode;
   showSortTabs?: boolean;
+  /** 排序栏最左侧（如「优秀案例」），与发现流排序 pill 对齐 */
+  sortBarPrefix?: ReactNode;
   /** 瀑布流 + 自动无限滚动 + 大图卡片（信息流沉浸） */
   immersive?: boolean;
   emptyHint?: string;
@@ -29,6 +32,7 @@ export function WorkGridClient({
   works,
   defaultSort = "new",
   showSortTabs = true,
+  sortBarPrefix,
   immersive = false,
   emptyHint,
 }: Props) {
@@ -97,10 +101,13 @@ export function WorkGridClient({
     <div
       className={
         immersive
-          ? "sticky top-0 z-20 -mx-1 mb-5 flex flex-wrap gap-2 border-b border-slate-200/80 bg-gradient-to-b from-white via-white/95 to-white/80 px-1 py-3 backdrop-blur-md sm:-mx-2 sm:px-2"
-          : "mb-6 flex flex-wrap gap-2"
+          ? "sticky top-0 z-20 -mx-1 mb-5 flex flex-wrap items-center gap-2 border-b border-slate-200/80 bg-gradient-to-b from-white via-white/95 to-white/80 px-1 py-3 backdrop-blur-md sm:-mx-2 sm:px-2"
+          : "mb-6 flex flex-wrap items-center gap-2"
       }
     >
+      {sortBarPrefix ? (
+        <div className="flex shrink-0 items-center">{sortBarPrefix}</div>
+      ) : null}
       {(
         [
           ["new", "最新"],

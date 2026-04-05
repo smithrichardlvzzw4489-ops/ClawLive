@@ -102,36 +102,23 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
     return EXCELLENT_CASES.filter((c) => c.difficulty === caseDifficultyFilter);
   }, [caseDifficultyFilter]);
 
-  const tabBtn = (t: ExploreTab, label: string) => {
-    const active = tab === t;
-    return (
-      <button
-        type="button"
-        key={t}
-        onClick={() => setExploreTab(t)}
-        className={
-          active
-            ? "rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-800"
-            : "rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-        }
-      >
-        {label}
-      </button>
-    );
-  };
-
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6">
       <div className="mb-8 text-center sm:text-left">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">作品广场</h1>
-        <div className="mt-6 flex flex-wrap justify-center gap-2 sm:justify-start">
-          {tabBtn("cases", "优秀案例")}
-          {tabBtn("feed", "发现")}
-        </div>
       </div>
 
       {tab === "cases" ? (
         <>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExploreTab("feed")}
+              className="rounded-full border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-violet-200 hover:text-slate-900"
+            >
+              发现
+            </button>
+          </div>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <h2 className="text-lg font-semibold text-slate-800">官方推荐</h2>
             <div
@@ -210,6 +197,15 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
           works={feedWorks}
           defaultSort="hot"
           immersive
+          sortBarPrefix={
+            <button
+              type="button"
+              onClick={() => setExploreTab("cases")}
+              className="rounded-full border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:border-violet-200 hover:text-slate-900"
+            >
+              优秀案例
+            </button>
+          }
           emptyHint="还没有已发布的作品。在创作室保存后，到「我的作品」点击「发布到广场」即可出现在此。"
         />
       ) : null}

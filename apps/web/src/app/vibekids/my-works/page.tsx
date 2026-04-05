@@ -13,11 +13,8 @@ export default function MyWorksPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteNav active="myworks" />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">我的作品</h1>
-        <div className="mt-8">
-          <MyWorksClient />
-        </div>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6 sm:px-6 sm:py-10">
+        <MyWorksClient />
       </main>
     </div>
   );

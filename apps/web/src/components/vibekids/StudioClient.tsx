@@ -9,10 +9,7 @@ import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
 import { GenerationSkeleton } from "@/components/vibekids/GenerationSkeleton";
 import { getClientId } from "@/lib/vibekids/client-credits";
-import {
-  getPromptHistory,
-  pushPromptHistory,
-} from "@/lib/vibekids/client-prompt-history";
+import { pushPromptHistory } from "@/lib/vibekids/client-prompt-history";
 import { loadDraft, saveDraft } from "@/lib/vibekids/client-studio-draft";
 import {
   clientVibekidsFetchMs,
@@ -323,7 +320,6 @@ export function StudioClient() {
   const [saveTitle, setSaveTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const [promptHist, setPromptHist] = useState<string[]>([]);
   const draftRestored = useRef(false);
 
   const [hasMainSiteToken, setHasMainSiteToken] = useState(false);
@@ -431,10 +427,6 @@ export function StudioClient() {
   }, [hasMainSiteToken, age, loadDarwinChips]);
 
   useEffect(() => {
-    setPromptHist(getPromptHistory());
-  }, []);
-
-  useEffect(() => {
     if (draftRestored.current) return;
     if (sp.get("prompt")) return;
     const d = loadDraft();
@@ -526,7 +518,6 @@ export function StudioClient() {
         setNotice(`AI 暂时不可用，已保留上一版或演示。技术信息：${tech}${extra}`);
       } else if (!data.warning) {
         pushPromptHistory(prompt.trim());
-        setPromptHist(getPromptHistory());
         const prefix =
           opts?.guestFallbackReason === "session_expired" ?
             "登录已失效，已改用访客生成。"
@@ -792,6 +783,22 @@ export function StudioClient() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
       <section className="order-2 flex w-full shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="prompt" className="text-sm font-medium text-slate-800">
+            用一句话说出你的想法（任意场景）
+          </label>
+          <textarea
+            id="prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={6}
+            placeholder={
+              "可短可长。短例：点点会冒星星的页面。长例：计数器，可选主题色、记录点击次数、带重置按钮。"
+            }
+            className="min-h-[8.5rem] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4"
+          />
+        </div>
+
         <div>
           <p className="mb-1.5 text-xs font-medium text-slate-700">灵感提示</p>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -821,46 +828,6 @@ export function StudioClient() {
               {hasMainSiteToken && chipsLoading ? "加载中…" : "换一批"}
             </button>
           </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label htmlFor="prompt" className="text-sm font-medium text-slate-800">
-            用一句话说出你的想法（任意场景）
-          </label>
-          {promptHist.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <label htmlFor="prompt-hist" className="text-xs text-slate-500">
-                历史描述
-              </label>
-              <select
-                id="prompt-hist"
-                defaultValue=""
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v) setPrompt(v);
-                  e.target.selectedIndex = 0;
-                }}
-                className="max-w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800"
-              >
-                <option value="">选一条填充到上方</option>
-                {promptHist.map((h, i) => (
-                  <option key={`${i}-${h.slice(0, 24)}`} value={h}>
-                    {h.length > 52 ? `${h.slice(0, 52)}…` : h}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          <textarea
-            id="prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={6}
-            placeholder={
-              "可短可长。短例：点点会冒星星的页面。长例：计数器，可选主题色、记录点击次数、带重置按钮。"
-            }
-            className="min-h-[8.5rem] w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4"
-          />
         </div>
 
         {notice ? (

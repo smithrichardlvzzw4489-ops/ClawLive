@@ -17,7 +17,12 @@ type PointsLlmJson = {
   virtualKeyMasked?: string | null;
 };
 
-export function VibekidsMeButton() {
+type MeButtonProps = {
+  /** 触发按钮样式（如底部导航用小号） */
+  triggerClassName?: string;
+};
+
+export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [redeeming, setRedeeming] = useState(false);
@@ -166,7 +171,10 @@ export function VibekidsMeButton() {
       <button
         type="button"
         onClick={onOpen}
-        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800"
+        className={
+          triggerClassName?.trim() ||
+          "rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800"
+        }
       >
         我的
       </button>
