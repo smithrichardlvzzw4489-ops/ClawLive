@@ -12,7 +12,10 @@ type Props = {
 const MEASURE_MIN_W = 320;
 const MEASURE_MIN_H = 240;
 const MEASURE_CAP = 12000;
-const FIT_PAD = 10;
+/** cover 缩放：略留 1px 避免亚像素描边 */
+const FIT_INSET = 1;
+/** 内容小于预览框时最大放大倍数 */
+const MAX_UPSCALE = 2.25;
 
 /** 展开内部 overflow 区域，避免 scrollHeight 只反映「小视口内」高度 */
 function expandInnerScrollers(doc: Document): void {
@@ -134,9 +137,13 @@ function fitIframeToContainer(
     w = Math.ceil(w);
     h = Math.ceil(h);
 
-    const innerW = Math.max(FIT_PAD * 2, cw - FIT_PAD * 2);
-    const innerH = Math.max(FIT_PAD * 2, ch - FIT_PAD * 2);
-    const s = Math.min(1, innerW / w, innerH / h);
+    const innerW = Math.max(8, cw - FIT_INSET * 2);
+    const innerH = Math.max(8, ch - FIT_INSET * 2);
+    // cover：铺满预览区，裁掉「信纸」式留白（原 contain 会在一侧留空）
+    let s = Math.max(innerW / w, innerH / h);
+    if (s > 1) {
+      s = Math.min(s, MAX_UPSCALE);
+    }
 
     doc.documentElement.style.overflow = "hidden";
     doc.body.style.overflow = "hidden";
@@ -152,8 +159,8 @@ function fitIframeToContainer(
 
     const sw = w * s;
     const sh = h * s;
-    iframe.style.left = `${Math.max(0, (cw - sw) / 2)}px`;
-    iframe.style.top = `${Math.max(0, (ch - sh) / 2)}px`;
+    iframe.style.left = `${(cw - sw) / 2}px`;
+    iframe.style.top = `${(ch - sh) / 2}px`;
   } catch {
     iframe.style.width = "100%";
     iframe.style.height = "100%";
@@ -204,7 +211,7 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
   return (
     <div
       ref={wrapRef}
-      className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden rounded-2xl bg-slate-50 [min-height:min(180px,28dvh)] lg:[min-height:min(380px,44dvh)] lg:min-h-0"
+      className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden rounded-2xl bg-white [min-height:min(200px,32dvh)] lg:[min-height:min(380px,44dvh)] lg:min-h-0"
     >
       <iframe
         key={frameKey}

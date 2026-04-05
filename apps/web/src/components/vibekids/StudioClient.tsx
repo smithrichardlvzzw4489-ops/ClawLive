@@ -778,7 +778,7 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 bg-slate-50 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
       <section className="order-2 flex w-full shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
         <div className="flex flex-col gap-2">
           <label htmlFor="prompt" className="text-sm font-medium text-slate-800">
@@ -869,10 +869,10 @@ export function StudioClient() {
         </div>
       </section>
 
-      <section className="order-1 flex min-h-0 min-w-0 flex-1 flex-col gap-0 px-3 pb-3 pt-1 sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex h-[min(340px,50dvh)] max-h-[min(440px,58dvh)] min-h-[260px] shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:h-[min(380px,52dvh)] lg:h-full lg:min-h-[min(520px,58dvh)] lg:max-h-none lg:flex-1">
+      <section className="order-1 flex min-h-0 min-w-0 flex-1 flex-col gap-0 px-3 pb-2 pt-1 sm:px-4 lg:order-2 lg:h-full lg:min-h-0 lg:px-5 lg:pb-5 lg:pt-4">
+        <div className="relative flex min-h-[min(380px,62dvh)] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:min-h-[min(420px,64dvh)] lg:h-full lg:min-h-[min(520px,58dvh)] lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0.5 [min-height:min(200px,30dvh)] lg:[min-height:0]">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden [min-height:min(240px,38dvh)] lg:[min-height:0]">
             <PreviewFrame html={html} frameKey={vers.index} />
           </div>
         </div>

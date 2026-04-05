@@ -4,9 +4,9 @@ import { StudioClient } from "@/components/vibekids/StudioClient";
 
 export default function VibekidsHomePage() {
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col">
+    <div className="flex min-h-[100dvh] w-full flex-col bg-slate-50">
       <SiteNav active="studio" />
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col bg-slate-50">
         <Suspense
           fallback={
             <div className="flex flex-1 items-center justify-center p-10 text-slate-600">

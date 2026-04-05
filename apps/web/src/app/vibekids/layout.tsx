@@ -9,6 +9,6 @@ export const metadata: Metadata = {
 
 export default function VibeKidsLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="pb-[3.85rem] lg:pb-0">{children}</div>
+    <div className="min-h-0 bg-slate-50 pb-[3.85rem] lg:pb-0">{children}</div>
   );
 }
