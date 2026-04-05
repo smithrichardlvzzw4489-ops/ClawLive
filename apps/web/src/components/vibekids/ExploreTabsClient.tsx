@@ -200,16 +200,6 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
               ))}
             </ul>
           )}
-          <h2 className="mb-3 text-lg font-semibold text-slate-800">我的保存作品</h2>
-          <p className="mb-4 max-w-xl text-pretty text-sm text-slate-600">
-            保存的作品统一在「我的作品」中查看、预览与发布；未发布时不会出现在「发现」页。
-          </p>
-          <Link
-            href={`${VK_BASE}/my-works`}
-            className="mb-14 inline-flex items-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700"
-          >
-            打开我的作品 →
-          </Link>
         </>
       ) : null}
 
