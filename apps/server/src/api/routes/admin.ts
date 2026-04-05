@@ -43,6 +43,33 @@ export function adminRoutes(): Router {
     });
   });
 
+  /**
+   * GET /api/admin/latest-wechat-mp-user
+   * 按 updatedAt 最近的一条微信小程序用户（与 grant-litellm-key 的 latestWechatMp 一致），便于查测试账号 username。
+   */
+  router.get('/latest-wechat-mp-user', async (req, res) => {
+    if (!checkSecret(req, res)) return;
+    const u = await prisma.user.findFirst({
+      where: { wechatMpOpenid: { not: null } },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        username: true,
+        updatedAt: true,
+        litellmVirtualKey: true,
+      },
+    });
+    if (!u) {
+      return res.status(404).json({ error: 'NO_WECHAT_MP_USER' });
+    }
+    res.json({
+      userId: u.id,
+      username: u.username,
+      updatedAt: u.updatedAt.toISOString(),
+      hasLitellmVirtualKey: Boolean(u.litellmVirtualKey),
+    });
+  });
+
   /** GET /api/admin/clear-works — 清空所有作品 */
   router.get('/clear-works', (req, res) => {
     if (!checkSecret(req, res)) return;
