@@ -172,7 +172,8 @@ export function StudioClient() {
   const [vers, setVers] = useState<Vers>(initialVers);
   const html = vers.list[vers.index] ?? welcomeHtml();
 
-  const [loading, setLoading] = useState<null | "create">(null);
+  const [loading, setLoading] = useState<null | "create" | "refine">(null);
+  const saveTitleInputRef = useRef<HTMLInputElement>(null);
   const [outMode, setOutMode] = useState<"idle" | "demo" | "ai">("idle");
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -372,11 +373,18 @@ export function StudioClient() {
         hint?: string;
         tokenUsage?: VibekidsTokenUsage;
       },
-      opts?: { authFallback?: boolean },
+      opts?: { authFallback?: boolean; resultKind?: "create" | "refine" },
     ) => {
       const nextHtml =
         typeof data.html === "string" ? data.html.trim() : "";
       if (!nextHtml) return false;
+      if (data.warning === "refine_needs_ai") {
+        setNotice(
+          data.detail ??
+            "未配置 AI 时无法智能修改。请配置密钥后重试，或改用「生成作品」重新做一版。",
+        );
+        return false;
+      }
       pushVersion(nextHtml);
       setOutMode(data.mode === "ai" ? "ai" : "demo");
       if (data.warning === "ai_failed" && data.detail) {
@@ -387,7 +395,8 @@ export function StudioClient() {
         pushPromptHistory(prompt.trim());
         setPromptHist(getPromptHistory());
         const prefix = opts?.authFallback ? "登录已失效，已改用访客生成。" : "";
-        const base = prefix ? `${prefix} 生成完成。` : "生成完成。";
+        const verb = opts?.resultKind === "refine" ? "修改" : "生成";
+        const base = prefix ? `${prefix} ${verb}完成。` : `${verb}完成。`;
         const tok =
           data.mode === "ai" && data.tokenUsage ?
             ` ${formatTokenUsageNotice(data.tokenUsage)}`
@@ -480,6 +489,90 @@ export function StudioClient() {
     }
   }, [age, handleApiResponse, prompt]);
 
+  const refineWork = useCallback(async () => {
+    const text = prompt.trim();
+    if (!hasGeneratedPreview) {
+      setNotice("请先生成一版作品，再在描述里写想怎么改，然后点「修改作品」。");
+      return;
+    }
+    if (!text) {
+      setNotice("在描述里写清楚要怎么改（例如：把主色改成绿色、加一个重置按钮）。");
+      return;
+    }
+    setLoading("refine");
+    setNotice(null);
+    try {
+      const { res, usedAuthFallback } = await postVibekidsLlm({
+        intent: "refine",
+        currentHtml: html,
+        refinementPrompt: text,
+        ageBand: age,
+        kind: "any",
+        styles: [],
+        clientId: getClientId(),
+      });
+      const data = (await res.json()) as {
+        html?: string;
+        mode?: "demo" | "ai";
+        warning?: string;
+        detail?: string;
+        hint?: string;
+        tokenUsage?: VibekidsTokenUsage;
+        error?: string;
+        message?: string;
+        balance?: number;
+        need?: number;
+      };
+      if (res.status === 402 && data.error === "NO_KEY") {
+        setNotice(
+          data.message ??
+            "Darwin 需要平台虚拟 Key。请先在积分兑换中申请 Key（与 /my-lobster 相同）。",
+        );
+        return;
+      }
+      if (res.status === 403 && data.error === "darwin_required") {
+        setNotice(
+          data.detail ??
+            "请先申请 DarwinClaw（Darwin）后再使用 AI 修改；或退出登录后使用演示/OpenRouter。",
+        );
+        return;
+      }
+      if (res.status === 500 && data.error === "llm_failed") {
+        setNotice(data.detail ?? "模型调用失败，请稍后再试。");
+        return;
+      }
+      if (res.status === 402 && data.error === "insufficient_credits") {
+        setNotice(
+          `修改额度不足（本次需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。`,
+        );
+        return;
+      }
+      if (res.status === 400 && data.error === "client_id_required") {
+        setNotice(data.detail ?? "请刷新页面后重试。");
+        return;
+      }
+      if (!res.ok || typeof data.html !== "string" || !data.html.trim()) {
+        setNotice("修改失败，请稍后再试。");
+        return;
+      }
+      handleApiResponse(data, {
+        authFallback: usedAuthFallback,
+        resultKind: "refine",
+      });
+    } catch (e) {
+      if (
+        e instanceof DOMException &&
+        (e.name === "AbortError" || e.name === "TimeoutError")
+      ) {
+        setNotice("请求等待过久已中断，请稍后再试或简化修改说明。");
+      } else {
+        setNotice("网络异常，检查一下连接后再试。");
+      }
+    } finally {
+      setLoading(null);
+    }
+  }, [age, handleApiResponse, hasGeneratedPreview, html, prompt]);
+
   const clearAll = useCallback(() => {
     setVers(initialVers());
     setOutMode("idle");
@@ -491,6 +584,11 @@ export function StudioClient() {
   const saveWork = useCallback(async () => {
     if (!hasGeneratedPreview) {
       setNotice("请先生成可预览的作品，再保存。");
+      return;
+    }
+    if (!saveTitle.trim()) {
+      setNotice("保存前请先填写作品名称，便于在「我的作品」里辨认。");
+      saveTitleInputRef.current?.focus();
       return;
     }
     setSaving(true);
@@ -621,6 +719,25 @@ export function StudioClient() {
           <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>
         ) : null}
 
+        <div className="flex flex-col gap-2">
+          <label htmlFor="save-title" className="text-sm font-medium text-slate-800">
+            作品名称
+          </label>
+          <input
+            ref={saveTitleInputRef}
+            id="save-title"
+            type="text"
+            value={saveTitle}
+            onChange={(e) => setSaveTitle(e.target.value)}
+            placeholder="保存前请填写，例如：我的接球小游戏"
+            disabled={saving || loading !== null}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-400/30 focus:border-sky-400 focus:ring-2 disabled:opacity-50"
+          />
+          <p className="text-xs text-slate-500">
+            点「保存作品」时会检查是否已命名。保存后默认不公开，可在「我的作品」发布到广场。
+          </p>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -630,6 +747,35 @@ export function StudioClient() {
           >
             {loading === "create" ? "生成中…" : "生成作品"}
           </button>
+          <button
+            type="button"
+            onClick={() => void refineWork()}
+            disabled={
+              loading !== null || !hasGeneratedPreview || !prompt.trim()
+            }
+            className="rounded-xl border border-violet-300 bg-white px-3 py-2 text-sm font-medium text-violet-900 transition hover:bg-violet-50 disabled:opacity-40"
+          >
+            {loading === "refine" ? "修改中…" : "修改作品"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void generate()}
+            disabled={loading !== null || !prompt.trim()}
+            className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-800 disabled:opacity-40"
+          >
+            再来一版
+          </button>
+          <button
+            type="button"
+            onClick={() => void saveWork()}
+            disabled={saving || loading !== null || !hasGeneratedPreview}
+            className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50"
+          >
+            {saving ? "保存中…" : "保存作品"}
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
           <button
             type="button"
             onClick={undo}
@@ -653,41 +799,6 @@ export function StudioClient() {
             className="text-sm font-medium text-slate-600 underline-offset-4 hover:underline"
           >
             清空
-          </button>
-          <button
-            type="button"
-            onClick={() => void generate()}
-            disabled={loading !== null || !prompt.trim()}
-            className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-800 disabled:opacity-40"
-          >
-            再来一版
-          </button>
-        </div>
-
-        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-4">
-          <p className="mb-2 text-sm font-semibold text-emerald-900">保存作品</p>
-          <p className="mb-3 text-xs text-emerald-800/90">
-            将当前预览写入服务器。默认不公开；在「我的作品」发布到广场后才会出现在「发现」，并可被转发、点赞、收藏、评论。
-          </p>
-          <label htmlFor="save-title" className="mb-1 block text-xs font-medium text-emerald-900">
-            标题（可选，不填则从页面自动提取）
-          </label>
-          <input
-            id="save-title"
-            type="text"
-            value={saveTitle}
-            onChange={(e) => setSaveTitle(e.target.value)}
-            placeholder="例如：我的生日贺卡"
-            disabled={saving || loading !== null}
-            className="mb-3 w-full rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 disabled:opacity-50"
-          />
-          <button
-            type="button"
-            onClick={() => void saveWork()}
-            disabled={saving || loading !== null || !hasGeneratedPreview}
-            className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {saving ? "保存中…" : "保存作品"}
           </button>
         </div>
       </section>
