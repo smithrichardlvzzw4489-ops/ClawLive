@@ -94,7 +94,7 @@ export function MyWorksClient() {
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-sm text-slate-600">
         <p>还没有保存的作品。</p>
         <Link
-          href={`${VK_BASE}/studio`}
+          href={VK_BASE}
           className="mt-3 inline-block font-semibold text-violet-700 underline"
         >
           去创作室生成并保存 →
@@ -155,7 +155,7 @@ export function MyWorksClient() {
                 预览
               </Link>
               <Link
-                href={`${VK_BASE}/studio?prompt=${encodeURIComponent(w.prompt ?? w.title)}`}
+                href={`${VK_BASE}?prompt=${encodeURIComponent(w.prompt ?? w.title)}`}
                 className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 transition hover:border-violet-300 hover:bg-violet-50"
               >
                 Remix

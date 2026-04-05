@@ -198,7 +198,7 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
                   <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">{c.description}</p>
                   <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">描述预览：{c.prompt}</p>
                   <Link
-                    href={`${VK_BASE}/studio?prompt=${encodeURIComponent(c.prompt)}`}
+                    href={`${VK_BASE}?prompt=${encodeURIComponent(c.prompt)}`}
                     className="mt-4 inline-flex w-fit items-center rounded-xl bg-gradient-to-r from-sky-500 to-violet-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105"
                   >
                     去试试 →

@@ -3,7 +3,7 @@ import { VK_BASE } from "@/lib/vibekids/constants";
 
 type Props = {
   /** 当前高亮，用于无障碍与样式 */
-  active?: "home" | "explore" | "studio" | "myworks";
+  active?: "explore" | "studio" | "myworks";
 };
 
 export function SiteNav({ active }: Props) {
@@ -32,11 +32,10 @@ export function SiteNav({ active }: Props) {
           VibeKids
         </Link>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-          {link(b, "home", "首页")}
           {link(`${b}/explore`, "explore", "作品广场")}
           {link(`${b}/my-works`, "myworks", "我的作品")}
           <Link
-            href={`${b}/studio`}
+            href={b}
             className={
               active === "studio" ?
                 "font-semibold text-violet-700"

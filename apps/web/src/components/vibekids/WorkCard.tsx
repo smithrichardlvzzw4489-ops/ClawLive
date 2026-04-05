@@ -148,7 +148,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <Link
-                href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
+                href={`${VK_BASE}?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
                 onClick={(e) => e.stopPropagation()}
                 className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:border-violet-300 hover:bg-violet-50"
               >
@@ -210,7 +210,7 @@ export function WorkCard({ work, variant = "default", animIndex = 0 }: Props) {
           打开作品 →
         </Link>
         <Link
-          href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
+          href={`${VK_BASE}?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
           className="inline-flex w-fit items-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-violet-300 hover:bg-violet-50"
         >
           Remix

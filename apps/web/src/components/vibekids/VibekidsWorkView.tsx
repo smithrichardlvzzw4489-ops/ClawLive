@@ -166,13 +166,13 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
-            href={`${VK_BASE}/studio?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
+            href={`${VK_BASE}?prompt=${encodeURIComponent(work.prompt ?? work.title)}`}
             className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700"
           >
             Remix 再创作
           </Link>
           <Link
-            href={`${VK_BASE}/studio`}
+            href={VK_BASE}
             className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
           >
             去创作室

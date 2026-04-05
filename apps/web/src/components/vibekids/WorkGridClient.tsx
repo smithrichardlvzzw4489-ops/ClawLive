@@ -158,7 +158,7 @@ export function WorkGridClient({
         {visible >= sorted.length && sorted.length > PAGE ? (
           <p className="mt-10 text-center text-xs text-slate-400">
             已浏览全部 {sorted.length} 件 · 去{" "}
-            <Link href={`${VK_BASE}/studio`} className="font-medium text-violet-600 underline">
+            <Link href={VK_BASE} className="font-medium text-violet-600 underline">
               创作室
             </Link>{" "}
             再产一批
