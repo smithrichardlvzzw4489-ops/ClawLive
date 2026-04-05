@@ -124,13 +124,6 @@ function ensureSixChips(fromModel: string[]): string[] {
   return out.length > 0 ? out : ALL_CHIPS.slice(0, 6);
 }
 
-function mergeChip(current: string, chip: string): string {
-  const t = current.trim();
-  if (!t) return chip;
-  if (t.includes(chip)) return t;
-  return `${t}；${chip}`;
-}
-
 type Vers = { list: string[]; index: number };
 
 function initialVers(): Vers {
@@ -655,13 +648,13 @@ export function StudioClient() {
     <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
       <section className="flex w-full shrink-0 flex-col gap-4 border-b border-slate-200/80 bg-white/95 p-4 shadow-sm sm:p-5 lg:max-w-[min(22rem,100vw)] lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:py-5 lg:pl-2 lg:pr-5">
         <div>
-          <p className="mb-2 text-sm font-medium text-slate-800">快捷灵感（可多点）</p>
+          <p className="mb-2 text-sm font-medium text-slate-800">快捷灵感</p>
           <div className="flex flex-wrap gap-2">
             {quickChips.map((c, i) => (
               <button
                 key={`${i}-${c}`}
                 type="button"
-                onClick={() => setPrompt((p) => mergeChip(p, c))}
+                onClick={() => setPrompt(c)}
                 disabled={chipsLoading || loading !== null}
                 className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-50"
               >
