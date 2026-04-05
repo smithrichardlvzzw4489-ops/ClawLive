@@ -546,13 +546,6 @@ export function StudioClient() {
       <section className="flex w-full shrink-0 flex-col gap-4 border-b border-slate-200/80 bg-white/95 p-4 shadow-sm sm:p-5 lg:max-w-[min(22rem,100vw)] lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:py-5 lg:pl-2 lg:pr-5">
         <div>
           <p className="mb-2 text-sm font-medium text-slate-800">快捷灵感（可多点）</p>
-          <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-            {hasMainSiteToken ?
-              chipsLoading ?
-                "正在根据你的 Darwin 用户画像生成 6 条…"
-              : "已由 Darwin 按用户画像（问卷、简介等）推荐 6 条；点「换一批」可再要一批。"
-            : "未登录时为内置示例，点「换一批」随机换 6 条；登录并接入 Darwin 后将按画像由系统推荐。"}
-          </p>
           <div className="flex flex-wrap gap-2">
             {quickChips.map((c, i) => (
               <button
@@ -580,17 +573,6 @@ export function StudioClient() {
               className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm text-sky-800 transition hover:bg-sky-100 disabled:opacity-50"
             >
               {hasMainSiteToken && chipsLoading ? "加载中…" : "换一批"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPrompt("");
-                setNotice("已清空描述，换一句话再点「生成作品」。");
-              }}
-              disabled={loading !== null}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
-            >
-              换一句描述
             </button>
           </div>
         </div>
