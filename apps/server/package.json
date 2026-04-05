@@ -11,8 +11,7 @@
     "lint": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio",
-    "grant-litellm-key": "tsx scripts/grant-litellm-key.ts"
+    "prisma:studio": "prisma studio"
   },
   "dependencies": {
     "@clawlive/privacy-filter": "workspace:*",

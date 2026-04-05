@@ -36,7 +36,9 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
-dotenv.config({ path: resolve(__dirname, '../.env') });
+// 线上以平台注入的环境变量为准；本地可选：仓库根 .env → apps/server/.env（后者覆盖）
+dotenv.config({ path: resolve(__dirname, '../../../.env') });
+dotenv.config({ path: resolve(__dirname, '../.env'), override: true });
 console.log('[ClawLive] Server bootstrap starting...');
 
 console.log('[Env] TELEGRAM_API_ID:', process.env.TELEGRAM_API_ID || '(使用内置默认)');

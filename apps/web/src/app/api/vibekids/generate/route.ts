@@ -330,7 +330,7 @@ function createFailPayload(prompt: string, ageBand: AgeBand, e: unknown): Respon
     detail,
   );
   const hint = networkLikely
-    ? "常见原因：本机连不上 OpenRouter（网络、防火墙或地区限制）。可尝试 VPN/系统代理、换网络，或在 .env.local 中设置 OPENROUTER_BASE_URL 为可访问的兼容端点。"
+    ? "常见原因：服务器访问 OpenRouter 失败（网络、地区限制或上游不可用）。请在部署环境检查 OPENROUTER_API_KEY / OPENROUTER_BASE_URL 与出站网络。"
     : undefined;
   return Response.json({
     html,

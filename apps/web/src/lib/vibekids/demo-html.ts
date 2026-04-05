@@ -71,8 +71,8 @@ export function getDemoHtml(prompt: string, age: AgeBand): string {
   const kind = pickKind(prompt);
   const hint =
     age === "primary"
-      ? "这是离线演示作品。让家长帮你在 .env.local 里配置 OPENROUTER_API_KEY 后，就能经 OpenRouter 按你的想法生成新页面。"
-      : "当前为演示模式（未配置 OPENROUTER_API_KEY）。在 .env.local 中配置后可经 OpenRouter 使用 AI 按描述生成完整作品。";
+      ? "这是演示作品。完整 AI 生成由网站在服务器上配置好后即可使用。"
+      : "当前为演示模式。完整 AI 生成由网站在服务器上配置好后即可使用。";
 
   if (kind === "game") {
     return baseDoc(

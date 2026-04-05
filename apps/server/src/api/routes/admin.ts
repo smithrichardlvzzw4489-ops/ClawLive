@@ -1,6 +1,6 @@
 /**
- * 管理员接口 — 数据清理、线上发放 LiteLLM 虚拟 Key 等
- * 通过 ADMIN_SECRET 环境变量保护（query ?secret= 或 Header X-Admin-Secret）
+ * 管理员接口 — 数据清理、线上发放 LiteLLM 虚拟 Key、调整虾米积分等
+ * 通过 ADMIN_SECRET 保护（query ?secret= 或 Header X-Admin-Secret）；仅在部署环境配置，不依赖本机 .env 脚本
  */
 import { Router } from 'express';
 import { works, workMessages } from './rooms-simple';
@@ -192,6 +192,61 @@ export function adminRoutes(): Router {
         message: e instanceof Error ? e.message : String(e),
       });
     }
+  });
+
+  /**
+   * POST /api/admin/set-claw-points
+   * 将用户虾米积分设为指定值并记账（替代本机 set-user-claw-points 脚本）。
+   * Body: { username: string, points: number }，points 为大于等于 0 的整数。
+   */
+  router.post('/set-claw-points', async (req, res) => {
+    if (!checkSecret(req, res)) return;
+    const body = req.body as { username?: string; points?: number };
+    const username = typeof body.username === 'string' ? body.username.trim() : '';
+    const target =
+      typeof body.points === 'number' && Number.isFinite(body.points) ?
+        Math.floor(body.points)
+      : NaN;
+    if (!username) {
+      return res.status(400).json({ error: 'username required' });
+    }
+    if (!Number.isFinite(target) || target < 0) {
+      return res.status(400).json({ error: 'points must be a non-negative integer' });
+    }
+
+    const u = await prisma.user.findUnique({
+      where: { username },
+      select: { id: true, username: true, clawPoints: true },
+    });
+    if (!u) {
+      return res.status(404).json({ error: 'USER_NOT_FOUND', username });
+    }
+
+    const delta = target - u.clawPoints;
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: u.id },
+        data: { clawPoints: target },
+        select: { clawPoints: true },
+      });
+      await tx.pointLedger.create({
+        data: {
+          userId: u.id,
+          delta,
+          balanceAfter: updated.clawPoints,
+          reason: 'admin_set_balance',
+          metadata: { previous: u.clawPoints, target },
+        },
+      });
+    });
+
+    console.log(`[Admin] set-claw-points ${username} ${u.clawPoints} -> ${target}`);
+    res.json({
+      ok: true,
+      username: u.username,
+      before: u.clawPoints,
+      after: target,
+    });
   });
 
   /** GET /api/admin/clear-all — 清空作品 + 帖子 */
