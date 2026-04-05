@@ -30,9 +30,11 @@ Page({
               setTimeout(() => wx.navigateBack(), 800);
               return;
             }
+            const d = res.data || {};
             const msg =
-              (res.data && (res.data.error || res.data.message)) ||
-              `HTTP ${res.statusCode}`;
+              d.message ?
+                `${d.error || "错误"}：${d.message}`
+              : d.error || `HTTP ${res.statusCode}`;
             this.setData({ err: String(msg) });
           },
           fail: () => {
