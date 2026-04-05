@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "ops:grant-latest-wechat-key": "tsx scripts/ops-grant-latest-wechat-key.ts"
   },
   "dependencies": {
     "@clawlive/privacy-filter": "workspace:*",
