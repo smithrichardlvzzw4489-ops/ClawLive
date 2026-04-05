@@ -30,11 +30,13 @@ Page({
     this.setData({ hint: "" });
     wx.showLoading({ title: "加载中" });
     try {
-      const res = await vibekids("/works", { method: "GET" });
+      const res = await vibekids("/works?mine=1", { method: "GET" });
       wx.hideLoading();
-      if (res.statusCode >= 200 && res.statusCode < 300) {
+      if (res.statusCode === 401) {
+        this.setData({ hint: "请先登录后再查看「我的作品」。" });
+      } else if (res.statusCode >= 200 && res.statusCode < 300) {
         const n = (res.data && res.data.works && res.data.works.length) || 0;
-        this.setData({ hint: `接口正常，当前 ${n} 条作品（未登录时列表可能为空）。` });
+        this.setData({ hint: `接口正常，当前 ${n} 条作品。` });
       } else {
         this.setData({
           hint: `请求失败 HTTP ${res.statusCode}：${JSON.stringify(res.data).slice(0, 200)}`,

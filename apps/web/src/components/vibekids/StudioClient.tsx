@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { AgeBand } from "@/lib/vibekids/age";
 import { parseAgeBand } from "@/lib/vibekids/age";
-import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
+import { VK_API_BASE, VK_BASE, vibekidsBearerHeader } from "@/lib/vibekids/constants";
 import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
 import { GenerationSkeleton } from "@/components/vibekids/GenerationSkeleton";
@@ -725,7 +725,10 @@ export function StudioClient() {
     try {
       const res = await fetch(`${VK_API_BASE}/works`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...vibekidsBearerHeader(),
+        },
         body: JSON.stringify({
           html,
           ageBand: age,
@@ -742,8 +745,10 @@ export function StudioClient() {
       const data = parsed.data;
       if (!res.ok) {
         const msg =
-          data.error === "storage_failed" ?
-            `保存失败（服务器无法写入文件）。若部署在无本地磁盘的环境，需使用数据库。${data.detail ? ` ${data.detail}` : ""}`
+          res.status === 401 || data.error === "login_required" ?
+            "请先登录主站账号后再保存，作品将同步到「我的作品」。"
+          : data.error === "storage_failed" ?
+            `保存失败（服务器无法写入）。${data.detail ? ` ${data.detail}` : ""}`
           : data.error === "html_too_large" ?
             "作品体积过大，请删减后再试。"
           : (data.error ?? "保存失败");

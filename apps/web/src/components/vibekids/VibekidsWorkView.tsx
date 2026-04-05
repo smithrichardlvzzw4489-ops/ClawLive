@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { WorkEngagementBar } from "@/components/vibekids/WorkEngagementBar";
 import { WorkViewer } from "@/components/vibekids/WorkViewer";
-import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
+import { VK_API_BASE, VK_BASE, vibekidsBearerHeader } from "@/lib/vibekids/constants";
 import type { AgeBand } from "@/lib/vibekids/age";
 import { getClientId } from "@/lib/vibekids/client-credits";
 import type { WorkComment } from "@/lib/vibekids/works-storage";
@@ -43,7 +43,7 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
         const q = cid ? `?clientId=${encodeURIComponent(cid)}` : "";
         const res = await fetch(
           `${VK_API_BASE}/works/${encodeURIComponent(workId)}${q}`,
-          { cache: "no-store" },
+          { cache: "no-store", headers: { ...vibekidsBearerHeader() } },
         );
         if (!res.ok) {
           if (!cancelled) setPhase("missing");
@@ -75,7 +75,7 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
       try {
         const res = await fetch(
           `${VK_API_BASE}/works/${encodeURIComponent(workId)}?clientId=${encodeURIComponent(cid)}`,
-          { cache: "no-store" },
+          { cache: "no-store", headers: { ...vibekidsBearerHeader() } },
         );
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as { work?: VibekidsWorkPayload };
@@ -104,28 +104,12 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-8 text-slate-900">
           <h1 className="text-lg font-semibold text-amber-950">暂时找不到这部作品</h1>
           <p className="mt-3 text-sm leading-relaxed text-amber-950/90">
-            在 Vercel 等多实例环境，若未配置共享存储，各机器上的作品列表互不可见。推荐在部署环境配置{" "}
-            <strong className="font-semibold">Upstash Redis</strong>（环境变量{" "}
-            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
-              VIBEKIDS_UPSTASH_REDIS_REST_URL
-            </code>{" "}
-            与{" "}
-            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
-              VIBEKIDS_UPSTASH_REDIS_REST_TOKEN
-            </code>
-            ，或通用{" "}
-            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
-              UPSTASH_REDIS_REST_*
-            </code>
-            ）。亦可使用可写持久卷并设置{" "}
-            <code className="rounded bg-white/80 px-1 py-0.5 font-mono text-[11px]">
-              VIBEKIDS_DATA_DIR
-            </code>
-            。也可从{" "}
+            作品已保存在后端数据库时，请确认已<strong className="font-semibold">登录主站账号</strong>
+            （未发布作品仅作者可见）。若链接有误或作品已删除，也会显示本页。也可从{" "}
             <Link href={`${VK_BASE}/my-works`} className="font-semibold text-violet-800 underline">
               我的作品
             </Link>{" "}
-            再点「预览」重试。
+            打开预览重试。
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link

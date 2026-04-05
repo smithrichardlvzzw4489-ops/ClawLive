@@ -5,7 +5,7 @@ import {
   type ExploreTab,
 } from "@/components/vibekids/ExploreTabsClient";
 import { SiteNav } from "@/components/vibekids/SiteNav";
-import { getPublishedWorkSummaries } from "@/lib/vibekids/works-storage";
+import { fetchPublishedWorkSummariesForSsr } from "@/lib/vibekids/works-ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ export default async function ExplorePage({
 }: {
   searchParams: { tab?: string };
 }) {
-  const publishedWorks = await getPublishedWorkSummaries();
+  const publishedWorks = await fetchPublishedWorkSummariesForSsr();
   const initialTab = parseTab(searchParams.tab);
 
   return (

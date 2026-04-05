@@ -5,7 +5,7 @@ import {
   type VibekidsWorkPayload,
 } from "@/components/vibekids/VibekidsWorkView";
 import type { SavedWork } from "@/lib/vibekids/works-storage";
-import { getWorkById } from "@/lib/vibekids/works-storage";
+import { fetchWorkByIdForSsr } from "@/lib/vibekids/works-ssr";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ function toPayload(w: SavedWork): VibekidsWorkPayload {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = params;
-  const work = await getWorkById(id);
+  const work = await fetchWorkByIdForSsr(id);
   return {
     title: work ? `${work.title} | VibeKids` : "作品 | VibeKids",
     description: work?.prompt ?? "VibeKids 单页作品预览",
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function WorkPage({ params }: Props) {
   const { id } = params;
-  const serverWork = await getWorkById(id);
+  const serverWork = await fetchWorkByIdForSsr(id);
   const payload = serverWork ? toPayload(serverWork) : null;
 
   return (

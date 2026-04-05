@@ -52,7 +52,9 @@ export function ExploreTabsClient({ publishedWorks, initialTab }: Props) {
 
   const refreshFeedWorks = useCallback(async () => {
     try {
-      const res = await fetch(`${VK_API_BASE}/works`, { cache: "no-store" });
+      const res = await fetch(`${VK_API_BASE}/works?scope=published`, {
+        cache: "no-store",
+      });
       if (!res.ok) return;
       const data = (await res.json()) as { works?: SavedWorkSummary[] };
       const all = Array.isArray(data.works) ? data.works : [];

@@ -46,6 +46,7 @@ model User {
   jobA2AEmployerProfile JobA2AEmployerProfile?
   jobMatchesAsSeeker    JobA2AMatch[]         @relation("JobMatchSeeker")
   jobMatchesAsEmployer  JobA2AMatch[]         @relation("JobMatchEmployer")
+  vibekidsWorks         VibekidsWork[]
 
   @@index([username])
   @@index([telegramId])
@@ -468,4 +469,43 @@ model JobA2AEvent {
   @@index([createdAt])
   @@index([matchId])
   @@map("job_a2a_events")
+}
+
+/// VibeKids 单页作品（持久化在 PostgreSQL；Next /api/vibekids/works 可反代到此）
+model VibekidsWork {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  html      String   @db.Text
+  ageBand   String   @default("unified")
+  prompt    String?  @db.Text
+  kind      String?
+  published Boolean  @default(false)
+  likes     Int      @default(0)
+  shares    Int      @default(0)
+  favorites Int      @default(0)
+  comments  Json     @default("[]")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user              User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteDedupRows VibekidsWorkFavoriteDedupe[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([published, createdAt(sort: Desc)])
+  @@map("vibekids_works")
+}
+
+/// 收藏去重：同一 clientId 对同一作品只计一次 favorites 增量
+model VibekidsWorkFavoriteDedupe {
+  id        String   @id @default(uuid())
+  clientId  String
+  workId    String
+  createdAt DateTime @default(now())
+
+  work VibekidsWork @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, workId])
+  @@index([workId])
+  @@map("vibekids_work_favorite_dedupe")
 }

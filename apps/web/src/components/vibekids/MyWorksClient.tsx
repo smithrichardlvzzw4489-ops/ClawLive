@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { VK_API_BASE, VK_BASE } from "@/lib/vibekids/constants";
+import { VK_API_BASE, VK_BASE, vibekidsBearerHeader } from "@/lib/vibekids/constants";
 import type { SavedWorkSummary } from "@/lib/vibekids/works-storage";
 import { workListingScore } from "@/lib/vibekids/work-points";
 
@@ -29,14 +29,22 @@ export function MyWorksClient() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${VK_API_BASE}/works`, { cache: "no-store" });
+      const res = await fetch(`${VK_API_BASE}/works?mine=1`, {
+        cache: "no-store",
+        headers: { ...vibekidsBearerHeader() },
+      });
       const data = (await res.json()) as { works?: SavedWorkSummary[]; error?: string };
+      if (res.status === 401) throw new Error("login_required");
       if (!res.ok) throw new Error(data.error ?? "load_failed");
       const list = Array.isArray(data.works) ? data.works : [];
       setWorks(list);
       setErr(null);
-    } catch {
-      setErr("加载失败，请刷新页面重试。");
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message === "login_required" ?
+          "请先登录主站账号，再查看「我的作品」。"
+        : "加载失败，请刷新页面重试。";
+      setErr(msg);
       setWorks([]);
     }
   }, []);
@@ -52,7 +60,10 @@ export function MyWorksClient() {
       try {
         const res = await fetch(`${VK_API_BASE}/works/publish-state`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...vibekidsBearerHeader(),
+          },
           body: JSON.stringify({ id, published }),
           cache: "no-store",
         });
@@ -62,10 +73,14 @@ export function MyWorksClient() {
         };
         if (!res.ok) {
           const hint =
-            data.error === "not_found" ?
+            res.status === 401 || data.error === "login_required" ?
+              "请先登录后再操作发布状态。"
+            : data.error === "forbidden" ?
+              "无权操作该作品。"
+            : data.error === "not_found" ?
               "找不到该作品，请刷新列表后重试。"
             : data.error === "storage_failed" && data.detail ?
-              `保存失败：${data.detail}（若部署在无磁盘环境，需配置可写存储）`
+              `保存失败：${data.detail}`
             : data.error === "id_required" || data.error === "published_boolean_required" ?
               "请求无效，请刷新页面后重试。"
             : "更新发布状态失败，请稍后再试。";

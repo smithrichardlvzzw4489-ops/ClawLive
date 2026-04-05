@@ -29,6 +29,7 @@ import { evolverRoutes } from './evolver';
 import { darwinRoutes } from './darwin';
 import { jobA2ARoutes } from './job-a2a';
 import { mpRoutes } from './mp';
+import { vibekidsWorksRoutes } from './vibekids-works';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/admin', adminRoutes());
@@ -38,6 +39,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/points', pointsRoutes());
   app.use('/api/platform', platformRoutes());
   app.use('/api/lobster', lobsterRoutes());
+  app.use('/api/vibekids/works', vibekidsWorksRoutes());
   app.use('/api/agent-viewers', agentViewerRoutes(io));
   app.use('/api/user-agent-connections', userAgentConnectionsRoutes());
   app.use('/api/inbox', inboxRoutes(io));
