@@ -3,6 +3,7 @@ import type { IRouter } from 'express';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import { prisma } from '../../lib/prisma';
+import { config } from '../../config';
 import { ensureWeChatDarwinForUser } from '../../services/darwin-mp-bootstrap';
 
 const router: IRouter = Router();
@@ -81,6 +82,8 @@ router.post('/login', async (req: Request, res: Response) => {
       where: { wechatMpOpenid: ok.openid },
     });
 
+    const minRedeem = config.points.minRedeem;
+
     if (!user) {
       const suffix = randomBytes(8).toString('hex');
       const username = `wxmp_${suffix}`;
@@ -89,11 +92,43 @@ router.post('/login', async (req: Request, res: Response) => {
           username,
           wechatMpOpenid: ok.openid,
           passwordHash: null,
+          /** 默认给到「一次最低兑换」额度，便于在 VibeKids「我的」里兑换虚拟 Key */
+          clawPoints: minRedeem,
         },
       });
     }
 
     await ensureWeChatDarwinForUser(user.id);
+
+    /** 尚无虚拟 Key 且积分低于最低兑换线时，登录补足到 minRedeem（便于首次兑换） */
+    const bal = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { clawPoints: true, litellmVirtualKey: true },
+    });
+    if (
+      bal &&
+      !bal.litellmVirtualKey &&
+      bal.clawPoints < minRedeem
+    ) {
+      const prev = bal.clawPoints;
+      const delta = minRedeem - prev;
+      await prisma.$transaction(async (tx) => {
+        const updated = await tx.user.update({
+          where: { id: user.id },
+          data: { clawPoints: minRedeem },
+          select: { clawPoints: true },
+        });
+        await tx.pointLedger.create({
+          data: {
+            userId: user.id,
+            delta,
+            balanceAfter: updated.clawPoints,
+            reason: 'mp_login_starter_credits',
+            metadata: { previous: prev, target: minRedeem },
+          },
+        });
+      });
+    }
 
     const token = jwt.sign(
       { userId: user.id },

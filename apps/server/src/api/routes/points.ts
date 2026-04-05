@@ -189,7 +189,9 @@ export function pointsRoutes(): IRouter {
   });
 
   /**
-   * body: { clawPoints: number } — 按 POINTS_PER_USD 换算为 USD，调用 LiteLLM 增预算
+   * POST /api/points/redeem-llm
+   * body: { clawPoints: number } — 按 POINTS_PER_USD 换算为 USD，调用 LiteLLM 创建或增加虚拟 Key 预算。
+   * 网页积分页与 VibeKids「我的」兑换入口共用本接口。
    */
   router.post('/redeem-llm', authenticateToken, async (req: AuthRequest, res: Response) => {
     const userId = req.user!.id;
