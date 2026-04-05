@@ -8,7 +8,12 @@ Page({
   },
 
   onShow() {
-    this.setData({ loggedIn: Boolean(getToken()) });
+    const token = getToken();
+    if (token) {
+      wx.redirectTo({ url: "/pages/studio-web/studio-web" });
+      return;
+    }
+    this.setData({ loggedIn: false, hint: "" });
   },
 
   goLogin() {

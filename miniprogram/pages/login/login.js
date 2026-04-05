@@ -27,7 +27,9 @@ Page({
             if (res.statusCode >= 200 && res.statusCode < 300 && res.data && res.data.token) {
               setToken(res.data.token);
               wx.showToast({ title: "登录成功", icon: "success" });
-              setTimeout(() => wx.navigateBack(), 800);
+              setTimeout(() => {
+                wx.redirectTo({ url: "/pages/studio-web/studio-web" });
+              }, 400);
               return;
             }
             const d = res.data || {};

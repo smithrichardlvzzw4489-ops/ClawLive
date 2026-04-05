@@ -1,0 +1,11 @@
+.hold {
+  display: flex;
+  min-height: 60vh;
+  align-items: center;
+  justify-content: center;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 28rpx;
+}

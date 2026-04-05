@@ -1,0 +1,4 @@
+<web-view wx:if="{{src}}" src="{{src}}"></web-view>
+<view wx:else class="hold">
+  <text class="muted">正在准备创作室…</text>
+</view>
