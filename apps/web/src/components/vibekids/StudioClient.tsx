@@ -169,7 +169,9 @@ export function StudioClient() {
   const html = vers.list[vers.index] ?? welcomeHtml();
 
   const [loading, setLoading] = useState<null | "create" | "refine">(null);
-  const saveTitleInputRef = useRef<HTMLInputElement>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveNameError, setSaveNameError] = useState<string | null>(null);
+  const saveDialogInputRef = useRef<HTMLInputElement>(null);
   const [outMode, setOutMode] = useState<"idle" | "demo" | "ai">("idle");
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -556,16 +558,44 @@ export function StudioClient() {
     }
   }, [age, handleApiResponse, hasGeneratedPreview, html, prompt]);
 
-  const saveWork = useCallback(async () => {
+  useEffect(() => {
+    if (!saveDialogOpen) return;
+    const id = requestAnimationFrame(() => {
+      saveDialogInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [saveDialogOpen]);
+
+  useEffect(() => {
+    if (!saveDialogOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) {
+        setSaveDialogOpen(false);
+        setSaveNameError(null);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [saveDialogOpen, saving]);
+
+  const openSaveDialog = useCallback(() => {
     if (!hasGeneratedPreview) {
       setNotice("请先生成可预览的作品，再保存。");
       return;
     }
-    if (!saveTitle.trim()) {
-      setNotice("保存前请先填写作品名称，便于在「我的作品」里辨认。");
-      saveTitleInputRef.current?.focus();
+    setSaveNameError(null);
+    setNotice(null);
+    setSaveDialogOpen(true);
+  }, [hasGeneratedPreview]);
+
+  const confirmSaveWork = useCallback(async () => {
+    const title = saveTitle.trim();
+    if (!title) {
+      setSaveNameError("请填写作品名称。");
+      saveDialogInputRef.current?.focus();
       return;
     }
+    setSaveNameError(null);
     setSaving(true);
     setNotice(null);
     try {
@@ -577,7 +607,7 @@ export function StudioClient() {
           ageBand: age,
           prompt: prompt.trim() || undefined,
           kind: "any",
-          title: saveTitle.trim() || undefined,
+          title,
         }),
       });
       const data = (await res.json()) as {
@@ -598,6 +628,7 @@ export function StudioClient() {
         return;
       }
       if (data.ok && data.id) {
+        setSaveDialogOpen(false);
         setNotice(
           `已保存「${data.title ?? "作品"}」。在「我的作品」中发布到广场后计 5 分；他人点赞每条计 1 分。默认未发布。预览：${VK_BASE}/works/${data.id}`,
         );
@@ -612,7 +643,13 @@ export function StudioClient() {
     } finally {
       setSaving(false);
     }
-  }, [age, hasGeneratedPreview, html, prompt, saveTitle]);
+  }, [age, html, prompt, saveTitle]);
+
+  const closeSaveDialog = useCallback(() => {
+    if (saving) return;
+    setSaveDialogOpen(false);
+    setSaveNameError(null);
+  }, [saving]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 lg:h-[calc(100dvh-3.25rem)] lg:min-h-0 lg:flex-row lg:items-stretch lg:gap-0">
@@ -694,22 +731,6 @@ export function StudioClient() {
           <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>
         ) : null}
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="save-title" className="text-sm font-medium text-slate-800">
-            作品名称
-          </label>
-          <input
-            ref={saveTitleInputRef}
-            id="save-title"
-            type="text"
-            value={saveTitle}
-            onChange={(e) => setSaveTitle(e.target.value)}
-            placeholder="保存前请填写，例如：我的接球小游戏"
-            disabled={saving || loading !== null}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-400/30 focus:border-sky-400 focus:ring-2 disabled:opacity-50"
-          />
-        </div>
-
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -739,11 +760,11 @@ export function StudioClient() {
           </button>
           <button
             type="button"
-            onClick={() => void saveWork()}
+            onClick={openSaveDialog}
             disabled={saving || loading !== null || !hasGeneratedPreview}
             className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-100 disabled:opacity-50"
           >
-            {saving ? "保存中…" : "保存作品"}
+            保存作品
           </button>
         </div>
       </section>
@@ -767,6 +788,71 @@ export function StudioClient() {
           </div>
         </div>
       </section>
+
+      {saveDialogOpen ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="关闭"
+            disabled={saving}
+            onClick={closeSaveDialog}
+            className="absolute inset-0 bg-slate-900/45 disabled:pointer-events-none"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="save-dialog-title"
+            className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+          >
+            <h2
+              id="save-dialog-title"
+              className="text-lg font-semibold text-slate-900"
+            >
+              命名作品
+            </h2>
+            <label htmlFor="save-dialog-title-input" className="mt-4 block text-sm font-medium text-slate-800">
+              作品名称
+            </label>
+            <input
+              ref={saveDialogInputRef}
+              id="save-dialog-title-input"
+              type="text"
+              value={saveTitle}
+              onChange={(e) => {
+                setSaveTitle(e.target.value);
+                if (saveNameError) setSaveNameError(null);
+              }}
+              placeholder="保存前请填写，例如：我的接球小游戏"
+              disabled={saving}
+              className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-400/30 focus:border-sky-400 focus:ring-2 disabled:opacity-50"
+            />
+            {saveNameError ? (
+              <p className="mt-2 text-sm text-red-600">{saveNameError}</p>
+            ) : null}
+            <p className="mt-3 text-xs leading-relaxed text-slate-500">
+              点「确认保存」时会检查是否已命名。保存后默认不公开，可在「我的作品」发布到广场。
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeSaveDialog}
+                disabled={saving}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmSaveWork()}
+                disabled={saving}
+                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {saving ? "保存中…" : "确认保存"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
