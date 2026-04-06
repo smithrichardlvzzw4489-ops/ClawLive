@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { AgeBand } from "@/lib/vibekids/age";
 import { parseAgeBand } from "@/lib/vibekids/age";
 import { VK_API_BASE, VK_BASE, vibekidsBearerHeader } from "@/lib/vibekids/constants";
@@ -282,7 +282,10 @@ function initialVers(): Vers {
   return { list: [welcomeHtml()], index: 0 };
 }
 
+type WxMiniProgramBridge = { navigateTo?: (opts: { url: string }) => void };
+
 export function StudioClient() {
+  const router = useRouter();
   const sp = useSearchParams();
   const age: AgeBand = useMemo(
     () => parseAgeBand(sp.get("age")),
@@ -568,6 +571,10 @@ export function StudioClient() {
         return;
       }
       const data = parsed.data;
+      if (res.status === 401 && data.error === "login_required") {
+        setNotice(VK_LOGIN_NOTICE);
+        return;
+      }
       if (res.status === 402 && data.error === "NO_KEY") {
         setNotice(
           data.message ??
@@ -651,6 +658,10 @@ export function StudioClient() {
         return;
       }
       const data = parsed.data;
+      if (res.status === 401 && data.error === "login_required") {
+        setNotice(VK_LOGIN_NOTICE);
+        return;
+      }
       if (res.status === 402 && data.error === "NO_KEY") {
         setNotice(
           data.message ??
@@ -699,6 +710,18 @@ export function StudioClient() {
   },
   [age, handleApiResponse, hasGeneratedPreview, html, prompt],
   );
+
+  const openVibekidsLogin = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const wx = (window as unknown as { wx?: { miniProgram?: WxMiniProgramBridge } })
+      .wx;
+    if (typeof wx?.miniProgram?.navigateTo === "function") {
+      wx.miniProgram.navigateTo({ url: "/pages/login/login" });
+      return;
+    }
+    const path = `${window.location.pathname}${window.location.search}`;
+    router.push(`/login?redirect=${encodeURIComponent(path)}`);
+  }, [router]);
 
   const submitComposer = useCallback(async () => {
     const resolved = resolveComposerIntent(prompt, hasGeneratedPreview);
@@ -916,7 +939,27 @@ export function StudioClient() {
         </div>
 
         {notice ? (
-          <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>
+          <div
+            className={
+              notice === VK_LOGIN_NOTICE ?
+                "rounded-2xl border border-amber-200/90 bg-amber-50 px-3 py-3 text-sm text-amber-950"
+              : "rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900"
+            }
+            role={notice === VK_LOGIN_NOTICE ? "status" : undefined}
+          >
+            <p className="leading-relaxed">{notice}</p>
+            {notice === VK_LOGIN_NOTICE ?
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openVibekidsLogin()}
+                  className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 active:scale-[0.99]"
+                >
+                  去登录
+                </button>
+              </div>
+            : null}
+          </div>
         ) : null}
       </section>
 
