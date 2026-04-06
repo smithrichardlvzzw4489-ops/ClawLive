@@ -99,6 +99,41 @@ function readContentSize(doc: Document): { w: number; h: number } {
   return { w, h };
 }
 
+/**
+ * body 常设 min-height:100vh，scrollHeight 巨大，但真正 UI 只是一小块。
+ * 若 scroll 比子元素包围盒「松」很多，则按包围盒尺寸缩放，cover 才能把小块放大铺满预览区。
+ */
+function pickScaleBox(
+  scrollW: number,
+  scrollH: number,
+  uw: number,
+  uh: number,
+): { w: number; h: number } {
+  if (uw < 8 && uh < 8) {
+    return {
+      w: Math.min(MEASURE_CAP, Math.max(scrollW, MEASURE_MIN_W)),
+      h: Math.min(MEASURE_CAP, Math.max(scrollH, MEASURE_MIN_H)),
+    };
+  }
+  const uW = Math.max(uw, 48);
+  const uH = Math.max(uh, 48);
+  const sW = Math.max(scrollW, MEASURE_MIN_W);
+  const sH = Math.max(scrollH, MEASURE_MIN_H);
+  const hSlack = sH / uH;
+  const wSlack = sW / uW;
+  const H_THRESH = 1.28;
+  const W_THRESH = 1.32;
+  const hPick =
+    hSlack >= H_THRESH
+      ? Math.min(MEASURE_CAP, Math.max(uH, MEASURE_MIN_H))
+      : Math.min(MEASURE_CAP, Math.max(sH, uH, MEASURE_MIN_H));
+  const wPick =
+    wSlack >= W_THRESH
+      ? Math.min(MEASURE_CAP, Math.max(uW, MEASURE_MIN_W))
+      : Math.min(MEASURE_CAP, Math.max(sW, uW, MEASURE_MIN_W));
+  return { w: wPick, h: hPick };
+}
+
 function fitIframeToContainer(
   container: HTMLDivElement,
   iframe: HTMLIFrameElement,
@@ -120,22 +155,14 @@ function fitIframeToContainer(
 
     expandInnerScrollers(doc);
     void doc.body.offsetHeight;
-
-    let { w, h } = readContentSize(doc);
-    const u = unionContentRect(doc);
-    w = Math.max(w, u.w, MEASURE_MIN_W);
-    h = Math.max(h, u.h, MEASURE_MIN_H);
-
     void iframe.offsetWidth;
     expandInnerScrollers(doc);
     void doc.body.offsetHeight;
-    const second = readContentSize(doc);
-    const u2 = unionContentRect(doc);
-    w = Math.min(MEASURE_CAP, Math.max(w, second.w, u2.w));
-    h = Math.min(MEASURE_CAP, Math.max(h, second.h, u2.h));
-
-    w = Math.ceil(w);
-    h = Math.ceil(h);
+    const scroll = readContentSize(doc);
+    const u = unionContentRect(doc);
+    const box = pickScaleBox(scroll.w, scroll.h, u.w, u.h);
+    let w = Math.ceil(box.w);
+    let h = Math.ceil(box.h);
 
     const innerW = Math.max(8, cw - FIT_INSET * 2);
     const innerH = Math.max(8, ch - FIT_INSET * 2);
