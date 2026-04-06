@@ -8,11 +8,9 @@ Page({
 
   onShow() {
     const token = getToken();
-    if (!token) {
-      wx.redirectTo({ url: "/pages/login/login" });
-      return;
-    }
-    const bridge = `${API_BASE}/vibekids/mp-bridge?t=${encodeURIComponent(token)}`;
-    this.setData({ src: bridge });
+    const src = token
+      ? `${API_BASE}/vibekids/mp-bridge?t=${encodeURIComponent(token)}`
+      : `${API_BASE}/vibekids`;
+    this.setData({ src });
   },
 });

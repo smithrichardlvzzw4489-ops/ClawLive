@@ -31,8 +31,8 @@ function pathnameOnly(url: string): string {
 
 const PHASE_LABEL: Record<VibekidsRequestError["phase"], string> = {
   auth_llm: "已登录 → /api/lobster/vibekids-generate（经本站反代到后端）",
-  guest_llm: "访客 → /api/vibekids/generate（Next 本机处理）",
-  guest_fallback: "登录已失效 → 已改走访客 /api/vibekids/generate",
+  guest_llm: "未携带登录态时请求（创作需登录，本路径应返回 login_required）",
+  guest_fallback: "（已废弃）曾用于登录失效后改走访客生成",
 };
 
 function sanitizeTechnicalMessage(raw: string): string {

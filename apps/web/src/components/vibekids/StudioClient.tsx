@@ -76,7 +76,7 @@ function resolveLobsterApiBase(): string {
   return raw;
 }
 
-/** 已登录时走 ClawLive 后端 Darwin（LiteLLM + 平台虚拟 Key），与 /my-lobster 同源；未登录走 Next 上 OpenRouter/演示 */
+/** 创作生成/修改仅允许已登录用户走 Darwin（LiteLLM）；未登录时由界面拦截，不调用本接口 */
 function getVibekidsLlmEndpoint(): {
   url: string;
   extraHeaders: Record<string, string>;
@@ -84,14 +84,27 @@ function getVibekidsLlmEndpoint(): {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const base = resolveLobsterApiBase();
-  if (token) {
+  const t = token?.trim();
+  if (t) {
     const url = base
       ? `${base}/api/lobster/vibekids-generate`
       : "/api/lobster/vibekids-generate";
-    return { url, extraHeaders: { Authorization: `Bearer ${token}` } };
+    return { url, extraHeaders: { Authorization: `Bearer ${t}` } };
   }
   return { url: `${VK_API_BASE}/generate`, extraHeaders: {} };
 }
+
+function hasVibekidsAuthToken(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return Boolean(localStorage.getItem("token")?.trim());
+  } catch {
+    return false;
+  }
+}
+
+const VK_LOGIN_NOTICE =
+  "生成、修改、保存、发布作品需要先登录。微信小程序请在本小程序「登录」页授权后重新进入创作室；浏览器请使用主站账号登录。浏览广场与作品无需登录。";
 
 function getDarwinChipsUrl(): string {
   const base = resolveLobsterApiBase();
@@ -99,15 +112,10 @@ function getDarwinChipsUrl(): string {
   return base ? `${base}${path}` : path;
 }
 
-type VibekidsGuestFallbackReason = "session_expired" | "darwin_required";
-
-/** Darwin：401 清 token 后走访客；403 darwin_required 仍保留登录，仅本次改走访客演示/OpenRouter */
+/** Darwin：不再在 401/403 时回退匿名生成（匿名通道已关闭） */
 async function postVibekidsLlm(
   body: Record<string, unknown>,
-): Promise<{
-  res: Response;
-  guestFallbackReason?: VibekidsGuestFallbackReason;
-}> {
+): Promise<{ res: Response }> {
   const { url, extraHeaders } = getVibekidsLlmEndpoint();
   const firstPhase = extraHeaders.Authorization ? "auth_llm" : "guest_llm";
   let res: Response;
@@ -126,41 +134,6 @@ async function postVibekidsLlm(
       localStorage.removeItem("token");
     } catch {
       /* ignore */
-    }
-    const guestUrl = `${VK_API_BASE}/generate`;
-    try {
-      res = await fetch(guestUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
-      });
-    } catch (err) {
-      throw new VibekidsRequestError("guest_fallback", guestUrl, err);
-    }
-    return { res, guestFallbackReason: "session_expired" };
-  }
-  if (res.status === 403 && extraHeaders.Authorization) {
-    let darwinRequired = false;
-    try {
-      const peek = (await res.clone().json()) as { error?: string };
-      darwinRequired = peek?.error === "darwin_required";
-    } catch {
-      /* 非 JSON 体时不回退 */
-    }
-    if (darwinRequired) {
-      const guestUrl = `${VK_API_BASE}/generate`;
-      try {
-        res = await fetch(guestUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-          signal: vibekidsFetchAbortSignal(VIBEKIDS_CLIENT_FETCH_MS),
-        });
-      } catch (err) {
-        throw new VibekidsRequestError("guest_fallback", guestUrl, err);
-      }
-      return { res, guestFallbackReason: "darwin_required" };
     }
   }
   return { res };
@@ -524,7 +497,6 @@ export function StudioClient() {
         tokenUsage?: VibekidsTokenUsage;
       },
       opts?: {
-        guestFallbackReason?: VibekidsGuestFallbackReason;
         resultKind?: "create" | "refine";
         historyPrompt?: string;
         reusedHistory?: boolean;
@@ -550,14 +522,8 @@ export function StudioClient() {
         if (histLine && opts?.resultKind !== "refine") {
           pushPromptHistory(histLine);
         }
-        const prefix =
-          opts?.guestFallbackReason === "session_expired" ?
-            "登录已失效，已改用访客生成。"
-          : opts?.guestFallbackReason === "darwin_required" ?
-            "尚未接入 Darwin，已改用访客演示通道。"
-          : "";
         const verb = opts?.resultKind === "refine" ? "修改" : "生成";
-        let base = prefix ? `${prefix} ${verb}完成。` : `${verb}完成。`;
+        let base = `${verb}完成。`;
         if (opts?.reusedHistory && opts?.resultKind !== "refine") {
           base += " 已沿用上一句描述重做一版。";
         }
@@ -581,10 +547,14 @@ export function StudioClient() {
       setNotice("先写一句话描述你想做的东西，或点一个快捷词。");
       return;
     }
+    if (!hasVibekidsAuthToken()) {
+      setNotice(VK_LOGIN_NOTICE);
+      return;
+    }
     setLoading("create");
     setNotice(null);
     try {
-      const { res, guestFallbackReason } = await postVibekidsLlm({
+      const { res } = await postVibekidsLlm({
         intent: "create",
         prompt: text,
         ageBand: age,
@@ -608,7 +578,7 @@ export function StudioClient() {
       if (res.status === 403 && data.error === "darwin_required") {
         setNotice(
           data.detail ??
-            "暂无 Darwin 创作权限。请稍后再试或刷新页面；若仍失败请退出登录后使用演示。",
+            "暂无 Darwin 创作权限。请稍后再试或联系管理员；若使用微信小程序请确认已登录并完成授权。",
         );
         return;
       }
@@ -633,7 +603,6 @@ export function StudioClient() {
         return;
       }
       handleApiResponse(data, {
-        guestFallbackReason,
         resultKind: "create",
         historyPrompt: text,
         reusedHistory: meta?.reusedHistory,
@@ -660,10 +629,14 @@ export function StudioClient() {
       setNotice("在描述里写清楚要怎么改（例如：把主色改成绿色、加一个重置按钮）。");
       return;
     }
+    if (!hasVibekidsAuthToken()) {
+      setNotice(VK_LOGIN_NOTICE);
+      return;
+    }
     setLoading("refine");
     setNotice(null);
     try {
-      const { res, guestFallbackReason } = await postVibekidsLlm({
+      const { res } = await postVibekidsLlm({
         intent: "refine",
         currentHtml: html,
         refinementPrompt: text,
@@ -688,7 +661,7 @@ export function StudioClient() {
       if (res.status === 403 && data.error === "darwin_required") {
         setNotice(
           data.detail ??
-            "暂无 Darwin 创作权限。请稍后再试或刷新页面；若仍失败请退出登录后使用演示。",
+            "暂无 Darwin 创作权限。请稍后再试或联系管理员；若使用微信小程序请确认已登录并完成授权。",
         );
         return;
       }
@@ -713,7 +686,6 @@ export function StudioClient() {
         return;
       }
       handleApiResponse(data, {
-        guestFallbackReason,
         resultKind: "refine",
         historyPrompt: text,
       });

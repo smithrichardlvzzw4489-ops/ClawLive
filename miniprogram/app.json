@@ -1,7 +1,7 @@
 {
   "pages": [
-    "pages/vibekids/vibekids",
     "pages/studio-web/studio-web",
+    "pages/vibekids/vibekids",
     "pages/login/login"
   ],
   "window": {

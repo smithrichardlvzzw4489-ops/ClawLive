@@ -9,11 +9,14 @@ Page({
 
   onShow() {
     const token = getToken();
-    if (token) {
-      wx.redirectTo({ url: "/pages/studio-web/studio-web" });
-      return;
-    }
-    this.setData({ loggedIn: false, hint: "" });
+    this.setData({
+      loggedIn: Boolean(token),
+      hint: "",
+    });
+  },
+
+  goStudio() {
+    wx.navigateTo({ url: "/pages/studio-web/studio-web" });
   },
 
   goLogin() {

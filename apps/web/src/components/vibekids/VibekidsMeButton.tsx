@@ -47,7 +47,9 @@ export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
         /* ignore */
       }
       if (!token) {
-        setErr("未登录。请通过微信小程序创作室完成登录。");
+        setErr(
+          "未登录。生成、保存、发布需先登录；浏览作品无需登录。微信小程序请打开本小程序「登录」页授权。",
+        );
         setLoading(false);
         return;
       }

@@ -1,14 +1,18 @@
 <view class="wrap">
   <view class="card">
     <text class="title">少儿氛围编程</text>
-    <text class="muted block">主入口：用一句话生成可预览的小作品。下方将在此页逐步接入原生创作与作品列表。</text>
-    <view wx:if="{{!loggedIn}}" class="actions">
-      <button class="btn-primary" bindtap="goLogin">微信登录</button>
+    <text class="muted block">浏览广场与作品无需登录。生成、保存、发布作品需先完成微信登录。</text>
+    <view class="actions">
+      <button class="btn-primary" bindtap="goStudio">进入 VibeKids（可游客浏览）</button>
     </view>
-    <view wx:else class="actions">
-      <text class="ok">已登录</text>
-      <button class="btn-outline" bindtap="tryLoadWorks">拉取我的作品列表</button>
-      <button class="btn-outline" bindtap="logout">退出</button>
+    <view class="actions">
+      <button wx:if="{{!loggedIn}}" class="btn-outline" bindtap="goLogin">微信登录（创作 / 保存 / 发布）</button>
+      <block wx:else>
+        <text class="ok">已登录</text>
+        <button class="btn-outline" bindtap="goStudio">打开创作室</button>
+        <button class="btn-outline" bindtap="tryLoadWorks">拉取我的作品列表</button>
+        <button class="btn-outline" bindtap="logout">退出</button>
+      </block>
     </view>
     <text wx:if="{{hint}}" class="muted block hint">{{hint}}</text>
   </view>
