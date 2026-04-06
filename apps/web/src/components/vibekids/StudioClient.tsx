@@ -10,6 +10,7 @@ import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
 import { GenerationSkeleton } from "@/components/vibekids/GenerationSkeleton";
 import { getClientId } from "@/lib/vibekids/client-credits";
 import { pushPromptHistory } from "@/lib/vibekids/client-prompt-history";
+import { resolveComposerIntent } from "@/lib/vibekids/infer-composer-intent";
 import { loadDraft, saveDraft } from "@/lib/vibekids/client-studio-draft";
 import {
   clientVibekidsFetchMs,
@@ -270,9 +271,6 @@ function ensureThreeChips(fromModel: string[]): string[] {
 /** 创作室主操作与灵感标签：统一小圆角（含小程序 web-view） */
 const STUDIO_OUTLINE_BTN =
   "inline-flex shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:px-3 sm:text-xs";
-const STUDIO_COMPOSER_SECONDARY =
-  "inline-flex flex-1 min-w-0 items-center justify-center rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:flex-none sm:py-1.5";
-
 function SendPlaneIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -528,6 +526,8 @@ export function StudioClient() {
       opts?: {
         guestFallbackReason?: VibekidsGuestFallbackReason;
         resultKind?: "create" | "refine";
+        historyPrompt?: string;
+        reusedHistory?: boolean;
       },
     ) => {
       const nextHtml =
@@ -536,7 +536,7 @@ export function StudioClient() {
       if (data.warning === "refine_needs_ai") {
         setNotice(
           data.detail ??
-            "未配置 AI 时无法智能修改。请配置密钥后重试，或改用「生成作品」重新做一版。",
+            "未配置 AI 时无法智能修改。请配置密钥后重试，或发一句从零描述的需求重新生成。",
         );
         return false;
       }
@@ -546,7 +546,10 @@ export function StudioClient() {
         const extra = data.hint ? ` ${data.hint}` : "";
         setNotice(`AI 暂时不可用，已保留上一版或演示。技术信息：${tech}${extra}`);
       } else if (!data.warning) {
-        pushPromptHistory(prompt.trim());
+        const histLine = (opts?.historyPrompt ?? prompt).trim();
+        if (histLine && opts?.resultKind !== "refine") {
+          pushPromptHistory(histLine);
+        }
         const prefix =
           opts?.guestFallbackReason === "session_expired" ?
             "登录已失效，已改用访客生成。"
@@ -554,7 +557,10 @@ export function StudioClient() {
             "尚未接入 Darwin，已改用访客演示通道。"
           : "";
         const verb = opts?.resultKind === "refine" ? "修改" : "生成";
-        const base = prefix ? `${prefix} ${verb}完成。` : `${verb}完成。`;
+        let base = prefix ? `${prefix} ${verb}完成。` : `${verb}完成。`;
+        if (opts?.reusedHistory && opts?.resultKind !== "refine") {
+          base += " 已沿用上一句描述重做一版。";
+        }
         const tok =
           data.mode === "ai" && data.tokenUsage ?
             ` ${formatTokenUsageNotice(data.tokenUsage)}`
@@ -568,8 +574,9 @@ export function StudioClient() {
     [prompt, pushVersion],
   );
 
-  const generate = useCallback(async () => {
-    const text = prompt.trim();
+  const generate = useCallback(
+    async (textOverride?: string, meta?: { reusedHistory?: boolean }) => {
+    const text = (textOverride ?? prompt).trim();
     if (!text) {
       setNotice("先写一句话描述你想做的东西，或点一个快捷词。");
       return;
@@ -625,7 +632,12 @@ export function StudioClient() {
         setNotice(`生成失败（HTTP ${res.status}）${errTag}，请稍后再试。`);
         return;
       }
-      handleApiResponse(data, { guestFallbackReason });
+      handleApiResponse(data, {
+        guestFallbackReason,
+        resultKind: "create",
+        historyPrompt: text,
+        reusedHistory: meta?.reusedHistory,
+      });
     } catch (e) {
       void logVibekidsConnectivityDiag("generate");
       console.error("[VibeKids] generate failed:", e);
@@ -633,12 +645,15 @@ export function StudioClient() {
     } finally {
       setLoading(null);
     }
-  }, [age, handleApiResponse, prompt]);
+  },
+  [age, handleApiResponse, prompt],
+  );
 
-  const refineWork = useCallback(async () => {
-    const text = prompt.trim();
+  const refineWork = useCallback(
+    async (textOverride?: string) => {
+    const text = (textOverride ?? prompt).trim();
     if (!hasGeneratedPreview) {
-      setNotice("请先生成一版作品，再在描述里写想怎么改，然后点「修改作品」。");
+      setNotice("请先生成一版作品，再描述想怎么改。");
       return;
     }
     if (!text) {
@@ -700,6 +715,7 @@ export function StudioClient() {
       handleApiResponse(data, {
         guestFallbackReason,
         resultKind: "refine",
+        historyPrompt: text,
       });
     } catch (e) {
       void logVibekidsConnectivityDiag("refine");
@@ -708,7 +724,32 @@ export function StudioClient() {
     } finally {
       setLoading(null);
     }
-  }, [age, handleApiResponse, hasGeneratedPreview, html, prompt]);
+  },
+  [age, handleApiResponse, hasGeneratedPreview, html, prompt],
+  );
+
+  const submitComposer = useCallback(async () => {
+    const resolved = resolveComposerIntent(prompt, hasGeneratedPreview);
+    if (resolved.kind === "empty") {
+      setNotice(
+        "先写一句话，或点一个灵感词。已有作品时，会根据内容自动选择「修改当前版」或「新做一版」。",
+      );
+      return;
+    }
+    if (resolved.kind === "redo_needs_history") {
+      setNotice(
+        "「再来一版」需要先成功生成过至少一次；也可以直接写出完整的新想法。",
+      );
+      return;
+    }
+    if (resolved.kind === "refine") {
+      await refineWork(resolved.prompt);
+      return;
+    }
+    await generate(resolved.prompt, {
+      reusedHistory: resolved.reusedHistory,
+    });
+  }, [generate, hasGeneratedPreview, prompt, refineWork]);
 
   useEffect(() => {
     if (!saveDialogOpen) return;
@@ -865,7 +906,7 @@ export function StudioClient() {
 
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
-            描述你的作品想法；Enter 生成，Shift+Enter 换行
+            描述想法；Enter 发送（自动识别新作品或修改），Shift+Enter 换行
           </label>
           <div className="flex items-end gap-2">
             <textarea
@@ -875,43 +916,29 @@ export function StudioClient() {
               onKeyDown={(e) => {
                 if (e.key !== "Enter" || e.shiftKey) return;
                 e.preventDefault();
-                void generate();
+                void submitComposer();
               }}
               rows={2}
-              placeholder="描述想法… Enter 生成 · Shift+Enter 换行"
+              placeholder="描述想法… 已有作品时会自动判断修改或新做；Enter 发送 · Shift+Enter 换行"
               className="min-h-[2.875rem] max-h-40 w-full flex-1 resize-y rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-snug text-slate-900 outline-none ring-sky-400/35 placeholder:text-slate-400 focus:border-sky-400 focus:ring-[3px] sm:text-[15px]"
             />
             <button
               type="button"
-              onClick={() => void generate()}
+              onClick={() => void submitComposer()}
               disabled={loading !== null}
-              title="生成作品"
-              aria-label={loading === "create" ? "生成中" : "生成作品"}
+              title="发送（自动识别新作品或修改当前版）"
+              aria-label={
+                loading === "create" ?
+                  "生成中"
+                : loading === "refine" ?
+                  "修改中"
+                : "发送"
+              }
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white shadow-md transition hover:bg-violet-700 disabled:pointer-events-none disabled:opacity-40"
             >
-              {loading === "create" ?
+              {loading !== null ?
                 <span className="h-5 w-5 animate-pulse rounded-full bg-white/90" />
               : <SendPlaneIcon className="ml-0.5 h-5 w-5" />}
-            </button>
-          </div>
-          <div className="mt-2.5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void refineWork()}
-              disabled={
-                loading !== null || !hasGeneratedPreview || !prompt.trim()
-              }
-              className={STUDIO_COMPOSER_SECONDARY}
-            >
-              {loading === "refine" ? "修改中…" : "修改作品"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void generate()}
-              disabled={loading !== null || !prompt.trim()}
-              className={STUDIO_COMPOSER_SECONDARY}
-            >
-              再来一版
             </button>
           </div>
         </div>
