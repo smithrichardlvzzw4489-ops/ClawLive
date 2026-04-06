@@ -11,7 +11,7 @@ export function SavedWorksGrid({ works, emptyHint }: Props) {
     return (
       <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
         {emptyHint ??
-          "还没有保存的作品。在创作室生成后点「保存作品」即可出现在这里。"}
+          "还没有保存的作品。在创作室生成后点右上角保存按钮即可出现在这里。"}
       </p>
     );
   }

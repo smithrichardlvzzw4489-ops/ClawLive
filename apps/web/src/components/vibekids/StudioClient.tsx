@@ -270,8 +270,40 @@ function ensureThreeChips(fromModel: string[]): string[] {
 /** 创作室主操作与灵感标签：统一小圆角（含小程序 web-view） */
 const STUDIO_OUTLINE_BTN =
   "inline-flex shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:px-3 sm:text-xs";
-const STUDIO_PRIMARY_BTN =
-  "inline-flex shrink-0 items-center justify-center rounded-full border border-violet-600 bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:pointer-events-none disabled:opacity-40 sm:px-3 sm:text-xs";
+const STUDIO_COMPOSER_SECONDARY =
+  "inline-flex flex-1 min-w-0 items-center justify-center rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:pointer-events-none disabled:opacity-40 sm:flex-none sm:py-1.5";
+
+function SendPlaneIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z" />
+    </svg>
+  );
+}
+
+function SaveDiskIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
+      />
+    </svg>
+  );
+}
 
 type Vers = { list: string[]; index: number };
 
@@ -778,7 +810,18 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col justify-start gap-0 overflow-y-auto overscroll-y-contain bg-slate-50 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col justify-start gap-0 overflow-y-auto overscroll-y-contain bg-slate-50 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
+      <button
+        type="button"
+        onClick={openSaveDialog}
+        disabled={saving || loading !== null || !hasGeneratedPreview}
+        title="保存作品"
+        aria-label="保存作品"
+        className="fixed z-[90] flex h-11 w-11 items-center justify-center rounded-full border border-slate-200/90 bg-white/95 text-slate-700 shadow-md backdrop-blur-sm transition hover:border-sky-300 hover:bg-sky-50/90 hover:text-sky-900 disabled:pointer-events-none disabled:opacity-35 max-lg:right-3 max-lg:top-[max(0.5rem,env(safe-area-inset-top,0px))] lg:right-5 lg:top-[calc(env(safe-area-inset-top,0px)+4.25rem)]"
+      >
+        <SaveDiskIcon className="h-5 w-5" />
+      </button>
+
       <section className="flex w-full max-lg:flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:px-0 max-lg:pt-1 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
         <div className="relative flex min-h-0 w-full max-lg:h-[58vh] max-lg:max-h-[640px] max-lg:min-h-[280px] max-lg:shrink-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
@@ -788,23 +831,7 @@ export function StudioClient() {
         </div>
       </section>
 
-      <section className="flex w-full flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pl-2 lg:pr-5">
-        <div className="flex flex-col gap-2">
-          <label htmlFor="prompt" className="text-sm font-medium text-slate-800">
-            用一句话说出你的想法（任意场景）
-          </label>
-          <textarea
-            id="prompt"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={3}
-            placeholder={
-              "可短可长。短例：点点会冒星星的页面。长例：计数器，可选主题色、记录点击次数、带重置按钮。"
-            }
-            className="min-h-[4.25rem] w-full resize-y rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-sky-400/40 focus:border-sky-400 focus:ring-4 sm:text-base"
-          />
-        </div>
-
+      <section className="flex w-full flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pb-5 lg:pl-2 lg:pr-5">
         <div>
           <p className="mb-1.5 text-xs font-medium text-slate-700">灵感提示</p>
           <div className="flex flex-wrap items-center gap-1.5">
@@ -836,46 +863,62 @@ export function StudioClient() {
           </div>
         </div>
 
+        <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
+          <label htmlFor="prompt" className="sr-only">
+            描述你的作品想法；Enter 生成，Shift+Enter 换行
+          </label>
+          <div className="flex items-end gap-2">
+            <textarea
+              id="prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.shiftKey) return;
+                e.preventDefault();
+                void generate();
+              }}
+              rows={2}
+              placeholder="描述想法… Enter 生成 · Shift+Enter 换行"
+              className="min-h-[2.875rem] max-h-40 w-full flex-1 resize-y rounded-3xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm leading-snug text-slate-900 outline-none ring-sky-400/35 placeholder:text-slate-400 focus:border-sky-400 focus:ring-[3px] sm:text-[15px]"
+            />
+            <button
+              type="button"
+              onClick={() => void generate()}
+              disabled={loading !== null}
+              title="生成作品"
+              aria-label={loading === "create" ? "生成中" : "生成作品"}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-600 text-white shadow-md transition hover:bg-violet-700 disabled:pointer-events-none disabled:opacity-40"
+            >
+              {loading === "create" ?
+                <span className="h-5 w-5 animate-pulse rounded-full bg-white/90" />
+              : <SendPlaneIcon className="ml-0.5 h-5 w-5" />}
+            </button>
+          </div>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void refineWork()}
+              disabled={
+                loading !== null || !hasGeneratedPreview || !prompt.trim()
+              }
+              className={STUDIO_COMPOSER_SECONDARY}
+            >
+              {loading === "refine" ? "修改中…" : "修改作品"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void generate()}
+              disabled={loading !== null || !prompt.trim()}
+              className={STUDIO_COMPOSER_SECONDARY}
+            >
+              再来一版
+            </button>
+          </div>
+        </div>
+
         {notice ? (
           <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>
         ) : null}
-
-        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
-          <button
-            type="button"
-            onClick={() => void generate()}
-            disabled={loading !== null}
-            className={STUDIO_PRIMARY_BTN}
-          >
-            {loading === "create" ? "生成中…" : "生成作品"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void refineWork()}
-            disabled={
-              loading !== null || !hasGeneratedPreview || !prompt.trim()
-            }
-            className={STUDIO_OUTLINE_BTN}
-          >
-            {loading === "refine" ? "修改中…" : "修改作品"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void generate()}
-            disabled={loading !== null || !prompt.trim()}
-            className={STUDIO_OUTLINE_BTN}
-          >
-            再来一版
-          </button>
-          <button
-            type="button"
-            onClick={openSaveDialog}
-            disabled={saving || loading !== null || !hasGeneratedPreview}
-            className={STUDIO_OUTLINE_BTN}
-          >
-            保存作品
-          </button>
-        </div>
       </section>
 
       {saveDialogOpen ? (
