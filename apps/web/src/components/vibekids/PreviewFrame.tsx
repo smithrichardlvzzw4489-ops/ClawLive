@@ -9,13 +9,13 @@ type Props = {
   frameKey?: number;
 };
 
-const MEASURE_MIN_W = 320;
-const MEASURE_MIN_H = 240;
+/** 测量下限过小会误判，过大（如 320）会把窄页面强行算宽导致缩放偏小 */
+const MEASURE_MIN_W = 200;
+const MEASURE_MIN_H = 160;
 const MEASURE_CAP = 12000;
-/** contain 缩放：内缩 2px，避免贴边裁切感 */
 const FIT_INSET = 2;
 /** 内容小于预览框时最大放大倍数 */
-const MAX_UPSCALE = 2.25;
+const MAX_UPSCALE = 2.5;
 
 /** 展开内部 overflow 区域，避免 scrollHeight 只反映「小视口内」高度 */
 function expandInnerScrollers(doc: Document): void {
@@ -139,8 +139,13 @@ function fitIframeToContainer(
 
     const innerW = Math.max(8, cw - FIT_INSET * 2);
     const innerH = Math.max(8, ch - FIT_INSET * 2);
-    // contain：整页缩进可视区，不裁切；留白与外层 bg-slate-50 一致，弱化「展示框」
-    let s = Math.min(innerW / w, innerH / h);
+    const narrow =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 1023px)").matches;
+    // 窄屏：cover 铺满预留区，少留空；桌面：contain 完整可见、留白可接受
+    let s = narrow
+      ? Math.max(innerW / w, innerH / h)
+      : Math.min(innerW / w, innerH / h);
     if (s > 1) {
       s = Math.min(s, MAX_UPSCALE);
     }

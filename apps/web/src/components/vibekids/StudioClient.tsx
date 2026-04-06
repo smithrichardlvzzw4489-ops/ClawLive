@@ -780,7 +780,7 @@ export function StudioClient() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col justify-start gap-0 overflow-y-auto overscroll-y-contain bg-slate-50 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
       <section className="flex w-full max-lg:flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:px-0 max-lg:pt-1 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex min-h-0 w-full max-lg:h-[40vh] max-lg:max-h-[400px] max-lg:min-h-[200px] max-lg:shrink-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
+        <div className="relative flex min-h-0 w-full max-lg:h-[58vh] max-lg:max-h-[640px] max-lg:min-h-[280px] max-lg:shrink-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <PreviewFrame html={html} frameKey={vers.index} />
