@@ -287,6 +287,9 @@ router.get("/:id", async (req: Request, res: Response) => {
   if (!id?.trim()) {
     return res.status(400).set(NO_STORE).json({ error: "invalid_id" });
   }
+  if (id === "publish-state") {
+    return res.status(400).set(NO_STORE).json({ error: "invalid_id" });
+  }
 
   try {
     const work = await prisma.vibekidsWork.findUnique({ where: { id } });
