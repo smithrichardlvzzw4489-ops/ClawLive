@@ -104,7 +104,7 @@ function hasVibekidsAuthToken(): boolean {
 }
 
 const VK_LOGIN_NOTICE =
-  "生成、修改、保存、发布作品需要先登录。微信小程序请在本小程序「登录」页授权后重新进入创作室；浏览器请使用主站账号登录。浏览广场与作品无需登录。";
+  "生成、修改、保存、发布作品需要先完成微信登录（与 DarwinClaw 网页账号密码无关）。请点击下方按钮，在微信小程序内授权；浏览广场与作品无需登录。";
 
 function getDarwinChipsUrl(): string {
   const base = resolveLobsterApiBase();
@@ -720,7 +720,7 @@ export function StudioClient() {
       return;
     }
     const path = `${window.location.pathname}${window.location.search}`;
-    router.push(`/login?redirect=${encodeURIComponent(path)}`);
+    router.push(`/vibekids/wechat-login?redirect=${encodeURIComponent(path)}`);
   }, [router]);
 
   const submitComposer = useCallback(async () => {
@@ -955,7 +955,7 @@ export function StudioClient() {
                   onClick={() => openVibekidsLogin()}
                   className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-700 active:scale-[0.99]"
                 >
-                  去登录
+                  微信登录
                 </button>
               </div>
             : null}
