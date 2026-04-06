@@ -1,11 +1,14 @@
+import { tryProxyVibekidsWorksToExpress } from "@/lib/vibekids/works-upstream-proxy";
 import { incrementWorkShare } from "@/lib/vibekids/works-storage";
 
 export const runtime = "nodejs";
 
 export async function POST(
-  _: Request,
+  req: Request,
   { params }: { params: { id: string } },
 ) {
+  const proxied = await tryProxyVibekidsWorksToExpress(req);
+  if (proxied) return proxied;
   const { id } = params;
   const n = await incrementWorkShare(id);
   if (n === null) {

@@ -1,3 +1,4 @@
+import { tryProxyVibekidsWorksToExpress } from "@/lib/vibekids/works-upstream-proxy";
 import { setWorkPublished } from "@/lib/vibekids/works-storage";
 
 export const runtime = "nodejs";
@@ -6,6 +7,9 @@ export const runtime = "nodejs";
  * 与 PATCH /works/[id] 等价；部分 CDN/网关对 PATCH 支持差，客户端优先走此 POST。
  */
 export async function POST(req: Request) {
+  const proxied = await tryProxyVibekidsWorksToExpress(req);
+  if (proxied) return proxied;
+
   let body: unknown;
   try {
     body = await req.json();

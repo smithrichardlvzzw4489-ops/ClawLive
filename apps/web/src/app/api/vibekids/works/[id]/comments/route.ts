@@ -1,3 +1,4 @@
+import { tryProxyVibekidsWorksToExpress } from "@/lib/vibekids/works-upstream-proxy";
 import { addWorkComment } from "@/lib/vibekids/works-storage";
 
 export const runtime = "nodejs";
@@ -6,6 +7,8 @@ export async function POST(
   req: Request,
   { params }: { params: { id: string } },
 ) {
+  const proxied = await tryProxyVibekidsWorksToExpress(req);
+  if (proxied) return proxied;
   const { id } = params;
   let body: unknown;
   try {

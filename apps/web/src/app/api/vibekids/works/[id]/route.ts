@@ -2,6 +2,7 @@ import {
   favoriteDedupeHas,
   favoriteDedupeKey,
 } from "@/lib/vibekids/favorite-dedupe";
+import { tryProxyVibekidsWorksToExpress } from "@/lib/vibekids/works-upstream-proxy";
 import { getWorkById, setWorkPublished } from "@/lib/vibekids/works-storage";
 
 export const runtime = "nodejs";
@@ -26,6 +27,8 @@ export async function GET(
     return Response.json({ error: "invalid_id" }, { status: 400, headers: NO_STORE });
   }
   try {
+    const proxied = await tryProxyVibekidsWorksToExpress(req);
+    if (proxied) return proxied;
     const work = await getWorkById(id);
     if (!work) {
       return Response.json({ error: "not_found" }, { status: 404, headers: NO_STORE });
@@ -72,6 +75,9 @@ export async function PATCH(
   if (!id?.trim()) {
     return Response.json({ error: "invalid_id" }, { status: 400, headers: NO_STORE });
   }
+
+  const proxied = await tryProxyVibekidsWorksToExpress(req);
+  if (proxied) return proxied;
 
   let body: unknown;
   try {

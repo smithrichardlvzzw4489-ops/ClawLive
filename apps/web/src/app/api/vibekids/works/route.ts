@@ -1,13 +1,16 @@
 import { parseAgeBand } from "@/lib/vibekids/age";
 import { parseKind } from "@/lib/vibekids/creative";
+import { tryProxyVibekidsWorksToExpress } from "@/lib/vibekids/works-upstream-proxy";
 import { getWorkSummaries, saveWork } from "@/lib/vibekids/works-storage";
 
 export const runtime = "nodejs";
 
 const NO_STORE = { "Cache-Control": "private, no-store, max-age=0" };
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const proxied = await tryProxyVibekidsWorksToExpress(req);
+    if (proxied) return proxied;
     const summaries = await getWorkSummaries();
     return Response.json({ works: summaries }, { headers: NO_STORE });
   } catch (e) {
@@ -20,6 +23,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const proxied = await tryProxyVibekidsWorksToExpress(req);
+  if (proxied) return proxied;
+
   let body: unknown;
   try {
     body = await req.json();
