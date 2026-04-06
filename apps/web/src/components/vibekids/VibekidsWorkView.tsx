@@ -164,6 +164,11 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
         </div>
       </div>
 
+      {/* 预览在上：窄屏下互动区很高，若 preview 用 flex-1 min-h-0 会被压成 0 高度，iframe 不可见 */}
+      <div className="mb-4 w-full min-h-[min(52dvh,620px)] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-2">
+        <WorkViewer html={work.html} />
+      </div>
+
       <WorkEngagementBar
         workId={work.id}
         published={work.published}
@@ -173,10 +178,6 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
         initialComments={work.comments}
         initialViewerFavorited={work.viewerFavorited}
       />
-
-      <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-2">
-        <WorkViewer html={work.html} />
-      </div>
     </main>
   );
 }

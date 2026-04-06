@@ -8,7 +8,7 @@ type Props = {
 
 export function WorkViewer({ html }: Props) {
   return (
-    <div className="relative min-h-[min(85dvh,880px)] w-full flex-1">
+    <div className="relative flex h-[min(52dvh,620px)] min-h-[min(52dvh,620px)] w-full flex-col">
       <PreviewFrame html={html} title="作品预览" />
     </div>
   );

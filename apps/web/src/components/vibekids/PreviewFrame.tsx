@@ -243,7 +243,7 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
   return (
     <div
       ref={wrapRef}
-      className="vk-preview-root relative isolate h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden max-lg:rounded-none max-lg:bg-slate-50 [color-scheme:light] lg:rounded-2xl lg:bg-white lg:[min-height:min(380px,44dvh)]"
+      className="vk-preview-root relative isolate h-full min-h-[min(240px,36dvh)] w-full min-w-0 flex-1 overflow-hidden max-lg:rounded-none max-lg:bg-slate-50 [color-scheme:light] lg:min-h-0 lg:rounded-2xl lg:bg-white lg:[min-height:min(380px,44dvh)]"
     >
       <iframe
         key={frameKey}
