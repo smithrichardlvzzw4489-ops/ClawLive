@@ -165,8 +165,8 @@ export function VibekidsWorkView({ workId, serverWork }: Props) {
       </div>
 
       {/* 预览在上：窄屏下互动区很高，若 preview 用 flex-1 min-h-0 会被压成 0 高度，iframe 不可见 */}
-      <div className="mb-4 w-full min-h-[min(52dvh,620px)] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-2">
-        <WorkViewer html={work.html} />
+      <div className="mb-4 w-full min-h-[max(280px,min(52dvh,620px))] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100/80 p-2">
+        <WorkViewer html={work.html} nativeScroll />
       </div>
 
       <WorkEngagementBar

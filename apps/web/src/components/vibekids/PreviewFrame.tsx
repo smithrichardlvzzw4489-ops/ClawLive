@@ -7,6 +7,11 @@ type Props = {
   title?: string;
   /** 切换版本时强制重建 iframe，避免偶发空白不刷新 */
   frameKey?: number;
+  /**
+   * 作品详情页等：iframe 内自然滚动，不做 transform 缩放。
+   * 部分内置浏览器（如微信 web-view）对 srcDoc + 缩放组合易出白屏，Blob URL + 本模式更稳。
+   */
+  nativeScroll?: boolean;
 };
 
 /** 测量下限过小会误判，过大（如 320）会把窄页面强行算宽导致缩放偏小 */
@@ -21,21 +26,53 @@ const MAX_UPSCALE = 2.5;
  * 模型输出的片段常缺 viewport，iframe 内会按「桌面宽度」排版再被缩放，表现为巨大字号、裁切。
  * 测量时也应使用真实容器宽度，否则 (max-width: …px) 媒体查询永远不命中。
  */
-function ensurePreviewDocumentHtml(html: string): string {
+function ensurePreviewDocumentHtml(
+  html: string,
+  opts?: { nativeScroll?: boolean },
+): string {
   const t = html.trim();
   if (!t) return t;
 
   const hasViewport = /name\s*=\s*["']viewport["']/i.test(t);
+  const rootCss = opts?.nativeScroll ?
+    "html,body{margin:0;max-width:100%;box-sizing:border-box;height:auto!important;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}"
+  : "html,body{margin:0;max-width:100%;box-sizing:border-box}";
   const headInject =
-    '<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/><style>html,body{margin:0;max-width:100%;box-sizing:border-box}*,*::before,*::after{box-sizing:border-box}</style>';
+    `<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/><style>${rootCss}*,*::before,*::after{box-sizing:border-box}</style>`;
+
+  const nativePatch =
+    '<style id="vk-native-embed">html,body{height:auto!important;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}</style>';
 
   if (/<head[^>]*>/i.test(t)) {
-    if (hasViewport) return t;
+    if (hasViewport) {
+      if (
+        opts?.nativeScroll &&
+        !/id=["']vk-native-embed["']/i.test(t)
+      ) {
+        return t.replace(
+          /<head[^>]*>/i,
+          (open) => `${open}${nativePatch}`,
+        );
+      }
+      return t;
+    }
     return t.replace(/<head[^>]*>/i, (open) => `${open}${headInject}`);
   }
 
   if (/<html[\s>]/i.test(t)) {
-    if (hasViewport) return t;
+    if (hasViewport) {
+      if (
+        opts?.nativeScroll &&
+        !/id=["']vk-native-embed["']/i.test(t) &&
+        /<head[^>]*>/i.test(t)
+      ) {
+        return t.replace(
+          /<head[^>]*>/i,
+          (open) => `${open}${nativePatch}`,
+        );
+      }
+      return t;
+    }
     return t.replace(
       /<html([^>]*)>/i,
       `<html$1><head>${headInject}</head>`,
@@ -192,11 +229,14 @@ function fitIframeToContainer(
     const box = pickScaleBox(scroll.w, scroll.h, u.w, u.h);
     let w = Math.ceil(box.w);
     let h = Math.ceil(box.h);
+    w = Math.max(w, MEASURE_MIN_W);
+    h = Math.max(h, MEASURE_MIN_H);
 
     const innerW = Math.max(8, cw - FIT_INSET * 2);
     const innerH = Math.max(8, ch - FIT_INSET * 2);
     // 统一 contain：完整可见。窄屏曾用 cover 会按短边铺满、长边裁切，导致标题/输入框被切掉（用户看到的「不适配」）
     let s = Math.min(innerW / w, innerH / h);
+    if (!Number.isFinite(s) || s <= 0) s = 1;
     if (s > 1) {
       s = Math.min(s, MAX_UPSCALE);
     }
@@ -226,9 +266,16 @@ function fitIframeToContainer(
   }
 }
 
-export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
+export function PreviewFrame({
+  html,
+  title = "预览",
+  frameKey,
+  nativeScroll = false,
+}: Props) {
   const trimmed = html.trim();
-  const srcDocHtml = trimmed ? ensurePreviewDocumentHtml(trimmed) : "";
+  const srcDocHtml = trimmed
+    ? ensurePreviewDocumentHtml(trimmed, { nativeScroll })
+    : "";
   const wrapRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fitTimersRef = useRef<number[]>([]);
@@ -239,14 +286,33 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
   }, []);
 
   const runFit = useCallback(() => {
+    if (nativeScroll) return;
     const c = wrapRef.current;
     const f = iframeRef.current;
     if (c && f) fitIframeToContainer(c, f);
-  }, []);
+  }, [nativeScroll]);
 
   useEffect(() => {
+    if (!srcDocHtml) return;
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const blob = new Blob([srcDocHtml], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    iframe.src = url;
+    return () => {
+      try {
+        iframe.src = "about:blank";
+      } catch {
+        /* */
+      }
+      URL.revokeObjectURL(url);
+    };
+  }, [srcDocHtml, frameKey]);
+
+  useEffect(() => {
+    if (nativeScroll || !srcDocHtml) return;
     const c = wrapRef.current;
-    if (!c || !srcDocHtml) return;
+    if (!c) return;
     const ro = new ResizeObserver(() => {
       runFit();
     });
@@ -255,7 +321,16 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
       ro.disconnect();
       clearFitTimers();
     };
-  }, [srcDocHtml, frameKey, runFit, clearFitTimers]);
+  }, [nativeScroll, srcDocHtml, frameKey, runFit, clearFitTimers]);
+
+  const onIframeLoad = useCallback(() => {
+    if (nativeScroll) return;
+    clearFitTimers();
+    window.requestAnimationFrame(() => runFit());
+    for (const ms of [50, 200, 500, 1200, 2500]) {
+      fitTimersRef.current.push(window.setTimeout(runFit, ms));
+    }
+  }, [nativeScroll, clearFitTimers, runFit]);
 
   if (!trimmed) {
     return (
@@ -264,6 +339,10 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
       </div>
     );
   }
+
+  const iframeClass = nativeScroll ?
+      "box-border block h-full min-h-full w-full max-lg:rounded-none max-lg:border-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner"
+    : "absolute inset-0 box-border h-full min-h-0 w-full max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ring-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner";
 
   return (
     <div
@@ -274,16 +353,9 @@ export function PreviewFrame({ html, title = "预览", frameKey }: Props) {
         key={frameKey}
         ref={iframeRef}
         title={title}
-        className="absolute inset-0 box-border h-full min-h-0 w-full max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ring-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner"
+        className={iframeClass}
         sandbox="allow-scripts allow-forms allow-same-origin"
-        srcDoc={srcDocHtml}
-        onLoad={() => {
-          clearFitTimers();
-          window.requestAnimationFrame(() => runFit());
-          for (const ms of [50, 200, 500, 1200, 2500]) {
-            fitTimersRef.current.push(window.setTimeout(runFit, ms));
-          }
-        }}
+        onLoad={onIframeLoad}
       />
     </div>
   );
