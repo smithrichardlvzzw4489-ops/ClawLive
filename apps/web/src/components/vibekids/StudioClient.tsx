@@ -137,8 +137,7 @@ function hasVibekidsAuthToken(): boolean {
   }
 }
 
-const VK_LOGIN_NOTICE =
-  "生成、修改、保存、发布作品需要先完成微信登录（与 DarwinClaw 网页账号密码无关）。请点击下方按钮，在微信小程序内授权；浏览广场与作品无需登录。";
+const VK_LOGIN_NOTICE = "请先登录后使用";
 
 function getDarwinChipsUrl(): string {
   const base = resolveLobsterApiBase();
