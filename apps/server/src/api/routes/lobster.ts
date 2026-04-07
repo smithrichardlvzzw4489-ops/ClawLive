@@ -281,6 +281,48 @@ async function pickVibekidsCodeModelId(baseModel: string): Promise<string> {
   return baseModel;
 }
 
+/** LiteLLM 部署不可用、无 fallback 等：应换模型重试，而非直接失败给用户 */
+function isVibekidsModelInfraError(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes('not a valid model id') ||
+    m.includes('no healthy deployments') ||
+    (m.includes('unhealthy') && m.includes('deployment')) ||
+    (m.includes('received model group') &&
+      (m.includes('fallback') || m.includes('fallbacks=none'))) ||
+    m.includes('model not found') ||
+    m.includes('unknown model') ||
+    (m.includes('model_group') && m.includes('not found'))
+  );
+}
+
+/**
+ * 依次尝试：首选路由结果 → Darwin 默认 → 注册表内其它强模型 → 轻量模型。
+ * 避免「claude-3-7-sonnet 等已列出但代理未部署」时整单失败。
+ */
+async function buildVibekidsModelTryOrder(baseModel: string): Promise<string[]> {
+  const primary = await pickVibekidsCodeModelId(baseModel);
+  const available = await fetchLitellmModels();
+  const usable = available.filter((id) => !id.includes('*') && !_badModels.has(id));
+  const out: string[] = [];
+  const add = (id: string) => {
+    if (id && !out.includes(id)) out.push(id);
+  };
+  add(primary);
+  add(baseModel);
+  for (const kw of STRONG_MODEL_KEYWORDS) {
+    for (const id of usable) {
+      if (id.toLowerCase().includes(kw.toLowerCase())) add(id);
+    }
+  }
+  for (const kw of SIMPLE_MODEL_KEYWORDS) {
+    for (const id of usable) {
+      if (id.toLowerCase().includes(kw.toLowerCase())) add(id);
+    }
+  }
+  return out;
+}
+
 // ─── 今日推荐构建 ─────────────────────────────────────────────────────────────
 
 /**
@@ -2815,20 +2857,34 @@ export function lobsterRoutes(): Router {
           { signal: AbortSignal.timeout(ms) },
         );
       };
-      const routedModel = await pickVibekidsCodeModelId(llm.model);
-      let response: OpenAI.Chat.Completions.ChatCompletion;
-      try {
-        response = await runOnce(routedModel);
-      } catch (toolErr) {
-        const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
-        const isInvalidModelId =
-          toolErrMsg.includes('is not a valid model ID') ||
-          (toolErrMsg.includes('400') && toolErrMsg.includes('model ID'));
-        if (isInvalidModelId && routedModel !== llm.model && deadline - Date.now() > 1_200) {
-          response = await runOnce(llm.model);
-        } else {
+      const tryModels = await buildVibekidsModelTryOrder(llm.model);
+      const maxTries = Math.min(14, tryModels.length);
+      let response: OpenAI.Chat.Completions.ChatCompletion | undefined;
+      let lastErr: unknown;
+      for (let i = 0; i < maxTries; i++) {
+        const modelId = tryModels[i];
+        if (deadline - Date.now() < 800) break;
+        try {
+          response = await runOnce(modelId);
+          if (i > 0) {
+            console.log(`[Lobster] vibekids code: succeeded with fallback model → ${modelId}`);
+          }
+          break;
+        } catch (toolErr) {
+          lastErr = toolErr;
+          const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+          const infra = isVibekidsModelInfraError(toolErrMsg);
+          if (infra && i < maxTries - 1) {
+            console.warn(
+              `[Lobster] vibekids code: skip model "${modelId}" (${i + 1}/${maxTries}): ${toolErrMsg.slice(0, 220)}`,
+            );
+            continue;
+          }
           throw toolErr;
         }
+      }
+      if (!response) {
+        throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
       }
       const text = response.choices[0]?.message?.content?.trim();
       if (!text) throw new Error('模型未返回内容');
