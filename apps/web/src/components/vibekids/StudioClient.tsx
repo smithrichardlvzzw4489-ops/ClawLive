@@ -43,7 +43,6 @@ import {
 } from "@/lib/vibekids/client-request-errors";
 import {
   type VibekidsTokenUsage,
-  formatTokenUsageNotice,
 } from "@/lib/vibekids/token-usage";
 
 /** 略大于服务端墙钟截止，便于拿到 JSON 错误体 */
@@ -703,16 +702,11 @@ export function StudioClient() {
         if (histLine && opts?.resultKind !== "refine") {
           pushPromptHistory(histLine);
         }
-        const verb = opts?.resultKind === "refine" ? "修改" : "生成";
-        let base = `${verb}完成。`;
         if (opts?.reusedHistory && opts?.resultKind !== "refine") {
-          base += " 已沿用上一句描述重做一版。";
+          setNotice("已沿用上一句描述重做一版。");
+        } else {
+          setNotice(null);
         }
-        const tok =
-          data.mode === "ai" && data.tokenUsage ?
-            ` ${formatTokenUsageNotice(data.tokenUsage)}`
-          : "";
-        setNotice(base + tok);
       } else {
         setNotice(null);
       }
@@ -1272,9 +1266,6 @@ export function StudioClient() {
 
       <section className="flex w-full flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:px-0 max-lg:pt-1 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
         <div className="relative flex min-h-0 w-full max-lg:min-h-[min(48dvh,420px)] max-lg:flex-1 max-lg:flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
-          <p className="shrink-0 px-3 pb-1 pt-0.5 text-center text-[11px] font-medium text-slate-500 lg:hidden">
-            作品预览 · 生成后在此试玩小应用
-          </p>
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden max-lg:min-h-[min(220px,32dvh)] lg:min-h-0">
             <PreviewFrame
@@ -1291,7 +1282,7 @@ export function StudioClient() {
       <section className="flex w-full flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pb-5 lg:pl-2 lg:pr-5">
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
-            描述想法；Enter 发送（自动识别新作品或修改），Shift+Enter 换行；旁侧按钮可语音输入
+            描述想法；Enter 发送，Shift+Enter 换行
           </label>
           <div className="flex items-end gap-2">
             <textarea
@@ -1523,10 +1514,6 @@ export function StudioClient() {
                 </label>
               </div>
             </div>
-
-            <p className="px-0.5 text-[10px] leading-snug text-slate-400 sm:text-[11px]">
-              语音输入：点麦克风开始，再点结束；需已登录并兑换虚拟 Key（与生成相同）。录音在本地，识别经服务端 Whisper。
-            </p>
           </div>
         </details>
       </section>
