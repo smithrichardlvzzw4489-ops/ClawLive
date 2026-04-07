@@ -1320,6 +1320,7 @@ export function StudioClient() {
         className="bg-white/95 shadow-sm lg:static lg:order-1 lg:flex lg:max-w-[min(22rem,100vw)] lg:flex-col lg:gap-4 lg:border-r lg:border-slate-200/80 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5"
         style={{
           position: "absolute",
+          zIndex: 10,
           bottom: 0,
           left: 0,
           right: 0,
