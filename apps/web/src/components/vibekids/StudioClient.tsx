@@ -989,7 +989,10 @@ export function StudioClient() {
         .slice(0, 12)
         .map((s, i) => `${i + 1}. ${s}`)
         .join("\n");
-      const text = `【自动修复】以下为预览 iframe 中收集到的报错或 console.error（约 2 秒内）。请只修改必要代码以消除这些问题，保持原有功能与界面意图，输出完整 HTML：\n\n${block}`;
+      const hasCanvasBlank = issues.some((s) => s.startsWith("canvas-blank:"));
+      const text = hasCanvasBlank
+        ? `【自动修复】预览检测到 canvas 画布在渲染 4 秒后仍为纯色（很可能游戏未正常运行）。请排查：1) gameLoop/requestAnimationFrame 是否启动；2) 方块/元素是否被创建并 push 到数组；3) clearRect 后是否遍历数组 fillRect 绘制每个元素；4) canvas.width/height 是否在 JS 中赋值而非仅靠 CSS。修复后输出完整 HTML：\n\n${block}`
+        : `【自动修复】以下为预览 iframe 中收集到的报错或 console.error。请只修改必要代码以消除这些问题，保持原有功能与界面意图，输出完整 HTML：\n\n${block}`;
       void refineWork(text, { isAutoFix: true });
     },
     [refineWork],

@@ -45,8 +45,7 @@ const MOBILE_BASE_STYLE =
 /** 向父窗口 postMessage 上报 error / rejection / console.error，供创作室一轮自动修复 */
 function injectRuntimeReporter(html: string): string {
   if (/id=["']vk-runtime-reporter["']/i.test(html)) return html;
-  const snippet =
-    '<script id="vk-runtime-reporter">(function(){var S="vibekids-preview";function send(line){try{parent.postMessage({source:S,type:"vk_issue",line:String(line).slice(0,800)},"*");}catch(e){}}var seen={};function u(line){var k=String(line).slice(0,500);if(seen[k])return;seen[k]=1;send(k);}window.addEventListener("error",function(e){u("Error: "+e.message+(e.filename?" @"+e.filename+":"+(e.lineno||0):""));});window.addEventListener("unhandledrejection",function(e){var r=e.reason;u("Unhandled: "+(r&&r.stack||r&&r.message||String(r)).slice(0,600));});var ce=console.error;console.error=function(){u("console.error: "+Array.prototype.join.call(arguments," ").slice(0,600));ce.apply(console,arguments);};})();<\/script>';
+  const snippet = `<script id="vk-runtime-reporter">(function(){var S="vibekids-preview";function send(line){try{parent.postMessage({source:S,type:"vk_issue",line:String(line).slice(0,800)},"*");}catch(e){}}var seen={};function u(line){var k=String(line).slice(0,500);if(seen[k])return;seen[k]=1;send(k);}window.addEventListener("error",function(e){u("Error: "+e.message+(e.filename?" @"+e.filename+":"+(e.lineno||0):""));});window.addEventListener("unhandledrejection",function(e){var r=e.reason;u("Unhandled: "+(r&&r.stack||r&&r.message||String(r)).slice(0,600));});var ce=console.error;console.error=function(){u("console.error: "+Array.prototype.join.call(arguments," ").slice(0,600));ce.apply(console,arguments);};setTimeout(function(){try{var cc=document.querySelectorAll("canvas");for(var i=0;i<cc.length;i++){var c=cc[i];if(c.width<2||c.height<2)continue;var ctx=c.getContext("2d");if(!ctx)continue;var w=Math.min(c.width,120),h=Math.min(c.height,120);var d=ctx.getImageData(0,0,w,h).data;var r0=d[0],g0=d[1],b0=d[2],a0=d[3],uni=true;for(var j=4;j<d.length;j+=16){if(d[j]!==r0||d[j+1]!==g0||d[j+2]!==b0||d[j+3]!==a0){uni=false;break;}}if(uni){u("canvas-blank: Canvas ("+c.width+"x"+c.height+") is solid rgba("+r0+","+g0+","+b0+","+a0+") after 4s. Game may not be rendering — check gameLoop, block spawning, and fillRect draw calls.");}}}catch(e){}},4000);})();<\/script>`;
   if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${snippet}</body>`);
   if (/<\/html>/i.test(html)) return html.replace(/<\/html>/i, `${snippet}</html>`);
   return html + snippet;
@@ -467,13 +466,18 @@ export function PreviewFrame({
       if (tline) lines.push(tline);
     };
     window.addEventListener("message", onMsg);
-    const flushTimer = window.setTimeout(() => {
+    const earlyFlush = window.setTimeout(() => {
       const uniq = [...new Set(lines)].slice(0, 15);
       if (uniq.length) onRuntimeIssues(uniq);
     }, 2200);
+    const lateFlush = window.setTimeout(() => {
+      const uniq = [...new Set(lines)].slice(0, 15);
+      if (uniq.length) onRuntimeIssues(uniq);
+    }, 5500);
     return () => {
       window.removeEventListener("message", onMsg);
-      window.clearTimeout(flushTimer);
+      window.clearTimeout(earlyFlush);
+      window.clearTimeout(lateFlush);
     };
   }, [reportRuntimeIssues, onRuntimeIssues, trimmed, frameKey, html]);
 
