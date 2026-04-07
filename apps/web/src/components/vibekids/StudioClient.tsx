@@ -443,12 +443,17 @@ export function StudioClient() {
     useState<VibekidsDesignPresetId>("none");
   const [designMdPaste, setDesignMdPaste] = useState("");
 
-  /** 窄屏用 iframe 自然滚动，避免 transform 缩放在 flex 链上算出 0 高导致整页白屏 */
-  const previewNativeScroll = useSyncExternalStore(
+  /** 窄屏 + 微信内核：禁用 transform 缩放预览，避免 web-view 里高度/黑底异常 */
+  const narrowViewport = useSyncExternalStore(
     subscribeMaxLg1023,
     getMaxLg1023Snapshot,
     getMaxLg1023ServerSnapshot,
   );
+  const [weChatKernel, setWeChatKernel] = useState(false);
+  useEffect(() => {
+    setWeChatKernel(/micromessenger/i.test(navigator.userAgent));
+  }, []);
+  const previewNativeScroll = narrowViewport || weChatKernel;
 
   const buildDesignMdRequestFields = useCallback(() => {
     const paste = designMdPaste.trim().slice(0, 12_000);
@@ -1251,7 +1256,7 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 max-lg:flex-col-reverse lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
       <button
         type="button"
         onClick={openSaveDialog}
@@ -1262,6 +1267,22 @@ export function StudioClient() {
       >
         <SaveDiskIcon className="h-5 w-5" />
       </button>
+
+      {/* 移动：源码顺序=上预览下输入（勿用 flex-col-reverse，微信 web-view 常失效）。桌面：lg:order 左栏右预览 */}
+      <section className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 max-lg:flex-1 max-lg:px-0 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
+        <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden max-lg:min-h-0 max-lg:flex-1 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
+          {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <PreviewFrame
+              html={html}
+              frameKey={vers.index}
+              nativeScroll={previewNativeScroll}
+              reportRuntimeIssues
+              onRuntimeIssues={onPreviewRuntimeIssues}
+            />
+          </div>
+        </div>
+      </section>
 
       <section className="flex w-full shrink-0 flex-col gap-2 border-t border-b border-slate-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-sm sm:p-3 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border lg:border-y-0 lg:border-l-0 lg:border-r lg:border-slate-200/80 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5">
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
@@ -1500,21 +1521,6 @@ export function StudioClient() {
             </div>
           </div>
         </details>
-      </section>
-
-      <section className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 max-lg:flex-1 max-lg:px-0 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden max-lg:min-h-0 max-lg:flex-1 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
-          {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <PreviewFrame
-              html={html}
-              frameKey={vers.index}
-              nativeScroll={previewNativeScroll}
-              reportRuntimeIssues
-              onRuntimeIssues={onPreviewRuntimeIssues}
-            />
-          </div>
-        </div>
       </section>
 
       {saveDialogOpen ? (
