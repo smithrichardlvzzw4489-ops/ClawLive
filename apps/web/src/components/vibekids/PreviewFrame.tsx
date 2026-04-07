@@ -22,8 +22,7 @@ type Props = {
    */
   nativeScroll?: boolean;
   /**
-   * 是否显示「逻辑宽度」切换条（创作室 true；作品详情可 false）。
-   * @default true
+   * 是否显示「逻辑宽度」切换条（调试用；默认关闭，预览始终随容器实时适配）。
    */
   viewportToolbar?: boolean;
 };
@@ -283,7 +282,7 @@ export function PreviewFrame({
   title = "预览",
   frameKey,
   nativeScroll = false,
-  viewportToolbar = true,
+  viewportToolbar = false,
 }: Props) {
   const [viewportPreset, setViewportPreset] = useState<string>("auto");
   const logicalWidth =
@@ -293,6 +292,7 @@ export function PreviewFrame({
   const srcDocHtml = trimmed
     ? ensurePreviewDocumentHtml(trimmed, { nativeScroll })
     : "";
+  const bandRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const fitTimersRef = useRef<number[]>([]);
@@ -328,12 +328,14 @@ export function PreviewFrame({
 
   useEffect(() => {
     if (nativeScroll || !srcDocHtml) return;
+    const band = bandRef.current;
     const c = wrapRef.current;
     if (!c) return;
     const ro = new ResizeObserver(() => {
       runFit();
     });
     ro.observe(c);
+    if (band) ro.observe(band);
     return () => {
       ro.disconnect();
       clearFitTimers();
@@ -346,6 +348,46 @@ export function PreviewFrame({
     runFit,
     clearFitTimers,
   ]);
+
+  /** 移动端地址栏伸缩、横竖屏、键盘顶起等场景下，仅靠子节点 ResizeObserver 可能不触发 */
+  useEffect(() => {
+    if (nativeScroll || !srcDocHtml) return;
+
+    let raf = 0;
+    const scheduleFit = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        runFit();
+      });
+    };
+
+    const onOrientation = () => {
+      scheduleFit();
+      window.setTimeout(() => runFit(), 180);
+      window.setTimeout(() => runFit(), 450);
+    };
+
+    window.addEventListener("resize", scheduleFit);
+    window.addEventListener("orientationchange", onOrientation);
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (vv) {
+      vv.addEventListener("resize", scheduleFit);
+      vv.addEventListener("scroll", scheduleFit);
+    }
+    document.addEventListener("visibilitychange", scheduleFit);
+
+    return () => {
+      window.removeEventListener("resize", scheduleFit);
+      window.removeEventListener("orientationchange", onOrientation);
+      if (vv) {
+        vv.removeEventListener("resize", scheduleFit);
+        vv.removeEventListener("scroll", scheduleFit);
+      }
+      document.removeEventListener("visibilitychange", scheduleFit);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [nativeScroll, srcDocHtml, runFit]);
 
   useEffect(() => {
     if (nativeScroll || !srcDocHtml) return;
@@ -414,6 +456,7 @@ export function PreviewFrame({
       ) : null}
 
       <div
+        ref={bandRef}
         className={
           showBar ?
             "flex min-h-0 flex-1 justify-center overflow-hidden bg-slate-100/50 max-lg:bg-slate-50 lg:rounded-b-2xl"
