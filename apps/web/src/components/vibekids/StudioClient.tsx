@@ -4,6 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { AgeBand } from "@/lib/vibekids/age";
 import { parseAgeBand } from "@/lib/vibekids/age";
+import {
+  CREATIVE_KINDS,
+  VIBE_STYLES,
+  parseKind,
+  type CreativeKind,
+  type VibeStyle,
+} from "@/lib/vibekids/creative";
 import { VK_API_BASE, VK_BASE, vibekidsBearerHeader } from "@/lib/vibekids/constants";
 import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
@@ -332,6 +339,17 @@ export function StudioClient() {
   const [quickChips, setQuickChips] = useState<string[]>([]);
   const [chipsLoading, setChipsLoading] = useState(false);
 
+  const [creativeKind, setCreativeKind] = useState<CreativeKind>("any");
+  const [creativeStyles, setCreativeStyles] = useState<VibeStyle[]>([]);
+
+  const toggleCreativeStyle = useCallback((id: VibeStyle) => {
+    setCreativeStyles((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return [...prev.slice(1), id];
+      return [...prev, id];
+    });
+  }, []);
+
   const loadDarwinChips = useCallback(
     async (opts?: { exclude?: string[] }) => {
       let token: string | null = null;
@@ -355,8 +373,8 @@ export function StudioClient() {
           },
           body: JSON.stringify({
             ageBand: age,
-            kind: "any",
-            styles: [],
+            kind: creativeKind,
+            styles: creativeStyles,
             prompt: promptRef.current.trim() || undefined,
             ...(opts?.exclude?.length ? { exclude: opts.exclude.slice(0, 12) } : {}),
           }),
@@ -412,7 +430,7 @@ export function StudioClient() {
         setChipsLoading(false);
       }
     },
-    [age],
+    [age, creativeKind, creativeStyles],
   );
 
   useEffect(() => {
@@ -443,6 +461,17 @@ export function StudioClient() {
     draftRestored.current = true;
     setPrompt(d.prompt);
     setSaveTitle(d.saveTitle);
+    setCreativeKind(parseKind(d.kind));
+    const allowedStyle = new Set(VIBE_STYLES.map((x) => x.id));
+    const st = Array.isArray(d.styles) ? d.styles : [];
+    setCreativeStyles(
+      st
+        .filter(
+          (x): x is VibeStyle =>
+            typeof x === "string" && allowedStyle.has(x as VibeStyle),
+        )
+        .slice(0, 2),
+    );
     const list = d.versList.length ? d.versList : [welcomeHtml()];
     const idx = Math.min(Math.max(0, d.versIndex), list.length - 1);
     setVers({ list, index: idx });
@@ -454,8 +483,8 @@ export function StudioClient() {
       const idx = Math.min(vers.index, list.length - 1);
       saveDraft({
         prompt,
-        kind: "any",
-        styles: [],
+        kind: creativeKind,
+        styles: creativeStyles,
         age,
         saveTitle,
         refinePrompt: "",
@@ -465,7 +494,7 @@ export function StudioClient() {
       });
     }, 800);
     return () => window.clearTimeout(t);
-  }, [prompt, age, saveTitle, vers.list, vers.index]);
+  }, [prompt, age, saveTitle, vers.list, vers.index, creativeKind, creativeStyles]);
 
   /** 仍为欢迎页唯一版本时不可保存 */
   const hasGeneratedPreview = !(vers.list.length === 1 && vers.index === 0);
@@ -561,8 +590,8 @@ export function StudioClient() {
         intent: "create",
         prompt: text,
         ageBand: age,
-        kind: "any",
-        styles: [],
+        kind: creativeKind,
+        styles: creativeStyles,
         clientId: getClientId(),
       });
       const parsed = await readJsonBody<VibekidsLlmResponseBody>(res);
@@ -622,7 +651,7 @@ export function StudioClient() {
       setLoading(null);
     }
   },
-  [age, handleApiResponse, prompt],
+  [age, creativeKind, creativeStyles, handleApiResponse, prompt],
   );
 
   const refineWork = useCallback(
@@ -648,8 +677,8 @@ export function StudioClient() {
         currentHtml: html,
         refinementPrompt: text,
         ageBand: age,
-        kind: "any",
-        styles: [],
+        kind: creativeKind,
+        styles: creativeStyles,
         clientId: getClientId(),
       });
       const parsed = await readJsonBody<VibekidsLlmResponseBody>(res);
@@ -708,7 +737,7 @@ export function StudioClient() {
       setLoading(null);
     }
   },
-  [age, handleApiResponse, hasGeneratedPreview, html, prompt],
+  [age, creativeKind, creativeStyles, handleApiResponse, hasGeneratedPreview, html, prompt],
   );
 
   const openVibekidsLogin = useCallback(() => {
@@ -797,7 +826,7 @@ export function StudioClient() {
           html,
           ageBand: age,
           prompt: prompt.trim() || undefined,
-          kind: "any",
+          kind: creativeKind,
           title,
         }),
       });
@@ -837,7 +866,7 @@ export function StudioClient() {
     } finally {
       setSaving(false);
     }
-  }, [age, html, prompt, saveTitle]);
+  }, [age, creativeKind, html, prompt, saveTitle]);
 
   const closeSaveDialog = useCallback(() => {
     if (saving) return;
@@ -896,6 +925,53 @@ export function StudioClient() {
             >
               {hasMainSiteToken && chipsLoading ? "加载中…" : "换一批"}
             </button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200/70 bg-slate-50/90 px-2.5 py-2 sm:px-3">
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+            作品形态
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {CREATIVE_KINDS.map((k) => (
+              <button
+                key={k.id}
+                type="button"
+                disabled={loading !== null}
+                onClick={() => setCreativeKind(k.id)}
+                title={k.hint}
+                className={
+                  creativeKind === k.id ?
+                    `${STUDIO_OUTLINE_BTN} border-violet-500 bg-violet-50 font-semibold text-violet-900 shadow-sm`
+                  : STUDIO_OUTLINE_BTN
+                }
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <p className="mb-1 mt-2.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+            风格（可选，最多 2）
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {VIBE_STYLES.map((s) => {
+              const on = creativeStyles.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  disabled={loading !== null}
+                  onClick={() => toggleCreativeStyle(s.id)}
+                  className={
+                    on ?
+                      `${STUDIO_OUTLINE_BTN} border-sky-500 bg-sky-50 font-semibold text-sky-900 shadow-sm`
+                    : STUDIO_OUTLINE_BTN
+                  }
+                >
+                  {s.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
