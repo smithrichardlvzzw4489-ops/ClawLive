@@ -2,6 +2,7 @@
 
 import type { AgeBand } from "@/lib/vibekids/age";
 import type { CreativeKind, VibeStyle } from "@/lib/vibekids/creative";
+import type { VibekidsDesignPresetId } from "@/lib/vibekids/design-md-presets";
 
 const DRAFT_KEY = "vibekids-draft-v1";
 
@@ -13,6 +14,10 @@ export type StudioDraft = {
   saveTitle: string;
   refinePrompt: string;
   lockHint: string;
+  /** DESIGN.md 预设（与 awesome-design-md 工作流对齐） */
+  designPreset?: VibekidsDesignPresetId;
+  /** 用户粘贴的 DESIGN.md 节选 */
+  designMdPaste?: string;
   /** 最多保留 2 份 html 草稿，控制体积 */
   versList: string[];
   versIndex: number;

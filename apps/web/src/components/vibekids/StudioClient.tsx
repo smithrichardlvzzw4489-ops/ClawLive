@@ -11,6 +11,12 @@ import {
   type CreativeKind,
   type VibeStyle,
 } from "@/lib/vibekids/creative";
+import {
+  AWESOME_DESIGN_MD_REPO,
+  VIBEKIDS_DESIGN_PRESETS,
+  parseDesignPresetId,
+  type VibekidsDesignPresetId,
+} from "@/lib/vibekids/design-md-presets";
 import { VK_API_BASE, VK_BASE, vibekidsBearerHeader } from "@/lib/vibekids/constants";
 import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
@@ -414,6 +420,17 @@ export function StudioClient() {
 
   const [creativeKind, setCreativeKind] = useState<CreativeKind>("any");
   const [creativeStyles, setCreativeStyles] = useState<VibeStyle[]>([]);
+  const [designPreset, setDesignPreset] =
+    useState<VibekidsDesignPresetId>("none");
+  const [designMdPaste, setDesignMdPaste] = useState("");
+
+  const buildDesignMdRequestFields = useCallback(() => {
+    const paste = designMdPaste.trim().slice(0, 12_000);
+    return {
+      designPreset,
+      ...(paste ? { designMd: paste } : {}),
+    };
+  }, [designPreset, designMdPaste]);
 
   const toggleCreativeStyle = useCallback((id: VibeStyle) => {
     setCreativeStyles((prev) => {
@@ -545,6 +562,10 @@ export function StudioClient() {
         )
         .slice(0, 2),
     );
+    setDesignPreset(parseDesignPresetId(d.designPreset));
+    setDesignMdPaste(
+      typeof d.designMdPaste === "string" ? d.designMdPaste.slice(0, 12_000) : "",
+    );
     const list = d.versList.length ? d.versList : [welcomeHtml()];
     const idx = Math.min(Math.max(0, d.versIndex), list.length - 1);
     setVers({ list, index: idx });
@@ -562,12 +583,24 @@ export function StudioClient() {
         saveTitle,
         refinePrompt: "",
         lockHint: "",
+        designPreset,
+        designMdPaste: designMdPaste.slice(0, 12_000),
         versList: list,
         versIndex: idx >= 0 ? idx : 0,
       });
     }, 800);
     return () => window.clearTimeout(t);
-  }, [prompt, age, saveTitle, vers.list, vers.index, creativeKind, creativeStyles]);
+  }, [
+    prompt,
+    age,
+    saveTitle,
+    vers.list,
+    vers.index,
+    creativeKind,
+    creativeStyles,
+    designPreset,
+    designMdPaste,
+  ]);
 
   /** 仍为欢迎页唯一版本时不可保存 */
   const hasGeneratedPreview = !(vers.list.length === 1 && vers.index === 0);
@@ -681,6 +714,7 @@ export function StudioClient() {
         kind: creativeKind,
         styles: creativeStyles,
         clientId: getClientId(),
+        ...buildDesignMdRequestFields(),
       });
       const parsed = await readJsonBody<VibekidsLlmResponseBody>(res);
       if (!parsed.ok) {
@@ -746,7 +780,14 @@ export function StudioClient() {
       setLoading(null);
     }
   },
-  [age, creativeKind, creativeStyles, handleApiResponse, prompt],
+  [
+    age,
+    buildDesignMdRequestFields,
+    creativeKind,
+    creativeStyles,
+    handleApiResponse,
+    prompt,
+  ],
   );
 
   const refineWork = useCallback(
@@ -788,6 +829,7 @@ export function StudioClient() {
         kind: creativeKind,
         styles: creativeStyles,
         clientId: getClientId(),
+        ...buildDesignMdRequestFields(),
       });
       const parsed = await readJsonBody<VibekidsLlmResponseBody>(res);
       if (!parsed.ok) {
@@ -884,7 +926,16 @@ export function StudioClient() {
       setLoading(null);
     }
   },
-  [age, creativeKind, creativeStyles, handleApiResponse, hasGeneratedPreview, html, prompt],
+  [
+    age,
+    buildDesignMdRequestFields,
+    creativeKind,
+    creativeStyles,
+    handleApiResponse,
+    hasGeneratedPreview,
+    html,
+    prompt,
+  ],
   );
 
   const onPreviewRuntimeIssues = useCallback(
@@ -1283,6 +1334,64 @@ export function StudioClient() {
             })}
           </div>
         </div>
+
+        <details className="rounded-xl border border-violet-200/70 bg-violet-50/35 px-2.5 py-2 sm:px-3">
+          <summary className="cursor-pointer select-none text-sm font-medium text-violet-950">
+            界面设计参考（DESIGN.md，可选）
+          </summary>
+          <div className="mt-2 space-y-2 border-t border-violet-200/55 pt-2 text-xs leading-relaxed text-slate-600">
+            <p>
+              思路与开源合集{" "}
+              <a
+                href={AWESOME_DESIGN_MD_REPO}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-violet-700 underline decoration-violet-400/70 underline-offset-2 hover:text-violet-900"
+              >
+                awesome-design-md
+              </a>{" "}
+              一致：可选下方内置预设，或从仓库里任一站点的{" "}
+              <code className="rounded bg-white/90 px-1 py-0.5 text-[11px] text-slate-800">
+                DESIGN.md
+              </code>{" "}
+              复制进文本框。有粘贴内容时<strong>优先采用粘贴</strong>，预设仅作备用。
+            </p>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                预设气质
+              </span>
+              <select
+                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/60"
+                value={designPreset}
+                disabled={loading !== null}
+                onChange={(e) =>
+                  setDesignPreset(parseDesignPresetId(e.target.value))
+                }
+              >
+                {VIBEKIDS_DESIGN_PRESETS.map((p) => (
+                  <option key={p.id} value={p.id} title={p.hint}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                粘贴 DESIGN.md（可选，最多 12000 字）
+              </span>
+              <textarea
+                value={designMdPaste}
+                onChange={(e) =>
+                  setDesignMdPaste(e.target.value.slice(0, 12_000))
+                }
+                disabled={loading !== null}
+                rows={4}
+                placeholder="从 GitHub 上 awesome-design-md 的 design-md 目录复制全文或节选…"
+                className="w-full resize-y rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-mono text-[11px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200/60"
+              />
+            </label>
+          </div>
+        </details>
 
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
