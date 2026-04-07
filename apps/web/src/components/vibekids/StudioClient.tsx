@@ -1285,14 +1285,7 @@ export function StudioClient() {
 
       {/* ── 预览区 ── 移动：绝对定位铺满上方；桌面：flex item */}
       <section
-        className="overflow-hidden bg-slate-50 lg:static lg:order-2 lg:flex lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:px-5 lg:pb-5 lg:pt-4"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: "var(--vk-composer-h, 4.5rem)",
-        }}
+        className="absolute inset-x-0 top-0 bottom-[var(--vk-composer-h,7rem)] z-[1] overflow-hidden bg-slate-50 lg:static lg:inset-auto lg:z-auto lg:order-2 lg:flex lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:px-5 lg:pb-5 lg:pt-4"
       >
         <div
           className="max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm"
@@ -1314,20 +1307,7 @@ export function StudioClient() {
       {/* ── 输入区 ── 移动：绝对定位贴底；桌面：flex item 侧栏 */}
       <section
         ref={composerRef}
-        className="bg-white/95 shadow-sm lg:static lg:order-1 lg:flex lg:max-w-[min(22rem,100vw)] lg:flex-col lg:gap-4 lg:border-r lg:border-slate-200/80 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5"
-        style={{
-          position: "absolute",
-          zIndex: 10,
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: "0.5rem",
-          paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
-          borderTop: "1px solid rgba(226,232,240,0.8)",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.5rem",
-        }}
+        className="absolute inset-x-0 bottom-0 z-10 flex flex-col gap-2 border-t border-slate-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] shadow-sm lg:static lg:inset-auto lg:z-auto lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-r lg:border-t-0 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5"
       >
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
