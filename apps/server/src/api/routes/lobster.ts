@@ -296,6 +296,28 @@ function isVibekidsModelInfraError(msg: string): boolean {
   );
 }
 
+/** LiteLLM 虚拟 Key / Team 预算耗尽：换模型重试无效，应直接提示用户联系管理员 */
+function isLiteLlmBudgetExceededError(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes('budget has been exceeded') ||
+    m.includes('budget exceeded') ||
+    (m.includes('max budget') && m.includes('current cost'))
+  );
+}
+
+function respondLitellmBudgetExceededIfNeeded(res: Response, e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (!isLiteLlmBudgetExceededError(msg)) return false;
+  res.status(402).json({
+    error: 'litellm_budget_exceeded',
+    message:
+      'LiteLLM 虚拟 Key 累计花费已超过管理员设置的预算上限（Budget exceeded）。请在 LiteLLM 中提高该 Key 的 max_budget、或更换/申请新 Key、或等待预算周期重置后再试。',
+    detail: msg.length > 320 ? `${msg.slice(0, 320)}…` : msg,
+  });
+  return true;
+}
+
 /**
  * 依次尝试：首选路由结果 → Darwin 默认 → 注册表内其它强模型 → 轻量模型。
  * 避免「claude-3-7-sonnet 等已列出但代理未部署」时整单失败。
@@ -2873,6 +2895,7 @@ export function lobsterRoutes(): Router {
         } catch (toolErr) {
           lastErr = toolErr;
           const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
+          if (isLiteLlmBudgetExceededError(toolErrMsg)) throw toolErr;
           const infra = isVibekidsModelInfraError(toolErrMsg);
           if (infra && i < maxTries - 1) {
             console.warn(
@@ -2974,6 +2997,7 @@ ${lock}
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Lobster vibekids-generate]', e);
+      if (respondLitellmBudgetExceededIfNeeded(res, e)) return;
       return res.status(500).json({
         error: 'llm_failed',
         detail: msg.length > 500 ? `${msg.slice(0, 500)}…` : msg,
@@ -3079,6 +3103,7 @@ ${lock}
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Lobster vibekids-brainstorm]', e);
+      if (respondLitellmBudgetExceededIfNeeded(res, e)) return;
       return res.status(500).json({
         error: 'llm_failed',
         detail: msg.length > 500 ? `${msg.slice(0, 500)}…` : msg,
@@ -3206,6 +3231,7 @@ ${lock}
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[Lobster vibekids-chips]', e);
+      if (respondLitellmBudgetExceededIfNeeded(res, e)) return;
       return res.status(500).json({
         error: 'llm_failed',
         detail: msg.length > 500 ? `${msg.slice(0, 500)}…` : msg,

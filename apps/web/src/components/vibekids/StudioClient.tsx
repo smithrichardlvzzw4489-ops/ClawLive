@@ -634,6 +634,13 @@ export function StudioClient() {
         );
         return;
       }
+      if (res.status === 402 && data.error === "litellm_budget_exceeded") {
+        setNotice(
+          data.message ??
+            "LiteLLM 虚拟 Key 已超过预算上限（Budget exceeded），请联系管理员在 LiteLLM 中提高 max_budget 或更换 Key。",
+        );
+        return;
+      }
       if (res.status === 403 && data.error === "darwin_required") {
         setNotice(
           data.detail ??
@@ -735,6 +742,16 @@ export function StudioClient() {
           setNotice(
             data.message ??
               "Darwin 需要平台虚拟 Key。请先在积分兑换中申请 Key（与 /my-lobster 相同）。",
+          );
+        }
+        return;
+      }
+      if (res.status === 402 && data.error === "litellm_budget_exceeded") {
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) {
+          setNotice(
+            data.message ??
+              "LiteLLM 虚拟 Key 已超过预算上限（Budget exceeded），请联系管理员在 LiteLLM 中提高 max_budget 或更换 Key。",
           );
         }
         return;
