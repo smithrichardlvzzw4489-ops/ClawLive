@@ -39,7 +39,6 @@ import {
 import { SkillsPersistence } from '../../services/skills-persistence';
 import { loadOfficialSkills } from '../../services/official-skills-loader';
 import { formatSkillHitsForLobster, searchGitHubSkillPackages } from '../../services/github-skill-hunter';
-import { getDefaultPlatformModel, loadPlatformModels } from '../../services/platform-models';
 import { prisma } from '../../lib/prisma';
 import { defaultDarwinDisplayName } from '../../lib/darwin-defaults';
 import { validateDarwinOnboarding } from '../../lib/darwin-onboarding';
@@ -157,128 +156,17 @@ function isSimpleRequest(message: string): boolean {
   return msg.length < 60; // 短消息默认简单
 }
 
-// ─── LiteLLM 实际可用模型缓存（5 分钟刷新） ───────────────────────────────────
-
-let _litellmModelsCache: string[] = [];
-let _litellmModelsFetchedAt = 0;
-
-async function fetchLitellmModels(): Promise<string[]> {
-  const now = Date.now();
-  if (_litellmModelsCache.length > 0 && now - _litellmModelsFetchedAt < 5 * 60 * 1000) {
-    return _litellmModelsCache;
-  }
-  try {
-    const base = config.litellm.baseUrl;
-    const masterKey = config.litellm.masterKey;
-    if (!base || !masterKey) return [];
-    const resp = await fetch(`${base}/models`, {
-      headers: { Authorization: `Bearer ${masterKey}` },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!resp.ok) return _litellmModelsCache;
-    const data = (await resp.json()) as { data?: Array<{ id: string }> };
-    _litellmModelsCache = (data.data || []).map((m: { id: string }) => m.id);
-    _litellmModelsFetchedAt = now;
-    console.log('[Lobster] LiteLLM available models:', _litellmModelsCache);
-    return _litellmModelsCache;
-  } catch {
-    return _litellmModelsCache; // 返回旧缓存，不中断服务
-  }
-}
-
-/** 轻量模型关键词（优先级排列） */
-const SIMPLE_MODEL_KEYWORDS = [
-  'gpt-4o-mini', 'gpt-5-nano', 'gpt-5-mini', 'gpt-4.1-mini', 'gpt-4.1-nano',
-  'gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-lite',
-  'claude-haiku', 'claude-3-5-haiku',
-  'deepseek-chat', 'deepseek-v3',
-  'ministral', 'mistral-small', 'mistral-7b',
-  'llama', 'qwen',
-];
-
-/** 强模型关键词（优先级排列） */
-const STRONG_MODEL_KEYWORDS = [
-  'claude-3.5-sonnet', 'claude-3-5-sonnet', // claude-3.5-sonnet — OpenRouter 已确认有效
-  'claude-opus-4',                            // opus-4 系列
-  'claude-sonnet', 'claude-opus', 'claude-3-5',
-  'deepseek-r1', 'deepseek-reasoner',
-  'gpt-4o', 'gpt-5', 'o1', 'o3',
-  'gemini-2.5-pro', 'gemini-pro',
-];
-
 /**
  * 运行时坏模型黑名单：遇到 "not a valid model ID" 的模型会被加入，
  * 避免重复路由到无效模型（容器重启后自动清空）。
  */
 const _badModels = new Set<string>();
 
-/**
- * 双模型路由：从 LiteLLM 实际已注册模型中选最合适的轻量/强模型。
- * 会过滤通配符条目（openrouter/*）和已知无效模型。
- * baseModel 作为兜底（始终可用）。
- */
-async function routeModel(message: string, baseModel: string): Promise<string> {
-  const available = await fetchLitellmModels();
-  // 过滤通配符条目（如 openrouter/*）和运行时已知无效模型
-  const usable = available.filter((id) => !id.includes('*') && !_badModels.has(id));
-  if (usable.length < 2) return baseModel;
-
-  const find = (keywords: string[]) =>
-    keywords
-      .flatMap((kw) => usable.filter((id) => id.toLowerCase().includes(kw)))
-      .at(0);
-
-  const simpleModel = find(SIMPLE_MODEL_KEYWORDS) ?? baseModel;
-
-  console.log(`[Lobster] route: simple → ${simpleModel}`);
-  return simpleModel;
-}
-
-/**
- * VibeKids 单页 HTML：不用全局 routeModel（其固定返回轻量模型，会严重拉低代码质量）。
- * 优先用户 Darwin 已配置的 baseModel；若明显是轻量档则在 LiteLLM 已注册列表中选第一个强模型。
- */
-function vibekidsBaseLooksWeakForCode(id: string): boolean {
-  const m = id.toLowerCase();
-  if (m.includes('haiku')) return true;
-  if (m.includes('flash-lite')) return true;
-  if (m.includes('ministral') && m.includes('small')) return true;
-  if (m.includes('gpt-4o-mini') || m.includes('gpt-5-nano') || m.includes('gpt-5-mini')) return true;
-  if (m.includes('gemini') && m.includes('flash') && !m.includes('pro')) return true;
-  if (m.includes('mistral-small') || /\b7b\b/.test(m) || m.includes('8x7b')) return true;
-  if (m.includes('llama-3.2-1b') || m.includes('llama3.2:1b')) return true;
-  if (m.includes('qwen2.5-0.5b') || m.includes('qwen2.5-1.5b')) return true;
-  return false;
-}
-
-function vibekidsBaseLooksStrong(id: string): boolean {
-  const m = id.toLowerCase();
-  if (vibekidsBaseLooksWeakForCode(id)) return false;
-  return STRONG_MODEL_KEYWORDS.some((kw) => m.includes(kw.toLowerCase()));
-}
-
-async function pickVibekidsCodeModelId(baseModel: string): Promise<string> {
-  const envOverride = process.env.VIBEKIDS_LLM_MODEL?.trim();
-  if (envOverride) {
-    console.log(`[Lobster] vibekids code: VIBEKIDS_LLM_MODEL → ${envOverride}`);
-    return envOverride;
-  }
-  if (vibekidsBaseLooksStrong(baseModel)) {
-    return baseModel;
-  }
-  const available = await fetchLitellmModels();
-  const usable = available.filter((id) => !id.includes('*') && !_badModels.has(id));
-  const findStrong = () =>
-    STRONG_MODEL_KEYWORDS.flatMap((kw) =>
-      usable.filter((id) => id.toLowerCase().includes(kw.toLowerCase())),
-    ).at(0);
-  const strong = findStrong();
-  if (strong) {
-    console.log(`[Lobster] vibekids code: upgrade weak base "${baseModel}" → "${strong}"`);
-    return strong;
-  }
-  console.log(`[Lobster] vibekids code: keep base (no strong in registry) → ${baseModel}`);
-  return baseModel;
+/** Darwin 对话：固定使用平台统一 model（与 VibeKids 一致）。 */
+async function routeModel(_message: string, _baseModel: string): Promise<string> {
+  const id = config.platformLlmModel;
+  console.log(`[Lobster] route: fixed platform model → ${id}`);
+  return id;
 }
 
 /** LiteLLM 部署不可用、无 fallback 等：应换模型重试，而非直接失败给用户 */
@@ -318,31 +206,9 @@ function respondLitellmBudgetExceededIfNeeded(res: Response, e: unknown): boolea
   return true;
 }
 
-/**
- * 依次尝试：首选路由结果 → Darwin 默认 → 注册表内其它强模型 → 轻量模型。
- * 避免「claude-3-7-sonnet 等已列出但代理未部署」时整单失败。
- */
-async function buildVibekidsModelTryOrder(baseModel: string): Promise<string[]> {
-  const primary = await pickVibekidsCodeModelId(baseModel);
-  const available = await fetchLitellmModels();
-  const usable = available.filter((id) => !id.includes('*') && !_badModels.has(id));
-  const out: string[] = [];
-  const add = (id: string) => {
-    if (id && !out.includes(id)) out.push(id);
-  };
-  add(primary);
-  add(baseModel);
-  for (const kw of STRONG_MODEL_KEYWORDS) {
-    for (const id of usable) {
-      if (id.toLowerCase().includes(kw.toLowerCase())) add(id);
-    }
-  }
-  for (const kw of SIMPLE_MODEL_KEYWORDS) {
-    for (const id of usable) {
-      if (id.toLowerCase().includes(kw.toLowerCase())) add(id);
-    }
-  }
-  return out;
+/** VibeKids：仅使用平台统一 model（与 Darwin 一致），不再自动换强/弱模型。 */
+async function buildVibekidsModelTryOrder(_baseModel: string): Promise<string[]> {
+  return [config.platformLlmModel];
 }
 
 // ─── 今日推荐构建 ─────────────────────────────────────────────────────────────
@@ -2015,21 +1881,11 @@ async function executeTool(
 // ─── LLM 客户端 ───────────────────────────────────────────────────────────────
 
 /**
- * 解析要使用的模型 ID，优先级：
- * 1. 请求指定的 model 参数
- * 2. LOBSTER_MODEL 环境变量
- * 3. 平台前端配置的第一个 enabled 模型
- * 4. LITELLM_MODELS 第一个
- * 5. OpenRouter 默认 deepseek/deepseek-chat
+ * Darwin / VibeKids 等与虾米共用客户端时的 model id：统一为 config.platformLlmModel。
+ * （请求体 model、LOBSTER_MODEL、平台模型列表等不再参与路由，避免与固定策略分叉。）
  */
-function resolveModel(requestModel?: string): string {
-  return (
-    requestModel ||
-    process.env.LOBSTER_MODEL ||
-    getDefaultPlatformModel() ||
-    config.litellm.models[0] ||
-    'deepseek/deepseek-chat'
-  );
+function resolveModel(_requestModel?: string): string {
+  return config.platformLlmModel;
 }
 
 /**

@@ -41,4 +41,11 @@ export const config = {
       .map((s) => s.trim())
       .filter(Boolean),
   },
+  /**
+   * Darwin 对话与 VibeKids 生成统一使用的 LiteLLM model id。
+   * 可通过环境变量 PLATFORM_LLM_MODEL 覆盖（须与代理内已部署 id 一致）。
+   */
+  platformLlmModel:
+    (process.env.PLATFORM_LLM_MODEL || 'openrouter/openai/gpt-4o-mini').trim() ||
+    'openrouter/openai/gpt-4o-mini',
 };
