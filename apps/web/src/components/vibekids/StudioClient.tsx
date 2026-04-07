@@ -101,6 +101,22 @@ function getVibekidsLlmEndpoint(): {
   return { url: `${VK_API_BASE}/generate`, extraHeaders: {} };
 }
 
+/** 语音转写：与 Darwin 相同走 Lobster /transcribe（需登录 + 平台虚拟 Key） */
+function getVibekidsTranscribeEndpoint(): {
+  url: string;
+  headers: Record<string, string>;
+} | null {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const t = token?.trim();
+  if (!t) return null;
+  const base = resolveLobsterApiBase();
+  const url = base
+    ? `${base}/api/lobster/transcribe`
+    : "/api/lobster/transcribe";
+  return { url, headers: { Authorization: `Bearer ${t}` } };
+}
+
 function hasVibekidsAuthToken(): boolean {
   if (typeof window === "undefined") return false;
   try {
@@ -285,7 +301,47 @@ function SaveDiskIcon({ className }: { className?: string }) {
   );
 }
 
+function MicIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 14a3 3 0 0 0 3-3V5a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v3M8 22h8"
+      />
+    </svg>
+  );
+}
+
+/** MediaRecorder 优先顺序：WebM/opus → WebM → MP4（Safari 部分版本） */
+function pickAudioMimeType(): string {
+  if (typeof MediaRecorder === "undefined") return "";
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+  ];
+  for (const t of candidates) {
+    if (MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";
+}
+
 type Vers = { list: string[]; index: number };
+
+type VoiceUiState = "idle" | "recording" | "transcribing";
 
 function initialVers(): Vers {
   return { list: [welcomeHtml()], index: 0 };
@@ -326,6 +382,15 @@ export function StudioClient() {
   const html = vers.list[vers.index] ?? welcomeHtml();
 
   const [loading, setLoading] = useState<null | "create" | "refine">(null);
+  const [voiceUi, setVoiceUi] = useState<VoiceUiState>("idle");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<BlobPart[]>([]);
+  const recordMimeRef = useRef("audio/webm");
+  const mountedRef = useRef(true);
+  /** 防止连点：在 MediaRecorder 就绪前 voiceUi 仍为 idle */
+  const voiceStartLockRef = useRef(false);
+
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveNameError, setSaveNameError] = useState<string | null>(null);
   const saveDialogInputRef = useRef<HTMLInputElement>(null);
@@ -851,6 +916,144 @@ export function StudioClient() {
     router.push(`/vibekids/wechat-login?redirect=${encodeURIComponent(path)}`);
   }, [router]);
 
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      const r = mediaRecorderRef.current;
+      if (r && r.state !== "inactive") {
+        try {
+          r.stop();
+        } catch {
+          /* */
+        }
+      }
+      mediaRecorderRef.current = null;
+      streamRef.current = null;
+    };
+  }, []);
+
+  const onVoiceButtonClick = useCallback(async () => {
+    if (loading !== null) return;
+    if (voiceUi === "transcribing") return;
+
+    if (voiceUi === "recording") {
+      const rec = mediaRecorderRef.current;
+      if (rec && rec.state === "recording") rec.stop();
+      return;
+    }
+
+    if (typeof MediaRecorder === "undefined") {
+      setNotice(
+        "当前环境不支持网页录音，请换用 Chrome / Edge / Safari 最新版，或改用文字输入。",
+      );
+      return;
+    }
+
+    if (mediaRecorderRef.current || voiceStartLockRef.current) return;
+
+    const ep = getVibekidsTranscribeEndpoint();
+    if (!ep) {
+      setNotice(
+        "语音输入需要先登录；若未兑换平台虚拟 Key，请先在「我的」里完成兑换（与生成作品相同）。",
+      );
+      return;
+    }
+
+    voiceStartLockRef.current = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      streamRef.current = stream;
+      chunksRef.current = [];
+      const mime = pickAudioMimeType();
+      recordMimeRef.current = mime || "audio/webm";
+      const rec = new MediaRecorder(
+        stream,
+        mime ? { mimeType: mime } : undefined,
+      );
+      mediaRecorderRef.current = rec;
+
+      rec.ondataavailable = (ev) => {
+        if (ev.data.size > 0) chunksRef.current.push(ev.data);
+      };
+
+      rec.onstop = async () => {
+        voiceStartLockRef.current = false;
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecorderRef.current = null;
+
+        const blobType = recordMimeRef.current || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: blobType });
+        chunksRef.current = [];
+
+        if (!mountedRef.current) return;
+
+        if (blob.size < 900) {
+          setVoiceUi("idle");
+          setNotice("录音太短，请多录一会儿再点结束。");
+          return;
+        }
+
+        setVoiceUi("transcribing");
+        try {
+          const fd = new FormData();
+          const ext =
+            blobType.includes("mp4") || blobType.includes("m4a") ? "m4a" : "webm";
+          fd.append("audio", blob, `vibekids-voice.${ext}`);
+          const r = await fetch(ep.url, {
+            method: "POST",
+            headers: ep.headers,
+            body: fd,
+          });
+          const data = (await r.json().catch(() => ({}))) as {
+            error?: string;
+            text?: string;
+          };
+          if (!mountedRef.current) return;
+          if (!r.ok) {
+            setNotice(
+              typeof data.error === "string" ?
+                data.error
+              : "语音识别失败，请确认已兑换虚拟 Key 且后端已配置 Whisper / LiteLLM。",
+            );
+            return;
+          }
+          const text = typeof data.text === "string" ? data.text.trim() : "";
+          if (text) {
+            setPrompt((p) => (p.trim() ? `${p.trim()} ${text}` : text));
+          } else {
+            setNotice("未识别到语音内容，请靠近麦克风或说慢一点。");
+          }
+        } catch {
+          if (mountedRef.current) {
+            setNotice(noticeFromVibekidsFailure(new Error("network")));
+          }
+        } finally {
+          if (mountedRef.current) setVoiceUi("idle");
+        }
+      };
+
+      rec.start(120);
+      setVoiceUi("recording");
+    } catch (e) {
+      voiceStartLockRef.current = false;
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      mediaRecorderRef.current = null;
+      const name = e instanceof Error ? e.name : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setNotice("麦克风权限被拒绝，请在浏览器或系统设置中允许使用麦克风。");
+      } else {
+        setNotice("无法启动麦克风，请检查设备或改用文字输入。");
+      }
+      setVoiceUi("idle");
+    }
+  }, [loading, voiceUi, setNotice]);
+
   const submitComposer = useCallback(async () => {
     const resolved = resolveComposerIntent(prompt, hasGeneratedPreview);
     if (resolved.kind === "empty") {
@@ -1083,7 +1286,7 @@ export function StudioClient() {
 
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
-            描述想法；Enter 发送（自动识别新作品或修改），Shift+Enter 换行
+            描述想法；Enter 发送（自动识别新作品或修改），Shift+Enter 换行；旁侧按钮可语音输入
           </label>
           <div className="flex items-end gap-2">
             <textarea
@@ -1101,8 +1304,37 @@ export function StudioClient() {
             />
             <button
               type="button"
+              onClick={() => void onVoiceButtonClick()}
+              disabled={loading !== null || voiceUi === "transcribing"}
+              aria-pressed={voiceUi === "recording"}
+              title={
+                voiceUi === "recording" ?
+                  "结束录音并识别为文字"
+                : voiceUi === "transcribing" ?
+                  "正在识别语音…"
+                : "语音输入：点按开始录音，再点一次结束并转成文字"
+              }
+              aria-label={
+                voiceUi === "recording" ?
+                  "结束录音并识别"
+                : voiceUi === "transcribing" ?
+                  "语音识别中"
+                : "开始语音输入"
+              }
+              className={
+                voiceUi === "recording" ?
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-600 text-white shadow-md ring-2 ring-rose-300/90 animate-pulse transition hover:bg-rose-700 disabled:pointer-events-none disabled:opacity-40"
+                : "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800 disabled:pointer-events-none disabled:opacity-40"
+              }
+            >
+              {voiceUi === "transcribing" ?
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+              : <MicIcon className="h-5 w-5" />}
+            </button>
+            <button
+              type="button"
               onClick={() => void submitComposer()}
-              disabled={loading !== null}
+              disabled={loading !== null || voiceUi === "recording"}
               title="发送（自动识别新作品或修改当前版）"
               aria-label={
                 loading === "create" ?
@@ -1118,6 +1350,9 @@ export function StudioClient() {
               : <SendPlaneIcon className="ml-0.5 h-5 w-5" />}
             </button>
           </div>
+          <p className="mt-1.5 px-0.5 text-[10px] leading-snug text-slate-400 sm:text-[11px]">
+            语音：点麦克风开始，再点结束；需已登录并兑换虚拟 Key（与生成相同）。录音仅在本地浏览器处理，识别经服务端 Whisper。
+          </p>
         </div>
 
         {notice ? (
