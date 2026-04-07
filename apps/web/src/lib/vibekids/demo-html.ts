@@ -5,13 +5,20 @@ function baseDoc(title: string, bodyInner: string): string {
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
 <title>${title}</title>
 <style>
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
   body {
     margin: 0;
     min-height: 100vh;
+    overflow-x: hidden;
+    touch-action: manipulation;
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     font-family: system-ui, "Segoe UI", Roboto, "PingFang SC", sans-serif;
     background: linear-gradient(145deg, #e0f2fe 0%, #fef3c7 50%, #fce7f3 100%);
     color: #0f172a;

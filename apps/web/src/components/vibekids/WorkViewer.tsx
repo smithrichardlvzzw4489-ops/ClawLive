@@ -11,7 +11,12 @@ type Props = {
 export function WorkViewer({ html, nativeScroll }: Props) {
   return (
     <div className="relative flex h-[min(52dvh,620px)] min-h-[max(280px,min(52dvh,620px))] w-full flex-col">
-      <PreviewFrame html={html} title="作品预览" nativeScroll={nativeScroll} />
+      <PreviewFrame
+        html={html}
+        title="作品预览"
+        nativeScroll={nativeScroll}
+        viewportToolbar={false}
+      />
     </div>
   );
 }

@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/** 逻辑 CSS 宽度；iframe 测量容器取该宽度，便于移动端排版与媒体查询命中 */
+const VIEWPORT_PRESETS: { id: string; label: string; width: number | null }[] = [
+  { id: "auto", label: "自动", width: null },
+  { id: "375", label: "375", width: 375 },
+  { id: "390", label: "390", width: 390 },
+  { id: "414", label: "414", width: 414 },
+  { id: "428", label: "428", width: 428 },
+];
 
 type Props = {
   html: string;
@@ -12,6 +21,11 @@ type Props = {
    * 部分内置浏览器（如微信 web-view）对 srcDoc + 缩放组合易出白屏，Blob URL + 本模式更稳。
    */
   nativeScroll?: boolean;
+  /**
+   * 是否显示「逻辑宽度」切换条（创作室 true；作品详情可 false）。
+   * @default true
+   */
+  viewportToolbar?: boolean;
 };
 
 /** 测量下限过小会误判，过大（如 320）会把窄页面强行算宽导致缩放偏小 */
@@ -21,6 +35,9 @@ const MEASURE_CAP = 12000;
 const FIT_INSET = 2;
 /** 内容小于预览框时最大放大倍数 */
 const MAX_UPSCALE = 2.5;
+
+const MOBILE_BASE_STYLE =
+  '<style id="vk-mobile-base">html{-webkit-text-size-adjust:100%;overflow-x:hidden}body{overflow-x:hidden;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>';
 
 /**
  * 模型输出的片段常缺 viewport，iframe 内会按「桌面宽度」排版再被缩放，表现为巨大字号、裁切。
@@ -35,48 +52,43 @@ function ensurePreviewDocumentHtml(
 
   const hasViewport = /name\s*=\s*["']viewport["']/i.test(t);
   const rootCss = opts?.nativeScroll ?
-    "html,body{margin:0;max-width:100%;box-sizing:border-box;height:auto!important;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}"
-  : "html,body{margin:0;max-width:100%;box-sizing:border-box}";
+    "html{-webkit-text-size-adjust:100%;overflow-x:hidden}body{margin:0;max-width:100%;box-sizing:border-box;height:auto!important;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}"
+  : "html{-webkit-text-size-adjust:100%;overflow-x:hidden}body{margin:0;max-width:100%;box-sizing:border-box;overflow-x:hidden;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}";
   const headInject =
     `<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/><style>${rootCss}*,*::before,*::after{box-sizing:border-box}</style>`;
 
   const nativePatch =
-    '<style id="vk-native-embed">html,body{height:auto!important;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch}</style>';
+    '<style id="vk-native-embed">html{-webkit-text-size-adjust:100%}html,body{height:auto!important;min-height:100%;overflow-x:hidden}body{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>';
+
+  const injectAfterHeadOpen = (htmlStr: string, extra: string): string =>
+    htmlStr.replace(/<head[^>]*>/i, (open) => `${open}${extra}`);
 
   if (/<head[^>]*>/i.test(t)) {
-    if (hasViewport) {
-      if (
-        opts?.nativeScroll &&
-        !/id=["']vk-native-embed["']/i.test(t)
-      ) {
-        return t.replace(
-          /<head[^>]*>/i,
-          (open) => `${open}${nativePatch}`,
-        );
-      }
-      return t;
+    if (!hasViewport) {
+      return injectAfterHeadOpen(t, headInject);
     }
-    return t.replace(/<head[^>]*>/i, (open) => `${open}${headInject}`);
+    let extra = "";
+    if (!/id=["']vk-mobile-base["']/i.test(t)) {
+      extra += MOBILE_BASE_STYLE;
+    }
+    if (
+      opts?.nativeScroll &&
+      !/id=["']vk-native-embed["']/i.test(t)
+    ) {
+      extra += nativePatch;
+    }
+    if (extra) return injectAfterHeadOpen(t, extra);
+    return t;
   }
 
   if (/<html[\s>]/i.test(t)) {
-    if (hasViewport) {
-      if (
-        opts?.nativeScroll &&
-        !/id=["']vk-native-embed["']/i.test(t) &&
-        /<head[^>]*>/i.test(t)
-      ) {
-        return t.replace(
-          /<head[^>]*>/i,
-          (open) => `${open}${nativePatch}`,
-        );
-      }
-      return t;
+    if (!hasViewport) {
+      return t.replace(
+        /<html([^>]*)>/i,
+        `<html$1><head>${headInject}</head>`,
+      );
     }
-    return t.replace(
-      /<html([^>]*)>/i,
-      `<html$1><head>${headInject}</head>`,
-    );
+    return t;
   }
 
   return `<!DOCTYPE html><html lang="zh-CN"><head>${headInject}</head><body>${t}</body></html>`;
@@ -271,7 +283,12 @@ export function PreviewFrame({
   title = "预览",
   frameKey,
   nativeScroll = false,
+  viewportToolbar = true,
 }: Props) {
+  const [viewportPreset, setViewportPreset] = useState<string>("auto");
+  const logicalWidth =
+    VIEWPORT_PRESETS.find((p) => p.id === viewportPreset)?.width ?? null;
+
   const trimmed = html.trim();
   const srcDocHtml = trimmed
     ? ensurePreviewDocumentHtml(trimmed, { nativeScroll })
@@ -321,7 +338,19 @@ export function PreviewFrame({
       ro.disconnect();
       clearFitTimers();
     };
-  }, [nativeScroll, srcDocHtml, frameKey, runFit, clearFitTimers]);
+  }, [
+    nativeScroll,
+    srcDocHtml,
+    frameKey,
+    logicalWidth,
+    runFit,
+    clearFitTimers,
+  ]);
+
+  useEffect(() => {
+    if (nativeScroll || !srcDocHtml) return;
+    window.requestAnimationFrame(() => runFit());
+  }, [logicalWidth, frameKey, nativeScroll, srcDocHtml, runFit]);
 
   const onIframeLoad = useCallback(() => {
     if (nativeScroll) return;
@@ -344,19 +373,72 @@ export function PreviewFrame({
       "box-border block h-full min-h-full w-full max-lg:rounded-none max-lg:border-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner"
     : "absolute inset-0 box-border h-full min-h-0 w-full max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ring-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner";
 
+  const showBar = viewportToolbar && !nativeScroll;
+  const deviceChrome =
+    logicalWidth != null && !nativeScroll ?
+      "rounded-[1.65rem] border-[10px] border-slate-800 bg-slate-900 shadow-lg ring-1 ring-white/10"
+    : "max-lg:rounded-none lg:rounded-2xl";
+
+  const measureShell =
+    "vk-preview-root relative isolate h-full min-h-[min(240px,36dvh)] w-full min-w-0 overflow-hidden [color-scheme:light] lg:min-h-0 lg:[min-height:min(380px,44dvh)]";
+
   return (
-    <div
-      ref={wrapRef}
-      className="vk-preview-root relative isolate h-full min-h-[min(240px,36dvh)] w-full min-w-0 flex-1 overflow-hidden max-lg:rounded-none max-lg:bg-slate-50 [color-scheme:light] lg:min-h-0 lg:rounded-2xl lg:bg-white lg:[min-height:min(380px,44dvh)]"
-    >
-      <iframe
-        key={frameKey}
-        ref={iframeRef}
-        title={title}
-        className={iframeClass}
-        sandbox="allow-scripts allow-forms allow-same-origin"
-        onLoad={onIframeLoad}
-      />
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      {showBar ? (
+        <div
+          className="flex shrink-0 flex-wrap items-center gap-1 border-b border-slate-200/90 bg-slate-100/90 px-2 py-1.5 max-lg:rounded-none lg:rounded-t-2xl"
+          role="toolbar"
+          aria-label="预览逻辑宽度"
+        >
+          <span className="mr-1 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            宽度
+          </span>
+          {VIEWPORT_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setViewportPreset(p.id)}
+              className={
+                viewportPreset === p.id ?
+                  "rounded-lg bg-slate-800 px-2 py-0.5 text-[11px] font-semibold text-white shadow-sm"
+                : "rounded-lg px-2 py-0.5 text-[11px] font-medium text-slate-600 transition hover:bg-white/80 hover:text-slate-900"
+              }
+            >
+              {p.label}
+              {p.width != null ?
+                <span className="sr-only"> 像素逻辑宽度</span>
+              : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <div
+        className={
+          showBar ?
+            "flex min-h-0 flex-1 justify-center overflow-hidden bg-slate-100/50 max-lg:bg-slate-50 lg:rounded-b-2xl"
+          : "flex min-h-0 flex-1 justify-center overflow-hidden max-lg:bg-slate-50 lg:rounded-2xl lg:bg-white"
+        }
+      >
+        <div
+          ref={wrapRef}
+          className={`${measureShell} max-lg:bg-slate-50 lg:bg-white ${deviceChrome}`}
+          style={
+            logicalWidth != null ?
+              { maxWidth: logicalWidth, width: "100%" }
+            : undefined
+          }
+        >
+          <iframe
+            key={frameKey}
+            ref={iframeRef}
+            title={title}
+            className={iframeClass}
+            sandbox="allow-scripts allow-forms allow-same-origin"
+            onLoad={onIframeLoad}
+          />
+        </div>
+      </div>
     </div>
   );
 }
