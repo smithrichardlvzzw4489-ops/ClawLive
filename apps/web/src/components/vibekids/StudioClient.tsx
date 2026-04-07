@@ -1271,11 +1271,6 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    {/*
-      移动端：absolute 布局。预览铺满容器，输入贴底。
-      桌面端：flex-row，左侧栏右预览。
-      不依赖 flex-grow，微信 X5 web-view 100% 兼容。
-    */}
     <div
       className="relative bg-slate-50 lg:flex lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible"
       style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}
