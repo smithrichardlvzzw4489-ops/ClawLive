@@ -419,6 +419,7 @@ export function StudioClient() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveNameError, setSaveNameError] = useState<string | null>(null);
   const saveDialogInputRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const [saveTitle, setSaveTitle] = useState("");
@@ -454,6 +455,20 @@ export function StudioClient() {
     setWeChatKernel(/micromessenger/i.test(navigator.userAgent));
   }, []);
   const previewNativeScroll = narrowViewport || weChatKernel;
+
+  /** 移动端：测量输入区高度，写到父容器 CSS 变量，预览区 bottom 读它 */
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    const sync = () => {
+      const h = el.offsetHeight;
+      if (h > 0) el.parentElement?.style.setProperty("--vk-composer-h", `${h}px`);
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const buildDesignMdRequestFields = useCallback(() => {
     const paste = designMdPaste.trim().slice(0, 12_000);
@@ -1256,7 +1271,15 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
+    {/*
+      移动端：absolute 布局。预览铺满容器，输入贴底。
+      桌面端：flex-row，左侧栏右预览。
+      不依赖 flex-grow，微信 X5 web-view 100% 兼容。
+    */}
+    <div
+      className="relative bg-slate-50 lg:flex lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible"
+      style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}
+    >
       <button
         type="button"
         onClick={openSaveDialog}
@@ -1268,11 +1291,23 @@ export function StudioClient() {
         <SaveDiskIcon className="h-5 w-5" />
       </button>
 
-      {/* 移动：源码顺序=上预览下输入（勿用 flex-col-reverse，微信 web-view 常失效）。桌面：lg:order 左栏右预览 */}
-      <section className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 max-lg:flex-1 max-lg:px-0 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden max-lg:min-h-0 max-lg:flex-1 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
+      {/* ── 预览区 ── 移动：绝对定位铺满上方；桌面：flex item */}
+      <section
+        className="overflow-hidden bg-slate-50 lg:static lg:order-2 lg:flex lg:h-full lg:min-h-0 lg:flex-1 lg:flex-col lg:px-5 lg:pb-5 lg:pt-4"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: "var(--vk-composer-h, 4.5rem)",
+        }}
+      >
+        <div
+          className="max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm"
+          style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}
+        >
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div style={{ width: "100%", height: "100%", overflow: "hidden" }}>
             <PreviewFrame
               html={html}
               frameKey={vers.index}
@@ -1284,7 +1319,23 @@ export function StudioClient() {
         </div>
       </section>
 
-      <section className="flex w-full shrink-0 flex-col gap-2 border-t border-b border-slate-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-sm sm:p-3 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border lg:border-y-0 lg:border-l-0 lg:border-r lg:border-slate-200/80 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5">
+      {/* ── 输入区 ── 移动：绝对定位贴底；桌面：flex item 侧栏 */}
+      <section
+        ref={composerRef}
+        className="bg-white/95 shadow-sm lg:static lg:order-1 lg:flex lg:max-w-[min(22rem,100vw)] lg:flex-col lg:gap-4 lg:border-r lg:border-slate-200/80 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5"
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: "0.5rem",
+          paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
+          borderTop: "1px solid rgba(226,232,240,0.8)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "0.5rem",
+        }}
+      >
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
             描述想法；Enter 发送，Shift+Enter 换行
