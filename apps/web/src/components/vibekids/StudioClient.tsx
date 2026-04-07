@@ -25,7 +25,6 @@ import {
   type VibekidsDesignPresetId,
 } from "@/lib/vibekids/design-md-presets";
 import { VK_API_BASE, VK_BASE, vibekidsBearerHeader } from "@/lib/vibekids/constants";
-import { welcomeHtml } from "@/lib/vibekids/demo-html";
 import { PreviewFrame } from "@/components/vibekids/PreviewFrame";
 import { GenerationSkeleton } from "@/components/vibekids/GenerationSkeleton";
 import { getClientId } from "@/lib/vibekids/client-credits";
@@ -356,7 +355,7 @@ type Vers = { list: string[]; index: number };
 type VoiceUiState = "idle" | "recording" | "transcribing";
 
 function initialVers(): Vers {
-  return { list: [welcomeHtml()], index: 0 };
+  return { list: [""], index: 0 };
 }
 
 type WxMiniProgramBridge = { navigateTo?: (opts: { url: string }) => void };
@@ -405,7 +404,7 @@ export function StudioClient() {
   }, [prompt]);
 
   const [vers, setVers] = useState<Vers>(initialVers);
-  const html = vers.list[vers.index] ?? welcomeHtml();
+  const html = vers.list[vers.index] ?? "";
 
   const [loading, setLoading] = useState<null | "create" | "refine">(null);
   const [voiceUi, setVoiceUi] = useState<VoiceUiState>("idle");
@@ -593,7 +592,7 @@ export function StudioClient() {
     setDesignMdPaste(
       typeof d.designMdPaste === "string" ? d.designMdPaste.slice(0, 12_000) : "",
     );
-    const list = d.versList.length ? d.versList : [welcomeHtml()];
+    const list = d.versList.length ? d.versList : [""];
     const idx = Math.min(Math.max(0, d.versIndex), list.length - 1);
     setVers({ list, index: idx });
   }, [age, sp]);
@@ -629,7 +628,7 @@ export function StudioClient() {
     designMdPaste,
   ]);
 
-  /** 仍为欢迎页唯一版本时不可保存 */
+  /** 仍为初始空白唯一版本时不可保存 */
   const hasGeneratedPreview = !(vers.list.length === 1 && vers.index === 0);
 
   useEffect(() => {
