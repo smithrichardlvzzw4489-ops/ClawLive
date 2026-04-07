@@ -487,9 +487,9 @@ export function PreviewFrame({
     );
   }
 
-  /** 微信等 WebView 下 iframe 未设底色时易显为黑块，须显式白底 */
+  /** 微信等 WebView 下 iframe 未设底色时易显为黑块，须显式白底；与外层 flex 列一起铺满剩余高度 */
   const iframeClass = nativeScroll ?
-      "box-border block h-full min-h-full w-full bg-white max-lg:rounded-none max-lg:border-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-inner"
+      "box-border block h-full min-h-0 w-full min-w-0 flex-1 bg-white max-lg:rounded-none max-lg:border-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-inner"
     : "absolute inset-0 box-border h-full min-h-0 w-full bg-white max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ring-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-inner";
 
   const showBar = viewportToolbar && !nativeScroll;
@@ -536,13 +536,13 @@ export function PreviewFrame({
         ref={bandRef}
         className={
           showBar ?
-            "flex min-h-0 flex-1 justify-center overflow-hidden bg-slate-100/50 max-lg:bg-slate-50 lg:rounded-b-2xl"
-          : "flex min-h-0 flex-1 justify-center overflow-hidden max-lg:bg-slate-50 lg:rounded-2xl lg:bg-white"
+            "flex min-h-0 w-full flex-1 flex-col overflow-hidden bg-slate-100/50 max-lg:bg-slate-50 lg:rounded-b-2xl"
+          : "flex min-h-0 w-full flex-1 flex-col overflow-hidden max-lg:bg-slate-50 lg:rounded-2xl lg:bg-white"
         }
       >
         <div
           ref={wrapRef}
-          className={`${measureShell} max-lg:bg-slate-50 lg:bg-white ${deviceChrome}`}
+          className={`${measureShell} flex flex-1 flex-col max-lg:min-h-0 max-lg:w-full max-lg:bg-slate-50 lg:bg-white ${deviceChrome}`}
           style={
             logicalWidth != null ?
               { maxWidth: logicalWidth, width: "100%" }
