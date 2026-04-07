@@ -1251,7 +1251,7 @@ export function StudioClient() {
   }, [saving]);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
+    <div className="relative flex h-full min-h-0 flex-1 gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 max-lg:flex-col-reverse lg:h-[calc(100dvh-3.25rem)] lg:flex-row lg:items-stretch lg:overflow-visible">
       <button
         type="button"
         onClick={openSaveDialog}
@@ -1263,7 +1263,7 @@ export function StudioClient() {
         <SaveDiskIcon className="h-5 w-5" />
       </button>
 
-      <section className="flex w-full shrink-0 flex-col gap-2 border-t border-b border-slate-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-sm sm:p-3 max-lg:order-2 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border lg:border-y-0 lg:border-l-0 lg:border-r lg:border-slate-200/80 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5">
+      <section className="flex w-full shrink-0 flex-col gap-2 border-t border-b border-slate-200/80 bg-white/95 p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-sm sm:p-3 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border lg:border-y-0 lg:border-l-0 lg:border-r lg:border-slate-200/80 lg:overflow-y-auto lg:p-5 lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:pl-2 lg:pr-5">
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
             描述想法；Enter 发送，Shift+Enter 换行
@@ -1502,7 +1502,7 @@ export function StudioClient() {
         </details>
       </section>
 
-      <section className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:order-1 max-lg:min-h-0 max-lg:flex-1 max-lg:px-0 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
+      <section className="flex min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:min-h-0 max-lg:flex-1 max-lg:px-0 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
         <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden max-lg:min-h-0 max-lg:flex-1 max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
