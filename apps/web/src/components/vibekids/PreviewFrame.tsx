@@ -501,6 +501,24 @@ export function PreviewFrame({
   const measureShell =
     "vk-preview-root relative isolate h-full min-h-0 w-full min-w-0 overflow-hidden [color-scheme:light] lg:[min-height:min(380px,44dvh)]";
 
+  if (nativeScroll) {
+    return (
+      <div
+        ref={bandRef}
+        style={{ width: "100%", height: "100%", overflow: "auto", WebkitOverflowScrolling: "touch", background: "#fff" }}
+      >
+        <iframe
+          key={frameKey}
+          ref={iframeRef}
+          title={title}
+          sandbox="allow-scripts allow-forms allow-same-origin"
+          onLoad={onIframeLoad}
+          style={{ display: "block", width: "100%", height: "100%", minHeight: "100%", border: "none", background: "#fff" }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {showBar ? (
@@ -542,7 +560,7 @@ export function PreviewFrame({
       >
         <div
           ref={wrapRef}
-          className={`${measureShell} flex flex-1 flex-col max-lg:min-h-0 max-lg:w-full max-lg:bg-slate-50 lg:bg-white ${deviceChrome}`}
+          className={`${measureShell} lg:bg-white ${deviceChrome}`}
           style={
             logicalWidth != null ?
               { maxWidth: logicalWidth, width: "100%" }
