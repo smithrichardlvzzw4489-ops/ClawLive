@@ -68,13 +68,13 @@ function ensurePreviewDocumentHtml(
 
   const hasViewport = /name\s*=\s*["']viewport["']/i.test(t);
   const rootCss = opts?.nativeScroll ?
-    "html,body{background-color:#fff!important}html{-webkit-text-size-adjust:100%;overflow-x:hidden}body{margin:0;max-width:100%;box-sizing:border-box;height:auto!important;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}"
+    "html,body{background-color:#fff!important}html{-webkit-text-size-adjust:100%;overflow-x:hidden}body{margin:0;max-width:100%;box-sizing:border-box;min-height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}"
   : "html,body{background-color:#fff!important}html{-webkit-text-size-adjust:100%;overflow-x:hidden}body{margin:0;max-width:100%;box-sizing:border-box;overflow-x:hidden;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}";
   const headInject =
     `<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/><style>${rootCss}*,*::before,*::after{box-sizing:border-box}</style>`;
 
   const nativePatch =
-    '<style id="vk-native-embed">html{-webkit-text-size-adjust:100%}html,body{height:auto!important;min-height:100%;overflow-x:hidden}body{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>';
+    '<style id="vk-native-embed">html{-webkit-text-size-adjust:100%}html,body{min-height:100%;overflow-x:hidden}body{overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>';
 
   const injectAfterHeadOpen = (htmlStr: string, extra: string): string =>
     htmlStr.replace(/<head[^>]*>/i, (open) => `${open}${extra}`);
