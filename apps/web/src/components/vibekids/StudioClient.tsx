@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { AgeBand } from "@/lib/vibekids/age";
 import { parseAgeBand } from "@/lib/vibekids/age";
@@ -355,6 +362,20 @@ function initialVers(): Vers {
 
 type WxMiniProgramBridge = { navigateTo?: (opts: { url: string }) => void };
 
+function subscribeMaxLg1023(cb: () => void) {
+  const mq = window.matchMedia("(max-width: 1023px)");
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+
+function getMaxLg1023Snapshot() {
+  return window.matchMedia("(max-width: 1023px)").matches;
+}
+
+function getMaxLg1023ServerSnapshot() {
+  return false;
+}
+
 export function StudioClient() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -423,6 +444,13 @@ export function StudioClient() {
   const [designPreset, setDesignPreset] =
     useState<VibekidsDesignPresetId>("none");
   const [designMdPaste, setDesignMdPaste] = useState("");
+
+  /** 窄屏用 iframe 自然滚动，避免 transform 缩放在 flex 链上算出 0 高导致整页白屏 */
+  const previewNativeScroll = useSyncExternalStore(
+    subscribeMaxLg1023,
+    getMaxLg1023Snapshot,
+    getMaxLg1023ServerSnapshot,
+  );
 
   const buildDesignMdRequestFields = useCallback(() => {
     const paste = designMdPaste.trim().slice(0, 12_000);
@@ -1242,16 +1270,17 @@ export function StudioClient() {
         <SaveDiskIcon className="h-5 w-5" />
       </button>
 
-      <section className="flex w-full max-lg:order-2 max-lg:flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:px-0 max-lg:pt-1 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
-        <p className="px-3 pb-1 text-center text-[11px] font-medium text-slate-500 lg:hidden">
-          作品预览 · 生成后在此试玩小应用
-        </p>
-        <div className="relative flex min-h-0 w-full max-lg:h-[min(52dvh,420px)] max-lg:max-h-[640px] max-lg:min-h-[240px] max-lg:shrink-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
+      <section className="flex w-full flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:px-0 max-lg:pt-1 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
+        <div className="relative flex min-h-0 w-full max-lg:min-h-[min(48dvh,420px)] max-lg:flex-1 max-lg:flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
+          <p className="shrink-0 px-3 pb-1 pt-0.5 text-center text-[11px] font-medium text-slate-500 lg:hidden">
+            作品预览 · 生成后在此试玩小应用
+          </p>
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden max-lg:min-h-[min(220px,32dvh)] lg:min-h-0">
             <PreviewFrame
               html={html}
               frameKey={vers.index}
+              nativeScroll={previewNativeScroll}
               reportRuntimeIssues
               onRuntimeIssues={onPreviewRuntimeIssues}
             />
@@ -1259,7 +1288,7 @@ export function StudioClient() {
         </div>
       </section>
 
-      <section className="flex w-full max-lg:order-1 flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pb-5 lg:pl-2 lg:pr-5">
+      <section className="flex w-full flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pb-5 lg:pl-2 lg:pr-5">
         <div>
           <p className="mb-1.5 text-xs font-medium text-slate-700">灵感提示</p>
           <div className="flex flex-wrap items-center gap-1.5">

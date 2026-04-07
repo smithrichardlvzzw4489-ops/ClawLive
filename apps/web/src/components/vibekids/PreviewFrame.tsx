@@ -245,7 +245,17 @@ function fitIframeToContainer(
 
     const cw = container.clientWidth;
     const ch = container.clientHeight;
-    if (cw < 8 || ch < 8) return;
+    if (cw < 8 || ch < 8) {
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+      iframe.style.transform = "";
+      iframe.style.transformOrigin = "";
+      iframe.style.left = "0";
+      iframe.style.top = "0";
+      iframe.style.maxWidth = "";
+      iframe.style.maxHeight = "";
+      return;
+    }
 
     iframe.style.transform = "none";
     // 用容器宽度布局，才能让子页 responsive CSS / rem 与真机一致；过宽探测会误判尺寸并触发错误放大
