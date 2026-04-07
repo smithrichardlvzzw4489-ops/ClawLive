@@ -1289,142 +1289,6 @@ export function StudioClient() {
       </section>
 
       <section className="flex w-full flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pb-5 lg:pl-2 lg:pr-5">
-        <div>
-          <p className="mb-1.5 text-xs font-medium text-slate-700">灵感提示</p>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {quickChips.map((c, i) => (
-              <button
-                key={`${i}-${c}`}
-                type="button"
-                onClick={() => setPrompt(c)}
-                disabled={chipsLoading || loading !== null}
-                className={STUDIO_OUTLINE_BTN}
-              >
-                {c}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                if (hasMainSiteToken) {
-                  void loadDarwinChips({ exclude: quickChips });
-                } else {
-                  setQuickChips(randomPickN([...ALL_CHIPS], INSPIRATION_COUNT));
-                }
-              }}
-              disabled={loading !== null || (hasMainSiteToken && chipsLoading)}
-              className={STUDIO_OUTLINE_BTN}
-            >
-              {hasMainSiteToken && chipsLoading ? "加载中…" : "换一批"}
-            </button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-slate-200/70 bg-slate-50/90 px-2.5 py-2 sm:px-3">
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-            作品形态
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {CREATIVE_KINDS.map((k) => (
-              <button
-                key={k.id}
-                type="button"
-                disabled={loading !== null}
-                onClick={() => setCreativeKind(k.id)}
-                title={k.hint}
-                className={
-                  creativeKind === k.id ?
-                    `${STUDIO_OUTLINE_BTN} border-violet-500 bg-violet-50 font-semibold text-violet-900 shadow-sm`
-                  : STUDIO_OUTLINE_BTN
-                }
-              >
-                {k.label}
-              </button>
-            ))}
-          </div>
-          <p className="mb-1 mt-2.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-            风格（可选，最多 2）
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {VIBE_STYLES.map((s) => {
-              const on = creativeStyles.includes(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  disabled={loading !== null}
-                  onClick={() => toggleCreativeStyle(s.id)}
-                  className={
-                    on ?
-                      `${STUDIO_OUTLINE_BTN} border-sky-500 bg-sky-50 font-semibold text-sky-900 shadow-sm`
-                    : STUDIO_OUTLINE_BTN
-                  }
-                >
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <details className="rounded-xl border border-violet-200/70 bg-violet-50/35 px-2.5 py-2 sm:px-3">
-          <summary className="cursor-pointer select-none text-sm font-medium text-violet-950">
-            界面设计参考（DESIGN.md，可选）
-          </summary>
-          <div className="mt-2 space-y-2 border-t border-violet-200/55 pt-2 text-xs leading-relaxed text-slate-600">
-            <p>
-              思路与开源合集{" "}
-              <a
-                href={AWESOME_DESIGN_MD_REPO}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-violet-700 underline decoration-violet-400/70 underline-offset-2 hover:text-violet-900"
-              >
-                awesome-design-md
-              </a>{" "}
-              一致：可选下方内置预设，或从仓库里任一站点的{" "}
-              <code className="rounded bg-white/90 px-1 py-0.5 text-[11px] text-slate-800">
-                DESIGN.md
-              </code>{" "}
-              复制进文本框。有粘贴内容时<strong>优先采用粘贴</strong>，预设仅作备用。
-            </p>
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                预设气质
-              </span>
-              <select
-                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/60"
-                value={designPreset}
-                disabled={loading !== null}
-                onChange={(e) =>
-                  setDesignPreset(parseDesignPresetId(e.target.value))
-                }
-              >
-                {VIBEKIDS_DESIGN_PRESETS.map((p) => (
-                  <option key={p.id} value={p.id} title={p.hint}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
-                粘贴 DESIGN.md（可选，最多 12000 字）
-              </span>
-              <textarea
-                value={designMdPaste}
-                onChange={(e) =>
-                  setDesignMdPaste(e.target.value.slice(0, 12_000))
-                }
-                disabled={loading !== null}
-                rows={4}
-                placeholder="从 GitHub 上 awesome-design-md 的 design-md 目录复制全文或节选…"
-                className="w-full resize-y rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-mono text-[11px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200/60"
-              />
-            </label>
-          </div>
-        </details>
-
         <div className="rounded-2xl border-2 border-sky-300/55 bg-white p-2.5 shadow-[0_0_0_1px_rgba(125,211,252,0.12)] sm:p-3">
           <label htmlFor="prompt" className="sr-only">
             描述想法；Enter 发送（自动识别新作品或修改），Shift+Enter 换行；旁侧按钮可语音输入
@@ -1491,9 +1355,6 @@ export function StudioClient() {
               : <SendPlaneIcon className="ml-0.5 h-5 w-5" />}
             </button>
           </div>
-          <p className="mt-1.5 px-0.5 text-[10px] leading-snug text-slate-400 sm:text-[11px]">
-            语音：点麦克风开始，再点结束；需已登录并兑换虚拟 Key（与生成相同）。录音仅在本地浏览器处理，识别经服务端 Whisper。
-          </p>
         </div>
 
         {notice ? (
@@ -1519,6 +1380,155 @@ export function StudioClient() {
             : null}
           </div>
         ) : null}
+
+        <details className="rounded-xl border border-slate-200/80 bg-slate-50/80 text-slate-800">
+          <summary className="cursor-pointer select-none list-none px-3 py-2.5 text-sm font-medium text-slate-700 [&::-webkit-details-marker]:hidden">
+            <span className="mr-1.5 inline-block text-slate-400">▸</span>
+            高级选项
+            <span className="ml-1.5 font-normal text-slate-500">
+              形态、风格、设计参考、灵感词
+            </span>
+          </summary>
+          <div className="space-y-3 border-t border-slate-200/70 px-2.5 pb-3 pt-2 sm:px-3">
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-slate-700">灵感提示</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {quickChips.map((c, i) => (
+                  <button
+                    key={`${i}-${c}`}
+                    type="button"
+                    onClick={() => setPrompt(c)}
+                    disabled={chipsLoading || loading !== null}
+                    className={STUDIO_OUTLINE_BTN}
+                  >
+                    {c}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hasMainSiteToken) {
+                      void loadDarwinChips({ exclude: quickChips });
+                    } else {
+                      setQuickChips(randomPickN([...ALL_CHIPS], INSPIRATION_COUNT));
+                    }
+                  }}
+                  disabled={loading !== null || (hasMainSiteToken && chipsLoading)}
+                  className={STUDIO_OUTLINE_BTN}
+                >
+                  {hasMainSiteToken && chipsLoading ? "加载中…" : "换一批"}
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/70 bg-white/90 px-2.5 py-2 sm:px-3">
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                作品形态
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {CREATIVE_KINDS.map((k) => (
+                  <button
+                    key={k.id}
+                    type="button"
+                    disabled={loading !== null}
+                    onClick={() => setCreativeKind(k.id)}
+                    title={k.hint}
+                    className={
+                      creativeKind === k.id ?
+                        `${STUDIO_OUTLINE_BTN} border-violet-500 bg-violet-50 font-semibold text-violet-900 shadow-sm`
+                      : STUDIO_OUTLINE_BTN
+                    }
+                  >
+                    {k.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mb-1 mt-2.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                风格（可选，最多 2）
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {VIBE_STYLES.map((s) => {
+                  const on = creativeStyles.includes(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={loading !== null}
+                      onClick={() => toggleCreativeStyle(s.id)}
+                      className={
+                        on ?
+                          `${STUDIO_OUTLINE_BTN} border-sky-500 bg-sky-50 font-semibold text-sky-900 shadow-sm`
+                        : STUDIO_OUTLINE_BTN
+                      }
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-violet-200/70 bg-violet-50/40 px-2.5 py-2 sm:px-3">
+              <p className="mb-2 text-xs font-medium text-violet-950">界面设计参考（DESIGN.md，可选）</p>
+              <div className="space-y-2 text-xs leading-relaxed text-slate-600">
+                <p>
+                  思路与开源合集{" "}
+                  <a
+                    href={AWESOME_DESIGN_MD_REPO}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-violet-700 underline decoration-violet-400/70 underline-offset-2 hover:text-violet-900"
+                  >
+                    awesome-design-md
+                  </a>{" "}
+                  一致：可选下方内置预设，或从仓库里任一站点的{" "}
+                  <code className="rounded bg-white/90 px-1 py-0.5 text-[11px] text-slate-800">
+                    DESIGN.md
+                  </code>{" "}
+                  复制进文本框。有粘贴内容时<strong>优先采用粘贴</strong>，预设仅作备用。
+                </p>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    预设气质
+                  </span>
+                  <select
+                    className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 shadow-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200/60"
+                    value={designPreset}
+                    disabled={loading !== null}
+                    onChange={(e) =>
+                      setDesignPreset(parseDesignPresetId(e.target.value))
+                    }
+                  >
+                    {VIBEKIDS_DESIGN_PRESETS.map((p) => (
+                      <option key={p.id} value={p.id} title={p.hint}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    粘贴 DESIGN.md（可选，最多 12000 字）
+                  </span>
+                  <textarea
+                    value={designMdPaste}
+                    onChange={(e) =>
+                      setDesignMdPaste(e.target.value.slice(0, 12_000))
+                    }
+                    disabled={loading !== null}
+                    rows={4}
+                    placeholder="从 GitHub 上 awesome-design-md 的 design-md 目录复制全文或节选…"
+                    className="w-full resize-y rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-mono text-[11px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200/60"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <p className="px-0.5 text-[10px] leading-snug text-slate-400 sm:text-[11px]">
+              语音输入：点麦克风开始，再点结束；需已登录并兑换虚拟 Key（与生成相同）。录音在本地，识别经服务端 Whisper。
+            </p>
+          </div>
+        </details>
       </section>
 
       {saveDialogOpen ? (
