@@ -997,14 +997,26 @@ export function StudioClient() {
 
   const openVibekidsLogin = useCallback(() => {
     if (typeof window === "undefined") return;
-    const wx = (window as unknown as { wx?: { miniProgram?: WxMiniProgramBridge } })
-      .wx;
-    if (typeof wx?.miniProgram?.navigateTo === "function") {
-      wx.miniProgram.navigateTo({ url: "/pages/login/login" });
-      return;
+    const tryNav = () => {
+      const wx = (window as unknown as { wx?: { miniProgram?: WxMiniProgramBridge } }).wx;
+      if (typeof wx?.miniProgram?.navigateTo === "function") {
+        wx.miniProgram.navigateTo({ url: "/pages/login/login" });
+        return true;
+      }
+      return false;
+    };
+    if (tryNav()) return;
+    const src = "https://res.wx.qq.com/open/js/jweixin-1.6.0.js";
+    if (!document.querySelector(`script[src="${src}"]`)) {
+      const s = document.createElement("script");
+      s.src = src;
+      s.async = true;
+      s.onload = () => { if (!tryNav()) router.push(`/vibekids/wechat-login?redirect=${encodeURIComponent(window.location.pathname)}`); };
+      s.onerror = () => router.push(`/vibekids/wechat-login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      document.head.appendChild(s);
+    } else {
+      setTimeout(() => { if (!tryNav()) router.push(`/vibekids/wechat-login?redirect=${encodeURIComponent(window.location.pathname)}`); }, 300);
     }
-    const path = `${window.location.pathname}${window.location.search}`;
-    router.push(`/vibekids/wechat-login?redirect=${encodeURIComponent(path)}`);
   }, [router]);
 
   useEffect(() => {
