@@ -173,26 +173,30 @@ function unionContentRect(doc: Document): { w: number; h: number } {
 function readContentSize(doc: Document): { w: number; h: number } {
   const body = doc.body;
   const root = doc.documentElement;
-  const w = Math.min(
-    MEASURE_CAP,
-    Math.max(
-      body.scrollWidth,
-      root.scrollWidth,
-      body.offsetWidth,
-      root.offsetWidth,
-      MEASURE_MIN_W,
-    ),
+  const rawW = Math.max(
+    body.scrollWidth,
+    root.scrollWidth,
+    body.offsetWidth,
+    root.offsetWidth,
   );
+  const rawH = Math.max(
+    body.scrollHeight,
+    root.scrollHeight,
+    body.offsetHeight,
+    root.offsetHeight,
+  );
+  let w = Math.min(MEASURE_CAP, rawW);
   const h = Math.min(
     MEASURE_CAP,
-    Math.max(
-      body.scrollHeight,
-      root.scrollHeight,
-      body.offsetHeight,
-      root.offsetHeight,
-      MEASURE_MIN_H,
-    ),
+    Math.max(rawH, MEASURE_MIN_H),
   );
+  // 不要把「真实很窄」的版面强行抬到 MEASURE_MIN_W：若高度又很大，会与 h 形成极端竖长比，
+  // contain 按高度缩放时会把水平方向压成一条细缝（待办类居中窄栏 + min-height:100vh 常见）。
+  if (w < MEASURE_MIN_W) {
+    const portraitish = rawW >= 1 && rawH > rawW * 3.5;
+    w = portraitish ? Math.max(w, 1) : MEASURE_MIN_W;
+  }
+  if (w < 1) w = MEASURE_MIN_W;
   return { w, h };
 }
 
@@ -261,13 +265,21 @@ function fitIframeToContainer(
     const box = pickScaleBox(scroll.w, scroll.h, u.w, u.h);
     let w = Math.ceil(box.w);
     let h = Math.ceil(box.h);
-    w = Math.max(w, MEASURE_MIN_W);
     h = Math.max(h, MEASURE_MIN_H);
+    if (w < MEASURE_MIN_W) {
+      w = h / Math.max(w, 1) > 4 ? Math.max(w, 40) : MEASURE_MIN_W;
+    }
 
     const innerW = Math.max(8, cw - FIT_INSET * 2);
     const innerH = Math.max(8, ch - FIT_INSET * 2);
     // 统一 contain：完整可见。窄屏曾用 cover 会按短边铺满、长边裁切，导致标题/输入框被切掉（用户看到的「不适配」）
     let s = Math.min(innerW / w, innerH / h);
+    // 竖长页面（min-height:100vh + 中间窄卡片）：contain 往往被高度限制，水平缩成细条 —— 改为优先铺满预览区宽度（可纵向裁切，顶部对齐）
+    const tallSkinny = w > 0 && h > w * 2.1;
+    if (tallSkinny) {
+      const sFillW = Math.min(MAX_UPSCALE, innerW / w);
+      if (sFillW > s) s = sFillW;
+    }
     if (!Number.isFinite(s) || s <= 0) s = 1;
     if (s > 1) {
       s = Math.min(s, MAX_UPSCALE);
@@ -288,7 +300,9 @@ function fitIframeToContainer(
     const sw = w * s;
     const sh = h * s;
     iframe.style.left = `${(cw - sw) / 2}px`;
-    iframe.style.top = `${(ch - sh) / 2}px`;
+    const topPx =
+      sh > ch - FIT_INSET * 2 ? FIT_INSET : Math.max(FIT_INSET, (ch - sh) / 2);
+    iframe.style.top = `${topPx}px`;
   } catch {
     iframe.style.width = "100%";
     iframe.style.height = "100%";
