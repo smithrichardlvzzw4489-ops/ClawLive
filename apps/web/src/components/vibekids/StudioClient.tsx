@@ -1242,8 +1242,11 @@ export function StudioClient() {
         <SaveDiskIcon className="h-5 w-5" />
       </button>
 
-      <section className="flex w-full max-lg:flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:px-0 max-lg:pt-1 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
-        <div className="relative flex min-h-0 w-full max-lg:h-[58vh] max-lg:max-h-[640px] max-lg:min-h-[280px] max-lg:shrink-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
+      <section className="flex w-full max-lg:order-2 max-lg:flex-shrink-0 flex-col gap-0 overflow-hidden bg-slate-50 max-lg:px-0 max-lg:pt-1 lg:order-2 lg:h-full lg:min-h-0 lg:flex-1 lg:overflow-hidden lg:px-5 lg:pb-5 lg:pt-4">
+        <p className="px-3 pb-1 text-center text-[11px] font-medium text-slate-500 lg:hidden">
+          作品预览 · 生成后在此试玩小应用
+        </p>
+        <div className="relative flex min-h-0 w-full max-lg:h-[min(52dvh,420px)] max-lg:max-h-[640px] max-lg:min-h-[240px] max-lg:shrink-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <PreviewFrame
@@ -1256,7 +1259,7 @@ export function StudioClient() {
         </div>
       </section>
 
-      <section className="flex w-full flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pb-5 lg:pl-2 lg:pr-5">
+      <section className="flex w-full max-lg:order-1 flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-sm sm:p-4 lg:order-1 lg:max-w-[min(22rem,100vw)] lg:gap-4 lg:border-b-0 lg:border-r lg:border-t-0 lg:border-l-0 lg:overflow-y-auto lg:p-5 lg:pb-5 lg:pl-2 lg:pr-5">
         <div>
           <p className="mb-1.5 text-xs font-medium text-slate-700">灵感提示</p>
           <div className="flex flex-wrap items-center gap-1.5">

@@ -469,7 +469,7 @@ export function PreviewFrame({
 
   if (!trimmed) {
     return (
-      <div className="flex min-h-[min(160px,26dvh)] w-full flex-1 items-center justify-center px-2 text-center text-xs text-slate-500 max-lg:rounded-none max-lg:bg-slate-50 lg:min-h-[min(320px,40dvh)] lg:rounded-2xl lg:border lg:border-dashed lg:border-slate-200 lg:bg-slate-50 lg:text-sm">
+      <div className="flex min-h-[min(160px,26dvh)] w-full flex-1 items-center justify-center px-2 text-center text-xs text-slate-600 max-lg:mx-2 max-lg:rounded-xl max-lg:border max-lg:border-dashed max-lg:border-slate-300 max-lg:bg-white lg:min-h-[min(320px,40dvh)] lg:rounded-2xl lg:border lg:border-dashed lg:border-slate-200 lg:bg-slate-50 lg:text-sm">
         暂无预览内容（生成成功但 HTML 为空时可刷新重试）
       </div>
     );
@@ -483,7 +483,7 @@ export function PreviewFrame({
   const deviceChrome =
     logicalWidth != null && !nativeScroll ?
       "rounded-[1.65rem] border-[10px] border-slate-800 bg-slate-900 shadow-lg ring-1 ring-white/10"
-    : "max-lg:rounded-none lg:rounded-2xl";
+    : "max-lg:rounded-xl max-lg:ring-1 max-lg:ring-slate-300/80 lg:rounded-2xl";
 
   const measureShell =
     "vk-preview-root relative isolate h-full min-h-[min(240px,36dvh)] w-full min-w-0 overflow-hidden [color-scheme:light] lg:min-h-0 lg:[min-height:min(380px,44dvh)]";
