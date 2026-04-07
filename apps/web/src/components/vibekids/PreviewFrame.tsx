@@ -480,15 +480,17 @@ export function PreviewFrame({
   if (!trimmed) {
     return (
       <div
-        className="h-full min-h-0 w-full flex-1 bg-slate-100 max-lg:bg-slate-50"
+        className="h-full min-h-0 w-full flex-1 [color-scheme:light]"
+        style={{ backgroundColor: "#f1f5f9" }}
         aria-label="作品预览区域，输入描述并生成后将在此显示"
       />
     );
   }
 
+  /** 微信等 WebView 下 iframe 未设底色时易显为黑块，须显式白底 */
   const iframeClass = nativeScroll ?
-      "box-border block h-full min-h-full w-full max-lg:rounded-none max-lg:border-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner"
-    : "absolute inset-0 box-border h-full min-h-0 w-full max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ring-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-inner";
+      "box-border block h-full min-h-full w-full bg-white max-lg:rounded-none max-lg:border-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-inner"
+    : "absolute inset-0 box-border h-full min-h-0 w-full bg-white max-lg:rounded-none max-lg:border-0 max-lg:shadow-none max-lg:ring-0 lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-inner";
 
   const showBar = viewportToolbar && !nativeScroll;
   const deviceChrome =
