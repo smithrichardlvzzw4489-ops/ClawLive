@@ -3,6 +3,7 @@ import { Router, Request, Response } from "express";
 import type { IRouter } from "express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
+import { sanitizeVibekidsWorkHtml } from "../../lib/vibekids-html-sanitizer";
 import { getUserIdFromBearer } from "../middleware/auth";
 
 const router: IRouter = Router();
@@ -178,9 +179,21 @@ router.post("/", async (req: Request, res: Response) => {
     title?: unknown;
   };
 
-  const html = typeof b.html === "string" ? b.html : "";
-  if (!html.trim()) {
+  const rawHtml = typeof b.html === "string" ? b.html.trim() : "";
+  if (!rawHtml) {
     return res.status(400).json({ error: "empty_html" });
+  }
+
+  const sanitized = sanitizeVibekidsWorkHtml(rawHtml);
+  if (!sanitized.ok) {
+    return res.status(400).json({
+      error: sanitized.code,
+      detail: sanitized.detail,
+    });
+  }
+  const html = sanitized.html;
+  if (sanitized.warnings.length > 0) {
+    console.log("[vibekids-works] HTML sanitize warnings:", sanitized.warnings);
   }
 
   const size = Buffer.byteLength(html, "utf8");

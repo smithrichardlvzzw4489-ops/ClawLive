@@ -168,6 +168,8 @@ type VibekidsSaveWorkBody = {
   title?: string;
   error?: string;
   detail?: string;
+  /** 服务端 sanitizeVibekidsWorkHtml 拒绝 */
+  code?: string;
 };
 
 /** 代理/网关若返回 HTML 或空体，`res.json()` 会抛错并被误判为「网络异常」 */
@@ -339,6 +341,12 @@ export function StudioClient() {
   const [quickChips, setQuickChips] = useState<string[]>([]);
   const [chipsLoading, setChipsLoading] = useState(false);
 
+  /** 每次成功「生成」后给 1 次控制台驱动自动修复额度 */
+  const autoFixBudgetRef = useRef(0);
+  const loadingRef = useRef(false);
+  const versRef = useRef(vers);
+  const hasGeneratedPreviewRef = useRef(false);
+
   const [creativeKind, setCreativeKind] = useState<CreativeKind>("any");
   const [creativeStyles, setCreativeStyles] = useState<VibeStyle[]>([]);
 
@@ -500,6 +508,18 @@ export function StudioClient() {
   const hasGeneratedPreview = !(vers.list.length === 1 && vers.index === 0);
 
   useEffect(() => {
+    loadingRef.current = loading !== null;
+  }, [loading]);
+
+  useEffect(() => {
+    versRef.current = vers;
+  }, [vers]);
+
+  useEffect(() => {
+    hasGeneratedPreviewRef.current = hasGeneratedPreview;
+  }, [hasGeneratedPreview]);
+
+  useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (hasGeneratedPreview) {
         e.preventDefault();
@@ -545,6 +565,9 @@ export function StudioClient() {
         return false;
       }
       pushVersion(nextHtml);
+      if (!data.warning && opts?.resultKind === "create") {
+        autoFixBudgetRef.current = 1;
+      }
       if (data.warning === "ai_failed" && data.detail) {
         const tech = data.detail.slice(0, 200);
         const extra = data.hint ? ` ${data.hint}` : "";
@@ -655,22 +678,35 @@ export function StudioClient() {
   );
 
   const refineWork = useCallback(
-    async (textOverride?: string) => {
+    async (
+      textOverride?: string,
+      callOpts?: { isAutoFix?: boolean },
+    ) => {
     const text = (textOverride ?? prompt).trim();
     if (!hasGeneratedPreview) {
-      setNotice("请先生成一版作品，再描述想怎么改。");
+      if (!callOpts?.isAutoFix) {
+        setNotice("请先生成一版作品，再描述想怎么改。");
+      }
       return;
     }
     if (!text) {
-      setNotice("在描述里写清楚要怎么改（例如：把主色改成绿色、加一个重置按钮）。");
+      if (!callOpts?.isAutoFix) {
+        setNotice("在描述里写清楚要怎么改（例如：把主色改成绿色、加一个重置按钮）。");
+      }
       return;
     }
     if (!hasVibekidsAuthToken()) {
-      setNotice(VK_LOGIN_NOTICE);
+      if (!callOpts?.isAutoFix) setNotice(VK_LOGIN_NOTICE);
       return;
     }
+    let restoreAutoFixBudget = false;
+    if (callOpts?.isAutoFix) {
+      if (autoFixBudgetRef.current < 1) return;
+      autoFixBudgetRef.current = 0;
+      restoreAutoFixBudget = true;
+    }
     setLoading("refine");
-    setNotice(null);
+    if (!callOpts?.isAutoFix) setNotice(null);
     try {
       const { res } = await postVibekidsLlm({
         intent: "refine",
@@ -683,61 +719,107 @@ export function StudioClient() {
       });
       const parsed = await readJsonBody<VibekidsLlmResponseBody>(res);
       if (!parsed.ok) {
-        setNotice(parsed.message);
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) setNotice(parsed.message);
         return;
       }
       const data = parsed.data;
       if (res.status === 401 && data.error === "login_required") {
-        setNotice(VK_LOGIN_NOTICE);
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) setNotice(VK_LOGIN_NOTICE);
         return;
       }
       if (res.status === 402 && data.error === "NO_KEY") {
-        setNotice(
-          data.message ??
-            "Darwin 需要平台虚拟 Key。请先在积分兑换中申请 Key（与 /my-lobster 相同）。",
-        );
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) {
+          setNotice(
+            data.message ??
+              "Darwin 需要平台虚拟 Key。请先在积分兑换中申请 Key（与 /my-lobster 相同）。",
+          );
+        }
         return;
       }
       if (res.status === 403 && data.error === "darwin_required") {
-        setNotice(
-          data.detail ??
-            "暂无 Darwin 创作权限。请稍后再试或联系管理员；若使用微信小程序请确认已登录并完成授权。",
-        );
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) {
+          setNotice(
+            data.detail ??
+              "暂无 Darwin 创作权限。请稍后再试或联系管理员；若使用微信小程序请确认已登录并完成授权。",
+          );
+        }
         return;
       }
       if (res.status === 500 && data.error === "llm_failed") {
-        setNotice(data.detail ?? "模型调用失败，请稍后再试。");
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) {
+          setNotice(data.detail ?? "模型调用失败，请稍后再试。");
+        }
         return;
       }
       if (res.status === 402 && data.error === "insufficient_credits") {
-        setNotice(
-          `修改额度不足（本次需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。`,
-        );
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) {
+          setNotice(
+            `修改额度不足（本次需要 ${data.need ?? "?"}，当前 ${data.balance ?? 0}）。`,
+          );
+        }
         return;
       }
       if (res.status === 400 && data.error === "client_id_required") {
-        setNotice(data.detail ?? "请刷新页面后重试。");
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) setNotice(data.detail ?? "请刷新页面后重试。");
         return;
       }
       if (!res.ok || typeof data.html !== "string" || !data.html.trim()) {
-        const errTag =
-          typeof data.error === "string" ? `（${data.error}）` : "";
-        setNotice(`修改失败（HTTP ${res.status}）${errTag}，请稍后再试。`);
+        if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
+        if (!callOpts?.isAutoFix) {
+          const errTag =
+            typeof data.error === "string" ? `（${data.error}）` : "";
+          setNotice(`修改失败（HTTP ${res.status}）${errTag}，请稍后再试。`);
+        }
         return;
       }
-      handleApiResponse(data, {
+      const applied = handleApiResponse(data, {
         resultKind: "refine",
         historyPrompt: text,
       });
+      if (applied && callOpts?.isAutoFix) {
+        setNotice(
+          "已根据预览控制台报错自动尝试修复一版，请再试玩；若仍有问题请手动描述修改。",
+        );
+      }
+      if (!applied && restoreAutoFixBudget) {
+        autoFixBudgetRef.current = 1;
+      }
     } catch (e) {
+      if (restoreAutoFixBudget) autoFixBudgetRef.current = 1;
       void logVibekidsConnectivityDiag("refine");
       console.error("[VibeKids] refine failed:", e);
-      setNotice(noticeFromVibekidsFailure(e, { refine: true }));
+      if (!callOpts?.isAutoFix) {
+        setNotice(noticeFromVibekidsFailure(e, { refine: true }));
+      }
     } finally {
       setLoading(null);
     }
   },
   [age, creativeKind, creativeStyles, handleApiResponse, hasGeneratedPreview, html, prompt],
+  );
+
+  const onPreviewRuntimeIssues = useCallback(
+    (issues: string[]) => {
+      if (loadingRef.current) return;
+      if (!hasGeneratedPreviewRef.current) return;
+      const v = versRef.current;
+      if (v.list.length === 1 && v.index === 0) return;
+      if (autoFixBudgetRef.current < 1) return;
+      const block = issues
+        .slice(0, 12)
+        .map((s, i) => `${i + 1}. ${s}`)
+        .join("\n");
+      const text = `【自动修复】以下为预览 iframe 中收集到的报错或 console.error（约 2 秒内）。请只修改必要代码以消除这些问题，保持原有功能与界面意图，输出完整 HTML：\n\n${block}`;
+      void refineWork(text, { isAutoFix: true });
+    },
+    [refineWork],
   );
 
   const openVibekidsLogin = useCallback(() => {
@@ -844,6 +926,8 @@ export function StudioClient() {
             `保存失败（服务器无法写入）。${data.detail ? ` ${data.detail}` : ""}`
           : data.error === "html_too_large" ?
             "作品体积过大，请删减后再试。"
+          : data.error === "html_policy_rejected" ?
+            `作品未通过安全校验，无法保存。${typeof data.detail === "string" && data.detail.trim() ? ` ${data.detail.trim()}` : "请删除可疑外链、eval 等后再试。"}`
           : (data.error ?? "保存失败");
         setNotice(msg);
         return;
@@ -891,7 +975,12 @@ export function StudioClient() {
         <div className="relative flex min-h-0 w-full max-lg:h-[58vh] max-lg:max-h-[640px] max-lg:min-h-[280px] max-lg:shrink-0 flex-col overflow-hidden max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none lg:h-full lg:max-h-none lg:min-h-[min(520px,58dvh)] lg:shrink lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:shadow-sm lg:flex-1">
           {loading !== null ? <GenerationSkeleton mode={loading} /> : null}
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <PreviewFrame html={html} frameKey={vers.index} />
+            <PreviewFrame
+              html={html}
+              frameKey={vers.index}
+              reportRuntimeIssues
+              onRuntimeIssues={onPreviewRuntimeIssues}
+            />
           </div>
         </div>
       </section>

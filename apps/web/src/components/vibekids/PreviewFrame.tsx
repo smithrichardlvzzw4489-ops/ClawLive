@@ -25,6 +25,10 @@ type Props = {
    * 是否显示「逻辑宽度」切换条（调试用；默认关闭，预览始终随容器实时适配）。
    */
   viewportToolbar?: boolean;
+  /** 向父窗口上报 iframe 内运行时错误（创作室自动修复一轮） */
+  reportRuntimeIssues?: boolean;
+  /** 在 reportRuntimeIssues 时，约 2.2s 采集窗口结束后回调（去重、截断） */
+  onRuntimeIssues?: (lines: string[]) => void;
 };
 
 /** 测量下限过小会误判，过大（如 320）会把窄页面强行算宽导致缩放偏小 */
@@ -38,16 +42,29 @@ const MAX_UPSCALE = 2.5;
 const MOBILE_BASE_STYLE =
   '<style id="vk-mobile-base">html{-webkit-text-size-adjust:100%;overflow-x:hidden}body{overflow-x:hidden;touch-action:manipulation;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>';
 
+/** 向父窗口 postMessage 上报 error / rejection / console.error，供创作室一轮自动修复 */
+function injectRuntimeReporter(html: string): string {
+  if (/id=["']vk-runtime-reporter["']/i.test(html)) return html;
+  const snippet =
+    '<script id="vk-runtime-reporter">(function(){var S="vibekids-preview";function send(line){try{parent.postMessage({source:S,type:"vk_issue",line:String(line).slice(0,800)},"*");}catch(e){}}var seen={};function u(line){var k=String(line).slice(0,500);if(seen[k])return;seen[k]=1;send(k);}window.addEventListener("error",function(e){u("Error: "+e.message+(e.filename?" @"+e.filename+":"+(e.lineno||0):""));});window.addEventListener("unhandledrejection",function(e){var r=e.reason;u("Unhandled: "+(r&&r.stack||r&&r.message||String(r)).slice(0,600));});var ce=console.error;console.error=function(){u("console.error: "+Array.prototype.join.call(arguments," ").slice(0,600));ce.apply(console,arguments);};})();<\/script>';
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${snippet}</body>`);
+  if (/<\/html>/i.test(html)) return html.replace(/<\/html>/i, `${snippet}</html>`);
+  return html + snippet;
+}
+
 /**
  * 模型输出的片段常缺 viewport，iframe 内会按「桌面宽度」排版再被缩放，表现为巨大字号、裁切。
  * 测量时也应使用真实容器宽度，否则 (max-width: …px) 媒体查询永远不命中。
  */
 function ensurePreviewDocumentHtml(
   html: string,
-  opts?: { nativeScroll?: boolean },
+  opts?: { nativeScroll?: boolean; reportRuntimeIssues?: boolean },
 ): string {
   const t = html.trim();
   if (!t) return t;
+
+  const wrap = (out: string) =>
+    opts?.reportRuntimeIssues ? injectRuntimeReporter(out) : out;
 
   const hasViewport = /name\s*=\s*["']viewport["']/i.test(t);
   const rootCss = opts?.nativeScroll ?
@@ -64,7 +81,7 @@ function ensurePreviewDocumentHtml(
 
   if (/<head[^>]*>/i.test(t)) {
     if (!hasViewport) {
-      return injectAfterHeadOpen(t, headInject);
+      return wrap(injectAfterHeadOpen(t, headInject));
     }
     let extra = "";
     if (!/id=["']vk-mobile-base["']/i.test(t)) {
@@ -76,21 +93,25 @@ function ensurePreviewDocumentHtml(
     ) {
       extra += nativePatch;
     }
-    if (extra) return injectAfterHeadOpen(t, extra);
-    return t;
+    if (extra) return wrap(injectAfterHeadOpen(t, extra));
+    return wrap(t);
   }
 
   if (/<html[\s>]/i.test(t)) {
     if (!hasViewport) {
-      return t.replace(
-        /<html([^>]*)>/i,
-        `<html$1><head>${headInject}</head>`,
+      return wrap(
+        t.replace(
+          /<html([^>]*)>/i,
+          `<html$1><head>${headInject}</head>`,
+        ),
       );
     }
-    return t;
+    return wrap(t);
   }
 
-  return `<!DOCTYPE html><html lang="zh-CN"><head>${headInject}</head><body>${t}</body></html>`;
+  return wrap(
+    `<!DOCTYPE html><html lang="zh-CN"><head>${headInject}</head><body>${t}</body></html>`,
+  );
 }
 
 /** 展开内部 overflow 区域，避免 scrollHeight 只反映「小视口内」高度 */
@@ -283,6 +304,8 @@ export function PreviewFrame({
   frameKey,
   nativeScroll = false,
   viewportToolbar = false,
+  reportRuntimeIssues = false,
+  onRuntimeIssues,
 }: Props) {
   const [viewportPreset, setViewportPreset] = useState<string>("auto");
   const logicalWidth =
@@ -290,7 +313,10 @@ export function PreviewFrame({
 
   const trimmed = html.trim();
   const srcDocHtml = trimmed
-    ? ensurePreviewDocumentHtml(trimmed, { nativeScroll })
+    ? ensurePreviewDocumentHtml(trimmed, {
+        nativeScroll,
+        reportRuntimeIssues: Boolean(reportRuntimeIssues && onRuntimeIssues),
+      })
     : "";
   const bandRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -402,6 +428,30 @@ export function PreviewFrame({
       fitTimersRef.current.push(window.setTimeout(runFit, ms));
     }
   }, [nativeScroll, clearFitTimers, runFit]);
+
+  useEffect(() => {
+    if (!reportRuntimeIssues || !onRuntimeIssues || !trimmed) return;
+    const lines: string[] = [];
+    const onMsg = (ev: MessageEvent) => {
+      if (ev.data?.source !== "vibekids-preview" || ev.data?.type !== "vk_issue") {
+        return;
+      }
+      if (iframeRef.current?.contentWindow !== ev.source) return;
+      const line =
+        typeof ev.data.line === "string" ? ev.data.line : String(ev.data.line ?? "");
+      const tline = line.trim();
+      if (tline) lines.push(tline);
+    };
+    window.addEventListener("message", onMsg);
+    const flushTimer = window.setTimeout(() => {
+      const uniq = [...new Set(lines)].slice(0, 15);
+      if (uniq.length) onRuntimeIssues(uniq);
+    }, 2200);
+    return () => {
+      window.removeEventListener("message", onMsg);
+      window.clearTimeout(flushTimer);
+    };
+  }, [reportRuntimeIssues, onRuntimeIssues, trimmed, frameKey, html]);
 
   if (!trimmed) {
     return (
