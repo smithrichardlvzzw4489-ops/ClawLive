@@ -39,6 +39,8 @@ export function pointsRoutes(): IRouter {
         litellmConfigured: isLitellmConfigured(),
         litellmProxyBaseUrl: config.litellm.publicBaseUrl || null,
         litellmModels: config.litellm.models,
+        /** Darwin / VibeKids 出站固定 model id，便于用户在「我的」里对照消耗 */
+        platformLlmModel: config.platformLlmModel,
         virtualKeyMasked: maskVirtualKey(user.litellmVirtualKey),
         hasVirtualKey: Boolean(user.litellmVirtualKey),
       });

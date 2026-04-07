@@ -15,6 +15,21 @@ type PointsLlmJson = {
   litellmConfigured: boolean;
   hasVirtualKey: boolean;
   virtualKeyMasked?: string | null;
+  platformLlmModel?: string;
+};
+
+type LlmUsageLog = {
+  request_id?: string;
+  model?: string;
+  spend?: number;
+  total_tokens?: number;
+};
+
+type KeyStatsPayload = {
+  maxBudgetUsd: number | null;
+  spendUsd: number;
+  remainingUsd: number | null;
+  usageLogs: LlmUsageLog[];
 };
 
 type MeButtonProps = {
@@ -29,6 +44,8 @@ export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
   const [me, setMe] = useState<MeJson | null>(null);
   const [llmInfo, setLlmInfo] = useState<PointsLlmJson | null>(null);
   const [virtualKey, setVirtualKey] = useState<string | null>(null);
+  const [keyStats, setKeyStats] = useState<KeyStatsPayload | null>(null);
+  const [keyStatsErr, setKeyStatsErr] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -38,6 +55,8 @@ export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
     setMe(null);
     setLlmInfo(null);
     setVirtualKey(null);
+    setKeyStats(null);
+    setKeyStatsErr(null);
     setCopied(false);
     try {
       let token: string | null = null;
@@ -54,7 +73,7 @@ export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
         return;
       }
 
-      const [rMe, rKey, rLlm] = await Promise.all([
+      const [rMe, rKey, rLlm, rKs] = await Promise.all([
         fetch("/api/auth/me", {
           headers: { Authorization: `Bearer ${token}` },
         }),
@@ -62,6 +81,9 @@ export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch("/api/points/llm", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch("/api/points/llm/key-stats", {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -87,7 +109,45 @@ export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
           litellmConfigured: lm.litellmConfigured,
           hasVirtualKey: lm.hasVirtualKey,
           virtualKeyMasked: lm.virtualKeyMasked ?? null,
+          platformLlmModel:
+            typeof lm.platformLlmModel === "string" ? lm.platformLlmModel : undefined,
         });
+      }
+
+      if (rKs.ok) {
+        const ksBody = (await rKs.json()) as { keyStats?: KeyStatsPayload | null };
+        const ks = ksBody.keyStats;
+        if (
+          ks &&
+          typeof ks.spendUsd === "number" &&
+          Array.isArray(ks.usageLogs)
+        ) {
+          setKeyStats({
+            maxBudgetUsd:
+              typeof ks.maxBudgetUsd === "number" || ks.maxBudgetUsd === null ?
+                ks.maxBudgetUsd
+              : null,
+            spendUsd: ks.spendUsd,
+            remainingUsd:
+              typeof ks.remainingUsd === "number" || ks.remainingUsd === null ?
+                ks.remainingUsd
+              : null,
+            usageLogs: ks.usageLogs,
+          });
+        } else {
+          setKeyStats(null);
+        }
+        setKeyStatsErr(null);
+      } else if (rKs.status === 404) {
+        setKeyStats(null);
+        setKeyStatsErr(null);
+      } else {
+        setKeyStats(null);
+        setKeyStatsErr(
+          rKs.status === 503 ?
+            "平台未配置 LiteLLM，暂无消耗统计。"
+          : "消耗数据暂时拉取失败，请稍后重试。",
+        );
       }
 
       if (rKey.ok) {
@@ -234,6 +294,83 @@ export function VibekidsMeButton({ triggerClassName }: MeButtonProps) {
                       虾米积分
                     </p>
                     <p className="text-slate-900">{pointsDisplay}</p>
+                  </div>
+                : null}
+
+                {virtualKey || llmInfo?.hasVirtualKey ?
+                  <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      模型消耗（LiteLLM）
+                    </p>
+                    {llmInfo?.platformLlmModel ?
+                      <p className="mb-2 break-all text-[11px] leading-snug text-slate-600">
+                        当前出站模型：<span className="font-mono text-slate-800">{llmInfo.platformLlmModel}</span>
+                      </p>
+                    : null}
+                    {keyStats ?
+                      <>
+                        <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3 sm:gap-x-3">
+                          <div>
+                            <dt className="text-xs text-slate-500">累计已用（美元）</dt>
+                            <dd className="font-mono font-medium text-slate-900">
+                              ${keyStats.spendUsd.toFixed(4)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-slate-500">预算上限</dt>
+                            <dd className="font-mono text-slate-900">
+                              {keyStats.maxBudgetUsd != null ?
+                                `$${keyStats.maxBudgetUsd.toFixed(4)}`
+                              : "—"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs text-slate-500">剩余额度</dt>
+                            <dd className="font-mono text-slate-900">
+                              {keyStats.remainingUsd != null ?
+                                `$${keyStats.remainingUsd.toFixed(4)}`
+                              : "—"}
+                            </dd>
+                          </div>
+                        </dl>
+                        {keyStats.usageLogs.length > 0 ?
+                          <div className="mt-3 border-t border-slate-200/80 pt-2">
+                            <p className="mb-1.5 text-[11px] font-medium text-slate-500">
+                              最近调用（最多 5 条）
+                            </p>
+                            <ul className="space-y-1.5 text-[11px] text-slate-700">
+                              {keyStats.usageLogs.slice(0, 5).map((log, i) => (
+                                <li
+                                  key={log.request_id ?? `u-${i}`}
+                                  className="flex flex-col gap-0.5 rounded-md bg-white/90 px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-baseline sm:justify-between sm:gap-x-2"
+                                >
+                                  <span className="break-all font-mono text-slate-800">
+                                    {log.model ?? "未知模型"}
+                                  </span>
+                                  <span className="shrink-0 font-mono text-slate-600">
+                                    {typeof log.spend === "number" ?
+                                      `$${log.spend.toFixed(4)}`
+                                    : "—"}
+                                    {typeof log.total_tokens === "number" ?
+                                      ` · ${log.total_tokens.toLocaleString()} tokens`
+                                    : ""}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        : null}
+                        <p className="mt-2 text-[10px] leading-relaxed text-slate-400">
+                          金额以 LiteLLM 代理统计为准；与单次请求 tokens、模型单价有关。
+                        </p>
+                      </>
+                    : keyStatsErr ?
+                      <p className="text-sm text-amber-800">{keyStatsErr}</p>
+                    : virtualKey ?
+                      <p className="text-xs text-slate-500">
+                        消耗明细暂不可用（代理未返回统计时可稍后再开）。
+                      </p>
+                    : null}
                   </div>
                 : null}
 
