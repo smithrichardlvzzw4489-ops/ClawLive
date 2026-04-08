@@ -631,7 +631,7 @@ export async function sendCampaign(
   let sent = 0;
 
   for (const recipient of toSend) {
-    if (campaign.status === 'paused') break;
+    if ((campaign.status as CampaignStatus) === 'paused') break;
 
     const { subject, body } = parseSubjectAndBody(recipient.personalizedMessage || '');
     const profileUrl = `${campaign.profileBaseUrl}/codernet/github/${recipient.githubUsername}`;
@@ -660,7 +660,7 @@ export async function sendCampaign(
     await sleep(3000);
   }
 
-  if (campaign.status !== 'paused') {
+  if ((campaign.status as CampaignStatus) !== 'paused') {
     campaign.status = 'completed';
     campaign.progress.phase = 'completed';
     campaign.progress.detail = `Done: ${sent} emails sent`;
