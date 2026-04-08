@@ -25,6 +25,8 @@ import {
   pauseCampaign,
   previewMessage,
 } from '../../services/codernet-outreach';
+import { requireQuota, consumeQuota, checkQuota, type QuotaDimension } from '../../services/quota-manager';
+import { getUserIdFromBearer } from '../middleware/auth';
 
 /* ── In-memory crawl progress tracker ─────────────────────── */
 export type CrawlStage =
@@ -233,7 +235,7 @@ export function codernetRoutes(): IRouter {
 
   /**
    * POST /api/codernet/github/:ghUsername
-   * Public — triggers crawl + analysis for any GitHub user (rate limited).
+   * Public — triggers crawl + analysis for any GitHub user (rate limited + quota).
    */
   router.post('/github/:ghUsername', async (req: Request, res: Response) => {
     try {
@@ -247,6 +249,20 @@ export function codernetRoutes(): IRouter {
       const existing = crawlProgressMap.get(`gh:${ghUser}`);
       if (existing && existing.stage !== 'error' && existing.stage !== 'complete') {
         return res.json({ status: 'already_running', message: 'Crawl already in progress.' });
+      }
+
+      // Quota: only charge when a new crawl is actually triggered
+      const callerId = getUserIdFromBearer(req);
+      if (callerId) {
+        const check = checkQuota(callerId, 'profile_lookup');
+        if (!check.allowed) {
+          return res.status(429).json({
+            error: '本月画像生成额度已用完',
+            code: 'QUOTA_EXCEEDED',
+            quota: { dimension: 'profile_lookup', used: check.used, limit: check.limit, tier: check.tier },
+          });
+        }
+        consumeQuota(callerId, 'profile_lookup');
       }
 
       res.json({ status: 'started', message: 'Crawl started.' });
@@ -264,7 +280,7 @@ export function codernetRoutes(): IRouter {
 
   /**
    * POST /api/codernet/search
-   * Public — semantic search for developers by natural language description.
+   * Semantic search for developers by natural language description (quota-gated).
    */
   router.post('/search', async (req: Request, res: Response) => {
     try {
@@ -272,6 +288,21 @@ export function codernetRoutes(): IRouter {
       if (!query?.trim()) {
         return res.status(400).json({ error: 'query is required' });
       }
+
+      // Quota check + consume
+      const callerId = getUserIdFromBearer(req);
+      if (callerId) {
+        const check = checkQuota(callerId, 'search');
+        if (!check.allowed) {
+          return res.status(429).json({
+            error: '本月搜索额度已用完',
+            code: 'QUOTA_EXCEEDED',
+            quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
+          });
+        }
+        consumeQuota(callerId, 'search');
+      }
+
       const token = getServerToken();
       const results = await searchDevelopers(query.trim(), lookupCache, token);
       res.json({ results });
@@ -420,7 +451,7 @@ export function codernetRoutes(): IRouter {
 
   /**
    * POST /api/codernet/outreach
-   * Creates a new outreach campaign and starts the pipeline.
+   * Creates a new outreach campaign and starts the pipeline (quota-gated).
    */
   router.post('/outreach', async (req: Request, res: Response) => {
     try {
@@ -434,6 +465,20 @@ export function codernetRoutes(): IRouter {
       };
       if (!githubQuery || !intent || !senderName) {
         return res.status(400).json({ error: 'githubQuery, intent, and senderName are required' });
+      }
+
+      // Quota check for outreach
+      const callerId = getUserIdFromBearer(req);
+      if (callerId) {
+        const check = checkQuota(callerId, 'outreach');
+        if (!check.allowed) {
+          return res.status(429).json({
+            error: '本月触达额度已用完',
+            code: 'QUOTA_EXCEEDED',
+            quota: { dimension: 'outreach', used: check.used, limit: check.limit, tier: check.tier },
+          });
+        }
+        consumeQuota(callerId, 'outreach');
       }
 
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';

@@ -1,9 +1,10 @@
 /**
- * /api/platform — 平台配置 + Token 用量
- *   GET  /api/platform/models             公开，返回模型列表
- *   POST /api/platform/models             写入（需 ADMIN_SECRET）
- *   GET  /api/platform/token-usage        Token 用量概要
- *   GET  /api/platform/token-usage/:user  某用户画像的 Token 消耗
+ * /api/platform — 平台配置 + Token 用量 + 用量配额
+ *   GET  /api/platform/models              公开，返回模型列表
+ *   POST /api/platform/models              写入（需 ADMIN_SECRET）
+ *   GET  /api/platform/token-usage         Token 用量概要
+ *   GET  /api/platform/token-usage/:user   某用户画像的 Token 消耗
+ *   GET  /api/platform/quota               当前用户的配额状态
  */
 import { Router, Request, Response } from 'express';
 import {
@@ -16,6 +17,8 @@ import {
   getProfileTokenCost,
   type TokenFeature,
 } from '../../services/token-tracker';
+import { getQuotaStatus, setUserTier } from '../../services/quota-manager';
+import { getUserIdFromBearer } from '../middleware/auth';
 
 function isAdminRequest(req: Request): boolean {
   // 只使用独立的 ADMIN_SECRET，绝不暴露 LITELLM_MASTER_KEY
@@ -101,6 +104,36 @@ export function platformRoutes(): Router {
   router.get('/token-usage/profile/:username', (req: Request, res: Response) => {
     const cost = getProfileTokenCost(req.params.username);
     return res.json(cost);
+  });
+
+  /* ── Quota ─────────────────────────────────────────────────── */
+
+  /**
+   * GET /api/platform/quota
+   * Returns current user's quota status (requires Bearer token).
+   */
+  router.get('/quota', (req: Request, res: Response) => {
+    const userId = getUserIdFromBearer(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    return res.json(getQuotaStatus(userId));
+  });
+
+  /**
+   * POST /api/platform/quota/tier  (admin only)
+   * Body: { userId, tier: 'free' | 'pro' | 'team' }
+   */
+  router.post('/quota/tier', (req: Request, res: Response) => {
+    if (!isAdminRequest(req)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    const { userId, tier } = req.body as { userId?: string; tier?: string };
+    if (!userId || !['free', 'pro', 'team'].includes(tier || '')) {
+      return res.status(400).json({ error: 'userId and tier (free|pro|team) are required' });
+    }
+    setUserTier(userId, tier as 'free' | 'pro' | 'team');
+    return res.json({ ok: true, status: getQuotaStatus(userId) });
   });
 
   return router;

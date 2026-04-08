@@ -673,7 +673,15 @@ export default function GitHubLookupCardPage() {
   }, [base, ghUsername]);
 
   const triggerCrawl = useCallback(async () => {
-    await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}`, { method: 'POST' });
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}`, { method: 'POST', headers });
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || '本月画像生成额度已用完，下月自动重置');
+      return;
+    }
     setTriggered(true);
     setResult({ status: 'pending', progress: { stage: 'queued', percent: 0, detail: 'Starting...', startedAt: Date.now(), updatedAt: Date.now() } });
   }, [base, ghUsername]);
