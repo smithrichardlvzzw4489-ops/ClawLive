@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 
@@ -203,12 +203,20 @@ function LanguageBar({ langs }: { langs: Array<{ language: string; percent: numb
 
 export default function GitHubLookupCardPage() {
   const params = useParams<{ username: string }>();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const ghUsername = params.username;
   const [result, setResult] = useState<LookupResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [triggered, setTriggered] = useState(false);
   const [pollCount, setPollCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showConnect, setShowConnect] = useState(false);
+  const [connectFrom, setConnectFrom] = useState('');
+  const [connectIntent, setConnectIntent] = useState(searchParams.get('from_query') || '');
+  const [connectCategory, setConnectCategory] = useState('合作');
+  const [connecting, setConnecting] = useState(false);
 
   const base = API_BASE_URL || '';
 
@@ -398,6 +406,18 @@ export default function GitHubLookupCardPage() {
           </div>
         )}
 
+        {/* Connect CTA */}
+        <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-r from-violet-500/5 to-indigo-500/5 p-5 mb-6 text-center">
+          <p className="text-sm text-slate-300 mb-3">Want to collaborate with @{ghUsername}?</p>
+          <button
+            onClick={() => setShowConnect(true)}
+            className="px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold transition shadow-lg shadow-violet-600/20"
+          >
+            Connect via Agent
+          </button>
+          <p className="text-[10px] text-slate-600 mt-2">AI Agent 会先代替双方沟通，确认匹配后再连接真人</p>
+        </div>
+
         <div className="text-center py-4">
           <Link href="/codernet" className="text-violet-500 hover:text-violet-400 text-xs font-mono transition">
             ← Search another developer
@@ -406,6 +426,105 @@ export default function GitHubLookupCardPage() {
           <span className="text-xs text-slate-600 font-mono">codernet by <Link href="/" className="text-violet-500 hover:text-violet-400 transition">clawlab.live</Link></span>
         </div>
       </div>
+
+      {/* Connect Modal */}
+      {showConnect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0f1117] p-6 shadow-2xl">
+            <button onClick={() => setShowConnect(false)} className="absolute right-4 top-4 text-slate-500 hover:text-white transition">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+
+            <h2 className="text-lg font-bold mb-4">Connect with @{ghUsername}</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-500 font-mono block mb-1">Your GitHub Username</label>
+                <div className="flex rounded-lg border border-white/[0.1] bg-white/[0.04] overflow-hidden">
+                  <span className="flex items-center pl-3 text-slate-500 text-sm">@</span>
+                  <input
+                    type="text"
+                    value={connectFrom}
+                    onChange={(e) => setConnectFrom(e.target.value)}
+                    placeholder="your-github-username"
+                    className="flex-1 bg-transparent px-2 py-2.5 text-sm font-mono text-white placeholder:text-slate-600 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-500 font-mono block mb-1">Purpose</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['合作', '招聘', '求职', '学习交流', '开源协作'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setConnectCategory(cat)}
+                      className={`text-xs px-3 py-1.5 rounded-lg transition ${
+                        connectCategory === cat ? 'bg-violet-600 text-white' : 'bg-white/[0.06] text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-500 font-mono block mb-1">Describe your intent</label>
+                <textarea
+                  value={connectIntent}
+                  onChange={(e) => setConnectIntent(e.target.value)}
+                  placeholder="例如：我正在做一个开源 AI 项目，需要一个擅长后端的合伙人..."
+                  rows={3}
+                  className="w-full rounded-lg border border-white/[0.1] bg-white/[0.04] px-3 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none resize-none"
+                />
+              </div>
+
+              <button
+                disabled={!connectFrom.trim() || !connectIntent.trim() || connecting}
+                onClick={async () => {
+                  setConnecting(true);
+                  try {
+                    const fromUser = connectFrom.trim().replace(/^@/, '').toLowerCase();
+                    const checkRes = await fetch(`${base}/api/codernet/github/${encodeURIComponent(fromUser)}`);
+                    const checkData = await checkRes.json();
+                    if (checkData.status !== 'ready') {
+                      await fetch(`${base}/api/codernet/github/${encodeURIComponent(fromUser)}`, { method: 'POST' });
+                      alert('Your profile is being generated. Please wait a moment and try again.');
+                      setConnecting(false);
+                      return;
+                    }
+
+                    const res = await fetch(`${base}/api/codernet/connect`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        initiatorGhUsername: fromUser,
+                        targetGhUsername: ghUsername.toLowerCase(),
+                        intent: connectIntent.trim(),
+                        intentCategory: connectCategory,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error);
+                    router.push(`/codernet/connect/${data.session.id}`);
+                  } catch (err: any) {
+                    alert(err.message || 'Failed to create connect session');
+                    setConnecting(false);
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/30 disabled:cursor-not-allowed text-sm font-semibold transition flex items-center justify-center gap-2"
+              >
+                {connecting ? (
+                  <><div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> Starting Agent Chat...</>
+                ) : (
+                  'Start Agent Pre-Chat'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,16 @@ import { decrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { crawlGitHubProfile, type GitHubCrawlResult } from '../../services/github-crawler';
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
+import { searchDevelopers } from '../../services/codernet-search';
+import {
+  createConnectSession,
+  getConnectSession,
+  listConnectSessions,
+  runConnectAgentRound,
+  unlockHumanChat as unlockConnectHuman,
+  postHumanMessage as postConnectHumanMessage,
+  type ConnectProfile,
+} from '../../services/codernet-connect';
 
 /* ── In-memory crawl progress tracker ─────────────────────── */
 export type CrawlStage =
@@ -238,7 +248,173 @@ export function codernetRoutes(): IRouter {
     }
   });
 
+  /* ── Developer Search ───────────────────────────────────── */
+
+  /**
+   * POST /api/codernet/search
+   * Public — semantic search for developers by natural language description.
+   */
+  router.post('/search', async (req: Request, res: Response) => {
+    try {
+      const { query } = req.body as { query?: string };
+      if (!query?.trim()) {
+        return res.status(400).json({ error: 'query is required' });
+      }
+      const results = await searchDevelopers(query.trim(), lookupCache);
+      res.json({ results });
+    } catch (error) {
+      console.error('[Codernet] search error:', error);
+      res.status(500).json({ error: 'Search failed' });
+    }
+  });
+
+  /* ── Codernet Connect (Agent pre-communication) ─────────── */
+
+  /**
+   * POST /api/codernet/connect
+   * Creates a connect session between two developers. Agent chat starts immediately.
+   */
+  router.post('/connect', async (req: Request, res: Response) => {
+    try {
+      const { initiatorGhUsername, targetGhUsername, intent, intentCategory } = req.body as {
+        initiatorGhUsername?: string;
+        targetGhUsername?: string;
+        intent?: string;
+        intentCategory?: string;
+      };
+      if (!initiatorGhUsername || !targetGhUsername || !intent) {
+        return res.status(400).json({ error: 'initiatorGhUsername, targetGhUsername, and intent are required' });
+      }
+
+      const initProfile = buildConnectProfile(initiatorGhUsername.toLowerCase());
+      const targetProfile = buildConnectProfile(targetGhUsername.toLowerCase());
+
+      if (!initProfile || !targetProfile) {
+        return res.status(400).json({ error: 'Both developers must have Codernet profiles. Generate their profiles first.' });
+      }
+
+      const session = createConnectSession(
+        initProfile,
+        targetProfile,
+        intent.trim(),
+        (intentCategory || '合作').trim(),
+      );
+
+      runConnectAgentRound(session.id).catch((err) =>
+        console.error('[CodernetConnect] initial round failed:', err),
+      );
+
+      res.json({ session: sanitizeSession(session) });
+    } catch (error) {
+      console.error('[Codernet] connect create error:', error);
+      res.status(500).json({ error: 'Failed to create connect session' });
+    }
+  });
+
+  /**
+   * GET /api/codernet/connect/:id
+   * Returns connect session details including agent messages.
+   */
+  router.get('/connect/:id', async (req: Request, res: Response) => {
+    try {
+      const session = getConnectSession(req.params.id);
+      if (!session) return res.status(404).json({ error: 'Session not found' });
+      res.json({ session: sanitizeSession(session) });
+    } catch (error) {
+      console.error('[Codernet] connect get error:', error);
+      res.status(500).json({ error: 'Failed to get session' });
+    }
+  });
+
+  /**
+   * POST /api/codernet/connect/:id/agent-step
+   * Advances agent conversation by one round.
+   */
+  router.post('/connect/:id/agent-step', async (req: Request, res: Response) => {
+    try {
+      const session = await runConnectAgentRound(req.params.id);
+      res.json({ session: sanitizeSession(session) });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Codernet] agent step error:', error);
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  /**
+   * POST /api/codernet/connect/:id/unlock
+   * Unlocks human chat after enough agent rounds.
+   */
+  router.post('/connect/:id/unlock', async (req: Request, res: Response) => {
+    try {
+      const session = unlockConnectHuman(req.params.id);
+      res.json({ session: sanitizeSession(session) });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  /**
+   * POST /api/codernet/connect/:id/human-message
+   * Posts a human message to the connect session.
+   */
+  router.post('/connect/:id/human-message', async (req: Request, res: Response) => {
+    try {
+      const { body: msgBody, side } = req.body as { body?: string; side?: string };
+      if (!msgBody?.trim()) return res.status(400).json({ error: 'body is required' });
+      const authorSide = side === 'target' ? 'target' as const : 'initiator' as const;
+      const session = postConnectHumanMessage(req.params.id, authorSide, msgBody.trim());
+      res.json({ session: sanitizeSession(session) });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      res.status(400).json({ error: msg });
+    }
+  });
+
   return router;
+}
+
+/* ── Helpers for connect endpoints ────────────────────────── */
+
+function buildConnectProfile(ghUsername: string): ConnectProfile | null {
+  const cached = lookupCache.get(ghUsername);
+  if (cached) {
+    const a = cached.analysis;
+    return {
+      githubUsername: ghUsername,
+      avatarUrl: cached.avatarUrl,
+      oneLiner: a?.oneLiner,
+      techTags: a?.techTags,
+      sharpCommentary: a?.sharpCommentary,
+      stats: cached.crawl ? {
+        totalPublicRepos: cached.crawl.totalPublicRepos,
+        totalStars: cached.crawl.totalStars,
+        followers: cached.crawl.followers,
+      } : undefined,
+      bio: cached.crawl?.bio,
+    };
+  }
+  return null;
+}
+
+function sanitizeSession(s: any) {
+  return {
+    id: s.id,
+    initiatorGhUsername: s.initiatorGhUsername,
+    targetGhUsername: s.targetGhUsername,
+    intent: s.intent,
+    intentCategory: s.intentCategory,
+    status: s.status,
+    initiatorProfile: s.initiatorProfile,
+    targetProfile: s.targetProfile,
+    agentMessages: s.agentMessages,
+    humanMessages: s.humanMessages,
+    agentRounds: s.agentRounds,
+    agentVerdict: s.agentVerdict,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+  };
 }
 
 /**
