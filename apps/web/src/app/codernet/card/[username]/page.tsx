@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 
@@ -13,9 +13,19 @@ interface TopRepo {
   url: string;
 }
 
+interface CrawlProgress {
+  stage: string;
+  percent: number;
+  detail: string;
+  startedAt: number;
+  updatedAt: number;
+  error?: string;
+}
+
 interface CodernetProfile {
   status: 'ready' | 'pending';
   message?: string;
+  progress?: CrawlProgress | null;
   user: {
     username: string;
     avatarUrl: string | null;
@@ -71,7 +81,32 @@ const LANG_COLORS: Record<string, string> = {
   Scala: '#c22d40',
 };
 
-function QuadrantChart({ data }: { data: CodernetProfile['analysis'] extends undefined ? never : NonNullable<CodernetProfile['analysis']>['capabilityQuadrant'] }) {
+const STAGE_LABELS: Record<string, string> = {
+  queued: 'Preparing...',
+  decrypting_token: 'Authenticating...',
+  fetching_profile: 'Loading GitHub profile...',
+  fetching_repos: 'Scanning repositories...',
+  fetching_languages: 'Analyzing language stats...',
+  fetching_commits: 'Reading commit history...',
+  analyzing_with_ai: 'AI is generating your profile...',
+  saving_results: 'Saving results...',
+  complete: 'Done!',
+  error: 'Something went wrong',
+};
+
+const STAGE_ORDER = [
+  'queued',
+  'decrypting_token',
+  'fetching_profile',
+  'fetching_repos',
+  'fetching_languages',
+  'fetching_commits',
+  'analyzing_with_ai',
+  'saving_results',
+  'complete',
+];
+
+function QuadrantChart({ data }: { data: NonNullable<CodernetProfile['analysis']>['capabilityQuadrant'] }) {
   const dims = [
     { key: 'frontend', label: 'Frontend', angle: -90 },
     { key: 'backend', label: 'Backend', angle: 0 },
@@ -181,35 +216,203 @@ function LanguageBar({ langs }: { langs: Array<{ language: string; percent: numb
   );
 }
 
+function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  return `${m}m ${s % 60}s`;
+}
+
+function ProgressTimeline({ progress }: { progress: CrawlProgress | null }) {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(progress?.startedAt || Date.now());
+
+  useEffect(() => {
+    if (progress?.startedAt) startRef.current = progress.startedAt;
+  }, [progress?.startedAt]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsed(Date.now() - startRef.current);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const currentStage = progress?.stage || 'queued';
+  const currentIdx = STAGE_ORDER.indexOf(currentStage);
+  const percent = progress?.percent ?? 0;
+  const isError = currentStage === 'error';
+
+  const visibleStages = STAGE_ORDER.filter((s) => s !== 'queued' && s !== 'decrypting_token' && s !== 'complete');
+
+  return (
+    <div className="w-full max-w-md mx-auto">
+      {/* Progress bar */}
+      <div className="relative mb-6">
+        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-700 ease-out ${
+              isError ? 'bg-red-500' : 'bg-gradient-to-r from-violet-500 to-indigo-400'
+            }`}
+            style={{ width: `${Math.max(percent, 3)}%` }}
+          />
+        </div>
+        <div className="flex justify-between mt-1.5">
+          <span className="text-[10px] font-mono text-slate-500">{percent}%</span>
+          <span className="text-[10px] font-mono text-slate-500">{formatElapsed(elapsed)}</span>
+        </div>
+      </div>
+
+      {/* Stage timeline */}
+      <div className="space-y-2.5">
+        {visibleStages.map((stage, i) => {
+          const stageIdx = STAGE_ORDER.indexOf(stage);
+          const isDone = currentIdx > stageIdx;
+          const isCurrent = currentStage === stage;
+          const isPending = currentIdx < stageIdx;
+
+          return (
+            <div key={stage} className="flex items-center gap-3">
+              <div className="relative flex-shrink-0">
+                {isDone ? (
+                  <div className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/40 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                ) : isCurrent ? (
+                  <div className="w-5 h-5 rounded-full border-2 border-violet-400 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+                  </div>
+                ) : (
+                  <div className="w-5 h-5 rounded-full border border-white/10" />
+                )}
+                {i < visibleStages.length - 1 && (
+                  <div
+                    className={`absolute left-[9px] top-5 w-0.5 h-2.5 ${
+                      isDone ? 'bg-violet-500/30' : 'bg-white/[0.06]'
+                    }`}
+                  />
+                )}
+              </div>
+              <span
+                className={`text-xs font-mono transition-colors ${
+                  isDone
+                    ? 'text-slate-500'
+                    : isCurrent
+                      ? 'text-violet-300'
+                      : 'text-slate-600'
+                }`}
+              >
+                {STAGE_LABELS[stage]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Current detail text */}
+      {progress?.detail && (
+        <p className="mt-4 text-xs text-slate-500 font-mono text-center animate-pulse">
+          {progress.detail}
+        </p>
+      )}
+
+      {/* Error display */}
+      {isError && progress?.error && (
+        <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3">
+          <p className="text-sm text-red-300 font-mono">{progress.error}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CodernetCardPage() {
   const params = useParams<{ username: string }>();
+  const router = useRouter();
   const username = params.username;
   const [profile, setProfile] = useState<CodernetProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pollCount, setPollCount] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchProfile = useCallback(async () => {
+    if (!username) return null;
+    const base = API_BASE_URL || '';
+    const res = await fetch(`${base}/api/codernet/profile/${encodeURIComponent(username)}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `HTTP ${res.status}`);
+    }
+    return res.json() as Promise<CodernetProfile>;
+  }, [username]);
 
   useEffect(() => {
     if (!username) return;
-    const base = API_BASE_URL || '';
-    fetch(`${base}/api/codernet/profile/${encodeURIComponent(username)}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || `HTTP ${res.status}`);
-        }
-        return res.json();
+    fetchProfile()
+      .then((data) => {
+        if (data) setProfile(data);
       })
-      .then((data) => setProfile(data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [username]);
+  }, [username, fetchProfile]);
+
+  useEffect(() => {
+    if (!profile || profile.status !== 'pending') return;
+
+    const doPoll = async () => {
+      try {
+        const data = await fetchProfile();
+        if (data) {
+          setProfile(data);
+          setPollCount((c) => c + 1);
+        }
+      } catch {
+        // keep polling on fetch errors
+      }
+    };
+
+    const interval = profile.progress?.stage === 'error' ? 10_000 : 3_000;
+    pollRef.current = setTimeout(doPoll, interval);
+
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [profile, pollCount, fetchProfile]);
+
+  const handleRetry = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    const base = API_BASE_URL || '';
+    try {
+      await fetch(`${base}/api/codernet/crawl`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: 'pending',
+              progress: { stage: 'queued', percent: 0, detail: 'Restarting...', startedAt: Date.now(), updatedAt: Date.now() },
+            }
+          : prev,
+      );
+      setPollCount(0);
+    } catch {}
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
-          <p className="text-white/50 text-sm font-mono">Scanning GitHub data...</p>
+          <p className="text-white/50 text-sm font-mono">Connecting...</p>
         </div>
       </div>
     );
@@ -233,14 +436,62 @@ export default function CodernetCardPage() {
   }
 
   if (profile.status === 'pending') {
+    const hasError = profile.progress?.stage === 'error';
+    const stuckThreshold = 120_000;
+    const isStuck =
+      !hasError &&
+      profile.progress?.updatedAt &&
+      Date.now() - profile.progress.updatedAt > stuckThreshold;
+
     return (
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="mx-auto mb-4 h-10 w-10 animate-pulse rounded-full bg-violet-500/30" />
-          <h1 className="text-lg text-white/80 font-bold mb-2">Analyzing @{profile.user.githubUsername}...</h1>
-          <p className="text-slate-400 text-sm">
-            We're crawling GitHub data and generating your developer profile. This usually takes 30-60 seconds. Refresh in a moment.
-          </p>
+        <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/10 blur-[160px]" />
+        <div className="relative z-10 text-center w-full max-w-lg px-4">
+          {/* Header */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            {profile.user.avatarUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.user.avatarUrl} alt="" className="w-10 h-10 rounded-full border border-white/10" />
+            )}
+            <div>
+              <h1 className="text-lg text-white/90 font-bold">
+                Scanning @{profile.user.githubUsername || username}
+              </h1>
+              <p className="text-xs text-slate-500 font-mono">Building your developer profile</p>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <ProgressTimeline progress={profile.progress || null} />
+
+          {/* Action buttons */}
+          {(hasError || isStuck) && (
+            <div className="mt-6 space-y-3">
+              {isStuck && !hasError && (
+                <p className="text-xs text-amber-400/70 font-mono">
+                  This is taking longer than expected...
+                </p>
+              )}
+              <button
+                onClick={handleRetry}
+                className="px-5 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium transition"
+              >
+                Retry Analysis
+              </button>
+              <p className="text-[10px] text-slate-600">
+                If the problem persists, try{' '}
+                <Link href="/login" className="text-violet-400 hover:underline">
+                  re-logging in with GitHub
+                </Link>
+              </p>
+            </div>
+          )}
+
+          {!hasError && !isStuck && (
+            <p className="mt-6 text-[10px] text-slate-600 font-mono">
+              Auto-refreshing every 3 seconds
+            </p>
+          )}
         </div>
       </div>
     );
@@ -250,20 +501,17 @@ export default function CodernetCardPage() {
 
   return (
     <div className="min-h-screen bg-[#06080f] text-white">
-      {/* Background effects */}
       <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/20 blur-[160px]" />
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/15 blur-[160px]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-10">
-        {/* Header */}
         <div className="flex items-center gap-2 mb-8">
           <span className="text-xs font-mono text-violet-400 tracking-wider">CODERNET</span>
           <span className="text-xs text-slate-600">/</span>
           <span className="text-xs font-mono text-slate-500">developer profile</span>
         </div>
 
-        {/* Profile Card */}
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
           <div className="flex items-start gap-4 mb-5">
             {profile.user.avatarUrl ? (
@@ -296,7 +544,6 @@ export default function CodernetCardPage() {
             </div>
           </div>
 
-          {/* Stats Row */}
           {github && (
             <div className="grid grid-cols-3 gap-3 mb-5">
               {[
@@ -312,7 +559,6 @@ export default function CodernetCardPage() {
             </div>
           )}
 
-          {/* Sharp Commentary */}
           {analysis?.sharpCommentary && (
             <div className="rounded-lg bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-3 mb-5">
               <p className="text-sm text-slate-200 leading-relaxed italic">
@@ -322,7 +568,6 @@ export default function CodernetCardPage() {
             </div>
           )}
 
-          {/* Tech Tags */}
           {analysis?.techTags && analysis.techTags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-5">
               {analysis.techTags.map((tag) => (
@@ -336,7 +581,6 @@ export default function CodernetCardPage() {
             </div>
           )}
 
-          {/* Language Distribution */}
           {analysis?.languageDistribution && analysis.languageDistribution.length > 0 && (
             <div className="mb-5">
               <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-mono">Languages</h3>
@@ -345,7 +589,6 @@ export default function CodernetCardPage() {
           )}
         </div>
 
-        {/* Capability Quadrant */}
         {analysis?.capabilityQuadrant && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Capability Quadrant</h3>
@@ -353,7 +596,6 @@ export default function CodernetCardPage() {
           </div>
         )}
 
-        {/* Top Repos */}
         {github?.topRepos && github.topRepos.length > 0 && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Top Repositories</h3>
@@ -394,7 +636,6 @@ export default function CodernetCardPage() {
           </div>
         )}
 
-        {/* Footer */}
         <div className="text-center text-xs text-slate-600 font-mono py-4">
           <span>codernet by </span>
           <Link href="/" className="text-violet-500 hover:text-violet-400 transition">clawlab.live</Link>

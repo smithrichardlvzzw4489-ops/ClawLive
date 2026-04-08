@@ -6,6 +6,46 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { crawlGitHubProfile } from '../../services/github-crawler';
 import { analyzeGitHubProfile } from '../../services/codernet-profile-analyzer';
 
+/* ── In-memory crawl progress tracker ─────────────────────── */
+export type CrawlStage =
+  | 'queued'
+  | 'decrypting_token'
+  | 'fetching_profile'
+  | 'fetching_repos'
+  | 'fetching_languages'
+  | 'fetching_commits'
+  | 'analyzing_with_ai'
+  | 'saving_results'
+  | 'complete'
+  | 'error';
+
+export interface CrawlProgress {
+  stage: CrawlStage;
+  percent: number;
+  detail: string;
+  startedAt: number;
+  updatedAt: number;
+  error?: string;
+}
+
+const crawlProgressMap = new Map<string, CrawlProgress>();
+
+function setProgress(username: string, stage: CrawlStage, percent: number, detail: string, error?: string) {
+  const existing = crawlProgressMap.get(username);
+  crawlProgressMap.set(username, {
+    stage,
+    percent,
+    detail,
+    startedAt: existing?.startedAt || Date.now(),
+    updatedAt: Date.now(),
+    error,
+  });
+}
+
+function clearProgress(username: string) {
+  setTimeout(() => crawlProgressMap.delete(username), 60_000);
+}
+
 export function codernetRoutes(): IRouter {
   const router = Router();
 
@@ -37,6 +77,7 @@ export function codernetRoutes(): IRouter {
       }
 
       if (!user.codernetAnalysis) {
+        const progress = crawlProgressMap.get(username);
         return res.json({
           status: 'pending',
           user: {
@@ -45,6 +86,7 @@ export function codernetRoutes(): IRouter {
             githubUsername: user.githubUsername,
           },
           message: 'Profile is being analyzed, check back shortly.',
+          progress: progress || null,
         });
       }
 
@@ -96,6 +138,7 @@ export function codernetRoutes(): IRouter {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: {
+          username: true,
           githubUsername: true,
           githubAccessToken: true,
           codernetCrawledAt: true,
@@ -120,7 +163,7 @@ export function codernetRoutes(): IRouter {
 
       res.json({ status: 'crawling', message: 'GitHub profile crawl started.' });
 
-      runCrawlAndAnalysis(userId, user.githubAccessToken, user.githubUsername).catch((err) =>
+      runCrawlAndAnalysis(userId, user.githubAccessToken, user.githubUsername, user.username).catch((err) =>
         console.error('[Codernet] background crawl failed:', err),
       );
     } catch (error) {
@@ -135,42 +178,73 @@ export function codernetRoutes(): IRouter {
 /**
  * Background crawl + analysis pipeline.
  * Called after GitHub login and on manual re-crawl.
+ * Reports progress to the in-memory map for live polling.
  */
 export async function runCrawlAndAnalysis(
   userId: string,
   encryptedToken: string,
   githubUsername: string,
+  platformUsername?: string,
 ): Promise<void> {
+  const trackKey = platformUsername || githubUsername;
   console.log(`[Codernet] starting crawl for @${githubUsername} (user ${userId})`);
+
+  setProgress(trackKey, 'queued', 0, 'Starting crawl pipeline...');
 
   let token: string;
   try {
+    setProgress(trackKey, 'decrypting_token', 5, 'Decrypting access token...');
     token = decrypt(encryptedToken);
   } catch (err) {
     console.error('[Codernet] token decrypt failed:', err);
+    setProgress(trackKey, 'error', 5, 'Token decryption failed', String(err));
+    clearProgress(trackKey);
     return;
   }
 
-  const crawlData = await crawlGitHubProfile(token, githubUsername);
-  console.log(
-    `[Codernet] crawled ${crawlData.repos.length} repos, ${Object.keys(crawlData.languageStats).length} languages for @${githubUsername}`,
-  );
+  try {
+    setProgress(trackKey, 'fetching_profile', 10, 'Fetching GitHub profile...');
+    const crawlData = await crawlGitHubProfile(token, githubUsername, (stage, detail) => {
+      const stageMap: Record<string, [CrawlStage, number]> = {
+        'fetching_repos': ['fetching_repos', 25],
+        'fetching_languages': ['fetching_languages', 45],
+        'fetching_commits': ['fetching_commits', 60],
+      };
+      const [s, p] = stageMap[stage] || ['fetching_profile', 15];
+      setProgress(trackKey, s, p, detail);
+    });
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      githubProfileJson: crawlData as any,
-      codernetCrawledAt: new Date(),
-    },
-  });
+    console.log(
+      `[Codernet] crawled ${crawlData.repos.length} repos, ${Object.keys(crawlData.languageStats).length} languages for @${githubUsername}`,
+    );
 
-  const analysis = await analyzeGitHubProfile(crawlData);
-  console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}"`);
+    setProgress(trackKey, 'saving_results', 70, 'Saving GitHub data...');
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        githubProfileJson: crawlData as any,
+        codernetCrawledAt: new Date(),
+      },
+    });
 
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      codernetAnalysis: analysis as any,
-    },
-  });
+    setProgress(trackKey, 'analyzing_with_ai', 75, 'AI is analyzing your code style...');
+    const analysis = await analyzeGitHubProfile(crawlData);
+    console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}"`);
+
+    setProgress(trackKey, 'saving_results', 95, 'Saving analysis results...');
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        codernetAnalysis: analysis as any,
+      },
+    });
+
+    setProgress(trackKey, 'complete', 100, 'Profile ready!');
+    clearProgress(trackKey);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Codernet] crawl pipeline error for @${githubUsername}:`, err);
+    setProgress(trackKey, 'error', 0, 'Crawl failed', msg);
+    clearProgress(trackKey);
+  }
 }

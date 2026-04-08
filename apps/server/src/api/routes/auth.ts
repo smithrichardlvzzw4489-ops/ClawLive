@@ -358,7 +358,7 @@ router.post('/github', async (req: Request, res: Response) => {
 
     res.json({ user: userWithoutSensitive, token, refreshToken });
 
-    runCrawlAndAnalysis(user.id, encryptedGhToken, ghUser.login).catch((err) =>
+    runCrawlAndAnalysis(user.id, encryptedGhToken, ghUser.login, user.username).catch((err) =>
       console.error('[Auth] post-login Codernet crawl failed:', err),
     );
   } catch (error) {

@@ -152,20 +152,28 @@ async function fetchRecentCommits(
     .slice(0, 30);
 }
 
+export type CrawlProgressCallback = (stage: string, detail: string) => void;
+
 /**
  * Full crawl: profile + repos + languages + commits.
  */
 export async function crawlGitHubProfile(
   token: string,
   username: string,
+  onProgress?: CrawlProgressCallback,
 ): Promise<GitHubCrawlResult> {
   const profile = await ghFetch<GHUserProfile>(`${GH_API}/users/${username}`, token);
 
+  onProgress?.('fetching_repos', `Fetching repositories for @${username}...`);
   const repos = await fetchTopRepos(token, username);
-  const [languageStats, recentCommits] = await Promise.all([
-    fetchLanguageStats(token, repos),
-    fetchRecentCommits(token, username, repos),
-  ]);
+
+  onProgress?.('fetching_languages', `Analyzing languages across ${Math.min(repos.length, 20)} repos...`);
+  const langPromise = fetchLanguageStats(token, repos);
+
+  onProgress?.('fetching_commits', `Scanning recent commits...`);
+  const commitPromise = fetchRecentCommits(token, username, repos);
+
+  const [languageStats, recentCommits] = await Promise.all([langPromise, commitPromise]);
 
   const totalStars = repos.reduce((s, r) => s + r.stargazers_count, 0);
 
