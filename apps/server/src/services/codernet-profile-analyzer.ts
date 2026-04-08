@@ -27,9 +27,15 @@ export interface CodernetAnalysis {
     pypiPackageCount?: number;
     devtoArticleCount?: number;
     devtoTotalReactions?: number;
+    hfModelCount?: number;
+    hfDatasetCount?: number;
+    hfSpaceCount?: number;
+    hfTotalDownloads?: number;
+    hfTopPipelineTags?: string[];
     communityInfluenceScore?: number;
     knowledgeSharingScore?: number;
     packageImpactScore?: number;
+    aiMlImpactScore?: number;
   };
 }
 
@@ -93,6 +99,24 @@ ${pkgList}`);
 ${articles}`);
     }
 
+    if (multiPlatform.huggingface) {
+      const hf = multiPlatform.huggingface;
+      const modelList = hf.models.slice(0, 5)
+        .map((m) => `- ${m.modelId} (⬇${m.downloads.toLocaleString()}, ❤${m.likes})${m.pipelineTag ? ` [${m.pipelineTag}]` : ''}`)
+        .join('\n');
+      const datasetList = hf.datasets.slice(0, 3)
+        .map((d) => `- ${d.id} (⬇${d.downloads.toLocaleString()}, ❤${d.likes})`)
+        .join('\n');
+      const spaceList = hf.spaces.slice(0, 3)
+        .map((s) => `- ${s.id} (❤${s.likes})${s.sdk ? ` [${s.sdk}]` : ''}`)
+        .join('\n');
+      parts.push(`=== Hugging Face ===
+模型数：${hf.models.length} | 数据集：${hf.datasets.length} | Spaces：${hf.spaces.length}
+总下载量：${hf.totalDownloads.toLocaleString()} | 总 Likes：${hf.totalLikes}
+Pipeline 类型：${hf.topPipelineTags.join(', ') || '无'}
+${modelList ? `模型：\n${modelList}` : ''}${datasetList ? `\n数据集：\n${datasetList}` : ''}${spaceList ? `\nSpaces：\n${spaceList}` : ''}`);
+    }
+
     if (parts.length > 0) {
       multiPlatformSection = '\n\n' + parts.join('\n\n');
     }
@@ -104,6 +128,7 @@ ${articles}`);
     multiPlatform.npmPackages.length > 0 ? 'npm' : null,
     multiPlatform.pypiPackages.length > 0 ? 'PyPI' : null,
     multiPlatform.devto ? 'DEV.to' : null,
+    multiPlatform.huggingface ? 'Hugging Face' : null,
   ].filter(Boolean).join(' + ') : 'GitHub';
 
   return `你是一位资深技术猎头兼毒舌代码评论家。根据以下多平台数据（${platformsAvailable}），生成这位开发者的全面技术画像。
@@ -226,10 +251,27 @@ export async function analyzeGitHubProfile(
       multiPlatformInsights.knowledgeSharingScore = Math.min(100, kss + Math.min(50, multiPlatform.devto.articlesCount * 5));
     }
 
+    if (multiPlatform.huggingface) {
+      platformsUsed.push('Hugging Face');
+      const hf = multiPlatform.huggingface;
+      multiPlatformInsights.hfModelCount = hf.models.length;
+      multiPlatformInsights.hfDatasetCount = hf.datasets.length;
+      multiPlatformInsights.hfSpaceCount = hf.spaces.length;
+      multiPlatformInsights.hfTotalDownloads = hf.totalDownloads;
+      multiPlatformInsights.hfTopPipelineTags = hf.topPipelineTags;
+      multiPlatformInsights.aiMlImpactScore = Math.min(100, Math.round(
+        Math.min(40, hf.models.length * 8) +
+        Math.min(30, Math.log10(hf.totalDownloads + 1) * 8) +
+        Math.min(15, hf.datasets.length * 5) +
+        Math.min(15, hf.spaces.length * 5)
+      ));
+    }
+
     multiPlatformInsights.communityInfluenceScore = Math.min(100, Math.round(
-      (multiPlatformInsights.knowledgeSharingScore || 0) * 0.4 +
-      (multiPlatformInsights.packageImpactScore || 0) * 0.4 +
-      (platformsUsed.length - 1) * 5
+      (multiPlatformInsights.knowledgeSharingScore || 0) * 0.3 +
+      (multiPlatformInsights.packageImpactScore || 0) * 0.3 +
+      (multiPlatformInsights.aiMlImpactScore || 0) * 0.25 +
+      (platformsUsed.length - 1) * 3
     ));
   }
 

@@ -31,9 +31,15 @@ interface MultiPlatformInsights {
   pypiPackageCount?: number;
   devtoArticleCount?: number;
   devtoTotalReactions?: number;
+  hfModelCount?: number;
+  hfDatasetCount?: number;
+  hfSpaceCount?: number;
+  hfTotalDownloads?: number;
+  hfTopPipelineTags?: string[];
   communityInfluenceScore?: number;
   knowledgeSharingScore?: number;
   packageImpactScore?: number;
+  aiMlImpactScore?: number;
 }
 
 interface SOProfile {
@@ -81,16 +87,49 @@ interface DevToProfileData {
   topArticles: DevToArticle[];
 }
 
+interface HFModel {
+  modelId: string;
+  likes: number;
+  downloads: number;
+  pipelineTag: string | null;
+  tags: string[];
+}
+
+interface HFDataset {
+  id: string;
+  likes: number;
+  downloads: number;
+}
+
+interface HFSpace {
+  id: string;
+  likes: number;
+  sdk: string | null;
+}
+
+interface HuggingFaceProfileData {
+  username: string;
+  models: HFModel[];
+  datasets: HFDataset[];
+  spaces: HFSpace[];
+  totalLikes: number;
+  totalDownloads: number;
+  topPipelineTags: string[];
+  profileUrl: string;
+}
+
 interface MultiPlatformData {
   stackOverflow: SOProfile | null;
   npmPackages: NpmPkg[];
   pypiPackages: PyPIPkg[];
   devto: DevToProfileData | null;
+  huggingface: HuggingFaceProfileData | null;
   identityLinks: {
     stackOverflow: { matched: boolean };
     npm: { matched: boolean; packageCount?: number };
     pypi: { matched: boolean; packageCount?: number };
     devto: { matched: boolean };
+    huggingface: { matched: boolean; modelCount?: number };
   };
 }
 
@@ -283,6 +322,7 @@ function PlatformBadges({ platforms }: { platforms: string[] }) {
     'npm': { color: '#cb3837', label: 'npm' },
     'PyPI': { color: '#3775a9', label: 'PyPI' },
     'DEV.to': { color: '#0a0a0a', label: 'DEV.to' },
+    'Hugging Face': { color: '#ffcc00', label: 'Hugging Face' },
   };
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -421,6 +461,74 @@ function DevToCard({ data }: { data: DevToProfileData }) {
   );
 }
 
+function HuggingFaceCard({ data }: { data: HuggingFaceProfileData }) {
+  const PIPELINE_COLORS: Record<string, string> = {
+    'text-generation': '#ff6b35',
+    'text-classification': '#10b981',
+    'image-classification': '#8b5cf6',
+    'object-detection': '#f59e0b',
+    'text-to-image': '#ec4899',
+    'automatic-speech-recognition': '#3b82f6',
+    'translation': '#14b8a6',
+    'summarization': '#f97316',
+    'question-answering': '#6366f1',
+    'fill-mask': '#84cc16',
+  };
+
+  return (
+    <div className="rounded-xl border border-[#ffcc00]/20 bg-[#ffcc00]/5 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-5 h-5 rounded bg-[#ffcc00] flex items-center justify-center text-[10px] font-bold text-black">HF</div>
+        <h4 className="text-xs font-bold text-[#ffcc00]">Hugging Face</h4>
+        <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] text-slate-500 hover:text-[#ffcc00] transition">View Profile →</a>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="text-center">
+          <div className="text-base font-bold font-mono text-white">{data.models.length}</div>
+          <div className="text-[9px] text-slate-500 uppercase">Models</div>
+        </div>
+        <div className="text-center">
+          <div className="text-base font-bold font-mono text-white">{data.datasets.length}</div>
+          <div className="text-[9px] text-slate-500 uppercase">Datasets</div>
+        </div>
+        <div className="text-center">
+          <div className="text-base font-bold font-mono text-white">{data.spaces.length}</div>
+          <div className="text-[9px] text-slate-500 uppercase">Spaces</div>
+        </div>
+        <div className="text-center">
+          <div className="text-base font-bold font-mono text-white">{data.totalDownloads >= 1000000 ? `${(data.totalDownloads / 1000000).toFixed(1)}M` : data.totalDownloads >= 1000 ? `${(data.totalDownloads / 1000).toFixed(1)}K` : data.totalDownloads}</div>
+          <div className="text-[9px] text-slate-500 uppercase">Downloads</div>
+        </div>
+      </div>
+
+      {data.topPipelineTags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-3">
+          {data.topPipelineTags.map((tag) => (
+            <span key={tag} className="px-1.5 py-0.5 rounded text-[10px] font-mono" style={{ backgroundColor: `${PIPELINE_COLORS[tag] || '#64748b'}15`, color: PIPELINE_COLORS[tag] || '#94a3b8', border: `1px solid ${PIPELINE_COLORS[tag] || '#64748b'}30` }}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {data.models.length > 0 && (
+        <div className="space-y-1.5">
+          {data.models.slice(0, 4).map((m) => (
+            <a key={m.modelId} href={`https://huggingface.co/${m.modelId}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 group">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-mono text-slate-200 group-hover:text-[#ffcc00] transition truncate">{m.modelId.split('/').pop()}</div>
+              </div>
+              <span className="text-[10px] text-slate-500 shrink-0">⬇ {m.downloads >= 1000 ? `${(m.downloads / 1000).toFixed(1)}K` : m.downloads}</span>
+              <span className="text-[10px] text-pink-400/70 shrink-0">❤ {m.likes}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GitHubLookupCardPage() {
   const params = useParams<{ username: string }>();
   const searchParams = useSearchParams();
@@ -533,7 +641,7 @@ export default function GitHubLookupCardPage() {
   const { crawl, analysis, multiPlatform, avatarUrl } = result;
   const platforms = analysis?.platformsUsed || ['GitHub'];
   const insights = analysis?.multiPlatformInsights;
-  const hasMultiPlatform = multiPlatform && (multiPlatform.stackOverflow || multiPlatform.npmPackages?.length || multiPlatform.pypiPackages?.length || multiPlatform.devto);
+  const hasMultiPlatform = multiPlatform && (multiPlatform.stackOverflow || multiPlatform.npmPackages?.length || multiPlatform.pypiPackages?.length || multiPlatform.devto || multiPlatform.huggingface);
 
   return (
     <div className="min-h-screen bg-[#06080f] text-white">
@@ -614,12 +722,15 @@ export default function GitHubLookupCardPage() {
         </div>
 
         {/* Community Influence Scores */}
-        {insights && (insights.communityInfluenceScore || insights.knowledgeSharingScore || insights.packageImpactScore) && (
+        {insights && (insights.communityInfluenceScore || insights.knowledgeSharingScore || insights.packageImpactScore || insights.aiMlImpactScore) && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Cross-Platform Influence</h3>
             <div className="space-y-3">
               {insights.communityInfluenceScore != null && (
                 <InfluenceBar label="Community" score={insights.communityInfluenceScore} color="#8b5cf6" />
+              )}
+              {insights.aiMlImpactScore != null && (
+                <InfluenceBar label="AI/ML" score={insights.aiMlImpactScore} color="#ffcc00" />
               )}
               {insights.knowledgeSharingScore != null && (
                 <InfluenceBar label="Knowledge" score={insights.knowledgeSharingScore} color="#f48024" />
@@ -643,6 +754,7 @@ export default function GitHubLookupCardPage() {
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Multi-Platform Presence</h3>
             <div className="grid gap-4">
+              {multiPlatform.huggingface && <HuggingFaceCard data={multiPlatform.huggingface} />}
               {multiPlatform.stackOverflow && <StackOverflowCard data={multiPlatform.stackOverflow} />}
               {multiPlatform.npmPackages?.length > 0 && <NpmPackagesCard packages={multiPlatform.npmPackages} />}
               {multiPlatform.pypiPackages?.length > 0 && <PyPIPackagesCard packages={multiPlatform.pypiPackages} />}

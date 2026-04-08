@@ -10,6 +10,7 @@ const SO_API = 'https://api.stackexchange.com/2.3';
 const NPM_REGISTRY = 'https://registry.npmjs.org';
 const PYPI_API = 'https://pypi.org';
 const DEVTO_API = 'https://dev.to/api';
+const HF_API = 'https://huggingface.co/api';
 
 /* ══════════════════════════════════════════════════════════════
    Types
@@ -60,6 +61,45 @@ export interface DevToProfile {
   topArticles: Array<{ title: string; url: string; positiveReactions: number; publishedAt: string; tags: string[] }>;
 }
 
+export interface HuggingFaceModel {
+  id: string;
+  modelId: string;
+  likes: number;
+  downloads: number;
+  tags: string[];
+  pipelineTag: string | null;
+  lastModified: string;
+}
+
+export interface HuggingFaceDataset {
+  id: string;
+  likes: number;
+  downloads: number;
+  tags: string[];
+  lastModified: string;
+}
+
+export interface HuggingFaceSpace {
+  id: string;
+  likes: number;
+  sdk: string | null;
+  tags: string[];
+  lastModified: string;
+}
+
+export interface HuggingFaceProfile {
+  username: string;
+  fullname: string;
+  avatarUrl: string | null;
+  models: HuggingFaceModel[];
+  datasets: HuggingFaceDataset[];
+  spaces: HuggingFaceSpace[];
+  totalLikes: number;
+  totalDownloads: number;
+  topPipelineTags: string[];
+  profileUrl: string;
+}
+
 export interface MultiPlatformProfile {
   githubUsername: string;
   resolvedAt: string;
@@ -68,11 +108,13 @@ export interface MultiPlatformProfile {
     npm: { matched: boolean; method?: string; packageCount?: number };
     pypi: { matched: boolean; method?: string; packageCount?: number };
     devto: { matched: boolean; method?: string };
+    huggingface: { matched: boolean; method?: string; modelCount?: number; datasetCount?: number; spaceCount?: number };
   };
   stackOverflow: StackOverflowProfile | null;
   npmPackages: NpmPackageInfo[];
   pypiPackages: PyPIPackageInfo[];
   devto: DevToProfile | null;
+  huggingface: HuggingFaceProfile | null;
 }
 
 export type PlatformCrawlCallback = (platform: string, detail: string) => void;
@@ -348,6 +390,108 @@ async function findDevToProfile(identity: GitHubIdentity): Promise<{ profile: De
 }
 
 /* ══════════════════════════════════════════════════════════════
+   Hugging Face
+   ══════════════════════════════════════════════════════════════ */
+
+async function findHuggingFaceProfile(identity: GitHubIdentity): Promise<{ profile: HuggingFaceProfile; method: string } | null> {
+  const tryUser = async (username: string): Promise<HuggingFaceProfile | null> => {
+    try {
+      const [modelsRes, datasetsRes, spacesRes] = await Promise.all([
+        fetch(`${HF_API}/models?author=${encodeURIComponent(username)}&sort=downloads&direction=-1&limit=20`),
+        fetch(`${HF_API}/datasets?author=${encodeURIComponent(username)}&sort=downloads&direction=-1&limit=10`),
+        fetch(`${HF_API}/spaces?author=${encodeURIComponent(username)}&sort=likes&direction=-1&limit=10`),
+      ]);
+
+      const models: HuggingFaceModel[] = [];
+      const datasets: HuggingFaceDataset[] = [];
+      const spaces: HuggingFaceSpace[] = [];
+
+      if (modelsRes.ok) {
+        const raw = await modelsRes.json();
+        for (const m of (raw as any[]) || []) {
+          models.push({
+            id: m._id || m.id || '',
+            modelId: m.modelId || m.id || '',
+            likes: m.likes || 0,
+            downloads: m.downloads || 0,
+            tags: m.tags || [],
+            pipelineTag: m.pipeline_tag || null,
+            lastModified: m.lastModified || '',
+          });
+        }
+      }
+
+      if (datasetsRes.ok) {
+        const raw = await datasetsRes.json();
+        for (const d of (raw as any[]) || []) {
+          datasets.push({
+            id: d._id || d.id || '',
+            likes: d.likes || 0,
+            downloads: d.downloads || 0,
+            tags: d.tags || [],
+            lastModified: d.lastModified || '',
+          });
+        }
+      }
+
+      if (spacesRes.ok) {
+        const raw = await spacesRes.json();
+        for (const s of (raw as any[]) || []) {
+          spaces.push({
+            id: s._id || s.id || '',
+            likes: s.likes || 0,
+            sdk: s.sdk || null,
+            tags: s.tags || [],
+            lastModified: s.lastModified || '',
+          });
+        }
+      }
+
+      if (models.length === 0 && datasets.length === 0 && spaces.length === 0) {
+        return null;
+      }
+
+      const totalLikes = models.reduce((s, m) => s + m.likes, 0) +
+        datasets.reduce((s, d) => s + d.likes, 0) +
+        spaces.reduce((s, sp) => s + sp.likes, 0);
+      const totalDownloads = models.reduce((s, m) => s + m.downloads, 0) +
+        datasets.reduce((s, d) => s + d.downloads, 0);
+
+      const pipelineTags = new Map<string, number>();
+      for (const m of models) {
+        if (m.pipelineTag) {
+          pipelineTags.set(m.pipelineTag, (pipelineTags.get(m.pipelineTag) || 0) + 1);
+        }
+      }
+      const topPipelineTags = [...pipelineTags.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([tag]) => tag);
+
+      return {
+        username,
+        fullname: username,
+        avatarUrl: `https://huggingface.co/avatars/${username}`,
+        models: models.slice(0, 10),
+        datasets: datasets.slice(0, 5),
+        spaces: spaces.slice(0, 5),
+        totalLikes,
+        totalDownloads,
+        topPipelineTags,
+        profileUrl: `https://huggingface.co/${username}`,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const profile = await tryUser(identity.username);
+  if (profile) return { profile, method: 'username_match' };
+
+  return null;
+}
+
+/* ══════════════════════════════════════════════════════════════
    Main: 完整多平台爬取
    ══════════════════════════════════════════════════════════════ */
 
@@ -368,11 +512,13 @@ export async function crawlMultiPlatform(
       npm: { matched: false },
       pypi: { matched: false },
       devto: { matched: false },
+      huggingface: { matched: false },
     },
     stackOverflow: null,
     npmPackages: [],
     pypiPackages: [],
     devto: null,
+    huggingface: null,
   };
 
   const tasks = [
@@ -430,6 +576,24 @@ export async function crawlMultiPlatform(
         onProgress?.('devto', `Found: ${devto.profile.articlesCount} articles, ${devto.profile.totalReactions} reactions`);
       } else {
         onProgress?.('devto', 'No DEV.to profile found');
+      }
+    })(),
+
+    (async () => {
+      onProgress?.('huggingface', 'Searching Hugging Face models, datasets & spaces...');
+      const hf = await findHuggingFaceProfile(identity);
+      if (hf) {
+        result.huggingface = hf.profile;
+        result.identityLinks.huggingface = {
+          matched: true,
+          method: hf.method,
+          modelCount: hf.profile.models.length,
+          datasetCount: hf.profile.datasets.length,
+          spaceCount: hf.profile.spaces.length,
+        };
+        onProgress?.('huggingface', `Found: ${hf.profile.models.length} models, ${hf.profile.datasets.length} datasets, ${hf.profile.spaces.length} spaces (${hf.profile.totalDownloads.toLocaleString()} downloads)`);
+      } else {
+        onProgress?.('huggingface', 'No Hugging Face profile found');
       }
     })(),
   ];
