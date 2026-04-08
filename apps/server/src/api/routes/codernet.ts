@@ -385,8 +385,39 @@ export function codernetRoutes(): IRouter {
   /* ── Outreach Campaigns ──────────────────────────────────── */
 
   /**
+   * POST /api/codernet/outreach/preview
+   * Generates a preview message for one recipient (without creating a campaign).
+   * MUST be registered before /outreach/:id routes to avoid `:id` matching "preview".
+   */
+  router.post('/outreach/preview', async (req: Request, res: Response) => {
+    try {
+      const { intent, senderName, senderInfo, recipientUsername, recipientProfile } = req.body as {
+        intent?: string;
+        senderName?: string;
+        senderInfo?: string;
+        recipientUsername?: string;
+        recipientProfile?: any;
+      };
+      if (!intent || !senderName || !recipientUsername) {
+        return res.status(400).json({ error: 'intent, senderName, and recipientUsername are required' });
+      }
+      const message = await previewMessage({
+        intent,
+        senderName,
+        senderInfo: senderInfo || '',
+        recipientUsername,
+        recipientProfile,
+      });
+      res.json({ message });
+    } catch (error) {
+      console.error('[Outreach] preview error:', error);
+      res.status(500).json({ error: 'Failed to generate preview' });
+    }
+  });
+
+  /**
    * POST /api/codernet/outreach
-   * Creates a new outreach campaign and starts the pipeline (search → extract contacts → generate messages).
+   * Creates a new outreach campaign and starts the pipeline.
    */
   router.post('/outreach', async (req: Request, res: Response) => {
     try {
@@ -492,36 +523,6 @@ export function codernetRoutes(): IRouter {
       res.json({ campaign: campaign ? sanitizeCampaign(campaign) : null });
     } catch (error) {
       res.status(500).json({ error: 'Failed to pause campaign' });
-    }
-  });
-
-  /**
-   * POST /api/codernet/outreach/preview
-   * Generates a preview message for one recipient (without creating a campaign).
-   */
-  router.post('/outreach/preview', async (req: Request, res: Response) => {
-    try {
-      const { intent, senderName, senderInfo, recipientUsername, recipientProfile } = req.body as {
-        intent?: string;
-        senderName?: string;
-        senderInfo?: string;
-        recipientUsername?: string;
-        recipientProfile?: any;
-      };
-      if (!intent || !senderName || !recipientUsername) {
-        return res.status(400).json({ error: 'intent, senderName, and recipientUsername are required' });
-      }
-      const message = await previewMessage({
-        intent,
-        senderName,
-        senderInfo: senderInfo || '',
-        recipientUsername,
-        recipientProfile,
-      });
-      res.json({ message });
-    } catch (error) {
-      console.error('[Outreach] preview error:', error);
-      res.status(500).json({ error: 'Failed to generate preview' });
     }
   });
 

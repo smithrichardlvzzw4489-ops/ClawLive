@@ -7,6 +7,7 @@
  */
 
 import { getPublishingLlmClient } from './llm';
+import { parseQueryToGitHubSearch } from './codernet-search';
 import type { CodernetAnalysis } from './codernet-profile-analyzer';
 
 const GH_API = 'https://api.github.com';
@@ -496,13 +497,22 @@ export async function runCampaignPipeline(
   campaign.updatedAt = Date.now();
 
   try {
-    /* ── Step 1: 分页获取候选人 ── */
+    /* ── Step 0: LLM 解析自然语言 → GitHub Search 查询 ── */
     campaign.progress.phase = 'searching';
-    campaign.progress.detail = 'Searching GitHub for candidates...';
+    campaign.progress.detail = 'AI is parsing your search query...';
+    campaign.updatedAt = Date.now();
+
+    const parsed = await parseQueryToGitHubSearch(campaign.searchQuery);
+    campaign.githubQuery = parsed.githubQuery;
+    console.log(`[Outreach] parsed query: "${parsed.githubQuery}" (${parsed.explanation})`);
+
+    /* ── Step 1: 分页获取候选人 ── */
+    campaign.progress.detail = `Searching GitHub: ${parsed.githubQuery}`;
+    campaign.updatedAt = Date.now();
 
     const maxUsers = campaign.tierConfig.tier4;
     const searchUsers = await fetchAllSearchPages(
-      campaign.githubQuery,
+      parsed.githubQuery,
       token,
       maxUsers,
       (fetched, total) => {

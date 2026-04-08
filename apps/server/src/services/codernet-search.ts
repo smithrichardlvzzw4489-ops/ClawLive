@@ -31,14 +31,14 @@ export interface DeveloperSearchResult {
 
 /* ── Phase 1: LLM 解析用户意图 → GitHub Search qualifiers ─── */
 
-interface ParsedQuery {
+export interface ParsedQuery {
   githubQuery: string;
   sort?: 'followers' | 'repositories' | 'joined';
   order?: 'desc' | 'asc';
   explanation: string;
 }
 
-async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
+export async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
   const { client, model } = getPublishingLlmClient();
 
   const prompt = `你是 GitHub Search API 查询生成器。将用户的自然语言需求转换为 GitHub Search Users API 的 q 参数。
