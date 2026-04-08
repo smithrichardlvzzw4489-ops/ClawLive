@@ -10,6 +10,8 @@ datasource db {
 model User {
   id                String   @id @default(uuid())
   telegramId        String?  @unique
+  /// GitHub OAuth user id
+  githubId          String?  @unique
   /// 微信小程序 openid，与站内账号绑定后用于 wx.login 换票
   wechatMpOpenid    String?  @unique
   username          String   @unique

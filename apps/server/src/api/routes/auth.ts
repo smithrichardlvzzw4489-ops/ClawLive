@@ -239,6 +239,115 @@ router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) =
   }
 });
 
+// ── GitHub OAuth ──────────────────────────────────────────────
+const GITHUB_CLIENT_ID = process.env.GITHUB_OAUTH_CLIENT_ID || '';
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_OAUTH_CLIENT_SECRET || '';
+
+interface GitHubTokenResponse {
+  access_token?: string;
+  token_type?: string;
+  error?: string;
+  error_description?: string;
+}
+
+interface GitHubUser {
+  id: number;
+  login: string;
+  avatar_url: string;
+  email: string | null;
+  name: string | null;
+}
+
+interface GitHubEmail {
+  email: string;
+  primary: boolean;
+  verified: boolean;
+}
+
+router.post('/github', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body as { code?: string };
+    if (!code) {
+      return res.status(400).json({ error: 'GitHub authorization code is required' });
+    }
+    if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+      return res.status(500).json({ error: 'GitHub OAuth is not configured on the server' });
+    }
+
+    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        client_id: GITHUB_CLIENT_ID,
+        client_secret: GITHUB_CLIENT_SECRET,
+        code,
+      }),
+    });
+    const tokenData = (await tokenRes.json()) as GitHubTokenResponse;
+    if (tokenData.error || !tokenData.access_token) {
+      return res.status(401).json({
+        error: 'GITHUB_AUTH_FAILED',
+        detail: tokenData.error_description || tokenData.error || 'Failed to exchange code',
+      });
+    }
+
+    const ghHeaders = {
+      Authorization: `Bearer ${tokenData.access_token}`,
+      Accept: 'application/json',
+      'User-Agent': 'ClawLab-OAuth',
+    };
+
+    const [userRes, emailsRes] = await Promise.all([
+      fetch('https://api.github.com/user', { headers: ghHeaders }),
+      fetch('https://api.github.com/user/emails', { headers: ghHeaders }),
+    ]);
+    if (!userRes.ok) {
+      return res.status(401).json({ error: 'GITHUB_AUTH_FAILED', detail: 'Failed to fetch GitHub user' });
+    }
+    const ghUser = (await userRes.json()) as GitHubUser;
+    const githubId = String(ghUser.id);
+
+    let primaryEmail: string | null = ghUser.email;
+    if (!primaryEmail && emailsRes.ok) {
+      const emails = (await emailsRes.json()) as GitHubEmail[];
+      const primary = emails.find((e) => e.primary && e.verified);
+      if (primary) primaryEmail = primary.email;
+      else if (emails.length > 0 && emails[0].verified) primaryEmail = emails[0].email;
+    }
+
+    let user = await prisma.user.findUnique({ where: { githubId } });
+
+    if (!user) {
+      let username = ghUser.login;
+      const taken = await prisma.user.findUnique({ where: { username } });
+      if (taken) {
+        username = `${ghUser.login}_gh`;
+        const taken2 = await prisma.user.findUnique({ where: { username } });
+        if (taken2) username = `gh_${githubId.slice(-6)}`;
+      }
+
+      user = await prisma.user.create({
+        data: {
+          githubId,
+          username,
+          email: primaryEmail || undefined,
+          avatarUrl: ghUser.avatar_url || undefined,
+        },
+      });
+    }
+
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
+    const refreshToken = jwt.sign({ userId: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' } as jwt.SignOptions);
+
+    const { passwordHash: _, litellmVirtualKey: __vk, ...userWithoutSensitive } = user;
+
+    res.json({ user: userWithoutSensitive, token, refreshToken });
+  } catch (error) {
+    console.error('GitHub OAuth error:', error);
+    res.status(500).json({ error: 'GitHub login failed' });
+  }
+});
+
 router.post('/refresh', async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
