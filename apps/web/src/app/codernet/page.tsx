@@ -9,14 +9,23 @@ type TabId = 'lookup' | 'find';
 
 interface SearchResult {
   githubUsername: string;
-  avatarUrl: string | null;
+  avatarUrl: string;
   oneLiner: string;
   techTags: string[];
   sharpCommentary: string;
   score: number;
   reason: string;
+  bio: string | null;
+  location: string | null;
   stats?: { totalPublicRepos: number; totalStars: number; followers: number };
 }
+
+const SEARCH_PHASES = [
+  { key: 'parsing', label: '理解你的需求', icon: '🧠' },
+  { key: 'searching', label: '搜索 GitHub', icon: '🔍' },
+  { key: 'enriching', label: '分析候选人', icon: '📊' },
+  { key: 'ranking', label: 'AI 精排', icon: '🏆' },
+] as const;
 
 export default function CodernetIndexPage() {
   const router = useRouter();
@@ -27,6 +36,7 @@ export default function CodernetIndexPage() {
 
   const [findQuery, setFindQuery] = useState('');
   const [searching, setSearching] = useState(false);
+  const [searchPhase, setSearchPhase] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
   const [searchError, setSearchError] = useState('');
 
@@ -53,6 +63,15 @@ export default function CodernetIndexPage() {
     setSearching(true);
     setSearchError('');
     setSearchResults(null);
+    setSearchPhase('parsing');
+
+    const phases = ['parsing', 'searching', 'enriching', 'ranking'];
+    let phaseIdx = 0;
+    const phaseTimer = setInterval(() => {
+      phaseIdx = Math.min(phaseIdx + 1, phases.length - 1);
+      setSearchPhase(phases[phaseIdx]);
+    }, 5000);
+
     try {
       const base = API_BASE_URL || '';
       const res = await fetch(`${base}/api/codernet/search`, {
@@ -66,6 +85,8 @@ export default function CodernetIndexPage() {
     } catch (err: any) {
       setSearchError(err.message || 'Search failed');
     } finally {
+      clearInterval(phaseTimer);
+      setSearchPhase('');
       setSearching(false);
     }
   };
@@ -158,7 +179,7 @@ export default function CodernetIndexPage() {
                 <textarea
                   value={findQuery}
                   onChange={(e) => setFindQuery(e.target.value)}
-                  placeholder="描述你想找的开发者，例如：&#10;• 我需要一个擅长 Rust 和分布式系统的后端开发者&#10;• 找一个全栈开发合伙人，最好懂 AI/ML&#10;• 想找做开源项目的 Go 开发者交流"
+                  placeholder="描述你想找的开发者，AI 将实时搜索 GitHub 1.8亿+ 开发者：&#10;• 上海的 Rust 后端开发者，专注分布式系统&#10;• 全栈开发合伙人，懂 AI/ML，粉丝 1000+&#10;• 日本的 Go 开发者，做过开源基础设施项目"
                   rows={4}
                   className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none resize-none focus:border-violet-500/40 transition"
                 />
@@ -170,13 +191,47 @@ export default function CodernetIndexPage() {
                   {searching ? (
                     <>
                       <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      AI 搜索中...
+                      全网搜索中...
                     </>
                   ) : (
-                    '搜索匹配的开发者'
+                    '全网搜索开发者'
                   )}
                 </button>
               </form>
+
+              {/* Phase progress bar during search */}
+              {searching && (
+                <div className="mt-5 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    {SEARCH_PHASES.map((ph, i) => {
+                      const active = searchPhase === ph.key;
+                      const done = SEARCH_PHASES.findIndex((p) => p.key === searchPhase) > i;
+                      return (
+                        <div key={ph.key} className="flex items-center gap-1.5">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all duration-300 ${
+                            active ? 'bg-violet-600 scale-110 ring-2 ring-violet-400/50 shadow-lg shadow-violet-500/20' :
+                            done ? 'bg-green-600/80' : 'bg-white/[0.06]'
+                          }`}>
+                            {done ? '✓' : ph.icon}
+                          </div>
+                          <span className={`text-[10px] hidden sm:inline ${active ? 'text-violet-300 font-semibold' : done ? 'text-green-400/70' : 'text-slate-600'}`}>
+                            {ph.label}
+                          </span>
+                          {i < SEARCH_PHASES.length - 1 && (
+                            <div className={`w-4 h-px ${done ? 'bg-green-600/50' : 'bg-white/[0.06]'}`} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-slate-400 animate-pulse">
+                    {searchPhase === 'parsing' && 'AI 正在理解你的需求，转换为 GitHub 搜索条件...'}
+                    {searchPhase === 'searching' && '正在从 GitHub 1.8亿+ 开发者中实时搜索...'}
+                    {searchPhase === 'enriching' && '对 top 候选人进行深度分析，生成 AI 画像...'}
+                    {searchPhase === 'ranking' && 'AI 精排中，找出最匹配的开发者...'}
+                  </p>
+                </div>
+              )}
 
               {searchError && (
                 <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">{searchError}</div>
@@ -185,13 +240,16 @@ export default function CodernetIndexPage() {
               {searchResults !== null && searchResults.length === 0 && !searching && (
                 <div className="mt-8 text-center">
                   <p className="text-slate-500 text-sm">没有找到匹配的开发者</p>
-                  <p className="text-slate-600 text-xs mt-1">试试先用上方「查 GitHub 用户」生成一些画像，再来搜索</p>
+                  <p className="text-slate-600 text-xs mt-1">试试换个描述方式，或指定更具体的技术栈和要求</p>
                 </div>
               )}
 
               {searchResults && searchResults.length > 0 && (
                 <div className="mt-6 space-y-3">
-                  <p className="text-xs text-slate-500 font-mono">Found {searchResults.length} developers</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-slate-500 font-mono">Found {searchResults.length} developers from GitHub</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">Live Search</span>
+                  </div>
                   {searchResults.map((r) => (
                     <SearchResultCard key={r.githubUsername} result={r} onConnect={() => {
                       router.push(`/codernet/github/${r.githubUsername}?connect=1&from_query=${encodeURIComponent(findQuery)}`);
@@ -236,34 +294,41 @@ export default function CodernetIndexPage() {
 
 function SearchResultCard({ result, onConnect }: { result: SearchResult; onConnect: () => void }) {
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 text-left">
+    <div className="rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-4 text-left hover:border-violet-500/20 transition-all group">
       <div className="flex items-start gap-3">
         {result.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={result.avatarUrl} alt={result.githubUsername} className="w-10 h-10 rounded-lg border border-white/10" />
+          <img src={result.avatarUrl} alt={result.githubUsername} className="w-12 h-12 rounded-xl border border-white/10 group-hover:border-violet-500/30 transition" />
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-violet-600/30 flex items-center justify-center text-lg font-bold">{result.githubUsername[0]?.toUpperCase()}</div>
+          <div className="w-12 h-12 rounded-xl bg-violet-600/30 flex items-center justify-center text-lg font-bold">{result.githubUsername[0]?.toUpperCase()}</div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link href={`/codernet/github/${result.githubUsername}`} className="text-sm font-bold text-white hover:text-violet-300 transition truncate">
               @{result.githubUsername}
             </Link>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300">{Math.round(result.score * 100)}% match</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 shrink-0">
+              {Math.round(result.score * 100)}%
+            </span>
+            {result.location && (
+              <span className="text-[10px] text-slate-500">📍 {result.location}</span>
+            )}
           </div>
-          {result.oneLiner && <p className="text-xs text-violet-300/80 mt-0.5">{result.oneLiner}</p>}
+          {result.bio && <p className="text-xs text-slate-300 mt-0.5 line-clamp-1">{result.bio}</p>}
+          {result.oneLiner && <p className="text-xs text-violet-300/80 mt-0.5 italic">&ldquo;{result.oneLiner}&rdquo;</p>}
           <p className="text-xs text-slate-400 mt-1">{result.reason}</p>
           {result.techTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2">
-              {result.techTags.slice(0, 5).map((t) => (
+              {result.techTags.slice(0, 6).map((t) => (
                 <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400 font-mono">{t}</span>
               ))}
             </div>
           )}
         </div>
         {result.stats && (
-          <div className="text-right shrink-0">
-            <div className="text-xs font-mono text-slate-400">&#9733; {result.stats.totalStars}</div>
+          <div className="text-right shrink-0 space-y-0.5">
+            <div className="text-xs font-mono text-yellow-400/80">&#9733; {result.stats.totalStars.toLocaleString()}</div>
+            <div className="text-[10px] text-slate-500">{result.stats.followers.toLocaleString()} followers</div>
             <div className="text-[10px] text-slate-600">{result.stats.totalPublicRepos} repos</div>
           </div>
         )}
@@ -271,15 +336,15 @@ function SearchResultCard({ result, onConnect }: { result: SearchResult; onConne
       <div className="mt-3 flex gap-2">
         <Link
           href={`/codernet/github/${result.githubUsername}`}
-          className="flex-1 text-center py-1.5 rounded-lg border border-white/[0.08] text-xs text-slate-400 hover:text-white hover:bg-white/[0.05] transition"
+          className="flex-1 text-center py-2 rounded-lg border border-white/[0.08] text-xs text-slate-400 hover:text-white hover:bg-white/[0.05] transition"
         >
           View Profile
         </Link>
         <button
           onClick={onConnect}
-          className="flex-1 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-medium text-white transition"
+          className="flex-1 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-medium text-white transition"
         >
-          Connect
+          Connect via Agent
         </button>
       </div>
     </div>

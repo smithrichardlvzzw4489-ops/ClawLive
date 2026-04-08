@@ -260,7 +260,8 @@ export function codernetRoutes(): IRouter {
       if (!query?.trim()) {
         return res.status(400).json({ error: 'query is required' });
       }
-      const results = await searchDevelopers(query.trim(), lookupCache);
+      const token = getServerToken();
+      const results = await searchDevelopers(query.trim(), lookupCache, token);
       res.json({ results });
     } catch (error) {
       console.error('[Codernet] search error:', error);

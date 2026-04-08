@@ -1,160 +1,287 @@
 /**
- * Codernet 语义搜索：用户输入自然语言描述，LLM 从已有画像中匹配最相关的开发者。
+ * Codernet 全网开发者搜索：
+ * 1. LLM 解析自然语言 → GitHub Search API qualifiers
+ * 2. GitHub Search API 实时搜人（/search/users）
+ * 3. 批量爬取 top 候选人画像
+ * 4. LLM 精排 → 返回最匹配的开发者
  */
 
 import { getPublishingLlmClient } from './llm';
-import { prisma } from '../lib/prisma';
-import type { CodernetAnalysis } from './codernet-profile-analyzer';
+import { crawlGitHubProfile, type GitHubCrawlResult } from './github-crawler';
+import { analyzeGitHubProfile, type CodernetAnalysis } from './codernet-profile-analyzer';
 
 export interface DeveloperSearchResult {
   githubUsername: string;
-  avatarUrl: string | null;
+  avatarUrl: string;
   oneLiner: string;
   techTags: string[];
   sharpCommentary: string;
   score: number;
   reason: string;
-  source: 'platform' | 'cache';
-  platformUsername?: string;
-  stats?: {
+  source: 'github_search';
+  stats: {
     totalPublicRepos: number;
     totalStars: number;
     followers: number;
   };
+  bio: string | null;
+  location: string | null;
   capabilityQuadrant?: CodernetAnalysis['capabilityQuadrant'];
 }
 
-interface ProfileSummary {
-  key: string;
-  ghUsername: string;
-  avatarUrl: string | null;
-  tags: string[];
-  oneLiner: string;
-  commentary: string;
-  source: 'platform' | 'cache';
-  platformUsername?: string;
-  stats?: { totalPublicRepos: number; totalStars: number; followers: number };
-  quadrant?: CodernetAnalysis['capabilityQuadrant'];
+/* ── Phase 1: LLM 解析用户意图 → GitHub Search qualifiers ─── */
+
+interface ParsedQuery {
+  githubQuery: string;
+  sort?: 'followers' | 'repositories' | 'joined';
+  order?: 'desc' | 'asc';
+  explanation: string;
 }
 
-/**
- * Collect all available Codernet profiles from DB + in-memory cache.
- */
-async function collectProfiles(
-  lookupCache: Map<string, { crawl: any; analysis: any; avatarUrl?: string }>,
-): Promise<ProfileSummary[]> {
-  const profiles: ProfileSummary[] = [];
+async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
+  const { client, model } = getPublishingLlmClient();
 
-  const dbUsers = await prisma.user.findMany({
-    where: { codernetAnalysis: { not: null } },
-    select: {
-      username: true,
-      githubUsername: true,
-      avatarUrl: true,
-      codernetAnalysis: true,
-      githubProfileJson: true,
-    },
+  const prompt = `你是 GitHub Search API 查询生成器。将用户的自然语言需求转换为 GitHub Search Users API 的 q 参数。
+
+用户需求：${query}
+
+GitHub Search Users 支持的 qualifier：
+- language:xxx（编程语言，如 language:rust）
+- location:xxx（地点，如 location:shanghai、location:china）
+- followers:>N 或 followers:N..M（粉丝数）
+- repos:>N（仓库数）
+- type:user（排除组织）
+- 自由文本关键词（如 fullstack、machine-learning）
+
+输出**仅一个 JSON 对象**：
+{
+  "githubQuery": "language:rust location:china followers:>50 type:user",
+  "sort": "followers",
+  "order": "desc",
+  "explanation": "搜索在中国的 Rust 开发者，按粉丝数排序"
+}
+
+规则：
+- githubQuery 必须是有效的 GitHub search users q 参数
+- sort 可选值: "followers", "repositories", "joined"，或不填（默认 best-match）
+- 尽量添加 type:user 排除组织账号
+- 如果用户提到了具体技术栈，用 language: qualifier
+- 如果用户提到了地区，用 location: qualifier
+- 如果用户强调经验丰富/资深，加 followers:>100 或 repos:>30
+- 关键词尽量用英文（GitHub 数据以英文为主）`;
+
+  const response = await client.chat.completions.create({
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    max_tokens: 300,
+    temperature: 0.2,
   });
 
-  for (const u of dbUsers) {
-    const a = u.codernetAnalysis as CodernetAnalysis | null;
-    const crawl = u.githubProfileJson as Record<string, any> | null;
-    if (!a || !u.githubUsername) continue;
-    profiles.push({
-      key: `db:${u.githubUsername}`,
-      ghUsername: u.githubUsername,
-      avatarUrl: u.avatarUrl,
-      tags: a.techTags || [],
-      oneLiner: a.oneLiner || '',
-      commentary: a.sharpCommentary || '',
-      source: 'platform',
-      platformUsername: u.username,
-      stats: crawl ? {
-        totalPublicRepos: crawl.totalPublicRepos ?? 0,
-        totalStars: crawl.totalStars ?? 0,
-        followers: crawl.followers ?? 0,
-      } : undefined,
-      quadrant: a.capabilityQuadrant,
-    });
+  const raw = response.choices[0]?.message?.content?.trim() || '';
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    return { githubQuery: `${query} type:user`, explanation: 'Direct keyword search' };
   }
 
-  for (const [ghUser, entry] of lookupCache.entries()) {
-    if (profiles.some((p) => p.ghUsername.toLowerCase() === ghUser.toLowerCase())) continue;
-    const a = entry.analysis as CodernetAnalysis | null;
-    if (!a) continue;
-    profiles.push({
-      key: `cache:${ghUser}`,
-      ghUsername: ghUser,
-      avatarUrl: entry.avatarUrl || null,
-      tags: a.techTags || [],
-      oneLiner: a.oneLiner || '',
-      commentary: a.sharpCommentary || '',
-      source: 'cache',
-      stats: entry.crawl ? {
-        totalPublicRepos: entry.crawl.totalPublicRepos ?? 0,
-        totalStars: entry.crawl.totalStars ?? 0,
-        followers: entry.crawl.followers ?? 0,
-      } : undefined,
-      quadrant: a.capabilityQuadrant,
-    });
+  try {
+    const parsed = JSON.parse(jsonMatch[0]) as ParsedQuery;
+    if (!parsed.githubQuery) throw new Error('missing githubQuery');
+    return parsed;
+  } catch {
+    return { githubQuery: `${query} type:user`, explanation: 'Fallback keyword search' };
   }
-
-  return profiles;
 }
 
-function buildSearchPrompt(query: string, profiles: ProfileSummary[]): string {
-  const profileList = profiles.map((p, i) =>
-    `[${i}] @${p.ghUsername} | Tags: ${p.tags.join(', ')} | "${p.oneLiner}" | Stars: ${p.stats?.totalStars ?? '?'} | Repos: ${p.stats?.totalPublicRepos ?? '?'}`
-  ).join('\n');
+/* ── Phase 2: GitHub Search API 搜人 ─────────────────────── */
 
-  return `你是 Codernet 开发者匹配引擎。根据用户需求描述，从候选开发者列表中选出最匹配的（最多 5 个）。
+interface GHSearchUserItem {
+  login: string;
+  id: number;
+  avatar_url: string;
+  html_url: string;
+  type: string;
+  score: number;
+  public_repos?: number;
+  followers?: number;
+  following?: number;
+  bio?: string | null;
+  location?: string | null;
+  company?: string | null;
+  blog?: string | null;
+  name?: string | null;
+}
 
-用户需求：
-${query}
+interface GHSearchResponse {
+  total_count: number;
+  incomplete_results: boolean;
+  items: GHSearchUserItem[];
+}
 
-候选开发者：
-${profileList}
+async function searchGitHubUsers(
+  parsedQuery: ParsedQuery,
+  token?: string,
+  maxResults: number = 10,
+): Promise<GHSearchUserItem[]> {
+  const params = new URLSearchParams({
+    q: parsedQuery.githubQuery,
+    per_page: String(Math.min(maxResults, 30)),
+  });
+  if (parsedQuery.sort) params.set('sort', parsedQuery.sort);
+  if (parsedQuery.order) params.set('order', parsedQuery.order);
 
-请输出**仅一个 JSON 数组**，格式如下（不要额外说明文字）：
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'ClawLab-Codernet/1.0',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const url = `https://api.github.com/search/users?${params.toString()}`;
+  console.log(`[CodernetSearch] GitHub Search: ${url}`);
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error(`[CodernetSearch] GitHub Search API ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`GitHub Search API error: ${res.status}`);
+  }
+
+  const data = (await res.json()) as GHSearchResponse;
+  console.log(`[CodernetSearch] GitHub returned ${data.total_count} total, ${data.items.length} items`);
+
+  const users = data.items.filter((u) => u.type === 'User');
+
+  const enriched = await Promise.allSettled(
+    users.slice(0, maxResults).map(async (u) => {
+      try {
+        const profileRes = await fetch(`https://api.github.com/users/${u.login}`, { headers });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          return { ...u, ...profile } as GHSearchUserItem;
+        }
+      } catch {}
+      return u;
+    }),
+  );
+
+  return enriched
+    .filter((r): r is PromiseFulfilledResult<GHSearchUserItem> => r.status === 'fulfilled')
+    .map((r) => r.value);
+}
+
+/* ── Phase 3: 批量爬取 + AI 分析（lightweight，只对 top 5）── */
+
+interface EnrichedCandidate {
+  user: GHSearchUserItem;
+  crawl?: GitHubCrawlResult;
+  analysis?: CodernetAnalysis;
+}
+
+async function enrichCandidates(
+  users: GHSearchUserItem[],
+  token?: string,
+  lookupCache?: Map<string, any>,
+): Promise<EnrichedCandidate[]> {
+  const top = users.slice(0, 5);
+
+  const results = await Promise.allSettled(
+    top.map(async (user): Promise<EnrichedCandidate> => {
+      const cacheKey = user.login.toLowerCase();
+      if (lookupCache?.has(cacheKey)) {
+        const cached = lookupCache.get(cacheKey);
+        return { user, crawl: cached.crawl, analysis: cached.analysis };
+      }
+
+      try {
+        const crawl = await crawlGitHubProfile(token, user.login);
+
+        let analysis: CodernetAnalysis | undefined;
+        try {
+          analysis = await analyzeGitHubProfile(crawl);
+        } catch (err) {
+          console.warn(`[CodernetSearch] AI analysis failed for @${user.login}:`, err);
+        }
+
+        if (lookupCache && analysis) {
+          lookupCache.set(cacheKey, {
+            crawl,
+            analysis,
+            cachedAt: Date.now(),
+            avatarUrl: user.avatar_url,
+          });
+        }
+
+        return { user, crawl, analysis };
+      } catch (err) {
+        console.warn(`[CodernetSearch] crawl failed for @${user.login}:`, err);
+        return { user };
+      }
+    }),
+  );
+
+  return results
+    .filter((r): r is PromiseFulfilledResult<EnrichedCandidate> => r.status === 'fulfilled')
+    .map((r) => r.value);
+}
+
+/* ── Phase 4: LLM 精排 ───────────────────────────────────── */
+
+function buildRerankPrompt(query: string, candidates: EnrichedCandidate[]): string {
+  const list = candidates.map((c, i) => {
+    const u = c.user;
+    const a = c.analysis;
+    const tags = a?.techTags?.join(', ') || 'N/A';
+    const oneLiner = a?.oneLiner || 'N/A';
+    const bio = u.bio || '';
+    const loc = u.location || '?';
+    return `[${i}] @${u.login} | ${bio} | Location: ${loc} | Followers: ${u.followers ?? '?'} | Repos: ${u.public_repos ?? '?'} | Tags: ${tags} | AI: "${oneLiner}"`;
+  }).join('\n');
+
+  return `你是 Codernet 开发者匹配引擎。根据用户的需求，对从 GitHub 找到的候选人进行精排。
+
+用户需求：${query}
+
+候选人（已按 GitHub 相关性初筛）：
+${list}
+
+输出**仅一个 JSON 数组**，按匹配度降序：
 [
   { "index": 0, "score": 0.95, "reason": "匹配理由（1句话中文）" },
   ...
 ]
 
 规则：
-- score 范围 0-1，越高越匹配
-- 最多返回 5 个结果，按 score 降序
-- 只返回 score >= 0.3 的
-- reason 必须中文，说明为什么匹配
-- 如果没有任何匹配，返回空数组 []`;
+- score 范围 0-1
+- 最多返回 5 个，只返回 score >= 0.3 的
+- reason 必须中文
+- 综合考虑技术栈匹配度、经验（stars/followers/repos）、地域、AI画像分析
+- 没有匹配的返回空数组 []`;
 }
 
-export async function searchDevelopers(
+async function rerankCandidates(
   query: string,
-  lookupCache: Map<string, any>,
-): Promise<DeveloperSearchResult[]> {
-  const profiles = await collectProfiles(lookupCache);
-
-  if (profiles.length === 0) return [];
+  candidates: EnrichedCandidate[],
+): Promise<Array<{ index: number; score: number; reason: string }>> {
+  if (candidates.length === 0) return [];
 
   const { client, model } = getPublishingLlmClient();
-  const prompt = buildSearchPrompt(query, profiles);
+  const prompt = buildRerankPrompt(query, candidates);
 
   let response;
   try {
     response = await client.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 800,
-      temperature: 0.3,
+      max_tokens: 600,
+      temperature: 0.2,
       response_format: { type: 'json_object' },
     });
   } catch {
     response = await client.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 800,
-      temperature: 0.3,
+      max_tokens: 600,
+      temperature: 0.2,
     });
   }
 
@@ -162,33 +289,86 @@ export async function searchDevelopers(
   const jsonMatch = raw.match(/\[[\s\S]*\]/);
   if (!jsonMatch) return [];
 
-  let ranked: Array<{ index: number; score: number; reason: string }>;
   try {
-    ranked = JSON.parse(jsonMatch[0]);
+    const arr = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((r: any) => typeof r.index === 'number' && typeof r.score === 'number');
   } catch {
     return [];
   }
+}
 
-  if (!Array.isArray(ranked)) return [];
+/* ── Main: 完整搜索流水线 ─────────────────────────────────── */
 
-  return ranked
-    .filter((r) => r.score >= 0.3 && r.index >= 0 && r.index < profiles.length)
+export interface SearchProgress {
+  phase: 'parsing' | 'searching' | 'enriching' | 'ranking' | 'done' | 'error';
+  detail: string;
+  githubQuery?: string;
+  totalFound?: number;
+}
+
+export async function searchDevelopers(
+  query: string,
+  lookupCache: Map<string, any>,
+  token?: string,
+  onProgress?: (p: SearchProgress) => void,
+): Promise<DeveloperSearchResult[]> {
+  onProgress?.({ phase: 'parsing', detail: 'AI is understanding your query...' });
+
+  const parsed = await parseQueryToGitHubSearch(query);
+  console.log(`[CodernetSearch] parsed: "${parsed.githubQuery}" (${parsed.explanation})`);
+
+  onProgress?.({
+    phase: 'searching',
+    detail: `Searching GitHub: ${parsed.githubQuery}`,
+    githubQuery: parsed.githubQuery,
+  });
+
+  const ghUsers = await searchGitHubUsers(parsed, token, 10);
+  if (ghUsers.length === 0) {
+    onProgress?.({ phase: 'done', detail: 'No GitHub users found', totalFound: 0 });
+    return [];
+  }
+
+  onProgress?.({
+    phase: 'enriching',
+    detail: `Analyzing top ${Math.min(ghUsers.length, 5)} developers...`,
+    totalFound: ghUsers.length,
+  });
+
+  const enriched = await enrichCandidates(ghUsers, token, lookupCache);
+
+  onProgress?.({ phase: 'ranking', detail: 'AI is ranking the best matches...' });
+
+  const ranked = await rerankCandidates(query, enriched);
+
+  const results: DeveloperSearchResult[] = ranked
+    .filter((r) => r.score >= 0.3 && r.index >= 0 && r.index < enriched.length)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5)
     .map((r) => {
-      const p = profiles[r.index];
+      const c = enriched[r.index];
       return {
-        githubUsername: p.ghUsername,
-        avatarUrl: p.avatarUrl,
-        oneLiner: p.oneLiner,
-        techTags: p.tags,
-        sharpCommentary: p.commentary,
+        githubUsername: c.user.login,
+        avatarUrl: c.user.avatar_url,
+        oneLiner: c.analysis?.oneLiner || '',
+        techTags: c.analysis?.techTags || [],
+        sharpCommentary: c.analysis?.sharpCommentary || '',
         score: r.score,
         reason: r.reason,
-        source: p.source,
-        platformUsername: p.platformUsername,
-        stats: p.stats,
-        capabilityQuadrant: p.quadrant,
+        source: 'github_search' as const,
+        stats: {
+          totalPublicRepos: c.user.public_repos ?? c.crawl?.totalPublicRepos ?? 0,
+          totalStars: c.crawl?.totalStars ?? 0,
+          followers: c.user.followers ?? c.crawl?.followers ?? 0,
+        },
+        bio: c.user.bio ?? c.crawl?.bio ?? null,
+        location: c.user.location ?? c.crawl?.location ?? null,
+        capabilityQuadrant: c.analysis?.capabilityQuadrant,
       };
     });
+
+  onProgress?.({ phase: 'done', detail: `Found ${results.length} matches`, totalFound: results.length });
+
+  return results;
 }
