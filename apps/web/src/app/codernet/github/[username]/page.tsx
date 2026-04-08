@@ -1057,9 +1057,9 @@ export default function GitHubLookupCardPage() {
         </div>
 
         {/* AI Engagement Score */}
-        {data.analysis?.aiEngagement && (
+        {analysis?.aiEngagement && (
           <div className="mb-6">
-            <AIEngagementCard data={data.analysis.aiEngagement} />
+            <AIEngagementCard data={analysis.aiEngagement} />
           </div>
         )}
 
