@@ -2,7 +2,7 @@
  * Codernet 画像分析：基于 GitHub + 多平台数据，调用 LLM 生成技术标签、能力象限、锐评。
  */
 
-import { getPublishingLlmClient } from './llm';
+import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 import type { GitHubCrawlResult } from './github-crawler';
 import type { MultiPlatformProfile } from './multiplatform-crawler';
 
@@ -144,26 +144,24 @@ export async function analyzeGitHubProfile(
   crawlData: GitHubCrawlResult,
   multiPlatform?: MultiPlatformProfile | null,
 ): Promise<CodernetAnalysis> {
-  const { client, model } = getPublishingLlmClient();
+  const { model } = getPublishingLlmClient();
 
   const prompt = buildAnalysisPrompt(crawlData, multiPlatform);
+  const meta = { username: crawlData.username };
 
   let response;
   try {
-    response = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1500,
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
-    });
+    response = await trackedChatCompletion(
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.7, response_format: { type: 'json_object' } },
+      'profile_analysis',
+      meta,
+    );
   } catch {
-    response = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1500,
-      temperature: 0.7,
-    });
+    response = await trackedChatCompletion(
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.7 },
+      'profile_analysis',
+      meta,
+    );
   }
 
   const raw = response.choices[0]?.message?.content?.trim() || '';

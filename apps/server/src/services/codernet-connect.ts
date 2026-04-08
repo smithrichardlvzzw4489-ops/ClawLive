@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { getPublishingLlmClient } from './llm';
+import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 import type { CodernetAnalysis } from './codernet-profile-analyzer';
 import type { GitHubCrawlResult } from './github-crawler';
 
@@ -191,24 +191,23 @@ export async function runConnectAgentRound(sessionId: string): Promise<ConnectSe
   if (!session) throw new Error('Connect session not found');
   if (session.status !== 'agent_chat') throw new Error('Session is not in agent_chat status');
 
-  const { client, model } = getPublishingLlmClient();
+  const { model } = getPublishingLlmClient();
+  const meta = { session: sessionId };
 
   const initiatorPrompt = buildInitiatorPrompt(session);
-  const initRes = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: initiatorPrompt }],
-    max_tokens: 400,
-    temperature: 0.7,
-  });
+  const initRes = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: initiatorPrompt }], max_tokens: 400, temperature: 0.7 },
+    'connect_agent',
+    meta,
+  );
   const initiatorText = initRes.choices[0]?.message?.content?.trim() || '（Agent 暂时无法回应）';
 
   const targetPrompt = buildTargetPrompt(session, initiatorText);
-  const targetRes = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: targetPrompt }],
-    max_tokens: 400,
-    temperature: 0.7,
-  });
+  const targetRes = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: targetPrompt }], max_tokens: 400, temperature: 0.7 },
+    'connect_agent',
+    meta,
+  );
   const targetText = targetRes.choices[0]?.message?.content?.trim() || '（Agent 暂时无法回应）';
 
   const now = Date.now();
@@ -222,12 +221,11 @@ export async function runConnectAgentRound(sessionId: string): Promise<ConnectSe
   if (session.agentRounds >= MIN_ROUNDS_FOR_VERDICT && !session.agentVerdict) {
     try {
       const verdictPrompt = buildVerdictPrompt(session);
-      const vRes = await client.chat.completions.create({
-        model,
-        messages: [{ role: 'user', content: verdictPrompt }],
-        max_tokens: 200,
-        temperature: 0.2,
-      });
+      const vRes = await trackedChatCompletion(
+        { model, messages: [{ role: 'user', content: verdictPrompt }], max_tokens: 200, temperature: 0.2 },
+        'connect_agent',
+        meta,
+      );
       const vRaw = vRes.choices[0]?.message?.content?.trim() || '';
       const vMatch = vRaw.match(/\{[\s\S]*\}/);
       if (vMatch) {

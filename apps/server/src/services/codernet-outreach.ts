@@ -6,7 +6,7 @@
  * 4. 追踪与回复漏斗
  */
 
-import { getPublishingLlmClient } from './llm';
+import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 import { parseQueryToGitHubSearch } from './codernet-search';
 import type { CodernetAnalysis } from './codernet-profile-analyzer';
 
@@ -317,12 +317,11 @@ ${recipientInfo}
 7. 语气专业但不过于正式，开发者之间的对话感
 8. 不要使用 "Dear"、"尊敬的" 等过于正式的称呼`;
 
-  const response = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 600,
-    temperature: 0.7,
-  });
+  const response = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.7 },
+    'outreach_message',
+    { recipient: recipient.githubUsername },
+  );
 
   return response.choices[0]?.message?.content?.trim() || '';
 }

@@ -6,7 +6,7 @@
  * 4. LLM 精排 → 返回最匹配的开发者
  */
 
-import { getPublishingLlmClient } from './llm';
+import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 import { crawlGitHubProfile, type GitHubCrawlResult } from './github-crawler';
 import { analyzeGitHubProfile, type CodernetAnalysis } from './codernet-profile-analyzer';
 
@@ -39,7 +39,7 @@ export interface ParsedQuery {
 }
 
 export async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
-  const { client, model } = getPublishingLlmClient();
+  const { model } = getPublishingLlmClient();
 
   const prompt = `你是 GitHub Search API 查询生成器。将用户的自然语言需求转换为 GitHub Search Users API 的 q 参数。
 
@@ -70,12 +70,10 @@ GitHub Search Users 支持的 qualifier：
 - 如果用户强调经验丰富/资深，加 followers:>100 或 repos:>30
 - 关键词尽量用英文（GitHub 数据以英文为主）`;
 
-  const response = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 300,
-    temperature: 0.2,
-  });
+  const response = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.2 },
+    'developer_search',
+  );
 
   const raw = response.choices[0]?.message?.content?.trim() || '';
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
@@ -264,25 +262,20 @@ async function rerankCandidates(
 ): Promise<Array<{ index: number; score: number; reason: string }>> {
   if (candidates.length === 0) return [];
 
-  const { client, model } = getPublishingLlmClient();
+  const { model } = getPublishingLlmClient();
   const prompt = buildRerankPrompt(query, candidates);
 
   let response;
   try {
-    response = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 600,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-    });
+    response = await trackedChatCompletion(
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.2, response_format: { type: 'json_object' } },
+      'search_rerank',
+    );
   } catch {
-    response = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 600,
-      temperature: 0.2,
-    });
+    response = await trackedChatCompletion(
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.2 },
+      'search_rerank',
+    );
   }
 
   const raw = response.choices[0]?.message?.content?.trim() || '[]';

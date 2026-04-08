@@ -12,6 +12,7 @@
 import OpenAI from 'openai';
 import { config } from '../config';
 import { isLitellmConfigured } from './litellm-budget';
+import { trackFromResponse, type TokenFeature } from './token-tracker';
 
 function litellmOpenAIBase(): string {
   const base = config.litellm.baseUrl.replace(/\/$/, '');
@@ -32,6 +33,28 @@ function modelForOpenRouter(): string {
 }
 
 type LlmClient = { client: OpenAI; model: string };
+
+/**
+ * 带 token 追踪的 chat completion 调用。
+ * 自动记录 prompt/completion tokens、耗时、费用估算。
+ */
+export async function trackedChatCompletion(
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming & { model: string },
+  feature: TokenFeature,
+  metadata?: Record<string, string>,
+  clientOverride?: OpenAI,
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+  const llm = clientOverride ? { client: clientOverride, model: params.model } : getPublishingLlmClient();
+  const client = clientOverride || llm.client;
+  const start = Date.now();
+
+  const response = await client.chat.completions.create(params);
+
+  const durationMs = Date.now() - start;
+  trackFromResponse(feature, params.model, response.usage, durationMs, metadata);
+
+  return response;
+}
 
 /** 为 true 时：在已配置 LiteLLM 的情况下仍用 OpenRouter 作为发布/摘要/进化器客户端（需 OPENROUTER_API_KEY） */
 function publishingLlmForceOpenRouter(): boolean {
@@ -107,12 +130,10 @@ ${conversation || '（暂无对话）'}
 
 直接输出一句话，不要加引号、不要加「描述：」等前缀。`;
 
-  const response = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 100,
-    temperature: 0.7,
-  });
+  const response = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.7 },
+    'result_summary',
+  );
 
   const text = response.choices[0]?.message?.content?.trim() || '';
   return text.slice(0, 120);
@@ -132,12 +153,10 @@ export async function generateFeedPostExcerpt(context: {
 标题：${context.title}
 正文节选：${preview}`;
 
-  const response = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 100,
-    temperature: 0.6,
-  });
+  const response = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 100, temperature: 0.6 },
+    'feed_excerpt',
+  );
   const text = response.choices[0]?.message?.content?.trim() || '';
   return text.slice(0, 100);
 }
@@ -176,16 +195,17 @@ Darwin 问卷/背景（节选）：${context.onboardingSnippet || '（无）'}
 
     let response: OpenAI.Chat.Completions.ChatCompletion;
     try {
-      response = await client.chat.completions.create({
-        ...baseParams,
-        response_format: { type: 'json_object' },
-      });
+      response = await trackedChatCompletion(
+        { ...baseParams, response_format: { type: 'json_object' } },
+        'evolver_assessment',
+        { username: context.username },
+      );
     } catch (err) {
       console.warn(
         '[EvolverAssessment] response_format json_object not accepted, retrying without:',
         err instanceof Error ? err.message : err,
       );
-      response = await client.chat.completions.create(baseParams);
+      response = await trackedChatCompletion(baseParams, 'evolver_assessment', { username: context.username });
     }
 
     const raw = response.choices[0]?.message?.content?.trim() || '';
@@ -266,13 +286,10 @@ export async function generateEvolutionAcceptanceCases(context: {
 目标：${context.goal}
 技能摘要：${skillsJson}`;
 
-    const response = await client.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 2000,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-    });
+    const response = await trackedChatCompletion(
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 2000, temperature: 0.2, response_format: { type: 'json_object' } },
+      'evolution_acceptance',
+    );
     const raw = response.choices[0]?.message?.content?.trim() || '';
     if (!raw) return null;
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
@@ -328,12 +345,12 @@ export async function testLiteLLMWithMasterKey(message?: string, modelOverride?:
   const { client, model: defaultModel } = getPublishingLlmClient();
   const model = modelOverride?.trim() || defaultModel;
   const userMsg = message?.trim() || '用一句话回复：连接成功。';
-  const response = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: userMsg }],
-    max_tokens: 200,
-    temperature: 0.5,
-  });
+  const response = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: userMsg }], max_tokens: 200, temperature: 0.5 },
+    'llm_test',
+    undefined,
+    client,
+  );
   const reply = response.choices[0]?.message?.content?.trim() || '';
   return { reply, model };
 }
@@ -351,12 +368,12 @@ export async function testLiteLLMWithVirtualKey(virtualKey: string, message?: st
     baseURL: litellmOpenAIBase(),
   });
   const userMsg = message?.trim() || '用一句话回复：虚拟 Key 可用。';
-  const response = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'user', content: userMsg }],
-    max_tokens: 200,
-    temperature: 0.5,
-  });
+  const response = await trackedChatCompletion(
+    { model, messages: [{ role: 'user', content: userMsg }], max_tokens: 200, temperature: 0.5 },
+    'llm_test',
+    undefined,
+    client,
+  );
   const reply = response.choices[0]?.message?.content?.trim() || '';
   return { reply, model };
 }

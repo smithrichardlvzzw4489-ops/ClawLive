@@ -5,6 +5,7 @@
  */
 import OpenAI from 'openai';
 import type { LobsterContextCompact, LobsterConversation, LobsterMessage } from './lobster-persistence';
+import { trackFromResponse } from './token-tracker';
 
 /** 始终保留原文的最近消息条数（约 4 轮） */
 export const KEEP_RECENT_MESSAGES = 8;
@@ -50,6 +51,7 @@ export async function runCompactionIfNeeded(
   const block = formatMessagesForFold(toFold);
 
   try {
+    const start = Date.now();
     const resp = await client.chat.completions.create({
       model,
       messages: [
@@ -66,6 +68,7 @@ export async function runCompactionIfNeeded(
       max_tokens: 1400,
       temperature: 0.25,
     });
+    trackFromResponse('other', model, resp.usage, Date.now() - start, { feature: 'context_compact' });
     const out = resp.choices[0]?.message?.content?.trim();
     if (!out) {
       console.warn('[LobsterCompact] empty summary, skip');

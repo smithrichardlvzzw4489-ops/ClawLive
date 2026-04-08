@@ -315,17 +315,25 @@ export default function CodernetIndexPage() {
           {/* Feature cards */}
           <div className="mt-10 grid grid-cols-3 sm:grid-cols-5 gap-3 text-center max-w-2xl mx-auto">
             {[
-              { icon: '🔍', label: 'AI Search', desc: '全网语义搜索' },
-              { icon: '📡', label: 'Outreach', desc: '批量个性化外联' },
-              { icon: '📊', label: 'Profile', desc: 'AI 能力画像' },
-              { icon: '🤖', label: 'Agent Chat', desc: 'AI 代先沟通' },
-              { icon: '💬', label: 'Connect', desc: '确认后真人对接' },
+              { icon: '🔍', label: 'AI Search', desc: '全网语义搜索', href: '' },
+              { icon: '📡', label: 'Outreach', desc: '批量个性化外联', href: '/codernet/outreach' },
+              { icon: '📊', label: 'Profile', desc: 'AI 能力画像', href: '' },
+              { icon: '🤖', label: 'Agent Chat', desc: 'AI 代先沟通', href: '' },
+              { icon: '⚡', label: 'Token Usage', desc: 'AI 成本追踪', href: '/codernet/tokens' },
             ].map((f) => (
-              <div key={f.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                <div className="text-2xl mb-2">{f.icon}</div>
-                <p className="text-xs font-semibold text-slate-200">{f.label}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">{f.desc}</p>
-              </div>
+              f.href ? (
+                <Link key={f.label} href={f.href} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4 hover:border-violet-500/20 transition">
+                  <div className="text-2xl mb-2">{f.icon}</div>
+                  <p className="text-xs font-semibold text-slate-200">{f.label}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{f.desc}</p>
+                </Link>
+              ) : (
+                <div key={f.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                  <div className="text-2xl mb-2">{f.icon}</div>
+                  <p className="text-xs font-semibold text-slate-200">{f.label}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{f.desc}</p>
+                </div>
+              )
             ))}
           </div>
         </div>

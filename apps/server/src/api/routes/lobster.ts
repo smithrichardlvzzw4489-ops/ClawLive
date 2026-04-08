@@ -10,6 +10,7 @@ import OpenAI from 'openai';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { isLitellmConfigured } from '../../services/litellm-budget';
 import { generateFeedPostExcerpt } from '../../services/llm';
+import { trackFromResponse } from '../../services/token-tracker';
 import { config } from '../../config';
 import {
   getLobsterInstance,
@@ -2431,10 +2432,11 @@ export function lobsterRoutes(): Router {
           }
         }
 
+        trackFromResponse('other', routedModel, response.usage, 0, { feature: 'lobster_chat', step: String(step) });
+
         const choice = response.choices[0];
         const toolCalls = choice.message.tool_calls;
 
-        // 没有工具调用 → 直接拿到最终回复
         if (!toolCalls || toolCalls.length === 0) {
           finalText = choice.message.content?.trim() || '（DarwinClaw 没有生成回复，请重试）';
           break;
@@ -2502,8 +2504,8 @@ export function lobsterRoutes(): Router {
             max_tokens: 800,
             temperature: 0.7,
           });
+          trackFromResponse('other', llm.model, finalResp.usage, 0, { feature: 'lobster_chat', step: 'final' });
           finalText = finalResp.choices[0]?.message?.content?.trim() || '';
-          // 如果仍为空，再降级做一次不带工具历史的兜底
           if (!finalText) {
             const fallbackResp = await llm.client.chat.completions.create({
               model: llm.model,
@@ -2514,6 +2516,7 @@ export function lobsterRoutes(): Router {
               max_tokens: 400,
               temperature: 0.7,
             });
+            trackFromResponse('other', llm.model, fallbackResp.usage, 0, { feature: 'lobster_chat', step: 'fallback' });
             finalText = fallbackResp.choices[0]?.message?.content?.trim() || '（DarwinClaw 处理超时，请重新提问）';
           }
         }
@@ -3201,6 +3204,7 @@ export async function runDarwinJobA2AReply(
       max_tokens: Math.min(calcMaxTokens(userMessage), 900),
       temperature: 0.65,
     });
+    trackFromResponse('other', routedModel, response.usage, 0, { feature: 'lobster_quick_reply' });
     finalText = response.choices[0]?.message?.content?.trim() || '';
   } catch (toolErr) {
     const toolErrMsg = toolErr instanceof Error ? toolErr.message : String(toolErr);
@@ -3214,6 +3218,7 @@ export async function runDarwinJobA2AReply(
         max_tokens: Math.min(calcMaxTokens(userMessage), 900),
         temperature: 0.65,
       });
+      trackFromResponse('other', llm.model, response.usage, 0, { feature: 'lobster_quick_reply' });
       finalText = response.choices[0]?.message?.content?.trim() || '';
     } else {
       throw toolErr;

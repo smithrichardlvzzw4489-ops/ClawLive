@@ -437,6 +437,7 @@ export default function GitHubLookupCardPage() {
   const [connectIntent, setConnectIntent] = useState(searchParams.get('from_query') || '');
   const [connectCategory, setConnectCategory] = useState('合作');
   const [connecting, setConnecting] = useState(false);
+  const [tokenCost, setTokenCost] = useState<{ totalTokens: number; estimatedCostUsd: number; callCount: number } | null>(null);
 
   const base = API_BASE_URL || '';
 
@@ -464,6 +465,15 @@ export default function GitHubLookupCardPage() {
       .catch(() => triggerCrawl())
       .finally(() => setLoading(false));
   }, [ghUsername, fetchStatus, triggerCrawl]);
+
+  useEffect(() => {
+    if (result?.status === 'ready') {
+      fetch(`${base}/api/platform/token-usage/profile/${encodeURIComponent(ghUsername)}`)
+        .then((r) => r.json())
+        .then((data) => { if (data.totalTokens > 0) setTokenCost(data); })
+        .catch(() => {});
+    }
+  }, [result?.status, base, ghUsername]);
 
   useEffect(() => {
     if (!result || result.status === 'ready') return;
@@ -677,6 +687,30 @@ export default function GitHubLookupCardPage() {
           </button>
           <p className="text-[10px] text-slate-600 mt-2">AI Agent 会先代替双方沟通，确认匹配后再连接真人</p>
         </div>
+
+        {/* Token Cost Transparency */}
+        {tokenCost && (
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 mb-6">
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">AI Generation Cost</span>
+            </div>
+            <div className="flex items-baseline gap-4">
+              <div>
+                <span className="text-sm font-bold font-mono text-emerald-400">{tokenCost.totalTokens.toLocaleString()}</span>
+                <span className="text-[10px] text-slate-500 ml-1">tokens</span>
+              </div>
+              <div>
+                <span className="text-sm font-bold font-mono text-emerald-400">${tokenCost.estimatedCostUsd.toFixed(4)}</span>
+                <span className="text-[10px] text-slate-500 ml-1">estimated</span>
+              </div>
+              <div>
+                <span className="text-sm font-bold font-mono text-slate-400">{tokenCost.callCount}</span>
+                <span className="text-[10px] text-slate-500 ml-1">LLM calls</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="text-center py-4">
           <Link href="/codernet" className="text-violet-500 hover:text-violet-400 text-xs font-mono transition">

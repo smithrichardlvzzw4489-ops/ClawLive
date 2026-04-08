@@ -16,7 +16,7 @@ import { getFeedPostsMap, saveFeedPosts } from './feed-posts-store';
 import { FeedPostRecord } from './feed-posts-persistence';
 import { prisma } from '../lib/prisma';
 import { config } from '../config';
-import { getPublishingLlmClient } from './llm';
+import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 
 // ── AI 内容话题池（每次随机选取） ──────────────────────────────────────────────
 
@@ -104,16 +104,12 @@ async function generateArticle(
     : `请写一篇关于「${topic}」的实用文章，分享给正在学习 AI 的用户。`;
 
   try {
-    const { client, model } = getPublishingLlmClient();
-    const resp = await client.chat.completions.create({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 1200,
-      temperature: 0.7,
-    });
+    const { model } = getPublishingLlmClient();
+    const resp = await trackedChatCompletion(
+      { model, messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }], max_tokens: 1200, temperature: 0.7 },
+      'other',
+      { feature: 'content_curator', topic },
+    );
     const text = resp.choices[0]?.message?.content?.trim();
     if (!text) return null;
 

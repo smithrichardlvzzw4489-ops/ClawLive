@@ -1,7 +1,9 @@
 /**
- * /api/platform — 平台配置
- *   GET  /api/platform/models       公开，返回模型列表
- *   POST /api/platform/models       写入（需 ADMIN_SECRET 或 LITELLM_MASTER_KEY）
+ * /api/platform — 平台配置 + Token 用量
+ *   GET  /api/platform/models             公开，返回模型列表
+ *   POST /api/platform/models             写入（需 ADMIN_SECRET）
+ *   GET  /api/platform/token-usage        Token 用量概要
+ *   GET  /api/platform/token-usage/:user  某用户画像的 Token 消耗
  */
 import { Router, Request, Response } from 'express';
 import {
@@ -9,6 +11,11 @@ import {
   savePlatformModels,
   PlatformModel,
 } from '../../services/platform-models';
+import {
+  getTokenUsageSummary,
+  getProfileTokenCost,
+  type TokenFeature,
+} from '../../services/token-tracker';
 
 function isAdminRequest(req: Request): boolean {
   // 只使用独立的 ADMIN_SECRET，绝不暴露 LITELLM_MASTER_KEY
@@ -69,6 +76,31 @@ export function platformRoutes(): Router {
     }
     await savePlatformModels(models);
     return res.json({ success: true, models });
+  });
+
+  /* ── Token Usage ────────────────────────────────────────── */
+
+  /**
+   * GET /api/platform/token-usage
+   * Returns aggregated token consumption stats.
+   * Query params: since (epoch ms), feature (TokenFeature), limit (number)
+   */
+  router.get('/token-usage', (req: Request, res: Response) => {
+    const since = req.query.since ? Number(req.query.since) : undefined;
+    const feature = req.query.feature as TokenFeature | undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+
+    const summary = getTokenUsageSummary({ since, feature, limit });
+    return res.json(summary);
+  });
+
+  /**
+   * GET /api/platform/token-usage/profile/:username
+   * Returns token cost for generating a specific user's profile.
+   */
+  router.get('/token-usage/profile/:username', (req: Request, res: Response) => {
+    const cost = getProfileTokenCost(req.params.username);
+    return res.json(cost);
   });
 
   return router;
