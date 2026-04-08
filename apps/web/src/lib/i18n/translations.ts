@@ -45,6 +45,7 @@ export const translations = {
       darwinShowcase: 'Darwin 展厅',
       jobA2A: 'A2A 求职',
       vibeKids: 'VibeKids',
+      codernet: '开发者画像',
     },
 
     evolutionNetwork: {
@@ -857,6 +858,7 @@ export const translations = {
       darwinShowcase: 'Darwin gallery',
       jobA2A: 'A2A Jobs',
       vibeKids: 'VibeKids',
+      codernet: 'Dev Profile',
     },
 
     evolutionNetwork: {
