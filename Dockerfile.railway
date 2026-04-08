@@ -18,4 +18,5 @@ WORKDIR /app/apps/server
 ENV NODE_ENV=production
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node dist/index.js"]
+ARG CACHE_BUST=1
+CMD ["sh", "-c", "echo '[boot] prisma db push starting...' && npx prisma db push --skip-generate 2>&1 && echo '[boot] prisma db push OK' && node dist/index.js"]
