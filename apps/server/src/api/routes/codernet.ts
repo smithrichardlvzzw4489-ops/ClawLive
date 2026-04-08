@@ -15,6 +15,15 @@ import {
   postHumanMessage as postConnectHumanMessage,
   type ConnectProfile,
 } from '../../services/codernet-connect';
+import {
+  createCampaign,
+  getCampaign,
+  listCampaigns,
+  runCampaignPipeline,
+  sendCampaign,
+  pauseCampaign,
+  previewMessage,
+} from '../../services/codernet-outreach';
 
 /* ── In-memory crawl progress tracker ─────────────────────── */
 export type CrawlStage =
@@ -373,7 +382,169 @@ export function codernetRoutes(): IRouter {
     }
   });
 
+  /* ── Outreach Campaigns ──────────────────────────────────── */
+
+  /**
+   * POST /api/codernet/outreach
+   * Creates a new outreach campaign and starts the pipeline (search → extract contacts → generate messages).
+   */
+  router.post('/outreach', async (req: Request, res: Response) => {
+    try {
+      const { searchQuery, githubQuery, intent, senderName, senderInfo, tierConfig } = req.body as {
+        searchQuery?: string;
+        githubQuery?: string;
+        intent?: string;
+        senderName?: string;
+        senderInfo?: string;
+        tierConfig?: { tier1?: number; tier2?: number; tier3?: number; tier4?: number };
+      };
+      if (!githubQuery || !intent || !senderName) {
+        return res.status(400).json({ error: 'githubQuery, intent, and senderName are required' });
+      }
+
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'clawlab.live';
+      const profileBaseUrl = `${protocol}://${host}`;
+
+      const campaign = createCampaign({
+        searchQuery: searchQuery || githubQuery,
+        githubQuery,
+        intent,
+        senderName,
+        senderInfo: senderInfo || '',
+        profileBaseUrl,
+        tierConfig,
+      });
+
+      res.json({ campaign });
+
+      const token = getServerToken();
+      runCampaignPipeline(campaign.id, token).catch((err) =>
+        console.error('[Outreach] pipeline error:', err),
+      );
+    } catch (error) {
+      console.error('[Outreach] create error:', error);
+      res.status(500).json({ error: 'Failed to create campaign' });
+    }
+  });
+
+  /**
+   * GET /api/codernet/outreach
+   * Lists all outreach campaigns.
+   */
+  router.get('/outreach', async (_req: Request, res: Response) => {
+    try {
+      const all = listCampaigns().map(sanitizeCampaign);
+      res.json({ campaigns: all });
+    } catch (error) {
+      console.error('[Outreach] list error:', error);
+      res.status(500).json({ error: 'Failed to list campaigns' });
+    }
+  });
+
+  /**
+   * GET /api/codernet/outreach/:id
+   * Returns a single campaign with all recipients.
+   */
+  router.get('/outreach/:id', async (req: Request, res: Response) => {
+    try {
+      const campaign = getCampaign(req.params.id);
+      if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+      res.json({ campaign });
+    } catch (error) {
+      console.error('[Outreach] get error:', error);
+      res.status(500).json({ error: 'Failed to get campaign' });
+    }
+  });
+
+  /**
+   * POST /api/codernet/outreach/:id/send
+   * Starts sending emails for a ready campaign.
+   */
+  router.post('/outreach/:id/send', async (req: Request, res: Response) => {
+    try {
+      const { fromEmail } = req.body as { fromEmail?: string };
+      if (!fromEmail) {
+        return res.status(400).json({ error: 'fromEmail is required' });
+      }
+      const campaign = getCampaign(req.params.id);
+      if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+      res.json({ status: 'sending', message: 'Email sending started' });
+
+      sendCampaign(req.params.id, fromEmail).catch((err) =>
+        console.error('[Outreach] send error:', err),
+      );
+    } catch (error) {
+      console.error('[Outreach] send trigger error:', error);
+      res.status(500).json({ error: 'Failed to start sending' });
+    }
+  });
+
+  /**
+   * POST /api/codernet/outreach/:id/pause
+   * Pauses an active sending campaign.
+   */
+  router.post('/outreach/:id/pause', async (req: Request, res: Response) => {
+    try {
+      pauseCampaign(req.params.id);
+      const campaign = getCampaign(req.params.id);
+      res.json({ campaign: campaign ? sanitizeCampaign(campaign) : null });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to pause campaign' });
+    }
+  });
+
+  /**
+   * POST /api/codernet/outreach/preview
+   * Generates a preview message for one recipient (without creating a campaign).
+   */
+  router.post('/outreach/preview', async (req: Request, res: Response) => {
+    try {
+      const { intent, senderName, senderInfo, recipientUsername, recipientProfile } = req.body as {
+        intent?: string;
+        senderName?: string;
+        senderInfo?: string;
+        recipientUsername?: string;
+        recipientProfile?: any;
+      };
+      if (!intent || !senderName || !recipientUsername) {
+        return res.status(400).json({ error: 'intent, senderName, and recipientUsername are required' });
+      }
+      const message = await previewMessage({
+        intent,
+        senderName,
+        senderInfo: senderInfo || '',
+        recipientUsername,
+        recipientProfile,
+      });
+      res.json({ message });
+    } catch (error) {
+      console.error('[Outreach] preview error:', error);
+      res.status(500).json({ error: 'Failed to generate preview' });
+    }
+  });
+
   return router;
+}
+
+/* ── Helpers ──────────────────────────────────────────────── */
+
+function sanitizeCampaign(c: any) {
+  return {
+    id: c.id,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    searchQuery: c.searchQuery,
+    githubQuery: c.githubQuery,
+    intent: c.intent,
+    senderName: c.senderName,
+    status: c.status,
+    totalFound: c.totalFound,
+    recipientCount: c.recipients?.length || 0,
+    progress: c.progress,
+    tierConfig: c.tierConfig,
+  };
 }
 
 /* ── Helpers for connect endpoints ────────────────────────── */

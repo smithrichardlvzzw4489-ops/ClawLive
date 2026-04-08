@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 
-type TabId = 'lookup' | 'find';
+type TabId = 'lookup' | 'find' | 'outreach';
 
 interface SearchResult {
   githubUsername: string;
@@ -139,6 +139,14 @@ export default function CodernetIndexPage() {
             >
               找开发者
             </button>
+            <button
+              onClick={() => setTab('outreach')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+                tab === 'outreach' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              批量外联
+            </button>
           </div>
 
           {/* Lookup Tab */}
@@ -260,6 +268,39 @@ export default function CodernetIndexPage() {
             </div>
           )}
 
+          {/* Outreach Tab */}
+          {tab === 'outreach' && (
+            <div className="max-w-lg mx-auto">
+              <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-8 text-center">
+                <div className="text-4xl mb-4">📡</div>
+                <h3 className="text-lg font-bold mb-2">Developer Outreach</h3>
+                <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+                  从 GitHub 1.8亿+ 开发者中搜索 → 自动提取联系方式 → AI 为每人生成个性化消息 → 一键发送
+                </p>
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+                    <p className="text-xl font-bold text-green-400">~80%</p>
+                    <p className="text-[10px] text-slate-500">Email 提取率</p>
+                  </div>
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+                    <p className="text-xl font-bold text-violet-400">1000</p>
+                    <p className="text-[10px] text-slate-500">最大外联人数</p>
+                  </div>
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
+                    <p className="text-xl font-bold text-blue-400">AI</p>
+                    <p className="text-[10px] text-slate-500">个性化消息</p>
+                  </div>
+                </div>
+                <Link
+                  href="/codernet/outreach"
+                  className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold transition"
+                >
+                  Launch Outreach Campaign →
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Divider + login CTA */}
           <div className="flex items-center gap-3 max-w-md mx-auto my-8">
             <div className="flex-1 h-px bg-white/[0.06]" />
@@ -272,11 +313,12 @@ export default function CodernetIndexPage() {
           </Link>
 
           {/* Feature cards */}
-          <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center max-w-lg mx-auto">
+          <div className="mt-10 grid grid-cols-3 sm:grid-cols-5 gap-3 text-center max-w-2xl mx-auto">
             {[
-              { icon: '🔍', label: 'AI Search', desc: '语义匹配开发者' },
+              { icon: '🔍', label: 'AI Search', desc: '全网语义搜索' },
+              { icon: '📡', label: 'Outreach', desc: '批量个性化外联' },
+              { icon: '📊', label: 'Profile', desc: 'AI 能力画像' },
               { icon: '🤖', label: 'Agent Chat', desc: 'AI 代先沟通' },
-              { icon: '📊', label: 'Profile', desc: '能力雷达图' },
               { icon: '💬', label: 'Connect', desc: '确认后真人对接' },
             ].map((f) => (
               <div key={f.label} className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
