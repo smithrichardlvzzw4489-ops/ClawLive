@@ -5,6 +5,7 @@
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 import type { GitHubCrawlResult } from './github-crawler';
 import type { MultiPlatformProfile } from './multiplatform-crawler';
+import { calculateAIEngagement, type AIEngagementScore } from './ai-engagement-scorer';
 
 export interface CodernetAnalysis {
   techTags: string[];
@@ -37,6 +38,7 @@ export interface CodernetAnalysis {
     packageImpactScore?: number;
     aiMlImpactScore?: number;
   };
+  aiEngagement?: AIEngagementScore;
 }
 
 function buildAnalysisPrompt(data: GitHubCrawlResult, multiPlatform?: MultiPlatformProfile | null): string {
@@ -275,6 +277,8 @@ export async function analyzeGitHubProfile(
     ));
   }
 
+  const aiEngagement = calculateAIEngagement(crawlData, multiPlatform);
+
   return {
     techTags: Array.isArray(parsed.techTags)
       ? parsed.techTags.map(String).filter(Boolean).slice(0, 10)
@@ -291,5 +295,6 @@ export async function analyzeGitHubProfile(
     generatedAt: new Date().toISOString(),
     platformsUsed,
     multiPlatformInsights: Object.keys(multiPlatformInsights).length > 0 ? multiPlatformInsights : undefined,
+    aiEngagement: aiEngagement.overall > 0 ? aiEngagement : undefined,
   };
 }
