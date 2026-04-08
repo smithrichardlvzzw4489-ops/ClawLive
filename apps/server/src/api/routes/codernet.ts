@@ -3,8 +3,8 @@ import type { IRouter } from 'express';
 import { prisma } from '../../lib/prisma';
 import { decrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { crawlGitHubProfile } from '../../services/github-crawler';
-import { analyzeGitHubProfile } from '../../services/codernet-profile-analyzer';
+import { crawlGitHubProfile, type GitHubCrawlResult } from '../../services/github-crawler';
+import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
 
 /* ── In-memory crawl progress tracker ─────────────────────── */
 export type CrawlStage =
@@ -44,6 +44,21 @@ function setProgress(username: string, stage: CrawlStage, percent: number, detai
 
 function clearProgress(username: string) {
   setTimeout(() => crawlProgressMap.delete(username), 60_000);
+}
+
+/* ── In-memory cache for public GitHub lookups ────────────── */
+interface LookupCacheEntry {
+  crawl: GitHubCrawlResult;
+  analysis: CodernetAnalysis;
+  cachedAt: number;
+  avatarUrl?: string;
+}
+
+const lookupCache = new Map<string, LookupCacheEntry>();
+const LOOKUP_CACHE_TTL = 30 * 60 * 1000; // 30 min
+
+function getServerToken(): string | undefined {
+  return process.env.GITHUB_SERVER_TOKEN?.trim() || undefined;
 }
 
 export function codernetRoutes(): IRouter {
@@ -172,6 +187,57 @@ export function codernetRoutes(): IRouter {
     }
   });
 
+  /**
+   * GET /api/codernet/github/:ghUsername
+   * Public — returns cached lookup result for any GitHub user.
+   */
+  router.get('/github/:ghUsername', async (req: Request, res: Response) => {
+    try {
+      const ghUser = req.params.ghUsername.toLowerCase();
+      const cached = lookupCache.get(ghUser);
+      if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
+        return res.json({ status: 'ready', crawl: cached.crawl, analysis: cached.analysis, avatarUrl: cached.avatarUrl, cachedAt: cached.cachedAt });
+      }
+      const progress = crawlProgressMap.get(`gh:${ghUser}`);
+      if (progress) {
+        return res.json({ status: 'pending', progress });
+      }
+      return res.status(404).json({ status: 'not_found' });
+    } catch (error) {
+      console.error('[Codernet] github lookup get error:', error);
+      res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  /**
+   * POST /api/codernet/github/:ghUsername
+   * Public — triggers crawl + analysis for any GitHub user (rate limited).
+   */
+  router.post('/github/:ghUsername', async (req: Request, res: Response) => {
+    try {
+      const ghUser = req.params.ghUsername.toLowerCase();
+
+      const cached = lookupCache.get(ghUser);
+      if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
+        return res.json({ status: 'ready', message: 'Already cached.' });
+      }
+
+      const existing = crawlProgressMap.get(`gh:${ghUser}`);
+      if (existing && existing.stage !== 'error' && existing.stage !== 'complete') {
+        return res.json({ status: 'already_running', message: 'Crawl already in progress.' });
+      }
+
+      res.json({ status: 'started', message: 'Crawl started.' });
+
+      runPublicLookup(ghUser).catch((err) =>
+        console.error('[Codernet] public lookup failed:', err),
+      );
+    } catch (error) {
+      console.error('[Codernet] github lookup post error:', error);
+      res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
   return router;
 }
 
@@ -245,6 +311,58 @@ export async function runCrawlAndAnalysis(
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[Codernet] crawl pipeline error for @${githubUsername}:`, err);
     setProgress(trackKey, 'error', 0, 'Crawl failed', msg);
+    clearProgress(trackKey);
+  }
+}
+
+/**
+ * Public lookup: crawl any GitHub user without needing a platform account.
+ * Uses GITHUB_SERVER_TOKEN if available, otherwise unauthenticated (60 req/hr).
+ */
+async function runPublicLookup(ghUsername: string): Promise<void> {
+  const trackKey = `gh:${ghUsername}`;
+  console.log(`[Codernet] public lookup for @${ghUsername}`);
+
+  setProgress(trackKey, 'queued', 0, 'Starting public lookup...');
+
+  const token = getServerToken();
+
+  try {
+    setProgress(trackKey, 'fetching_profile', 10, `Fetching @${ghUsername} profile...`);
+
+    const crawlData = await crawlGitHubProfile(token, ghUsername, (stage, detail) => {
+      const stageMap: Record<string, [CrawlStage, number]> = {
+        'fetching_repos': ['fetching_repos', 25],
+        'fetching_languages': ['fetching_languages', 45],
+        'fetching_commits': ['fetching_commits', 60],
+      };
+      const [s, p] = stageMap[stage] || ['fetching_profile', 15];
+      setProgress(trackKey, s, p, detail);
+    });
+
+    console.log(
+      `[Codernet] public lookup crawled ${crawlData.repos.length} repos for @${ghUsername}`,
+    );
+
+    setProgress(trackKey, 'analyzing_with_ai', 75, 'AI is generating the profile...');
+    const analysis = await analyzeGitHubProfile(crawlData);
+    console.log(`[Codernet] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}"`);
+
+    const avatarUrl = `https://github.com/${ghUsername}.png`;
+
+    lookupCache.set(ghUsername, {
+      crawl: crawlData,
+      analysis,
+      cachedAt: Date.now(),
+      avatarUrl,
+    });
+
+    setProgress(trackKey, 'complete', 100, 'Profile ready!');
+    clearProgress(trackKey);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[Codernet] public lookup error for @${ghUsername}:`, err);
+    setProgress(trackKey, 'error', 0, 'Lookup failed', msg);
     clearProgress(trackKey);
   }
 }

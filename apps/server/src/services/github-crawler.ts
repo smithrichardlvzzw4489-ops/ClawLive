@@ -1,17 +1,22 @@
 /**
  * GitHub 数据爬取：仓库、语言分布、近期 commit 消息。
- * 使用用户的 GitHub access token 调用 GitHub REST API。
+ * 支持用户 OAuth token、服务端 token (GITHUB_SERVER_TOKEN) 或无 token (公开 API 60 req/hr)。
  */
 
 const GH_API = 'https://api.github.com';
 
-function ghHeaders(token: string): Record<string, string> {
-  return {
-    Authorization: `Bearer ${token}`,
+function ghHeaders(token?: string): Record<string, string> {
+  const h: Record<string, string> = {
     Accept: 'application/vnd.github+json',
     'User-Agent': 'ClawLab-Codernet/1.0',
     'X-GitHub-Api-Version': '2022-11-28',
   };
+  if (token) h.Authorization = `Bearer ${token}`;
+  return h;
+}
+
+export function getServerGitHubToken(): string | undefined {
+  return process.env.GITHUB_SERVER_TOKEN?.trim() || process.env.GITHUB_OAUTH_CLIENT_SECRET ? undefined : undefined;
 }
 
 export interface GHRepo {
@@ -51,7 +56,7 @@ export interface GitHubCrawlResult {
   blog: string | null;
 }
 
-async function ghFetch<T>(url: string, token: string): Promise<T> {
+async function ghFetch<T>(url: string, token?: string): Promise<T> {
   const res = await fetch(url, { headers: ghHeaders(token) });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -74,7 +79,7 @@ interface GHUserProfile {
 /**
  * Fetch user's top repos sorted by stars (non-fork), up to 50.
  */
-async function fetchTopRepos(token: string, username: string): Promise<GHRepo[]> {
+async function fetchTopRepos(token: string | undefined, username: string): Promise<GHRepo[]> {
   const allRepos: GHRepo[] = [];
   for (let page = 1; page <= 3; page++) {
     const batch = await ghFetch<GHRepo[]>(
@@ -94,7 +99,7 @@ async function fetchTopRepos(token: string, username: string): Promise<GHRepo[]>
  * Aggregate language bytes across top repos.
  */
 async function fetchLanguageStats(
-  token: string,
+  token: string | undefined,
   repos: GHRepo[],
 ): Promise<Record<string, number>> {
   const stats: Record<string, number> = {};
@@ -121,7 +126,7 @@ async function fetchLanguageStats(
  * Fetch recent commits from top repos (sample up to 30 total).
  */
 async function fetchRecentCommits(
-  token: string,
+  token: string | undefined,
   username: string,
   repos: GHRepo[],
 ): Promise<GHCommitSample[]> {
@@ -158,7 +163,7 @@ export type CrawlProgressCallback = (stage: string, detail: string) => void;
  * Full crawl: profile + repos + languages + commits.
  */
 export async function crawlGitHubProfile(
-  token: string,
+  token: string | undefined,
   username: string,
   onProgress?: CrawlProgressCallback,
 ): Promise<GitHubCrawlResult> {
