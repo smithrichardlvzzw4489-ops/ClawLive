@@ -30,6 +30,7 @@ import { darwinRoutes } from './darwin';
 import { jobA2ARoutes } from './job-a2a';
 import { mpRoutes } from './mp';
 import { vibekidsWorksRoutes } from './vibekids-works';
+import { codernetRoutes } from './codernet';
 
 export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/admin', adminRoutes());
@@ -50,6 +51,7 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/evolver', evolverRoutes());
   app.use('/api/darwin', darwinRoutes());
   app.use('/api/job-a2a', jobA2ARoutes());
+  app.use('/api/codernet', codernetRoutes());
   app.use('/api/search', searchRoutes());
   app.use('/api/behavior', behaviorRoutes());
   app.use('/api/rooms', roomSimpleRoutes(io));

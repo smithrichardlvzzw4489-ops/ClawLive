@@ -6,8 +6,10 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../lib/prisma';
 import { UPLOADS_DIR } from '../../lib/data-path';
+import { encrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { LoginRequest } from '@clawlive/shared-types';
+import { runCrawlAndAnalysis } from './codernet';
 const router: IRouter = Router();
 
 /** 注册头像：≤2MB，data URL */
@@ -315,6 +317,8 @@ router.post('/github', async (req: Request, res: Response) => {
       else if (emails.length > 0 && emails[0].verified) primaryEmail = emails[0].email;
     }
 
+    const encryptedGhToken = encrypt(tokenData.access_token);
+
     let user = await prisma.user.findUnique({ where: { githubId } });
 
     if (!user) {
@@ -332,6 +336,17 @@ router.post('/github', async (req: Request, res: Response) => {
           username,
           email: primaryEmail || undefined,
           avatarUrl: ghUser.avatar_url || undefined,
+          githubUsername: ghUser.login,
+          githubAccessToken: encryptedGhToken,
+        },
+      });
+    } else {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          githubUsername: ghUser.login,
+          githubAccessToken: encryptedGhToken,
+          avatarUrl: user.avatarUrl || ghUser.avatar_url || undefined,
         },
       });
     }
@@ -339,9 +354,13 @@ router.post('/github', async (req: Request, res: Response) => {
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions);
     const refreshToken = jwt.sign({ userId: user.id }, JWT_REFRESH_SECRET, { expiresIn: '7d' } as jwt.SignOptions);
 
-    const { passwordHash: _, litellmVirtualKey: __vk, ...userWithoutSensitive } = user;
+    const { passwordHash: _, litellmVirtualKey: __vk, githubAccessToken: __gat, ...userWithoutSensitive } = user;
 
     res.json({ user: userWithoutSensitive, token, refreshToken });
+
+    runCrawlAndAnalysis(user.id, encryptedGhToken, ghUser.login).catch((err) =>
+      console.error('[Auth] post-login Codernet crawl failed:', err),
+    );
   } catch (error) {
     console.error('GitHub OAuth error:', error);
     res.status(500).json({ error: 'GitHub login failed' });

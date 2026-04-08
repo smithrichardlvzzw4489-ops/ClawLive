@@ -46,7 +46,8 @@ function GitHubCallbackInner() {
         if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
 
         setStage('success');
-        router.replace('/');
+        const ghUsername = data.user?.githubUsername || data.user?.username;
+        router.replace(ghUsername ? `/codernet/card/${ghUsername}` : '/');
       } catch (err) {
         setStage('error');
         setErrorMsg(err instanceof Error ? err.message : '网络错误');

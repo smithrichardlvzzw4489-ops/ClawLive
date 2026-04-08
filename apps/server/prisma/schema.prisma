@@ -12,6 +12,16 @@ model User {
   telegramId        String?  @unique
   /// GitHub OAuth user id
   githubId          String?  @unique
+  /// GitHub login name (e.g. "octocat")
+  githubUsername    String?
+  /// AES-256-GCM encrypted GitHub access token for API crawling
+  githubAccessToken String?  @db.Text
+  /// Raw crawled GitHub data (repos, languages, commits)
+  githubProfileJson Json?
+  /// LLM-generated Codernet analysis (tags, commentary, quadrant)
+  codernetAnalysis  Json?
+  /// Last time GitHub profile was crawled
+  codernetCrawledAt DateTime?
   /// 微信小程序 openid，与站内账号绑定后用于 wx.login 换票
   wechatMpOpenid    String?  @unique
   username          String   @unique

@@ -373,7 +373,7 @@ function AuthForm() {
               onClick={() => {
                 const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
                 const redirect = `${window.location.origin}/auth/github/callback`;
-                window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&scope=read:user,user:email`;
+                window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&scope=read:user,user:email,public_repo`;
               }}
               className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/[0.1] bg-white/[0.06] px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/[0.1] hover:text-white"
             >
