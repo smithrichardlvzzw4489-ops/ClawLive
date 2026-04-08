@@ -33,10 +33,21 @@ export interface CodernetAnalysis {
     hfSpaceCount?: number;
     hfTotalDownloads?: number;
     hfTopPipelineTags?: string[];
+    gitlabProjects?: number;
+    leetcodeSolved?: number;
+    leetcodeRating?: number | null;
+    kaggleTier?: string;
+    kaggleMedals?: number;
+    codeforcesRating?: number;
+    codeforcesRank?: string;
+    dockerPulls?: number;
+    cratesCount?: number;
+    cratesTotalDownloads?: number;
     communityInfluenceScore?: number;
     knowledgeSharingScore?: number;
     packageImpactScore?: number;
     aiMlImpactScore?: number;
+    algorithmScore?: number;
   };
   aiEngagement?: AIEngagementScore;
 }
@@ -119,6 +130,57 @@ Pipeline 类型：${hf.topPipelineTags.join(', ') || '无'}
 ${modelList ? `模型：\n${modelList}` : ''}${datasetList ? `\n数据集：\n${datasetList}` : ''}${spaceList ? `\nSpaces：\n${spaceList}` : ''}`);
     }
 
+    if (multiPlatform.gitlab) {
+      const gl = multiPlatform.gitlab;
+      const projList = gl.topProjects.slice(0, 5)
+        .map((p) => `- ${p.name} (★${p.stars}): ${p.description || 'no desc'}`)
+        .join('\n');
+      parts.push(`=== GitLab ===
+项目数：${gl.publicRepos} | 粉丝：${gl.followers}
+${projList}`);
+    }
+
+    if (multiPlatform.leetcode) {
+      const lc = multiPlatform.leetcode;
+      parts.push(`=== LeetCode ===
+已解题数：${lc.totalSolved} (Easy ${lc.easySolved} / Medium ${lc.mediumSolved} / Hard ${lc.hardSolved})
+竞赛 Rating：${lc.contestRating || 'N/A'} | 竞赛排名：${lc.contestGlobalRanking?.toLocaleString() || 'N/A'} | 参赛次数：${lc.contestAttended}`);
+    }
+
+    if (multiPlatform.kaggle) {
+      const kg = multiPlatform.kaggle;
+      parts.push(`=== Kaggle ===
+等级：${kg.tier} | 积分：${kg.points} | 金🥇${kg.goldMedals} 银🥈${kg.silverMedals} 铜🥉${kg.bronzeMedals}
+竞赛数：${kg.totalCompetitions} | 数据集：${kg.totalDatasets} | Notebook：${kg.totalNotebooks}`);
+    }
+
+    if (multiPlatform.codeforces) {
+      const cf = multiPlatform.codeforces;
+      parts.push(`=== Codeforces ===
+Rating：${cf.rating} (最高 ${cf.maxRating}) | 段位：${cf.rank} (最高 ${cf.maxRank})
+参赛次数：${cf.contestCount} | 贡献值：${cf.contribution}`);
+    }
+
+    if (multiPlatform.dockerhub && multiPlatform.dockerhub.repositories.length > 0) {
+      const dh = multiPlatform.dockerhub;
+      const repoList = dh.repositories.slice(0, 5)
+        .map((r) => `- ${r.name} (${r.pullCount.toLocaleString()} pulls)`)
+        .join('\n');
+      parts.push(`=== Docker Hub ===
+镜像数：${dh.repositories.length} | 总 Pull 数：${dh.totalPulls.toLocaleString()}
+${repoList}`);
+    }
+
+    if (multiPlatform.cratesio && multiPlatform.cratesio.crates.length > 0) {
+      const cr = multiPlatform.cratesio;
+      const crateList = cr.crates.slice(0, 5)
+        .map((c) => `- ${c.name} v${c.maxVersion} (${c.downloads.toLocaleString()} downloads)`)
+        .join('\n');
+      parts.push(`=== crates.io (Rust) ===
+Crate 数：${cr.totalCrates} | 总下载量：${cr.totalDownloads.toLocaleString()}
+${crateList}`);
+    }
+
     if (parts.length > 0) {
       multiPlatformSection = '\n\n' + parts.join('\n\n');
     }
@@ -131,6 +193,12 @@ ${modelList ? `模型：\n${modelList}` : ''}${datasetList ? `\n数据集：\n${
     multiPlatform.pypiPackages.length > 0 ? 'PyPI' : null,
     multiPlatform.devto ? 'DEV.to' : null,
     multiPlatform.huggingface ? 'Hugging Face' : null,
+    multiPlatform.gitlab ? 'GitLab' : null,
+    multiPlatform.leetcode ? 'LeetCode' : null,
+    multiPlatform.kaggle ? 'Kaggle' : null,
+    multiPlatform.codeforces ? 'Codeforces' : null,
+    multiPlatform.dockerhub?.repositories?.length ? 'Docker Hub' : null,
+    multiPlatform.cratesio?.crates?.length ? 'crates.io' : null,
   ].filter(Boolean).join(' + ') : 'GitHub';
 
   return `你是一位资深技术猎头兼毒舌代码评论家。根据以下多平台数据（${platformsAvailable}），生成这位开发者的全面技术画像。
@@ -269,11 +337,57 @@ export async function analyzeGitHubProfile(
       ));
     }
 
+    if (multiPlatform.gitlab) {
+      platformsUsed.push('GitLab');
+      multiPlatformInsights.gitlabProjects = multiPlatform.gitlab.topProjects.length;
+    }
+
+    if (multiPlatform.leetcode) {
+      platformsUsed.push('LeetCode');
+      multiPlatformInsights.leetcodeSolved = multiPlatform.leetcode.totalSolved;
+      multiPlatformInsights.leetcodeRating = multiPlatform.leetcode.contestRating;
+      multiPlatformInsights.algorithmScore = Math.min(100, Math.round(
+        Math.min(40, multiPlatform.leetcode.totalSolved * 0.15) +
+        Math.min(30, multiPlatform.leetcode.hardSolved * 1.5) +
+        Math.min(30, ((multiPlatform.leetcode.contestRating || 0) / 3000) * 30)
+      ));
+    }
+
+    if (multiPlatform.kaggle) {
+      platformsUsed.push('Kaggle');
+      multiPlatformInsights.kaggleTier = multiPlatform.kaggle.tier;
+      multiPlatformInsights.kaggleMedals = multiPlatform.kaggle.goldMedals + multiPlatform.kaggle.silverMedals + multiPlatform.kaggle.bronzeMedals;
+      const kaggleBoost = Math.min(30, multiPlatform.kaggle.goldMedals * 10 + multiPlatform.kaggle.silverMedals * 5 + multiPlatform.kaggle.bronzeMedals * 2);
+      multiPlatformInsights.aiMlImpactScore = Math.min(100, (multiPlatformInsights.aiMlImpactScore || 0) + kaggleBoost);
+    }
+
+    if (multiPlatform.codeforces) {
+      platformsUsed.push('Codeforces');
+      multiPlatformInsights.codeforcesRating = multiPlatform.codeforces.rating;
+      multiPlatformInsights.codeforcesRank = multiPlatform.codeforces.rank;
+      const cfScore = Math.min(50, Math.round((multiPlatform.codeforces.rating / 3500) * 50));
+      multiPlatformInsights.algorithmScore = Math.min(100, (multiPlatformInsights.algorithmScore || 0) + cfScore);
+    }
+
+    if (multiPlatform.dockerhub?.repositories?.length) {
+      platformsUsed.push('Docker Hub');
+      multiPlatformInsights.dockerPulls = multiPlatform.dockerhub.totalPulls;
+    }
+
+    if (multiPlatform.cratesio?.crates?.length) {
+      platformsUsed.push('crates.io');
+      multiPlatformInsights.cratesCount = multiPlatform.cratesio.totalCrates;
+      multiPlatformInsights.cratesTotalDownloads = multiPlatform.cratesio.totalDownloads;
+      const crateBoost = Math.min(30, Math.log10(multiPlatform.cratesio.totalDownloads + 1) * 8);
+      multiPlatformInsights.packageImpactScore = Math.min(100, (multiPlatformInsights.packageImpactScore || 0) + crateBoost);
+    }
+
     multiPlatformInsights.communityInfluenceScore = Math.min(100, Math.round(
-      (multiPlatformInsights.knowledgeSharingScore || 0) * 0.3 +
-      (multiPlatformInsights.packageImpactScore || 0) * 0.3 +
-      (multiPlatformInsights.aiMlImpactScore || 0) * 0.25 +
-      (platformsUsed.length - 1) * 3
+      (multiPlatformInsights.knowledgeSharingScore || 0) * 0.25 +
+      (multiPlatformInsights.packageImpactScore || 0) * 0.25 +
+      (multiPlatformInsights.aiMlImpactScore || 0) * 0.2 +
+      (multiPlatformInsights.algorithmScore || 0) * 0.15 +
+      (platformsUsed.length - 1) * 2.5
     ));
   }
 

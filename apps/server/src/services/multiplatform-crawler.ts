@@ -1,10 +1,33 @@
 /**
- * 多平台数据爬取：从 GitHub 出发，自动关联并采集 Stack Overflow / npm / PyPI / DEV.to 数据。
+ * 多平台数据爬取：从 GitHub 出发，自动关联并采集 12+ 平台数据。
  *
- * 1. 身份解析：从 GitHub profile 提取 email / blog / username → 匹配其他平台
+ * 1. 身份解析：GitHub profile → 个人网站 → 社交链接 → 跨平台身份图谱
  * 2. 各平台公开 API 采集
- * 3. 汇总为 MultiPlatformProfile
+ * 3. 汇总为 MultiPlatformProfile + UnifiedDeveloper 身份图谱
  */
+
+import {
+  IdentityGraphBuilder,
+  extractWebsiteLinks,
+  saveUnifiedDeveloper,
+  type UnifiedDeveloper,
+  type IdentitySeed,
+  type Platform,
+} from './identity-graph';
+import {
+  findGitLabProfile,
+  findLeetCodeProfile,
+  findKaggleProfile,
+  findCodeforcesProfile,
+  findDockerHubProfile,
+  findCratesIoProfile,
+  type GitLabProfile,
+  type LeetCodeProfile,
+  type KaggleProfile,
+  type CodeforcesProfile,
+  type DockerHubProfile,
+  type CratesIoProfile,
+} from './extended-platform-crawler';
 
 const SO_API = 'https://api.stackexchange.com/2.3';
 const NPM_REGISTRY = 'https://registry.npmjs.org';
@@ -100,21 +123,42 @@ export interface HuggingFaceProfile {
   profileUrl: string;
 }
 
+export interface PlatformMatch {
+  matched: boolean;
+  method?: string;
+  confidence?: number;
+  [key: string]: any;
+}
+
 export interface MultiPlatformProfile {
   githubUsername: string;
   resolvedAt: string;
   identityLinks: {
-    stackOverflow: { matched: boolean; method?: string; userId?: number };
-    npm: { matched: boolean; method?: string; packageCount?: number };
-    pypi: { matched: boolean; method?: string; packageCount?: number };
-    devto: { matched: boolean; method?: string };
-    huggingface: { matched: boolean; method?: string; modelCount?: number; datasetCount?: number; spaceCount?: number };
+    stackOverflow: PlatformMatch;
+    npm: PlatformMatch;
+    pypi: PlatformMatch;
+    devto: PlatformMatch;
+    huggingface: PlatformMatch;
+    gitlab: PlatformMatch;
+    leetcode: PlatformMatch;
+    kaggle: PlatformMatch;
+    codeforces: PlatformMatch;
+    dockerhub: PlatformMatch;
+    cratesio: PlatformMatch;
   };
   stackOverflow: StackOverflowProfile | null;
   npmPackages: NpmPackageInfo[];
   pypiPackages: PyPIPackageInfo[];
   devto: DevToProfile | null;
   huggingface: HuggingFaceProfile | null;
+  gitlab: GitLabProfile | null;
+  leetcode: LeetCodeProfile | null;
+  kaggle: KaggleProfile | null;
+  codeforces: CodeforcesProfile | null;
+  dockerhub: DockerHubProfile | null;
+  cratesio: CratesIoProfile | null;
+  /** Identity graph with confidence-scored cross-platform links */
+  identityGraph?: UnifiedDeveloper;
 }
 
 export type PlatformCrawlCallback = (platform: string, detail: string) => void;
@@ -504,6 +548,33 @@ export async function crawlMultiPlatform(
   onProgress?.('identity', 'Resolving cross-platform identity...');
   const identity = await fetchGitHubIdentity(githubUsername, token);
 
+  // Build identity graph
+  const graphBuilder = new IdentityGraphBuilder({
+    username: identity.username,
+    email: identity.email,
+    name: identity.name,
+    blog: identity.blog,
+    bio: identity.bio,
+    twitterUsername: identity.twitterUsername,
+    location: null,
+    avatarUrl: null,
+  });
+
+  // Phase 1: Extract links from personal website (if available)
+  if (identity.blog) {
+    onProgress?.('identity', `Scanning personal website: ${identity.blog}`);
+    try {
+      const websiteLinks = await extractWebsiteLinks(identity.blog);
+      graphBuilder.processWebsiteLinks(websiteLinks);
+      const linkedPlatforms = Object.entries(websiteLinks)
+        .filter(([k, v]) => k !== 'url' && k !== 'email' && v)
+        .map(([k]) => k);
+      if (linkedPlatforms.length > 0) {
+        onProgress?.('identity', `Found links on website: ${linkedPlatforms.join(', ')}`);
+      }
+    } catch { /* non-critical */ }
+  }
+
   const result: MultiPlatformProfile = {
     githubUsername,
     resolvedAt: new Date().toISOString(),
@@ -513,28 +584,39 @@ export async function crawlMultiPlatform(
       pypi: { matched: false },
       devto: { matched: false },
       huggingface: { matched: false },
+      gitlab: { matched: false },
+      leetcode: { matched: false },
+      kaggle: { matched: false },
+      codeforces: { matched: false },
+      dockerhub: { matched: false },
+      cratesio: { matched: false },
     },
     stackOverflow: null,
     npmPackages: [],
     pypiPackages: [],
     devto: null,
     huggingface: null,
+    gitlab: null,
+    leetcode: null,
+    kaggle: null,
+    codeforces: null,
+    dockerhub: null,
+    cratesio: null,
   };
 
+  // Phase 2: Crawl all platforms in parallel
   const tasks = [
+    // ─── Original platforms ───
     (async () => {
       onProgress?.('stackoverflow', 'Searching Stack Overflow...');
       const so = await findStackOverflowUser(identity);
       if (so) {
         result.stackOverflow = so.profile;
-        result.identityLinks.stackOverflow = {
-          matched: true,
-          method: so.method,
-          userId: so.profile.userId,
-        };
+        result.identityLinks.stackOverflow = { matched: true, method: so.method, userId: so.profile.userId };
+        graphBuilder.registerUsernameMatch('stackoverflow', String(so.profile.userId), { displayName: so.profile.displayName });
         onProgress?.('stackoverflow', `Found: ${so.profile.displayName} (${so.profile.reputation.toLocaleString()} rep)`);
       } else {
-        onProgress?.('stackoverflow', 'No Stack Overflow profile found');
+        onProgress?.('stackoverflow', 'Not found');
       }
     })(),
 
@@ -542,29 +624,23 @@ export async function crawlMultiPlatform(
       onProgress?.('npm', 'Searching npm packages...');
       const npm = await findNpmPackages(identity, githubRepos);
       result.npmPackages = npm.packages;
-      result.identityLinks.npm = {
-        matched: npm.packages.length > 0,
-        method: npm.method,
-        packageCount: npm.packages.length,
-      };
+      result.identityLinks.npm = { matched: npm.packages.length > 0, method: npm.method, packageCount: npm.packages.length };
       if (npm.packages.length > 0) {
+        graphBuilder.registerUsernameMatch('npm', identity.username);
         const totalDl = npm.packages.reduce((s, p) => s + p.weeklyDownloads, 0);
-        onProgress?.('npm', `Found ${npm.packages.length} packages (${totalDl.toLocaleString()} weekly downloads)`);
+        onProgress?.('npm', `Found ${npm.packages.length} packages (${totalDl.toLocaleString()} weekly dl)`);
       } else {
-        onProgress?.('npm', 'No npm packages found');
+        onProgress?.('npm', 'Not found');
       }
     })(),
 
     (async () => {
-      onProgress?.('pypi', 'Searching PyPI packages...');
+      onProgress?.('pypi', 'Searching PyPI...');
       const pypi = await findPyPIPackages(identity, githubRepos);
       result.pypiPackages = pypi.packages;
-      result.identityLinks.pypi = {
-        matched: pypi.packages.length > 0,
-        method: pypi.method,
-        packageCount: pypi.packages.length,
-      };
-      onProgress?.('pypi', pypi.packages.length > 0 ? `Found ${pypi.packages.length} packages` : 'No PyPI packages found');
+      result.identityLinks.pypi = { matched: pypi.packages.length > 0, method: pypi.method, packageCount: pypi.packages.length };
+      if (pypi.packages.length > 0) graphBuilder.registerUsernameMatch('pypi', identity.username);
+      onProgress?.('pypi', pypi.packages.length > 0 ? `Found ${pypi.packages.length} packages` : 'Not found');
     })(),
 
     (async () => {
@@ -573,32 +649,117 @@ export async function crawlMultiPlatform(
       if (devto) {
         result.devto = devto.profile;
         result.identityLinks.devto = { matched: true, method: devto.method };
-        onProgress?.('devto', `Found: ${devto.profile.articlesCount} articles, ${devto.profile.totalReactions} reactions`);
+        graphBuilder.registerUsernameMatch('devto', devto.profile.username);
+        onProgress?.('devto', `Found: ${devto.profile.articlesCount} articles`);
       } else {
-        onProgress?.('devto', 'No DEV.to profile found');
+        onProgress?.('devto', 'Not found');
       }
     })(),
 
     (async () => {
-      onProgress?.('huggingface', 'Searching Hugging Face models, datasets & spaces...');
+      onProgress?.('huggingface', 'Searching Hugging Face...');
       const hf = await findHuggingFaceProfile(identity);
       if (hf) {
         result.huggingface = hf.profile;
-        result.identityLinks.huggingface = {
-          matched: true,
-          method: hf.method,
-          modelCount: hf.profile.models.length,
-          datasetCount: hf.profile.datasets.length,
-          spaceCount: hf.profile.spaces.length,
-        };
-        onProgress?.('huggingface', `Found: ${hf.profile.models.length} models, ${hf.profile.datasets.length} datasets, ${hf.profile.spaces.length} spaces (${hf.profile.totalDownloads.toLocaleString()} downloads)`);
+        result.identityLinks.huggingface = { matched: true, method: hf.method, modelCount: hf.profile.models.length, datasetCount: hf.profile.datasets.length, spaceCount: hf.profile.spaces.length };
+        graphBuilder.registerUsernameMatch('huggingface', hf.profile.username);
+        onProgress?.('huggingface', `Found: ${hf.profile.models.length} models, ${hf.profile.datasets.length} datasets`);
       } else {
-        onProgress?.('huggingface', 'No Hugging Face profile found');
+        onProgress?.('huggingface', 'Not found');
+      }
+    })(),
+
+    // ─── New platforms ───
+    (async () => {
+      onProgress?.('gitlab', 'Searching GitLab...');
+      const gl = await findGitLabProfile(identity.username);
+      if (gl) {
+        result.gitlab = gl;
+        result.identityLinks.gitlab = { matched: true, method: 'username_match', repoCount: gl.topProjects.length };
+        graphBuilder.registerUsernameMatch('gitlab', gl.username, { displayName: gl.name, location: gl.location || undefined });
+        if (gl.websiteUrl) {
+          graphBuilder.registerExplicitLink('gitlab', 'website', gl.websiteUrl);
+        }
+        onProgress?.('gitlab', `Found: ${gl.name} (${gl.topProjects.length} projects)`);
+      } else {
+        onProgress?.('gitlab', 'Not found');
+      }
+    })(),
+
+    (async () => {
+      onProgress?.('leetcode', 'Searching LeetCode...');
+      const lc = await findLeetCodeProfile(identity.username);
+      if (lc) {
+        result.leetcode = lc;
+        result.identityLinks.leetcode = { matched: true, method: 'username_match', totalSolved: lc.totalSolved, contestRating: lc.contestRating };
+        graphBuilder.registerUsernameMatch('leetcode', lc.username, { displayName: lc.realName || undefined });
+        onProgress?.('leetcode', `Found: ${lc.totalSolved} solved, rating ${lc.contestRating || 'N/A'}`);
+      } else {
+        onProgress?.('leetcode', 'Not found');
+      }
+    })(),
+
+    (async () => {
+      onProgress?.('kaggle', 'Searching Kaggle...');
+      const kg = await findKaggleProfile(identity.username);
+      if (kg) {
+        result.kaggle = kg;
+        result.identityLinks.kaggle = { matched: true, method: 'username_match', tier: kg.tier, medals: kg.goldMedals + kg.silverMedals + kg.bronzeMedals };
+        graphBuilder.registerUsernameMatch('kaggle', kg.username, { displayName: kg.displayName });
+        onProgress?.('kaggle', `Found: ${kg.tier} (${kg.goldMedals}G ${kg.silverMedals}S ${kg.bronzeMedals}B)`);
+      } else {
+        onProgress?.('kaggle', 'Not found');
+      }
+    })(),
+
+    (async () => {
+      onProgress?.('codeforces', 'Searching Codeforces...');
+      const cf = await findCodeforcesProfile(identity.username);
+      if (cf) {
+        result.codeforces = cf;
+        result.identityLinks.codeforces = { matched: true, method: 'username_match', rating: cf.rating, rank: cf.rank };
+        graphBuilder.registerUsernameMatch('codeforces', cf.handle, { location: cf.country || undefined });
+        onProgress?.('codeforces', `Found: ${cf.rank} (rating ${cf.rating}, ${cf.contestCount} contests)`);
+      } else {
+        onProgress?.('codeforces', 'Not found');
+      }
+    })(),
+
+    (async () => {
+      onProgress?.('dockerhub', 'Searching Docker Hub...');
+      const dh = await findDockerHubProfile(identity.username);
+      if (dh && dh.repositories.length > 0) {
+        result.dockerhub = dh;
+        result.identityLinks.dockerhub = { matched: true, method: 'username_match', repoCount: dh.repositories.length, totalPulls: dh.totalPulls };
+        graphBuilder.registerUsernameMatch('dockerhub', dh.username);
+        onProgress?.('dockerhub', `Found: ${dh.repositories.length} images (${dh.totalPulls.toLocaleString()} pulls)`);
+      } else {
+        onProgress?.('dockerhub', 'Not found');
+      }
+    })(),
+
+    (async () => {
+      onProgress?.('cratesio', 'Searching crates.io...');
+      const cr = await findCratesIoProfile(identity.username);
+      if (cr && cr.crates.length > 0) {
+        result.cratesio = cr;
+        result.identityLinks.cratesio = { matched: true, method: 'username_match', crateCount: cr.totalCrates, totalDownloads: cr.totalDownloads };
+        graphBuilder.registerUsernameMatch('cratesio', cr.username);
+        onProgress?.('cratesio', `Found: ${cr.totalCrates} crates (${cr.totalDownloads.toLocaleString()} downloads)`);
+      } else {
+        onProgress?.('cratesio', 'Not found');
       }
     })(),
   ];
 
   await Promise.allSettled(tasks);
+
+  // Phase 3: Build and persist identity graph
+  const unifiedDev = graphBuilder.build();
+  saveUnifiedDeveloper(unifiedDev);
+  result.identityGraph = unifiedDev;
+
+  onProgress?.('identity', `Identity resolved: ${unifiedDev.platforms.length} platforms, ${unifiedDev.links.length} links (confidence: ${Math.round(unifiedDev.overallConfidence * 100)}%)`);
 
   return result;
 }

@@ -36,11 +36,40 @@ interface MultiPlatformInsights {
   hfSpaceCount?: number;
   hfTotalDownloads?: number;
   hfTopPipelineTags?: string[];
+  gitlabProjects?: number;
+  leetcodeSolved?: number;
+  leetcodeRating?: number | null;
+  kaggleTier?: string;
+  kaggleMedals?: number;
+  codeforcesRating?: number;
+  codeforcesRank?: string;
+  dockerPulls?: number;
+  cratesCount?: number;
+  cratesTotalDownloads?: number;
   communityInfluenceScore?: number;
   knowledgeSharingScore?: number;
   packageImpactScore?: number;
   aiMlImpactScore?: number;
+  algorithmScore?: number;
 }
+
+interface GitLabProject { name: string; description: string | null; stars: number; forks: number; url: string; lastActivity: string }
+interface GitLabData { username: string; name: string; publicRepos: number; followers: number; topProjects: GitLabProject[]; profileUrl: string }
+
+interface LeetCodeData { username: string; totalSolved: number; easySolved: number; mediumSolved: number; hardSolved: number; contestRating: number | null; contestGlobalRanking: number | null; contestAttended: number; badges: string[]; profileUrl: string }
+
+interface KaggleData { username: string; displayName: string; tier: string; points: number; goldMedals: number; silverMedals: number; bronzeMedals: number; totalCompetitions: number; totalDatasets: number; totalNotebooks: number; profileUrl: string }
+
+interface CodeforcesData { handle: string; rating: number; maxRating: number; rank: string; maxRank: string; contestCount: number; profileUrl: string }
+
+interface DockerRepo { name: string; pullCount: number; starCount: number; lastUpdated: string }
+interface DockerHubData { username: string; repositories: DockerRepo[]; totalPulls: number; totalStars: number; profileUrl: string }
+
+interface CrateInfo { name: string; description: string | null; downloads: number; maxVersion: string }
+interface CratesIoData { username: string; crates: CrateInfo[]; totalDownloads: number; totalCrates: number; profileUrl: string }
+
+interface IdentityGraphLink { source: { platform: string }; target: { platform: string; username: string; profileUrl: string }; method: string; confidence: number }
+interface IdentityGraph { platforms: string[]; links: IdentityGraphLink[]; overallConfidence: number }
 
 interface SOProfile {
   displayName: string;
@@ -124,13 +153,14 @@ interface MultiPlatformData {
   pypiPackages: PyPIPkg[];
   devto: DevToProfileData | null;
   huggingface: HuggingFaceProfileData | null;
-  identityLinks: {
-    stackOverflow: { matched: boolean };
-    npm: { matched: boolean; packageCount?: number };
-    pypi: { matched: boolean; packageCount?: number };
-    devto: { matched: boolean };
-    huggingface: { matched: boolean; modelCount?: number };
-  };
+  gitlab: GitLabData | null;
+  leetcode: LeetCodeData | null;
+  kaggle: KaggleData | null;
+  codeforces: CodeforcesData | null;
+  dockerhub: DockerHubData | null;
+  cratesio: CratesIoData | null;
+  identityGraph?: IdentityGraph | null;
+  identityLinks: Record<string, { matched: boolean; [k: string]: any }>;
 }
 
 interface AISignal {
@@ -341,11 +371,17 @@ function LanguageBar({ langs }: { langs: Array<{ language: string; percent: numb
 function PlatformBadges({ platforms }: { platforms: string[] }) {
   const icons: Record<string, { color: string; label: string }> = {
     'GitHub': { color: '#8b949e', label: 'GitHub' },
-    'Stack Overflow': { color: '#f48024', label: 'Stack Overflow' },
+    'Stack Overflow': { color: '#f48024', label: 'SO' },
     'npm': { color: '#cb3837', label: 'npm' },
     'PyPI': { color: '#3775a9', label: 'PyPI' },
     'DEV.to': { color: '#0a0a0a', label: 'DEV.to' },
-    'Hugging Face': { color: '#ffcc00', label: 'Hugging Face' },
+    'Hugging Face': { color: '#ffcc00', label: 'HF' },
+    'GitLab': { color: '#fc6d26', label: 'GitLab' },
+    'LeetCode': { color: '#ffa116', label: 'LeetCode' },
+    'Kaggle': { color: '#20beff', label: 'Kaggle' },
+    'Codeforces': { color: '#1f8acb', label: 'CF' },
+    'Docker Hub': { color: '#2496ed', label: 'Docker' },
+    'crates.io': { color: '#dea584', label: 'crates' },
   };
   return (
     <div className="flex flex-wrap gap-1.5">
@@ -579,6 +615,174 @@ function AIEngagementCard({ data }: { data: AIEngagement }) {
   );
 }
 
+function GitLabCard({ data }: { data: GitLabData }) {
+  return (
+    <div className="rounded-lg border border-[#fc6d26]/20 bg-[#fc6d26]/5 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: '#fc6d26' }}>GitLab</span>
+          <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-500 hover:text-white">@{data.username} ↗</a>
+        </div>
+        <span className="text-[10px] text-slate-500 font-mono">{data.publicRepos} projects · {data.followers} followers</span>
+      </div>
+      {data.topProjects.slice(0, 5).map((p) => (
+        <div key={p.name} className="flex items-center justify-between py-1 border-t border-white/[0.04]">
+          <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-xs text-slate-300 hover:text-white truncate">{p.name}</a>
+          <span className="text-[10px] text-slate-500 font-mono">★{p.stars}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LeetCodeCard({ data }: { data: LeetCodeData }) {
+  const total = data.easySolved + data.mediumSolved + data.hardSolved;
+  return (
+    <div className="rounded-lg border border-[#ffa116]/20 bg-[#ffa116]/5 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: '#ffa116' }}>LeetCode</span>
+          <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-500 hover:text-white">@{data.username} ↗</a>
+        </div>
+        {data.contestRating && <span className="text-xs font-mono text-amber-400">Rating {data.contestRating}</span>}
+      </div>
+      <div className="grid grid-cols-4 gap-2 mb-2">
+        <div className="text-center">
+          <div className="text-lg font-bold text-white">{total}</div>
+          <div className="text-[9px] text-slate-500">Total</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-green-400">{data.easySolved}</div>
+          <div className="text-[9px] text-slate-500">Easy</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-amber-400">{data.mediumSolved}</div>
+          <div className="text-[9px] text-slate-500">Medium</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-red-400">{data.hardSolved}</div>
+          <div className="text-[9px] text-slate-500">Hard</div>
+        </div>
+      </div>
+      {data.contestAttended > 0 && (
+        <div className="text-[10px] text-slate-500 mt-1">
+          {data.contestAttended} contests · Global #{data.contestGlobalRanking?.toLocaleString() || 'N/A'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const KAGGLE_TIER_COLORS: Record<string, string> = {
+  Grandmaster: '#d4af37', Master: '#ff6600', Expert: '#20beff', Contributor: '#5bc500', Novice: '#999',
+};
+
+function KaggleCard({ data }: { data: KaggleData }) {
+  const tierColor = KAGGLE_TIER_COLORS[data.tier] || '#999';
+  return (
+    <div className="rounded-lg border border-[#20beff]/20 bg-[#20beff]/5 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: '#20beff' }}>Kaggle</span>
+          <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-500 hover:text-white">@{data.username} ↗</a>
+        </div>
+        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ color: tierColor, backgroundColor: `${tierColor}20`, border: `1px solid ${tierColor}40` }}>
+          {data.tier}
+        </span>
+      </div>
+      <div className="flex items-center gap-4 text-xs">
+        <span>🥇 {data.goldMedals}</span>
+        <span>🥈 {data.silverMedals}</span>
+        <span>🥉 {data.bronzeMedals}</span>
+        <span className="text-slate-500 font-mono ml-auto">{data.points.toLocaleString()} pts</span>
+      </div>
+      {(data.totalCompetitions > 0 || data.totalNotebooks > 0) && (
+        <div className="text-[10px] text-slate-500 mt-2">
+          {data.totalCompetitions} competitions · {data.totalDatasets} datasets · {data.totalNotebooks} notebooks
+        </div>
+      )}
+    </div>
+  );
+}
+
+const CF_RANK_COLORS: Record<string, string> = {
+  legendary_grandmaster: '#ff0000', international_grandmaster: '#ff0000', grandmaster: '#ff0000',
+  international_master: '#ff8c00', master: '#ff8c00', candidate_master: '#aa00aa',
+  expert: '#0000ff', specialist: '#03a89e', pupil: '#008000', newbie: '#808080',
+};
+
+function CodeforcesCard({ data }: { data: CodeforcesData }) {
+  const rankColor = CF_RANK_COLORS[data.rank.replace(/\s/g, '_').toLowerCase()] || '#999';
+  return (
+    <div className="rounded-lg border border-[#1f8acb]/20 bg-[#1f8acb]/5 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: '#1f8acb' }}>Codeforces</span>
+          <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-500 hover:text-white">@{data.handle} ↗</a>
+        </div>
+        <span className="text-xs font-bold" style={{ color: rankColor }}>{data.rank}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <div className="text-lg font-bold text-white font-mono">{data.rating}</div>
+          <div className="text-[9px] text-slate-500">Rating</div>
+        </div>
+        <div>
+          <div className="text-lg font-bold text-slate-400 font-mono">{data.maxRating}</div>
+          <div className="text-[9px] text-slate-500">Max Rating</div>
+        </div>
+        <div>
+          <div className="text-lg font-bold text-slate-400 font-mono">{data.contestCount}</div>
+          <div className="text-[9px] text-slate-500">Contests</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DockerHubCard({ data }: { data: DockerHubData }) {
+  return (
+    <div className="rounded-lg border border-[#2496ed]/20 bg-[#2496ed]/5 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: '#2496ed' }}>Docker Hub</span>
+          <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-500 hover:text-white">@{data.username} ↗</a>
+        </div>
+        <span className="text-[10px] text-slate-500 font-mono">{data.totalPulls.toLocaleString()} pulls</span>
+      </div>
+      {data.repositories.slice(0, 5).map((r) => (
+        <div key={r.name} className="flex items-center justify-between py-1 border-t border-white/[0.04]">
+          <span className="text-xs text-slate-300 truncate">{r.name}</span>
+          <span className="text-[10px] text-slate-500 font-mono">{r.pullCount.toLocaleString()} pulls</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CratesIoCard({ data }: { data: CratesIoData }) {
+  return (
+    <div className="rounded-lg border border-[#dea584]/20 bg-[#dea584]/5 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: '#dea584' }}>crates.io</span>
+          <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-slate-500 hover:text-white">@{data.username} ↗</a>
+        </div>
+        <span className="text-[10px] text-slate-500 font-mono">{data.totalDownloads.toLocaleString()} downloads</span>
+      </div>
+      {data.crates.slice(0, 5).map((c) => (
+        <div key={c.name} className="flex items-center justify-between py-1 border-t border-white/[0.04]">
+          <div>
+            <span className="text-xs text-slate-300">{c.name}</span>
+            <span className="text-[10px] text-slate-600 ml-1">v{c.maxVersion}</span>
+          </div>
+          <span className="text-[10px] text-slate-500 font-mono">{c.downloads.toLocaleString()}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function HuggingFaceCard({ data }: { data: HuggingFaceProfileData }) {
   const PIPELINE_COLORS: Record<string, string> = {
     'text-generation': '#ff6b35',
@@ -767,7 +971,12 @@ export default function GitHubLookupCardPage() {
   const { crawl, analysis, multiPlatform, avatarUrl } = result;
   const platforms = analysis?.platformsUsed || ['GitHub'];
   const insights = analysis?.multiPlatformInsights;
-  const hasMultiPlatform = multiPlatform && (multiPlatform.stackOverflow || multiPlatform.npmPackages?.length || multiPlatform.pypiPackages?.length || multiPlatform.devto || multiPlatform.huggingface);
+  const hasMultiPlatform = multiPlatform && (
+    multiPlatform.stackOverflow || multiPlatform.npmPackages?.length || multiPlatform.pypiPackages?.length ||
+    multiPlatform.devto || multiPlatform.huggingface || multiPlatform.gitlab || multiPlatform.leetcode ||
+    multiPlatform.kaggle || multiPlatform.codeforces || multiPlatform.dockerhub?.repositories?.length ||
+    multiPlatform.cratesio?.crates?.length
+  );
 
   return (
     <div className="min-h-screen bg-[#06080f] text-white">
@@ -855,7 +1064,7 @@ export default function GitHubLookupCardPage() {
         )}
 
         {/* Community Influence Scores */}
-        {insights && (insights.communityInfluenceScore || insights.knowledgeSharingScore || insights.packageImpactScore || insights.aiMlImpactScore) && (
+        {insights && (insights.communityInfluenceScore || insights.knowledgeSharingScore || insights.packageImpactScore || insights.aiMlImpactScore || insights.algorithmScore) && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Cross-Platform Influence</h3>
             <div className="space-y-3">
@@ -864,6 +1073,9 @@ export default function GitHubLookupCardPage() {
               )}
               {insights.aiMlImpactScore != null && (
                 <InfluenceBar label="AI/ML" score={insights.aiMlImpactScore} color="#ffcc00" />
+              )}
+              {insights.algorithmScore != null && (
+                <InfluenceBar label="Algorithm" score={insights.algorithmScore} color="#ffa116" />
               )}
               {insights.knowledgeSharingScore != null && (
                 <InfluenceBar label="Knowledge" score={insights.knowledgeSharingScore} color="#f48024" />
@@ -885,12 +1097,25 @@ export default function GitHubLookupCardPage() {
         {/* Multi-Platform Details */}
         {hasMultiPlatform && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Multi-Platform Presence</h3>
+            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">
+              Multi-Platform Presence
+              {multiPlatform.identityGraph && (
+                <span className="ml-2 text-emerald-400/70">
+                  ({multiPlatform.identityGraph.platforms.length} platforms linked · {Math.round(multiPlatform.identityGraph.overallConfidence * 100)}% confidence)
+                </span>
+              )}
+            </h3>
             <div className="grid gap-4">
+              {multiPlatform.leetcode && <LeetCodeCard data={multiPlatform.leetcode} />}
+              {multiPlatform.codeforces && <CodeforcesCard data={multiPlatform.codeforces} />}
+              {multiPlatform.kaggle && <KaggleCard data={multiPlatform.kaggle} />}
               {multiPlatform.huggingface && <HuggingFaceCard data={multiPlatform.huggingface} />}
+              {multiPlatform.gitlab && <GitLabCard data={multiPlatform.gitlab} />}
               {multiPlatform.stackOverflow && <StackOverflowCard data={multiPlatform.stackOverflow} />}
               {multiPlatform.npmPackages?.length > 0 && <NpmPackagesCard packages={multiPlatform.npmPackages} />}
               {multiPlatform.pypiPackages?.length > 0 && <PyPIPackagesCard packages={multiPlatform.pypiPackages} />}
+              {multiPlatform.cratesio && multiPlatform.cratesio.crates?.length > 0 && <CratesIoCard data={multiPlatform.cratesio} />}
+              {multiPlatform.dockerhub && multiPlatform.dockerhub.repositories?.length > 0 && <DockerHubCard data={multiPlatform.dockerhub} />}
               {multiPlatform.devto && <DevToCard data={multiPlatform.devto} />}
             </div>
           </div>

@@ -764,8 +764,18 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
         multiPlatform.npmPackages.length ? 'npm' : null,
         multiPlatform.pypiPackages.length ? 'PyPI' : null,
         multiPlatform.devto ? 'DEV.to' : null,
+        multiPlatform.huggingface ? 'HF' : null,
+        multiPlatform.gitlab ? 'GitLab' : null,
+        multiPlatform.leetcode ? 'LeetCode' : null,
+        multiPlatform.kaggle ? 'Kaggle' : null,
+        multiPlatform.codeforces ? 'CF' : null,
+        multiPlatform.dockerhub?.repositories?.length ? 'Docker' : null,
+        multiPlatform.cratesio?.crates?.length ? 'crates.io' : null,
       ].filter(Boolean);
-      console.log(`[Codernet] multi-platform scan for @${ghUsername}: found [${foundPlatforms.join(', ') || 'none'}]`);
+      const graphInfo = multiPlatform.identityGraph
+        ? ` | identity: ${multiPlatform.identityGraph.platforms.length} platforms, ${multiPlatform.identityGraph.links.length} links`
+        : '';
+      console.log(`[Codernet] multi-platform scan for @${ghUsername}: found [${foundPlatforms.join(', ') || 'none'}]${graphInfo}`);
     } catch (mpErr) {
       console.warn(`[Codernet] multi-platform scan failed for @${ghUsername}, continuing with GitHub only:`, mpErr);
     }
