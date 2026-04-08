@@ -5,6 +5,7 @@ import { decrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { crawlGitHubProfile, type GitHubCrawlResult } from '../../services/github-crawler';
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
+import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
 import { searchDevelopers } from '../../services/codernet-search';
 import {
   createConnectSession,
@@ -33,6 +34,7 @@ export type CrawlStage =
   | 'fetching_repos'
   | 'fetching_languages'
   | 'fetching_commits'
+  | 'crawling_platforms'
   | 'analyzing_with_ai'
   | 'saving_results'
   | 'complete'
@@ -69,6 +71,7 @@ function clearProgress(username: string) {
 interface LookupCacheEntry {
   crawl: GitHubCrawlResult;
   analysis: CodernetAnalysis;
+  multiPlatform?: MultiPlatformProfile;
   cachedAt: number;
   avatarUrl?: string;
 }
@@ -215,7 +218,7 @@ export function codernetRoutes(): IRouter {
       const ghUser = req.params.ghUsername.toLowerCase();
       const cached = lookupCache.get(ghUser);
       if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
-        return res.json({ status: 'ready', crawl: cached.crawl, analysis: cached.analysis, avatarUrl: cached.avatarUrl, cachedAt: cached.cachedAt });
+        return res.json({ status: 'ready', crawl: cached.crawl, analysis: cached.analysis, multiPlatform: cached.multiPlatform || null, avatarUrl: cached.avatarUrl, cachedAt: cached.cachedAt });
       }
       const progress = crawlProgressMap.get(`gh:${ghUser}`);
       if (progress) {
@@ -633,7 +636,7 @@ export async function runCrawlAndAnalysis(
       `[Codernet] crawled ${crawlData.repos.length} repos, ${Object.keys(crawlData.languageStats).length} languages for @${githubUsername}`,
     );
 
-    setProgress(trackKey, 'saving_results', 70, 'Saving GitHub data...');
+    setProgress(trackKey, 'saving_results', 65, 'Saving GitHub data...');
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -642,9 +645,20 @@ export async function runCrawlAndAnalysis(
       },
     });
 
-    setProgress(trackKey, 'analyzing_with_ai', 75, 'AI is analyzing your code style...');
-    const analysis = await analyzeGitHubProfile(crawlData);
-    console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}"`);
+    setProgress(trackKey, 'crawling_platforms', 68, 'Scanning Stack Overflow, npm, PyPI, DEV.to...');
+    let multiPlatform: MultiPlatformProfile | null = null;
+    try {
+      const repoNames = crawlData.repos.map((r) => r.name);
+      multiPlatform = await crawlMultiPlatform(githubUsername, repoNames, token, (_platform, detail) => {
+        setProgress(trackKey, 'crawling_platforms', 72, detail);
+      });
+    } catch (mpErr) {
+      console.warn(`[Codernet] multi-platform scan failed for @${githubUsername}:`, mpErr);
+    }
+
+    setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating unified profile...');
+    const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
+    console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
     setProgress(trackKey, 'saving_results', 95, 'Saving analysis results...');
     await prisma.user.update({
@@ -693,15 +707,34 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
       `[Codernet] public lookup crawled ${crawlData.repos.length} repos for @${ghUsername}`,
     );
 
-    setProgress(trackKey, 'analyzing_with_ai', 75, 'AI is generating the profile...');
-    const analysis = await analyzeGitHubProfile(crawlData);
-    console.log(`[Codernet] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}"`);
+    setProgress(trackKey, 'crawling_platforms', 65, 'Scanning Stack Overflow, npm, PyPI, DEV.to...');
+    let multiPlatform: MultiPlatformProfile | null = null;
+    try {
+      const repoNames = crawlData.repos.map((r) => r.name);
+      multiPlatform = await crawlMultiPlatform(ghUsername, repoNames, token, (_platform, detail) => {
+        setProgress(trackKey, 'crawling_platforms', 68, detail);
+      });
+      const foundPlatforms = [
+        multiPlatform.stackOverflow ? 'SO' : null,
+        multiPlatform.npmPackages.length ? 'npm' : null,
+        multiPlatform.pypiPackages.length ? 'PyPI' : null,
+        multiPlatform.devto ? 'DEV.to' : null,
+      ].filter(Boolean);
+      console.log(`[Codernet] multi-platform scan for @${ghUsername}: found [${foundPlatforms.join(', ') || 'none'}]`);
+    } catch (mpErr) {
+      console.warn(`[Codernet] multi-platform scan failed for @${ghUsername}, continuing with GitHub only:`, mpErr);
+    }
+
+    setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating the unified profile...');
+    const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
+    console.log(`[Codernet] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
     const avatarUrl = `https://github.com/${ghUsername}.png`;
 
     lookupCache.set(ghUsername, {
       crawl: crawlData,
       analysis,
+      multiPlatform: multiPlatform || undefined,
       cachedAt: Date.now(),
       avatarUrl,
     });

@@ -23,6 +23,77 @@ interface TopRepo {
   html_url: string;
 }
 
+interface MultiPlatformInsights {
+  stackOverflowReputation?: number;
+  stackOverflowTopTags?: string[];
+  npmPackageCount?: number;
+  npmTotalWeeklyDownloads?: number;
+  pypiPackageCount?: number;
+  devtoArticleCount?: number;
+  devtoTotalReactions?: number;
+  communityInfluenceScore?: number;
+  knowledgeSharingScore?: number;
+  packageImpactScore?: number;
+}
+
+interface SOProfile {
+  displayName: string;
+  reputation: number;
+  goldBadges: number;
+  silverBadges: number;
+  bronzeBadges: number;
+  answerCount: number;
+  questionCount: number;
+  topTags: Array<{ name: string; answerCount: number; answerScore: number }>;
+  profileUrl: string;
+}
+
+interface NpmPkg {
+  name: string;
+  description: string;
+  version: string;
+  weeklyDownloads: number;
+  keywords: string[];
+}
+
+interface PyPIPkg {
+  name: string;
+  summary: string;
+  version: string;
+  projectUrl: string;
+}
+
+interface DevToArticle {
+  title: string;
+  url: string;
+  positiveReactions: number;
+  publishedAt: string;
+  tags: string[];
+}
+
+interface DevToProfileData {
+  username: string;
+  name: string;
+  articlesCount: number;
+  totalReactions: number;
+  totalComments: number;
+  followers: number;
+  topArticles: DevToArticle[];
+}
+
+interface MultiPlatformData {
+  stackOverflow: SOProfile | null;
+  npmPackages: NpmPkg[];
+  pypiPackages: PyPIPkg[];
+  devto: DevToProfileData | null;
+  identityLinks: {
+    stackOverflow: { matched: boolean };
+    npm: { matched: boolean; packageCount?: number };
+    pypi: { matched: boolean; packageCount?: number };
+    devto: { matched: boolean };
+  };
+}
+
 interface LookupResult {
   status: 'ready' | 'pending' | 'not_found';
   progress?: CrawlProgress | null;
@@ -46,7 +117,10 @@ interface LookupResult {
     sharpCommentary: string;
     oneLiner: string;
     generatedAt: string;
+    platformsUsed?: string[];
+    multiPlatformInsights?: MultiPlatformInsights;
   };
+  multiPlatform?: MultiPlatformData | null;
   avatarUrl?: string;
   cachedAt?: number;
 }
@@ -64,13 +138,14 @@ const STAGE_LABELS: Record<string, string> = {
   fetching_repos: 'Scanning repositories...',
   fetching_languages: 'Analyzing language stats...',
   fetching_commits: 'Reading commit history...',
-  analyzing_with_ai: 'AI is generating profile...',
+  crawling_platforms: 'Scanning Stack Overflow, npm, PyPI, DEV.to...',
+  analyzing_with_ai: 'AI is generating unified profile...',
   saving_results: 'Finalizing...',
   complete: 'Done!',
   error: 'Something went wrong',
 };
 
-const STAGE_ORDER = ['queued', 'fetching_profile', 'fetching_repos', 'fetching_languages', 'fetching_commits', 'analyzing_with_ai', 'saving_results', 'complete'];
+const STAGE_ORDER = ['queued', 'fetching_profile', 'fetching_repos', 'fetching_languages', 'fetching_commits', 'crawling_platforms', 'analyzing_with_ai', 'saving_results', 'complete'];
 
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -201,6 +276,151 @@ function LanguageBar({ langs }: { langs: Array<{ language: string; percent: numb
   );
 }
 
+function PlatformBadges({ platforms }: { platforms: string[] }) {
+  const icons: Record<string, { color: string; label: string }> = {
+    'GitHub': { color: '#8b949e', label: 'GitHub' },
+    'Stack Overflow': { color: '#f48024', label: 'Stack Overflow' },
+    'npm': { color: '#cb3837', label: 'npm' },
+    'PyPI': { color: '#3775a9', label: 'PyPI' },
+    'DEV.to': { color: '#0a0a0a', label: 'DEV.to' },
+  };
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {platforms.map((p) => {
+        const cfg = icons[p] || { color: '#666', label: p };
+        return (
+          <span key={p} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono border" style={{ borderColor: `${cfg.color}40`, color: cfg.color, background: `${cfg.color}10` }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
+            {cfg.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function InfluenceBar({ label, score, color }: { label: string; score: number; color: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] text-slate-500 font-mono w-20 shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${score}%`, backgroundColor: color }} />
+      </div>
+      <span className="text-[10px] font-mono font-bold w-6 text-right" style={{ color }}>{score}</span>
+    </div>
+  );
+}
+
+function StackOverflowCard({ data }: { data: SOProfile }) {
+  return (
+    <div className="rounded-xl border border-[#f48024]/20 bg-[#f48024]/5 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-5 h-5 rounded bg-[#f48024] flex items-center justify-center text-[10px] font-bold text-white">SO</div>
+        <h4 className="text-xs font-bold text-[#f48024]">Stack Overflow</h4>
+        <a href={data.profileUrl} target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] text-slate-500 hover:text-[#f48024] transition">View Profile →</a>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="text-center">
+          <div className="text-base font-bold font-mono text-white">{data.reputation.toLocaleString()}</div>
+          <div className="text-[9px] text-slate-500 uppercase">Reputation</div>
+        </div>
+        <div className="text-center">
+          <div className="text-base font-bold font-mono text-white">{data.answerCount}</div>
+          <div className="text-[9px] text-slate-500 uppercase">Answers</div>
+        </div>
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1">
+            <span className="text-yellow-400 font-bold text-sm">{data.goldBadges}</span>
+            <span className="text-slate-400 text-xs">/</span>
+            <span className="text-slate-300 font-bold text-sm">{data.silverBadges}</span>
+            <span className="text-slate-400 text-xs">/</span>
+            <span className="text-amber-700 font-bold text-sm">{data.bronzeBadges}</span>
+          </div>
+          <div className="text-[9px] text-slate-500 uppercase">Badges</div>
+        </div>
+      </div>
+      {data.topTags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {data.topTags.slice(0, 6).map((t) => (
+            <span key={t.name} className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-[#f48024]/10 text-[#f48024]/80 border border-[#f48024]/20">
+              {t.name} <span className="text-[#f48024]/50">({t.answerScore})</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NpmPackagesCard({ packages }: { packages: NpmPkg[] }) {
+  const totalDl = packages.reduce((s, p) => s + p.weeklyDownloads, 0);
+  return (
+    <div className="rounded-xl border border-[#cb3837]/20 bg-[#cb3837]/5 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-5 h-5 rounded bg-[#cb3837] flex items-center justify-center text-[10px] font-bold text-white">n</div>
+        <h4 className="text-xs font-bold text-[#cb3837]">npm Packages</h4>
+        <span className="ml-auto text-[10px] text-slate-500">{packages.length} pkgs · {totalDl.toLocaleString()}/week</span>
+      </div>
+      <div className="space-y-2">
+        {packages.slice(0, 4).map((pkg) => (
+          <div key={pkg.name} className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-mono text-slate-200 truncate">{pkg.name} <span className="text-slate-600">v{pkg.version}</span></div>
+              {pkg.description && <p className="text-[10px] text-slate-500 line-clamp-1">{pkg.description}</p>}
+            </div>
+            <span className="text-[10px] font-mono text-[#cb3837]/70 shrink-0">{pkg.weeklyDownloads.toLocaleString()}/w</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PyPIPackagesCard({ packages }: { packages: PyPIPkg[] }) {
+  return (
+    <div className="rounded-xl border border-[#3775a9]/20 bg-[#3775a9]/5 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-5 h-5 rounded bg-[#3775a9] flex items-center justify-center text-[10px] font-bold text-white">Py</div>
+        <h4 className="text-xs font-bold text-[#3775a9]">PyPI Packages</h4>
+        <span className="ml-auto text-[10px] text-slate-500">{packages.length} pkgs</span>
+      </div>
+      <div className="space-y-2">
+        {packages.slice(0, 4).map((pkg) => (
+          <a key={pkg.name} href={pkg.projectUrl} target="_blank" rel="noopener noreferrer" className="block group">
+            <div className="text-xs font-mono text-slate-200 group-hover:text-[#3775a9] transition truncate">{pkg.name} <span className="text-slate-600">v{pkg.version}</span></div>
+            {pkg.summary && <p className="text-[10px] text-slate-500 line-clamp-1">{pkg.summary}</p>}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DevToCard({ data }: { data: DevToProfileData }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-5 h-5 rounded bg-white flex items-center justify-center text-[10px] font-bold text-black">D</div>
+        <h4 className="text-xs font-bold text-white">DEV.to</h4>
+        <span className="ml-auto text-[10px] text-slate-500">{data.articlesCount} articles · {data.totalReactions} reactions</span>
+      </div>
+      <div className="space-y-2">
+        {data.topArticles.slice(0, 3).map((a) => (
+          <a key={a.url} href={a.url} target="_blank" rel="noopener noreferrer" className="block group">
+            <div className="text-xs text-slate-200 group-hover:text-violet-300 transition line-clamp-1">{a.title}</div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-pink-400/70">❤ {a.positiveReactions}</span>
+              {a.tags.slice(0, 3).map((tag) => (
+                <span key={tag} className="text-[9px] text-slate-600">#{tag}</span>
+              ))}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function GitHubLookupCardPage() {
   const params = useParams<{ username: string }>();
   const searchParams = useSearchParams();
@@ -300,7 +520,10 @@ export default function GitHubLookupCardPage() {
     );
   }
 
-  const { crawl, analysis, avatarUrl } = result;
+  const { crawl, analysis, multiPlatform, avatarUrl } = result;
+  const platforms = analysis?.platformsUsed || ['GitHub'];
+  const insights = analysis?.multiPlatformInsights;
+  const hasMultiPlatform = multiPlatform && (multiPlatform.stackOverflow || multiPlatform.npmPackages?.length || multiPlatform.pypiPackages?.length || multiPlatform.devto);
 
   return (
     <div className="min-h-screen bg-[#06080f] text-white">
@@ -317,7 +540,7 @@ export default function GitHubLookupCardPage() {
 
         {/* Profile Card */}
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-          <div className="flex items-start gap-4 mb-5">
+          <div className="flex items-start gap-4 mb-4">
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt={ghUsername} className="w-16 h-16 rounded-xl border border-white/10" />
@@ -335,6 +558,12 @@ export default function GitHubLookupCardPage() {
               {crawl?.bio && <p className="mt-1 text-xs text-slate-500">{crawl.bio}</p>}
             </div>
           </div>
+
+          {platforms.length > 1 && (
+            <div className="mb-4">
+              <PlatformBadges platforms={platforms} />
+            </div>
+          )}
 
           {crawl && (
             <div className="grid grid-cols-3 gap-3 mb-5">
@@ -354,7 +583,7 @@ export default function GitHubLookupCardPage() {
           {analysis?.sharpCommentary && (
             <div className="rounded-lg bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-3 mb-5">
               <p className="text-sm text-slate-200 leading-relaxed italic">&ldquo;{analysis.sharpCommentary}&rdquo;</p>
-              <p className="text-[10px] text-slate-500 mt-1 font-mono">— Codernet AI Analysis</p>
+              <p className="text-[10px] text-slate-500 mt-1 font-mono">— Codernet AI · {platforms.join(' + ')} Analysis</p>
             </div>
           )}
 
@@ -374,10 +603,41 @@ export default function GitHubLookupCardPage() {
           )}
         </div>
 
+        {/* Community Influence Scores */}
+        {insights && (insights.communityInfluenceScore || insights.knowledgeSharingScore || insights.packageImpactScore) && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
+            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Cross-Platform Influence</h3>
+            <div className="space-y-3">
+              {insights.communityInfluenceScore != null && (
+                <InfluenceBar label="Community" score={insights.communityInfluenceScore} color="#8b5cf6" />
+              )}
+              {insights.knowledgeSharingScore != null && (
+                <InfluenceBar label="Knowledge" score={insights.knowledgeSharingScore} color="#f48024" />
+              )}
+              {insights.packageImpactScore != null && (
+                <InfluenceBar label="Package" score={insights.packageImpactScore} color="#cb3837" />
+              )}
+            </div>
+          </div>
+        )}
+
         {analysis?.capabilityQuadrant && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Capability Quadrant</h3>
             <QuadrantChart data={analysis.capabilityQuadrant} />
+          </div>
+        )}
+
+        {/* Multi-Platform Details */}
+        {hasMultiPlatform && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
+            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Multi-Platform Presence</h3>
+            <div className="grid gap-4">
+              {multiPlatform.stackOverflow && <StackOverflowCard data={multiPlatform.stackOverflow} />}
+              {multiPlatform.npmPackages?.length > 0 && <NpmPackagesCard packages={multiPlatform.npmPackages} />}
+              {multiPlatform.pypiPackages?.length > 0 && <PyPIPackagesCard packages={multiPlatform.pypiPackages} />}
+              {multiPlatform.devto && <DevToCard data={multiPlatform.devto} />}
+            </div>
           </div>
         )}
 
