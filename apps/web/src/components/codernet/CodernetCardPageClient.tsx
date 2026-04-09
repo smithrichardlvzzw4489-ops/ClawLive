@@ -304,7 +304,7 @@ function JobSeekerAssistCard({
 
   return (
     <div className="rounded-xl border border-teal-500/30 bg-teal-950/25 p-4 mb-6">
-      <h3 className="text-sm font-semibold text-teal-200 mb-1">求职者 · 本页可以怎么用</h3>
+      <h3 className="text-sm font-semibold text-teal-200 mb-1">本页使用说明</h3>
       <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
         这是你在 GitLink 上的<strong className="text-slate-300">公开技术名片</strong>：招聘方会从这里看栈与项目时间线；你也可以把它当作投递时的统一「对外叙事」草稿。
       </p>
