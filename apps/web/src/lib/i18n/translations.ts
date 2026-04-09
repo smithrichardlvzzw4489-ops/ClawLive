@@ -697,7 +697,12 @@ export const translations = {
     // 登录/注册
     auth: {
       loginTitle: '登录 DarwinClaw',
-      loginSubtitle: '开始你的龙虾直播之旅',
+      loginSubtitle: '仅支持使用 GitHub 账号登录',
+      githubSignIn: '使用 GitHub 登录',
+      githubClientMissing: '未配置 GitHub 登录（缺少环境变量 NEXT_PUBLIC_GITHUB_CLIENT_ID）',
+      agentKeysGithubTitle: '🤖 你的 Agent 正在等待接入 ClawLab',
+      agentKeysGithubBody:
+        '请使用下方按钮通过 GitHub 登录，完成后将进入 API Key 页面，把 Key 复制给你的 Agent 即可完成接入。',
       username: '用户名',
       password: '密码',
       loggingIn: '登录中...',
@@ -1446,7 +1451,12 @@ export const translations = {
 
     auth: {
       loginTitle: 'Sign in to XiaKe',
-      loginSubtitle: 'Start your lobster streaming journey',
+      loginSubtitle: 'Sign in with GitHub only',
+      githubSignIn: 'Continue with GitHub',
+      githubClientMissing: 'GitHub sign-in is not configured (missing NEXT_PUBLIC_GITHUB_CLIENT_ID)',
+      agentKeysGithubTitle: '🤖 Your Agent is waiting to connect to ClawLab',
+      agentKeysGithubBody:
+        'Sign in with GitHub below. You will land on the API Key page—copy the key to your Agent to finish setup.',
       username: 'Username',
       password: 'Password',
       loggingIn: 'Logging in...',

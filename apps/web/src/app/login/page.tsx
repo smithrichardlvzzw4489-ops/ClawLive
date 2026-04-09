@@ -1,444 +1,109 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth';
-import { api, API_BASE_URL, SERVER_API_URL } from '@/lib/api';
+import { API_BASE_URL } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
-type Mode = 'login' | 'register';
-
 function AuthForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect');
-  const { login } = useAuth();
   const { t } = useLocale();
   const isAgentKeyFlow = redirectTo === '/agent-keys';
-  const [mode, setMode] = useState<Mode>(isAgentKeyFlow ? 'register' : 'login');
 
-  // Login
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-
-  // Register
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
-
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [connStatus, setConnStatus] = useState<'checking' | 'ok' | 'fail'>('checking');
   const [connDetail, setConnDetail] = useState('');
+
+  const githubClientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
 
   useEffect(() => {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
     fetch(`/api/health`, { signal: ctrl.signal })
-      .then(r => {
+      .then((r) => {
         clearTimeout(timer);
-        if (r.ok) { setConnStatus('ok'); }
-        else { setConnStatus('fail'); setConnDetail(`HTTP ${r.status}`); }
+        if (r.ok) {
+          setConnStatus('ok');
+        } else {
+          setConnStatus('fail');
+          setConnDetail(`HTTP ${r.status}`);
+        }
       })
-      .catch(err => {
+      .catch((err) => {
         clearTimeout(timer);
         setConnStatus('fail');
         setConnDetail(`${err?.message || err}`);
       });
-    return () => { clearTimeout(timer); ctrl.abort(); };
-  }, []);
-  const [userNotFound, setUserNotFound] = useState(false);
-  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null);
-  const avatarInputRef = useRef<HTMLInputElement>(null);
-  const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setUserNotFound(false);
-    setLoading(true);
-
-    try {
-      await login(username.trim(), password);
-      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/my/profile');
-    } catch (err: any) {
-      const msg = err?.message || '';
-      if (msg === 'USER_NOT_FOUND') {
-        setUserNotFound(true);
-        setError(t('auth.userNotFoundPrompt'));
-      } else {
-        setError(msg || t('auth.loginFailed'));
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setUserNotFound(false);
-
-    if (formData.password !== formData.confirmPassword) {
-      setError(t('auth.passwordMismatch'));
-      return;
-    }
-    if (formData.password.length < 6) {
-      setError(t('auth.passwordMinLength'));
-      return;
-    }
-    if (!avatarDataUrl) {
-      setError(t('auth.avatarRequired'));
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = (await api.auth.register(
-        formData.username,
-        formData.email,
-        formData.password,
-        avatarDataUrl
-      )) as { token: string; refreshToken: string };
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('refreshToken', response.refreshToken);
-      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/my/profile');
-    } catch (err: any) {
-      const m = err?.message as string | undefined;
-      if (m === 'AVATAR_REQUIRED') setError(t('auth.avatarRequired'));
-      else if (m === 'INVALID_AVATAR') setError(t('auth.avatarInvalid'));
-      else setError(m || t('auth.registerFailed'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const switchToRegister = () => {
-    setMode('register');
-    setError('');
-    setUserNotFound(false);
-    setAvatarDataUrl(null);
-  };
-
-  const switchToLogin = () => {
-    setMode('login');
-    setError('');
-    setUserNotFound(false);
-    setAvatarDataUrl(null);
-  };
-
-  const onAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setError(t('auth.avatarInvalidType'));
-      return;
-    }
-    if (file.size > MAX_AVATAR_BYTES) {
-      setError(t('auth.avatarTooLarge'));
-      return;
-    }
-    setError('');
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAvatarDataUrl(typeof reader.result === 'string' ? reader.result : null);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
     };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+  }, []);
+
+  const startGithubOAuth = () => {
+    if (!githubClientId) return;
+    const redirect = `${window.location.origin}/auth/github/callback`;
+    const after =
+      redirectTo && redirectTo.startsWith('/') ? redirectTo : '/my/profile';
+    sessionStorage.setItem('post_oauth_redirect', after);
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirect)}&scope=read:user,user:email,public_repo`;
   };
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#06080f] flex items-center justify-center p-4">
-      {/* 科技感背景光晕 */}
       <div className="pointer-events-none absolute -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/25 blur-[160px]" />
       <div className="pointer-events-none absolute -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/25 blur-[160px]" />
       <div className="pointer-events-none absolute top-1/2 left-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
-      {/* 细格网纹理 */}
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.03)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
-      {/* 玻璃卡片 */}
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/[0.08] bg-white/[0.05] p-8 shadow-2xl backdrop-blur-xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">
-            {mode === 'login' ? t('auth.loginTitle') : t('auth.registerTitle')}
-          </h1>
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-white">{t('auth.loginTitle')}</h1>
+          <p className="mt-2 text-sm text-slate-400">{t('auth.loginSubtitle')}</p>
         </div>
 
         {isAgentKeyFlow && (
           <div className="mb-5 rounded-xl border border-amber-400/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-300">
-            <p className="font-semibold mb-0.5">🤖 你的 Agent 正在等待接入 ClawLab</p>
-            <p className="text-amber-400/80">注册或登录后，你将进入 API Key 生成页面，把 Key 复制给你的 Agent 即可完成接入。</p>
+            <p className="font-semibold mb-0.5">{t('auth.agentKeysGithubTitle')}</p>
+            <p className="text-amber-400/80">{t('auth.agentKeysGithubBody')}</p>
           </div>
         )}
 
         {connStatus !== 'ok' && (
-          <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${connStatus === 'checking' ? 'border border-yellow-400/20 bg-yellow-400/10 text-yellow-300' : 'border border-red-400/20 bg-red-400/10 text-red-300'}`}>
+          <div
+            className={`mb-4 px-4 py-3 rounded-lg text-sm ${
+              connStatus === 'checking'
+                ? 'border border-yellow-400/20 bg-yellow-400/10 text-yellow-300'
+                : 'border border-red-400/20 bg-red-400/10 text-red-300'
+            }`}
+          >
             {connStatus === 'checking'
               ? `正在检测后端连通性... (${API_BASE_URL})`
               : `后端不可达: ${connDetail}`}
           </div>
         )}
 
-        {/* Tab 切换 */}
-        <div className="flex rounded-lg bg-white/[0.06] border border-white/[0.08] p-1 mb-6">
-          <button
-            type="button"
-            onClick={switchToLogin}
-            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-              mode === 'login'
-                ? 'bg-white/[0.12] text-lobster shadow-sm border border-white/[0.1]'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {t('auth.loginBtn')}
-          </button>
-          <button
-            type="button"
-            onClick={switchToRegister}
-            className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${
-              mode === 'register'
-                ? 'bg-white/[0.12] text-lobster shadow-sm border border-white/[0.1]'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {t('auth.registerBtn')}
-          </button>
-        </div>
-
-        {mode === 'login' ? (
-          <form onSubmit={handleLogin} className="space-y-4">
-            {error && (
-              <div className={`px-4 py-3 rounded-lg text-sm ${userNotFound ? 'border border-amber-400/20 bg-amber-400/10 text-amber-300' : 'border border-red-400/20 bg-red-400/10 text-red-300'}`}>
-                {error}
-                {userNotFound && (
-                  <button
-                    type="button"
-                    onClick={switchToRegister}
-                    className="block mt-2 text-lobster font-semibold hover:underline"
-                  >
-                    → {t('auth.registerNow')}
-                  </button>
-                )}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.username')}</label>
-              <input
-                type="text"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.password')}</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-lobster hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-lobster/20"
-            >
-              {loading ? t('auth.loggingIn') : t('auth.loginBtn')}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleRegister} className="space-y-4">
-            {error && (
-              <div className="border border-red-400/20 bg-red-400/10 text-red-300 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.avatarLabel')}</label>
-              <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-                <button
-                  type="button"
-                  onClick={() => avatarInputRef.current?.click()}
-                  className="relative flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-white/20 bg-white/[0.05] text-slate-400 transition hover:border-lobster/50 hover:bg-lobster/5"
-                >
-                  {avatarDataUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={avatarDataUrl} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="text-3xl">+</span>
-                  )}
-                </button>
-                <div className="min-w-0 flex-1 text-center text-sm text-slate-400 sm:text-left">
-                  <p>{t('auth.avatarHint')}</p>
-                  {avatarDataUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setAvatarDataUrl(null)}
-                      className="mt-1 text-lobster hover:underline"
-                    >
-                      {t('auth.avatarRemove')}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                className="hidden"
-                onChange={onAvatarFile}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.username')}</label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
-                required
-                minLength={3}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.email')}</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.password')}</label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
-                required
-                minLength={6}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.confirmPassword')}</label>
-              <input
-                type="password"
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg bg-white/[0.07] border border-white/[0.1] text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-lobster/40 focus:border-lobster/40 transition"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full px-4 py-3 rounded-lg font-semibold text-white bg-lobster hover:bg-lobster-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-lobster/20"
-            >
-              {loading ? t('auth.registering') : t('auth.registerBtn')}
-            </button>
-          </form>
+        {!githubClientId && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-sm border border-red-400/20 bg-red-400/10 text-red-300">
+            {t('auth.githubClientMissing')}
+          </div>
         )}
 
-        {/* ── GitHub / LinkedIn OAuth ── */}
-        {(process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID || process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID) && (
-          <>
-            <div className="relative my-6 flex items-center">
-              <div className="flex-1 border-t border-white/[0.08]" />
-              <span className="mx-3 text-xs text-slate-500">或</span>
-              <div className="flex-1 border-t border-white/[0.08]" />
-            </div>
-            <div className="flex flex-col gap-3">
-              {process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-                    const redirect = `${window.location.origin}/auth/github/callback`;
-                    const after =
-                      redirectTo && redirectTo.startsWith('/') ? redirectTo : '/';
-                    sessionStorage.setItem('post_oauth_redirect', after);
-                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirect)}&scope=read:user,user:email,public_repo`;
-                  }}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/[0.1] bg-white/[0.06] px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/[0.1] hover:text-white"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
-                  </svg>
-                  GitHub 登录
-                </button>
-              )}
-              {process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const clientId = process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID;
-                    if (!clientId) return;
-                    const redirectUri = `${window.location.origin}/auth/linkedin/callback`;
-                    const state = crypto.randomUUID();
-                    sessionStorage.setItem('linkedin_oauth_state', state);
-                    const after =
-                      redirectTo && redirectTo.startsWith('/') ? redirectTo : '/';
-                    sessionStorage.setItem('post_oauth_redirect', after);
-                    const scope = encodeURIComponent('openid profile email');
-                    window.location.href =
-                      `https://www.linkedin.com/oauth/v2/authorization?response_type=code` +
-                      `&client_id=${encodeURIComponent(clientId)}` +
-                      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-                      `&scope=${scope}` +
-                      `&state=${encodeURIComponent(state)}`;
-                  }}
-                  className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-[#0A66C2]/40 bg-[#0A66C2] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#004182]"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                  </svg>
-                  LinkedIn 登录
-                </button>
-              )}
-            </div>
-          </>
-        )}
+        <button
+          type="button"
+          disabled={!githubClientId}
+          onClick={startGithubOAuth}
+          className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-white/[0.1] bg-white/[0.06] px-4 py-3 text-sm font-medium text-slate-200 transition hover:bg-white/[0.1] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+          </svg>
+          {t('auth.githubSignIn')}
+        </button>
 
-        <div className="mt-6 text-center text-sm text-slate-400">
-          {mode === 'login' ? (
-            <>
-              {t('auth.noAccount')}{' '}
-              <button type="button" onClick={switchToRegister} className="text-lobster font-semibold hover:underline">
-                {t('auth.registerNow')}
-              </button>
-            </>
-          ) : (
-            <>
-              {t('auth.hasAccount')}{' '}
-              <button type="button" onClick={switchToLogin} className="text-lobster font-semibold hover:underline">
-                {t('auth.loginNow')}
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="mt-4 text-center">
+        <div className="mt-8 text-center">
           <Link
             href={SHOW_LIVE_FEATURES ? '/rooms' : '/'}
             className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
