@@ -182,7 +182,7 @@ export function CodernetHomeClient() {
                 tab === 'outreach' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
-              批量外联
+              LINK
             </button>
           </div>
 
