@@ -6,6 +6,7 @@ import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 import type { GitHubCrawlResult } from './github-crawler';
 import type { MultiPlatformProfile } from './multiplatform-crawler';
 import { calculateAIEngagement, type AIEngagementScore } from './ai-engagement-scorer';
+import type { JobSeekingSignal } from './job-seeking-signals';
 
 export interface CodernetAnalysis {
   techTags: string[];
@@ -50,9 +51,39 @@ export interface CodernetAnalysis {
     algorithmScore?: number;
   };
   aiEngagement?: AIEngagementScore;
+  /** 基于 GitHub/网站/本站开关/登记链接等依据，由模型归纳的求职状态（与 jobSeeking 证据列表配套） */
+  jobSeekingInProfile?: {
+    active: boolean;
+    summary: string;
+    details: string;
+  };
 }
 
-function buildAnalysisPrompt(data: GitHubCrawlResult, multiPlatform?: MultiPlatformProfile | null): string {
+const JOB_SEEKING_KIND_PROMPT: Record<string, string> = {
+  platform_toggle: '本站开关',
+  github_profile_bio: 'GitHub 简介',
+  github_profile_readme: 'GitHub Profile README',
+  personal_website: '个人网站',
+  user_listed_job_board: '登记的求职平台/档案链接',
+};
+
+function formatJobSeekingSignalsForPrompt(signals: JobSeekingSignal[]): string {
+  if (!signals.length) {
+    return '（无条目：表示当前未发现 GitHub 简介、Profile README、个人网站文案、本站「开放机会」或用户登记的求职平台链接中的明确求职依据。）';
+  }
+  return signals
+    .map((s, i) => {
+      const kindLabel = JOB_SEEKING_KIND_PROMPT[s.kind] || s.kind;
+      return `${i + 1}. [${kindLabel}] ${s.title}\n   摘录/说明：${s.detail}\n   链接：${s.url}`;
+    })
+    .join('\n\n');
+}
+
+function buildAnalysisPrompt(
+  data: GitHubCrawlResult,
+  multiPlatform?: MultiPlatformProfile | null,
+  jobSeekingSignals?: JobSeekingSignal[],
+): string {
   const topRepos = data.repos.slice(0, 15).map((r) => {
     const topics = r.topics.length ? ` [${r.topics.join(', ')}]` : '';
     return `- ${r.name} (${r.language || 'N/A'}, ★${r.stargazers_count})${topics}: ${r.description || 'no description'}`;
@@ -220,40 +251,48 @@ ${langSummary || '（无语言数据）'}
 === 近期 Commit 消息 ===
 ${commitSamples || '（无提交数据）'}${multiPlatformSection}
 
+=== 求职相关公开依据（自动摘录，仅供本画像使用；请勿编造未出现的来源） ===
+${formatJobSeekingSignalsForPrompt(jobSeekingSignals || [])}
+
 请输出**仅一个 JSON 对象**，格式严格如下（不要额外说明文字）：
 {
   "techTags": ["标签1", "标签2", ...],
   "capabilityQuadrant": { "frontend": 0-100, "backend": 0-100, "infra": 0-100, "ai_ml": 0-100 },
   "sharpCommentary": "120字以内锐评，用犀利但不失幽默的口吻综合所有平台数据评价此开发者。如果有 SO 数据要点评答题风格，有 npm 数据要点评包的影响力。中文。",
-  "oneLiner": "一句话标语（10字以内），如'全栈暴走族'、'AI工具狂人'、'基建默默铺路人'"
+  "oneLiner": "一句话标语（10字以内），如'全栈暴走族'、'AI工具狂人'、'基建默默铺路人'",
+  "jobSeekingSummary": "求职状态一句话。若上一节依据无任何有效条目，则必须严格为：未在公开渠道检测到明确求职声明",
+  "jobSeekingDetails": "根据上一节依据归纳的可展示求职信息：意向角色、技术栈、地点/远程、全职兼职等；若无具体细节可简短说明在看机会。若依据为空则必须为空字符串"
 }
 
 规则：
 - techTags 最多 10 个，综合所有平台数据（GitHub 仓库 + SO 标签 + npm 包关键词等）
 - capabilityQuadrant 四个维度各 0-100，综合所有平台数据客观推断
 - sharpCommentary 必须中文，120字以内，要综合多平台数据形成洞察
-- oneLiner 必须中文，10字以内`;
+- oneLiner 必须中文，10字以内
+- 求职字段：仅根据「求职相关公开依据」一节作答。若该节标明无条目或列表为空，则 jobSeekingSummary 必须为「未在公开渠道检测到明确求职声明」，jobSeekingDetails 必须为 ""。若有条目，则 summary 80 字以内点明是否在求职及主要依据来源；details 200 字以内，可分段，不得添加依据中不存在的事实`;
 }
 
 export async function analyzeGitHubProfile(
   crawlData: GitHubCrawlResult,
   multiPlatform?: MultiPlatformProfile | null,
+  jobSeekingSignals?: JobSeekingSignal[],
 ): Promise<CodernetAnalysis> {
   const { model } = getPublishingLlmClient();
 
-  const prompt = buildAnalysisPrompt(crawlData, multiPlatform);
+  const prompt = buildAnalysisPrompt(crawlData, multiPlatform, jobSeekingSignals);
   const meta = { username: crawlData.username };
+  const hasJobSeekingEvidence = (jobSeekingSignals?.length ?? 0) > 0;
 
   let response;
   try {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.7, response_format: { type: 'json_object' } },
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 2000, temperature: 0.7, response_format: { type: 'json_object' } },
       'profile_analysis',
       meta,
     );
   } catch {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 1500, temperature: 0.7 },
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 2000, temperature: 0.7 },
       'profile_analysis',
       meta,
     );
@@ -270,6 +309,8 @@ export async function analyzeGitHubProfile(
     capabilityQuadrant?: Record<string, number>;
     sharpCommentary?: string;
     oneLiner?: string;
+    jobSeekingSummary?: string;
+    jobSeekingDetails?: string;
   };
 
   const langEntries = Object.entries(crawlData.languageStats)
@@ -393,6 +434,16 @@ export async function analyzeGitHubProfile(
 
   const aiEngagement = calculateAIEngagement(crawlData, multiPlatform);
 
+  const NO_SIGNAL_PHRASE = '未在公开渠道检测到明确求职声明';
+  let jobSummary = String(parsed.jobSeekingSummary || '').trim().slice(0, 120);
+  let jobDetails = String(parsed.jobSeekingDetails || '').trim().slice(0, 500);
+  if (!hasJobSeekingEvidence) {
+    jobSummary = NO_SIGNAL_PHRASE;
+    jobDetails = '';
+  } else if (!jobSummary) {
+    jobSummary = '公开渠道显示该开发者可能正在关注职业机会，详见下方依据链接。';
+  }
+
   return {
     techTags: Array.isArray(parsed.techTags)
       ? parsed.techTags.map(String).filter(Boolean).slice(0, 10)
@@ -410,5 +461,10 @@ export async function analyzeGitHubProfile(
     platformsUsed,
     multiPlatformInsights: Object.keys(multiPlatformInsights).length > 0 ? multiPlatformInsights : undefined,
     aiEngagement: aiEngagement.overall > 0 ? aiEngagement : undefined,
+    jobSeekingInProfile: {
+      active: hasJobSeekingEvidence,
+      summary: jobSummary,
+      details: jobDetails,
+    },
   };
 }

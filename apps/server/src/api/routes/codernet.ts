@@ -94,6 +94,16 @@ function siteBaseUrlFromRequest(req: Request): string {
   return `${proto}://${host}`.replace(/\/$/, '');
 }
 
+/** 后台爬取任务无 Request 时，用于生成站内求职卡片链接 */
+function siteBaseUrlForBackground(): string {
+  const raw =
+    process.env.SERVER_PUBLIC_URL?.trim() ||
+    process.env.WEB_APP_URL?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    'https://www.clawlab.live';
+  return raw.replace(/\/$/, '');
+}
+
 const lookupCache = new Map<string, LookupCacheEntry>();
 const LOOKUP_CACHE_TTL = 30 * 60 * 1000; // 30 min
 
@@ -875,9 +885,15 @@ export async function runCrawlAndAnalysis(
       console.warn(`[Codernet] multi-platform scan failed for @${githubUsername}:`, mpErr);
     }
 
-    setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating unified profile...');
-    const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
-    console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
+    const dbUserJob = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        username: true,
+        openToOpportunities: true,
+        openToOpportunitiesUpdatedAt: true,
+        jobSeekingExternalProfiles: true,
+      },
+    });
 
     let jobSeekingDetected: JobSeekingSignal[] = [];
     try {
@@ -885,6 +901,23 @@ export async function runCrawlAndAnalysis(
     } catch (jsErr) {
       console.warn(`[Codernet] job-seeking scan failed for @${githubUsername}:`, jsErr);
     }
+
+    const mergedForAnalysis = mergeJobSeekingSignalsForDisplay(
+      jobSeekingDetected,
+      dbUserJob
+        ? {
+            openToOpportunities: dbUserJob.openToOpportunities,
+            openToOpportunitiesUpdatedAt: dbUserJob.openToOpportunitiesUpdatedAt,
+            jobSeekingExternalProfiles: dbUserJob.jobSeekingExternalProfiles,
+            username: dbUserJob.username,
+          }
+        : null,
+      siteBaseUrlForBackground(),
+    );
+
+    setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating unified profile...');
+    const analysis = await analyzeGitHubProfile(crawlData, multiPlatform, mergedForAnalysis.signals);
+    console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
     setProgress(trackKey, 'saving_results', 95, 'Saving analysis results...');
     await prisma.user.update({
@@ -962,16 +995,16 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
       console.warn(`[Codernet] multi-platform scan failed for @${ghUsername}, continuing with GitHub only:`, mpErr);
     }
 
-    setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating the unified profile...');
-    const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
-    console.log(`[Codernet] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
-
     let jobSeekingDetected: JobSeekingSignal[] = [];
     try {
       jobSeekingDetected = await collectJobSeekingSignals(crawlData, token);
     } catch (jsErr) {
       console.warn(`[Codernet] job-seeking scan failed for @${ghUsername}:`, jsErr);
     }
+
+    setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating the unified profile...');
+    const analysis = await analyzeGitHubProfile(crawlData, multiPlatform, jobSeekingDetected);
+    console.log(`[Codernet] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
     const avatarUrl = `https://github.com/${ghUsername}.png`;
 

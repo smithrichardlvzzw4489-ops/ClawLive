@@ -224,6 +224,11 @@ interface LookupResult {
     platformsUsed?: string[];
     multiPlatformInsights?: MultiPlatformInsights;
     aiEngagement?: AIEngagement;
+    jobSeekingInProfile?: {
+      active: boolean;
+      summary: string;
+      details: string;
+    };
   };
   multiPlatform?: MultiPlatformData | null;
   avatarUrl?: string;
@@ -1074,6 +1079,31 @@ export default function GitHubLookupCardPage() {
           {platforms.length > 1 && (
             <div className="mb-4">
               <PlatformBadges platforms={platforms} />
+            </div>
+          )}
+
+          {analysis?.jobSeekingInProfile && (
+            <div
+              className={`rounded-xl border p-4 mb-4 ${
+                analysis.jobSeekingInProfile.active
+                  ? 'border-amber-500/35 bg-amber-500/[0.06]'
+                  : 'border-white/[0.06] bg-white/[0.02]'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">画像归纳 · 求职</span>
+                {analysis.jobSeekingInProfile.active ? (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 font-mono">有公开依据</span>
+                ) : (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-slate-500 font-mono">未见声明</span>
+                )}
+              </div>
+              <p className="text-sm text-slate-200 leading-relaxed">{analysis.jobSeekingInProfile.summary}</p>
+              {analysis.jobSeekingInProfile.active && analysis.jobSeekingInProfile.details ? (
+                <p className="text-xs text-slate-400 mt-2 leading-relaxed whitespace-pre-wrap">
+                  {analysis.jobSeekingInProfile.details}
+                </p>
+              ) : null}
             </div>
           )}
 
