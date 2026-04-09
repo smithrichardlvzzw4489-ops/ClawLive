@@ -1,5 +1,5 @@
-/** 应用仅使用中文，保留类型便于扩展 */
-export type Locale = 'zh';
+/** UI 语言：默认英文，可切换简体中文 */
+export type Locale = 'en' | 'zh';
 
 export const translations = {
   zh: {
@@ -732,6 +732,15 @@ export const translations = {
       avatarTooLarge: '图片需不超过 2MB',
       avatarInvalidType: '请选择图片文件',
       avatarRemove: '移除',
+      connChecking: '正在检测后端连通性... ({apiBase})',
+      connFail: '后端不可达: {detail}',
+      oauthExchanging: '正在完成 GitHub 登录…',
+      oauthSuccessRedirect: '登录成功，正在跳转…',
+      oauthBackToLogin: '返回登录',
+      oauthDenied: '你取消了 GitHub 授权',
+      oauthNoCode: '未获取到授权码',
+      oauthFailGeneric: 'GitHub 登录失败',
+      oauthNetworkError: '网络错误',
     },
 
     // Skill 市场 / 能力流
@@ -1486,6 +1495,15 @@ export const translations = {
       avatarTooLarge: 'Image must be 2MB or smaller',
       avatarInvalidType: 'Please choose an image file',
       avatarRemove: 'Remove',
+      connChecking: 'Checking backend connectivity... ({apiBase})',
+      connFail: 'Backend unreachable: {detail}',
+      oauthExchanging: 'Completing GitHub sign-in…',
+      oauthSuccessRedirect: 'Signed in. Redirecting…',
+      oauthBackToLogin: 'Back to sign in',
+      oauthDenied: 'You denied GitHub authorization',
+      oauthNoCode: 'No authorization code was returned',
+      oauthFailGeneric: 'GitHub sign-in failed',
+      oauthNetworkError: 'Network error',
     },
 
     market: {

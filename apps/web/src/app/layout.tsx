@@ -47,7 +47,7 @@ export default function RootLayout({
   children: ReactNode
 }) {
   return (
-    <html lang="zh-CN" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${inter.className} ${notoSansSC.variable} ${notoSerifSC.variable} ${zcoolXiaoWei.variable}`}
       >

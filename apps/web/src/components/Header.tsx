@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 const navItemBase =
@@ -109,7 +110,8 @@ export function Header({}: HeaderProps) {
             )}
           </nav>
 
-          <div className="ml-auto shrink-0">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <LanguageToggle className="shrink-0" />
             <PublishAndAuthControls variant="nav" />
           </div>
         </div>

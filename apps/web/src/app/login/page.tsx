@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 function AuthForm() {
   const searchParams = useSearchParams();
@@ -52,6 +53,9 @@ function AuthForm() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#06080f] flex items-center justify-center p-4">
+      <div className="absolute right-4 top-4 z-20 sm:right-6 sm:top-6">
+        <LanguageToggle />
+      </div>
       <div className="pointer-events-none absolute -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/25 blur-[160px]" />
       <div className="pointer-events-none absolute -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/25 blur-[160px]" />
       <div className="pointer-events-none absolute top-1/2 left-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[120px]" />
@@ -79,8 +83,8 @@ function AuthForm() {
             }`}
           >
             {connStatus === 'checking'
-              ? `正在检测后端连通性... (${API_BASE_URL})`
-              : `后端不可达: ${connDetail}`}
+              ? t('auth.connChecking', { apiBase: API_BASE_URL || '—' })
+              : t('auth.connFail', { detail: connDetail })}
           </div>
         )}
 
@@ -115,18 +119,21 @@ function AuthForm() {
   );
 }
 
+function LoginLoadingFallback() {
+  const { t } = useLocale();
+  return (
+    <div className="min-h-screen bg-[#06080f] flex items-center justify-center">
+      <div className="text-center">
+        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-violet-400" />
+        <p className="text-white/60">{t('loading')}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#06080f] flex items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-violet-400" />
-            <p className="text-white/60">加载中...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<LoginLoadingFallback />}>
       <AuthForm />
     </Suspense>
   );
