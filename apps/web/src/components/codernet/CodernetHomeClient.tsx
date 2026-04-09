@@ -263,35 +263,36 @@ export function CodernetHomeClient() {
             </div>
           )}
 
-          {/* Outreach Tab */}
+          {/* LINK: search → view portrait (same flow as GitHub 画像 tab) */}
           {tab === 'outreach' && (
             <div className="max-w-lg mx-auto">
               <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-8 text-center">
-                <div className="text-4xl mb-4">📡</div>
-                <h3 className="text-lg font-bold mb-2">Developer Outreach</h3>
+                <div className="text-4xl mb-4">🔍</div>
+                <h3 className="text-lg font-bold mb-2">搜索开发者画像</h3>
                 <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-                  从 GitHub 1.8亿+ 开发者中搜索 → 自动提取联系方式 → AI 为每人生成个性化消息 → 一键发送
+                  输入 GitHub 用户名 → 拉取公开仓库与动态 → AI 生成技术画像 → 在画像页直接查看，无需邮箱或外联
                 </p>
                 <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                    <p className="text-xl font-bold text-green-400">~80%</p>
-                    <p className="text-[10px] text-slate-500">Email 提取率</p>
+                    <p className="text-xl font-bold text-green-400">公开</p>
+                    <p className="text-[10px] text-slate-500">仓库与贡献数据</p>
                   </div>
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                    <p className="text-xl font-bold text-violet-400">1000</p>
-                    <p className="text-[10px] text-slate-500">最大外联人数</p>
+                    <p className="text-xl font-bold text-violet-400">AI</p>
+                    <p className="text-[10px] text-slate-500">技术栈与画像总结</p>
                   </div>
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                    <p className="text-xl font-bold text-blue-400">AI</p>
-                    <p className="text-[10px] text-slate-500">个性化消息</p>
+                    <p className="text-xl font-bold text-blue-400">即看</p>
+                    <p className="text-[10px] text-slate-500">一页浏览完整画像</p>
                   </div>
                 </div>
-                <Link
-                  href="/codernet/outreach"
+                <button
+                  type="button"
+                  onClick={() => setTab('lookup')}
                   className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold transition"
                 >
-                  Launch Outreach Campaign →
-                </Link>
+                  去搜索并查看画像 →
+                </button>
               </div>
             </div>
           )}
