@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 import { MainLayout } from '@/components/MainLayout';
 
-type TabId = 'lookup' | 'find' | 'outreach';
+type TabId = 'lookup' | 'outreach';
 
 interface QuotaDim { used: number; limit: number; remaining: number; ratio: number }
 interface QuotaStatus {
@@ -15,38 +15,12 @@ interface QuotaStatus {
   dimensions: { profile_lookup: QuotaDim; search: QuotaDim; outreach: QuotaDim };
 }
 
-interface SearchResult {
-  githubUsername: string;
-  avatarUrl: string;
-  oneLiner: string;
-  techTags: string[];
-  sharpCommentary: string;
-  score: number;
-  reason: string;
-  bio: string | null;
-  location: string | null;
-  stats?: { totalPublicRepos: number; totalStars: number; followers: number };
-}
-
-const SEARCH_PHASES = [
-  { key: 'parsing', label: '理解你的需求', icon: '🧠' },
-  { key: 'searching', label: '搜索 GitHub', icon: '🔍' },
-  { key: 'enriching', label: '分析候选人', icon: '📊' },
-  { key: 'ranking', label: 'AI 精排', icon: '🏆' },
-] as const;
-
 export function CodernetHomeClient() {
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [tab, setTab] = useState<TabId>('lookup');
 
   const [searchValue, setSearchValue] = useState('');
-
-  const [findQuery, setFindQuery] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [searchPhase, setSearchPhase] = useState('');
-  const [searchResults, setSearchResults] = useState<SearchResult[] | null>(null);
-  const [searchError, setSearchError] = useState('');
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
 
   const fetchQuota = useCallback(() => {
@@ -76,49 +50,6 @@ export function CodernetHomeClient() {
     const val = searchValue.trim().replace(/^@/, '');
     if (!val) return;
     router.push(`/codernet/github/${encodeURIComponent(val)}`);
-  };
-
-  const handleFind = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!findQuery.trim() || searching) return;
-    setSearching(true);
-    setSearchError('');
-    setSearchResults(null);
-    setSearchPhase('parsing');
-
-    const phases = ['parsing', 'searching', 'enriching', 'ranking'];
-    let phaseIdx = 0;
-    const phaseTimer = setInterval(() => {
-      phaseIdx = Math.min(phaseIdx + 1, phases.length - 1);
-      setSearchPhase(phases[phaseIdx]);
-    }, 5000);
-
-    try {
-      const base = API_BASE_URL || '';
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(`${base}/api/codernet/search`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ query: findQuery.trim() }),
-      });
-      const data = await res.json();
-      if (res.status === 429) {
-        setSearchError(`本月搜索额度已用完（${data.quota?.used}/${data.quota?.limit}），下月自动重置`);
-        fetchQuota();
-        return;
-      }
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      setSearchResults(data.results || []);
-      fetchQuota();
-    } catch (err: any) {
-      setSearchError(err.message || 'Search failed');
-    } finally {
-      clearInterval(phaseTimer);
-      setSearchPhase('');
-      setSearching(false);
-    }
   };
 
   if (checking) {
@@ -152,11 +83,11 @@ export function CodernetHomeClient() {
           </h1>
 
           <p className="text-slate-400 text-sm leading-relaxed mb-8">
-            查看任意开发者的 AI 画像，或描述你的需求找到匹配的开发者
+            输入 GitHub 用户名，查看任意开发者的 AI 画像
           </p>
 
           {/* Tab Switcher */}
-          <div className="grid grid-cols-3 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-xl mx-auto">
+          <div className="grid grid-cols-2 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-md mx-auto">
             <button
               type="button"
               onClick={() => setTab('lookup')}
@@ -165,15 +96,6 @@ export function CodernetHomeClient() {
               }`}
             >
               GitHub 画像
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('find')}
-              className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition ${
-                tab === 'find' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              找开发者
             </button>
             <button
               type="button"
@@ -214,94 +136,6 @@ export function CodernetHomeClient() {
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Find Developer Tab */}
-          {tab === 'find' && (
-            <div className="max-w-lg mx-auto">
-              <form onSubmit={handleFind}>
-                <textarea
-                  value={findQuery}
-                  onChange={(e) => setFindQuery(e.target.value)}
-                  placeholder="描述你想找的开发者，AI 将实时搜索 GitHub 1.8亿+ 开发者：&#10;• 上海的 Rust 后端开发者，专注分布式系统&#10;• 全栈开发合伙人，懂 AI/ML，粉丝 1000+&#10;• 日本的 Go 开发者，做过开源基础设施项目"
-                  rows={4}
-                  className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none resize-none focus:border-violet-500/40 transition"
-                />
-                <button
-                  type="submit"
-                  disabled={!findQuery.trim() || searching}
-                  className="mt-3 w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/30 disabled:cursor-not-allowed text-sm font-semibold transition flex items-center justify-center gap-2"
-                >
-                  {searching ? (
-                    <>
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      全网搜索中...
-                    </>
-                  ) : (
-                    '全网搜索开发者'
-                  )}
-                </button>
-              </form>
-
-              {/* Phase progress bar during search */}
-              {searching && (
-                <div className="mt-5 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    {SEARCH_PHASES.map((ph, i) => {
-                      const active = searchPhase === ph.key;
-                      const done = SEARCH_PHASES.findIndex((p) => p.key === searchPhase) > i;
-                      return (
-                        <div key={ph.key} className="flex items-center gap-1.5">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs transition-all duration-300 ${
-                            active ? 'bg-violet-600 scale-110 ring-2 ring-violet-400/50 shadow-lg shadow-violet-500/20' :
-                            done ? 'bg-green-600/80' : 'bg-white/[0.06]'
-                          }`}>
-                            {done ? '✓' : ph.icon}
-                          </div>
-                          <span className={`text-[10px] hidden sm:inline ${active ? 'text-violet-300 font-semibold' : done ? 'text-green-400/70' : 'text-slate-600'}`}>
-                            {ph.label}
-                          </span>
-                          {i < SEARCH_PHASES.length - 1 && (
-                            <div className={`w-4 h-px ${done ? 'bg-green-600/50' : 'bg-white/[0.06]'}`} />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-slate-400 animate-pulse">
-                    {searchPhase === 'parsing' && 'AI 正在理解你的需求，转换为 GitHub 搜索条件...'}
-                    {searchPhase === 'searching' && '正在从 GitHub 1.8亿+ 开发者中实时搜索...'}
-                    {searchPhase === 'enriching' && '对 top 候选人进行深度分析，生成 AI 画像...'}
-                    {searchPhase === 'ranking' && 'AI 精排中，找出最匹配的开发者...'}
-                  </p>
-                </div>
-              )}
-
-              {searchError && (
-                <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">{searchError}</div>
-              )}
-
-              {searchResults !== null && searchResults.length === 0 && !searching && (
-                <div className="mt-8 text-center">
-                  <p className="text-slate-500 text-sm">没有找到匹配的开发者</p>
-                  <p className="text-slate-600 text-xs mt-1">试试换个描述方式，或指定更具体的技术栈和要求</p>
-                </div>
-              )}
-
-              {searchResults && searchResults.length > 0 && (
-                <div className="mt-6 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs text-slate-500 font-mono">Found {searchResults.length} developers from GitHub</p>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 border border-green-500/20">Live Search</span>
-                  </div>
-                  {searchResults.map((r) => (
-                    <SearchResultCard key={r.githubUsername} result={r} onConnect={() => {
-                      router.push(`/codernet/github/${r.githubUsername}?connect=1&from_query=${encodeURIComponent(findQuery)}`);
-                    }} />
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
@@ -364,69 +198,9 @@ export function CodernetHomeClient() {
   );
 }
 
-function SearchResultCard({ result, onConnect }: { result: SearchResult; onConnect: () => void }) {
-  return (
-    <div className="rounded-xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-white/[0.01] p-4 text-left hover:border-violet-500/20 transition-all group">
-      <div className="flex items-start gap-3">
-        {result.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={result.avatarUrl} alt={result.githubUsername} className="w-12 h-12 rounded-xl border border-white/10 group-hover:border-violet-500/30 transition" />
-        ) : (
-          <div className="w-12 h-12 rounded-xl bg-violet-600/30 flex items-center justify-center text-lg font-bold">{result.githubUsername[0]?.toUpperCase()}</div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/codernet/github/${result.githubUsername}`} className="text-sm font-bold text-white hover:text-violet-300 transition truncate">
-              @{result.githubUsername}
-            </Link>
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 shrink-0">
-              {Math.round(result.score * 100)}%
-            </span>
-            {result.location && (
-              <span className="text-[10px] text-slate-500">📍 {result.location}</span>
-            )}
-          </div>
-          {result.bio && <p className="text-xs text-slate-300 mt-0.5 line-clamp-1">{result.bio}</p>}
-          {result.oneLiner && <p className="text-xs text-violet-300/80 mt-0.5 italic">&ldquo;{result.oneLiner}&rdquo;</p>}
-          <p className="text-xs text-slate-400 mt-1">{result.reason}</p>
-          {result.techTags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {result.techTags.slice(0, 6).map((t) => (
-                <span key={t} className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400 font-mono">{t}</span>
-              ))}
-            </div>
-          )}
-        </div>
-        {result.stats && (
-          <div className="text-right shrink-0 space-y-0.5">
-            <div className="text-xs font-mono text-yellow-400/80">&#9733; {result.stats.totalStars.toLocaleString()}</div>
-            <div className="text-[10px] text-slate-500">{result.stats.followers.toLocaleString()} followers</div>
-            <div className="text-[10px] text-slate-600">{result.stats.totalPublicRepos} repos</div>
-          </div>
-        )}
-      </div>
-      <div className="mt-3 flex gap-2">
-        <Link
-          href={`/codernet/github/${result.githubUsername}`}
-          className="flex-1 text-center py-2 rounded-lg border border-white/[0.08] text-xs text-slate-400 hover:text-white hover:bg-white/[0.05] transition"
-        >
-          View Profile
-        </Link>
-        <button
-          onClick={onConnect}
-          className="flex-1 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-xs font-medium text-white transition"
-        >
-          Connect via Agent
-        </button>
-      </div>
-    </div>
-  );
-}
-
 const QUOTA_DIMS: { key: keyof QuotaStatus['dimensions']; label: string; icon: string; color: string }[] = [
   { key: 'profile_lookup', label: 'Profile 画像', icon: '📊', color: '#8b5cf6' },
-  { key: 'search', label: '语义搜索', icon: '🔍', color: '#3b82f6' },
-  { key: 'outreach', label: '外联触达', icon: '📡', color: '#10b981' },
+  { key: 'outreach', label: 'LINK', icon: '📡', color: '#10b981' },
 ];
 
 function QuotaBar({ quota }: { quota: QuotaStatus }) {
