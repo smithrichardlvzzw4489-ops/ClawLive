@@ -204,12 +204,6 @@ export function CodernetHomeClient() {
                 </div>
               ) : (
                 <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-6">
-                  <p className="text-sm text-slate-300 mb-1">
-                    平台用户 <span className="font-mono text-violet-300">@{meBrief.username}</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mb-5 font-mono">
-                    GitHub · @{meBrief.githubUsername}
-                  </p>
                   <p className="text-xs text-slate-500 mb-4 leading-relaxed">
                     点击下方按钮将拉取仓库与公开活动并由 AI 生成画像，完成后可在「我的」画像页查看进度与结果。
                   </p>
