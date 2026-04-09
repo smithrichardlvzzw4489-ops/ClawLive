@@ -3,6 +3,8 @@
  * 支持用户 OAuth token、服务端 token (GITHUB_SERVER_TOKEN) 或无 token (公开 API 60 req/hr)。
  */
 
+import { buildPortfolioDepth, type PortfolioDepth } from './github-portfolio-depth';
+
 const GH_API = 'https://api.github.com';
 
 function ghHeaders(token?: string): Record<string, string> {
@@ -54,6 +56,8 @@ export interface GitHubCrawlResult {
   location: string | null;
   company: string | null;
   blog: string | null;
+  /** 由 repos + recentCommits 派生的时间线与多视角列表 */
+  portfolioDepth?: PortfolioDepth;
 }
 
 async function ghFetch<T>(url: string, token?: string): Promise<T> {
@@ -122,20 +126,25 @@ async function fetchLanguageStats(
   return stats;
 }
 
+/** 更多仓库与提交条数，便于时间线与 commit 风格归纳（受 GitHub API 频次限制） */
+const COMMIT_SAMPLE_REPO_COUNT = 18;
+const COMMITS_PER_REPO = 15;
+const COMMIT_SAMPLE_MAX = 220;
+
 /**
- * Fetch recent commits from top repos (sample up to 30 total).
+ * Fetch recent commits from many top repos (by stars order), dedupe by repo+date+message prefix.
  */
 async function fetchRecentCommits(
   token: string | undefined,
   username: string,
   repos: GHRepo[],
 ): Promise<GHCommitSample[]> {
-  const top5 = repos.slice(0, 5);
+  const slice = repos.slice(0, COMMIT_SAMPLE_REPO_COUNT);
   const commits: GHCommitSample[] = [];
   const results = await Promise.allSettled(
-    top5.map((r) =>
+    slice.map((r) =>
       ghFetch<Array<{ commit: { message: string; author: { date: string } } }>>(
-        `${GH_API}/repos/${r.full_name}/commits?author=${username}&per_page=6`,
+        `${GH_API}/repos/${r.full_name}/commits?author=${encodeURIComponent(username)}&per_page=${COMMITS_PER_REPO}`,
         token,
       ),
     ),
@@ -144,17 +153,25 @@ async function fetchRecentCommits(
     const result = results[i];
     if (result.status === 'fulfilled') {
       for (const c of result.value) {
+        const line = c.commit.message.split('\n')[0].slice(0, 240);
         commits.push({
-          repo: top5[i].name,
-          message: c.commit.message.split('\n')[0].slice(0, 200),
+          repo: slice[i].name,
+          message: line,
           date: c.commit.author.date,
         });
       }
     }
   }
-  return commits
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 30);
+  const seen = new Set<string>();
+  const deduped: GHCommitSample[] = [];
+  for (const c of commits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())) {
+    const key = `${c.repo}|${c.date}|${c.message.slice(0, 48)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(c);
+    if (deduped.length >= COMMIT_SAMPLE_MAX) break;
+  }
+  return deduped;
 }
 
 export type CrawlProgressCallback = (stage: string, detail: string) => void;
@@ -182,23 +199,25 @@ export async function crawlGitHubProfile(
 
   const totalStars = repos.reduce((s, r) => s + r.stargazers_count, 0);
 
-  return {
+  const mappedRepos = repos.map((r) => ({
+    name: r.name,
+    full_name: r.full_name,
+    description: r.description,
+    language: r.language,
+    stargazers_count: r.stargazers_count,
+    forks_count: r.forks_count,
+    topics: r.topics || [],
+    html_url: r.html_url,
+    fork: r.fork,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+    pushed_at: r.pushed_at,
+  }));
+
+  const base: GitHubCrawlResult = {
     username,
     crawledAt: new Date().toISOString(),
-    repos: repos.map((r) => ({
-      name: r.name,
-      full_name: r.full_name,
-      description: r.description,
-      language: r.language,
-      stargazers_count: r.stargazers_count,
-      forks_count: r.forks_count,
-      topics: r.topics || [],
-      html_url: r.html_url,
-      fork: r.fork,
-      created_at: r.created_at,
-      updated_at: r.updated_at,
-      pushed_at: r.pushed_at,
-    })),
+    repos: mappedRepos,
     languageStats,
     recentCommits,
     totalPublicRepos: profile.public_repos,
@@ -209,5 +228,10 @@ export async function crawlGitHubProfile(
     location: profile.location,
     company: profile.company,
     blog: profile.blog,
+  };
+
+  return {
+    ...base,
+    portfolioDepth: buildPortfolioDepth(base),
   };
 }

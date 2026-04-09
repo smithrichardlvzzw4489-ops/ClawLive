@@ -7,6 +7,7 @@ import type { GitHubCrawlResult } from './github-crawler';
 import type { MultiPlatformProfile } from './multiplatform-crawler';
 import { calculateAIEngagement, type AIEngagementScore } from './ai-engagement-scorer';
 import type { JobSeekingSignal } from './job-seeking-signals';
+import { formatPortfolioDepthForPrompt } from './github-portfolio-depth';
 
 export interface CodernetAnalysis {
   techTags: string[];
@@ -57,6 +58,17 @@ export interface CodernetAnalysis {
     summary: string;
     details: string;
   };
+  /** 与 portfolioDepth 数据对齐的按年/按仓库深层叙述（可和前端时间线对照） */
+  activityDeepDive?: {
+    byYear: Array<{ year: number; narrative: string; highlights: string[] }>;
+    repoDeepDives: Array<{
+      repo: string;
+      roleEstimate: string;
+      contributionSummary: string;
+      techFocus: string;
+    }>;
+    commitPatterns?: string;
+  };
 }
 
 const JOB_SEEKING_KIND_PROMPT: Record<string, string> = {
@@ -66,6 +78,19 @@ const JOB_SEEKING_KIND_PROMPT: Record<string, string> = {
   personal_website: '个人网站',
   user_listed_job_board: '登记的求职平台/档案链接',
 };
+
+function collectYearsFromCrawl(crawl: GitHubCrawlResult): Set<number> {
+  const s = new Set<number>();
+  for (const r of crawl.repos) {
+    const y = new Date(r.created_at).getUTCFullYear();
+    if (Number.isFinite(y) && y >= 1970) s.add(y);
+  }
+  for (const c of crawl.recentCommits) {
+    const y = new Date(c.date).getUTCFullYear();
+    if (Number.isFinite(y) && y >= 1970) s.add(y);
+  }
+  return s;
+}
 
 function formatJobSeekingSignalsForPrompt(signals: JobSeekingSignal[]): string {
   if (!signals.length) {
@@ -84,9 +109,11 @@ function buildAnalysisPrompt(
   multiPlatform?: MultiPlatformProfile | null,
   jobSeekingSignals?: JobSeekingSignal[],
 ): string {
-  const topRepos = data.repos.slice(0, 15).map((r) => {
+  const topRepos = data.repos.slice(0, 28).map((r) => {
     const topics = r.topics.length ? ` [${r.topics.join(', ')}]` : '';
-    return `- ${r.name} (${r.language || 'N/A'}, ★${r.stargazers_count})${topics}: ${r.description || 'no description'}`;
+    const created = r.created_at ? r.created_at.slice(0, 10) : '';
+    const pushed = r.pushed_at ? r.pushed_at.slice(0, 10) : '';
+    return `- ${r.name} (${r.language || 'N/A'}, ★${r.stargazers_count}, 创建于${created}, 最近推送${pushed})${topics}: ${r.description || 'no description'}`;
   }).join('\n');
 
   const langEntries = Object.entries(data.languageStats)
@@ -97,9 +124,14 @@ function buildAnalysisPrompt(
     .map(([lang, bytes]) => `${lang}: ${((bytes / totalBytes) * 100).toFixed(1)}%`)
     .join(', ');
 
-  const commitSamples = data.recentCommits.slice(0, 15)
-    .map((c) => `[${c.repo}] ${c.message}`)
+  const commitSamples = data.recentCommits
+    .slice(0, 45)
+    .map((c) => `${c.date.slice(0, 10)} [${c.repo}] ${c.message}`)
     .join('\n');
+
+  const timelineBlock = data.portfolioDepth
+    ? formatPortfolioDepthForPrompt(data.portfolioDepth, 12)
+    : '（无派生时间线：请仅根据仓库创建日与提交日期推断）';
 
   let multiPlatformSection = '';
 
@@ -248,8 +280,11 @@ ${topRepos || '（无仓库数据）'}
 === 语言分布 ===
 ${langSummary || '（无语言数据）'}
 
-=== 近期 Commit 消息 ===
-${commitSamples || '（无提交数据）'}${multiPlatformSection}
+=== 近期 Commit 消息（含日期，供归纳工作节奏与提交风格） ===
+${commitSamples || '（无提交数据）'}
+
+=== 按年的时间线摘要（由系统从仓库创建日 + 提交样本聚合，须与叙述一致） ===
+${timelineBlock}${multiPlatformSection}
 
 === 求职相关公开依据（自动摘录，仅供本画像使用；请勿编造未出现的来源） ===
 ${formatJobSeekingSignalsForPrompt(jobSeekingSignals || [])}
@@ -261,7 +296,10 @@ ${formatJobSeekingSignalsForPrompt(jobSeekingSignals || [])}
   "sharpCommentary": "120字以内锐评，用犀利但不失幽默的口吻综合所有平台数据评价此开发者。如果有 SO 数据要点评答题风格，有 npm 数据要点评包的影响力。中文。",
   "oneLiner": "一句话标语（10字以内），如'全栈暴走族'、'AI工具狂人'、'基建默默铺路人'",
   "jobSeekingSummary": "求职状态一句话。若上一节依据无任何有效条目，则必须严格为：未在公开渠道检测到明确求职声明",
-  "jobSeekingDetails": "根据上一节依据归纳的可展示求职信息：意向角色、技术栈、地点/远程、全职兼职等；若无具体细节可简短说明在看机会。若依据为空则必须为空字符串"
+  "jobSeekingDetails": "根据上一节依据归纳的可展示求职信息：意向角色、技术栈、地点/远程、全职兼职等；若无具体细节可简短说明在看机会。若依据为空则必须为空字符串",
+  "activityByYear": [ { "year": 2024, "narrative": "该年在公开样本中的技术主线（60字内）", "highlights": ["可验证亮点1", "亮点2"] } ],
+  "repoDeepDives": [ { "repo": "仓库名（与列表一致）", "roleEstimate": "推断：主导/核心贡献/探索/归档 等", "contributionSummary": "基于描述与 stars 的公开贡献叙事（80字内）", "techFocus": "技术关键词，逗号分隔" } ],
+  "commitPatterns": "根据提交消息样本归纳：提交粒度、语言风格、是否偏功能/修 bug/文档等（100字内）"
 }
 
 规则：
@@ -269,7 +307,10 @@ ${formatJobSeekingSignalsForPrompt(jobSeekingSignals || [])}
 - capabilityQuadrant 四个维度各 0-100，综合所有平台数据客观推断
 - sharpCommentary 必须中文，120字以内，要综合多平台数据形成洞察
 - oneLiner 必须中文，10字以内
-- 求职字段：仅根据「求职相关公开依据」一节作答。若该节标明无条目或列表为空，则 jobSeekingSummary 必须为「未在公开渠道检测到明确求职声明」，jobSeekingDetails 必须为 ""。若有条目，则 summary 80 字以内点明是否在求职及主要依据来源；details 200 字以内，可分段，不得添加依据中不存在的事实`;
+- 求职字段：仅根据「求职相关公开依据」一节作答。若该节标明无条目或列表为空，则 jobSeekingSummary 必须为「未在公开渠道检测到明确求职声明」，jobSeekingDetails 必须为 ""。若有条目，则 summary 80 字以内点明是否在求职及主要依据来源；details 200 字以内，可分段，不得添加依据中不存在的事实
+- activityByYear：仅包含「按年的时间线摘要」中出现的年份或仓库创建/提交样本中出现的年份；每年 narrative 60 字内，highlights 每条 40 字内、最多 4 条；无则返回空数组
+- repoDeepDives：覆盖最有代表性的公开仓库，最多 12 条，repo 字段必须与上文仓库列表中的名称一致；不得编造未出现的仓库名
+- commitPatterns：严格根据 Commit 消息样本归纳，禁止臆测私有或未列出仓库`;
 }
 
 export async function analyzeGitHubProfile(
@@ -286,13 +327,13 @@ export async function analyzeGitHubProfile(
   let response;
   try {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 2000, temperature: 0.7, response_format: { type: 'json_object' } },
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 4500, temperature: 0.65, response_format: { type: 'json_object' } },
       'profile_analysis',
       meta,
     );
   } catch {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 2000, temperature: 0.7 },
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 4500, temperature: 0.65 },
       'profile_analysis',
       meta,
     );
@@ -311,6 +352,14 @@ export async function analyzeGitHubProfile(
     oneLiner?: string;
     jobSeekingSummary?: string;
     jobSeekingDetails?: string;
+    activityByYear?: Array<{ year?: number; narrative?: string; highlights?: string[] }>;
+    repoDeepDives?: Array<{
+      repo?: string;
+      roleEstimate?: string;
+      contributionSummary?: string;
+      techFocus?: string;
+    }>;
+    commitPatterns?: string;
   };
 
   const langEntries = Object.entries(crawlData.languageStats)
@@ -444,6 +493,46 @@ export async function analyzeGitHubProfile(
     jobSummary = '公开渠道显示该开发者可能正在关注职业机会，详见下方依据链接。';
   }
 
+  const validRepoNames = new Set(crawlData.repos.map((r) => r.name));
+  const yearsWithEvidence = collectYearsFromCrawl(crawlData);
+  const byYearRaw = Array.isArray(parsed.activityByYear) ? parsed.activityByYear : [];
+  const byYear = byYearRaw
+    .map((row) => ({
+      year: Math.min(2100, Math.max(1970, Math.floor(Number(row.year) || 0))),
+      narrative: String(row.narrative || '').trim().slice(0, 120),
+      highlights: Array.isArray(row.highlights)
+        ? row.highlights.map((h) => String(h).trim().slice(0, 80)).filter(Boolean).slice(0, 4)
+        : [],
+    }))
+    .filter(
+      (row) =>
+        row.year > 1970 &&
+        yearsWithEvidence.has(row.year) &&
+        (row.narrative || row.highlights.length > 0),
+    )
+    .slice(0, 15);
+
+  const divesRaw = Array.isArray(parsed.repoDeepDives) ? parsed.repoDeepDives : [];
+  const repoDeepDives = divesRaw
+    .map((d) => ({
+      repo: String(d.repo || '').trim().slice(0, 120),
+      roleEstimate: String(d.roleEstimate || '').trim().slice(0, 60),
+      contributionSummary: String(d.contributionSummary || '').trim().slice(0, 200),
+      techFocus: String(d.techFocus || '').trim().slice(0, 120),
+    }))
+    .filter((d) => d.repo && validRepoNames.has(d.repo))
+    .slice(0, 12);
+
+  const commitPatterns = String(parsed.commitPatterns || '').trim().slice(0, 200);
+  const activityDeepDive =
+    byYear.length > 0 || repoDeepDives.length > 0 || commitPatterns
+      ? {
+          byYear,
+          repoDeepDives,
+          ...(commitPatterns ? { commitPatterns } : {}),
+        }
+      : undefined;
+
   return {
     techTags: Array.isArray(parsed.techTags)
       ? parsed.techTags.map(String).filter(Boolean).slice(0, 10)
@@ -466,5 +555,6 @@ export async function analyzeGitHubProfile(
       summary: jobSummary,
       details: jobDetails,
     },
+    activityDeepDive,
   };
 }

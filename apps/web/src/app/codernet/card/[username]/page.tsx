@@ -4,6 +4,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
+import {
+  PortfolioDrillDown,
+  type PortfolioDepthShape,
+  type ActivityDeepDiveShape,
+} from '@/components/codernet/PortfolioDrillDown';
 
 interface TopRepo {
   name: string;
@@ -51,6 +56,20 @@ interface CodernetProfile {
     totalStars: number;
     followers: number;
     topRepos: TopRepo[];
+    repos?: Array<{
+      name: string;
+      full_name?: string;
+      description: string | null;
+      language: string | null;
+      stars: number;
+      forks?: number;
+      topics?: string[];
+      url: string;
+      created_at?: string;
+      pushed_at?: string;
+    }>;
+    recentCommits?: Array<{ repo: string; message: string; date: string }>;
+    portfolioDepth?: PortfolioDepthShape | null;
     location: string | null;
     company: string | null;
     blog: string | null;
@@ -72,6 +91,7 @@ interface CodernetProfile {
       summary: string;
       details: string;
     };
+    activityDeepDive?: ActivityDeepDiveShape;
   };
   crawledAt?: string;
   jobSeeking?: JobSeekingBundle;
@@ -768,6 +788,26 @@ export default function CodernetCardPage() {
             </div>
           )}
 
+          {github?.repos && github.repos.length > 0 ? (
+            <PortfolioDrillDown
+              portfolioDepth={github.portfolioDepth ?? null}
+              repos={github.repos.map((r) => ({
+                name: r.name,
+                full_name: r.full_name,
+                description: r.description,
+                language: r.language,
+                stars: r.stars,
+                forks: r.forks,
+                topics: r.topics,
+                url: r.url,
+                created_at: r.created_at,
+                pushed_at: r.pushed_at,
+              }))}
+              recentCommits={github.recentCommits ?? []}
+              activityDeepDive={analysis?.activityDeepDive ?? null}
+            />
+          ) : null}
+
           {isCardOwner && (
             <JobSeekingOwnerCard
               initialOpen={!!me?.openToOpportunities}
@@ -833,45 +873,47 @@ export default function CodernetCardPage() {
           </div>
         )}
 
-        {github?.topRepos && github.topRepos.length > 0 && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Top Repositories</h3>
-            <div className="grid gap-3">
-              {github.topRepos.map((repo) => (
-                <a
-                  key={repo.name}
-                  href={repo.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-start gap-3 rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 transition hover:bg-white/[0.06] hover:border-violet-500/20"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-200 group-hover:text-violet-300 transition truncate">
-                        {repo.name}
+        {github?.repos && github.repos.length > 0
+          ? null
+          : github?.topRepos && github.topRepos.length > 0 && (
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
+                <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Top Repositories</h3>
+                <div className="grid gap-3">
+                  {github.topRepos.map((repo) => (
+                    <a
+                      key={repo.name}
+                      href={repo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-start gap-3 rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 transition hover:bg-white/[0.06] hover:border-violet-500/20"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-200 group-hover:text-violet-300 transition truncate">
+                            {repo.name}
+                          </span>
+                          {repo.language && (
+                            <span className="flex items-center gap-1 text-[10px] text-slate-500 shrink-0">
+                              <span
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: LANG_COLORS[repo.language] || '#666' }}
+                              />
+                              {repo.language}
+                            </span>
+                          )}
+                        </div>
+                        {repo.description && (
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{repo.description}</p>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-500 shrink-0 font-mono">
+                        &#9733; {repo.stars}
                       </span>
-                      {repo.language && (
-                        <span className="flex items-center gap-1 text-[10px] text-slate-500 shrink-0">
-                          <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: LANG_COLORS[repo.language] || '#666' }}
-                          />
-                          {repo.language}
-                        </span>
-                      )}
-                    </div>
-                    {repo.description && (
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{repo.description}</p>
-                    )}
-                  </div>
-                  <span className="text-xs text-slate-500 shrink-0 font-mono">
-                    &#9733; {repo.stars}
-                  </span>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
         <div className="text-center text-xs text-slate-600 font-mono py-4">
           <span>codernet by </span>

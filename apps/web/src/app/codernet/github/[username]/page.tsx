@@ -4,6 +4,11 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
+import {
+  PortfolioDrillDown,
+  type PortfolioDepthShape,
+  type ActivityDeepDiveShape,
+} from '@/components/codernet/PortfolioDrillDown';
 
 interface CrawlProgress {
   stage: string;
@@ -20,7 +25,11 @@ interface TopRepo {
   description: string | null;
   language: string | null;
   stargazers_count: number;
+  forks_count?: number;
+  topics?: string[];
   html_url: string;
+  created_at?: string;
+  pushed_at?: string;
 }
 
 interface MultiPlatformInsights {
@@ -213,6 +222,8 @@ interface LookupResult {
     blog: string | null;
     repos: TopRepo[];
     languageStats: Record<string, number>;
+    recentCommits?: Array<{ repo: string; message: string; date: string }>;
+    portfolioDepth?: PortfolioDepthShape | null;
   };
   analysis?: {
     techTags: string[];
@@ -229,6 +240,7 @@ interface LookupResult {
       summary: string;
       details: string;
     };
+    activityDeepDive?: ActivityDeepDiveShape;
   };
   multiPlatform?: MultiPlatformData | null;
   avatarUrl?: string;
@@ -1214,26 +1226,23 @@ export default function GitHubLookupCardPage() {
 
         {crawl?.repos && crawl.repos.length > 0 && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Top Repositories</h3>
-            <div className="grid gap-3">
-              {crawl.repos.slice(0, 6).map((repo) => (
-                <a key={repo.name} href={repo.html_url} target="_blank" rel="noopener noreferrer" className="group flex items-start gap-3 rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 transition hover:bg-white/[0.06] hover:border-violet-500/20">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-200 group-hover:text-violet-300 transition truncate">{repo.name}</span>
-                      {repo.language && (
-                        <span className="flex items-center gap-1 text-[10px] text-slate-500 shrink-0">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: LANG_COLORS[repo.language] || '#666' }} />
-                          {repo.language}
-                        </span>
-                      )}
-                    </div>
-                    {repo.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{repo.description}</p>}
-                  </div>
-                  <span className="text-xs text-slate-500 shrink-0 font-mono">&#9733; {repo.stargazers_count}</span>
-                </a>
-              ))}
-            </div>
+            <PortfolioDrillDown
+              portfolioDepth={crawl.portfolioDepth ?? null}
+              repos={crawl.repos.map((repo) => ({
+                name: repo.name,
+                full_name: repo.full_name,
+                description: repo.description,
+                language: repo.language,
+                stars: repo.stargazers_count,
+                forks: repo.forks_count,
+                topics: repo.topics,
+                url: repo.html_url,
+                created_at: repo.created_at,
+                pushed_at: repo.pushed_at,
+              }))}
+              recentCommits={crawl.recentCommits ?? []}
+              activityDeepDive={analysis?.activityDeepDive ?? null}
+            />
           </div>
         )}
 
