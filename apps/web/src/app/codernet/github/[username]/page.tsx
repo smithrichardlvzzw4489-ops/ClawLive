@@ -194,19 +194,6 @@ interface AIEngagement {
   summary: string;
 }
 
-interface JobSeekingSignalView {
-  kind: string;
-  title: string;
-  detail: string;
-  url: string;
-  recordedAt: string;
-}
-
-interface JobSeekingBundle {
-  active: boolean;
-  signals: JobSeekingSignalView[];
-}
-
 interface LookupResult {
   status: 'ready' | 'pending' | 'not_found';
   progress?: CrawlProgress | null;
@@ -235,17 +222,11 @@ interface LookupResult {
     platformsUsed?: string[];
     multiPlatformInsights?: MultiPlatformInsights;
     aiEngagement?: AIEngagement;
-    jobSeekingInProfile?: {
-      active: boolean;
-      summary: string;
-      details: string;
-    };
     activityDeepDive?: ActivityDeepDiveShape;
   };
   multiPlatform?: MultiPlatformData | null;
   avatarUrl?: string;
   cachedAt?: number;
-  jobSeeking?: JobSeekingBundle;
 }
 
 const LANG_COLORS: Record<string, string> = {
@@ -395,51 +376,6 @@ function LanguageBar({ langs }: { langs: Array<{ language: string; percent: numb
           </span>
         ))}
       </div>
-    </div>
-  );
-}
-
-const JOB_SEEKING_KIND_LABELS: Record<string, string> = {
-  platform_toggle: '本站',
-  github_profile_bio: 'GitHub 简介',
-  github_profile_readme: 'GitHub README',
-  personal_website: '个人网站',
-  user_listed_job_board: '求职平台',
-};
-
-function JobSeekingPanel({ bundle }: { bundle: JobSeekingBundle }) {
-  if (!bundle.active || bundle.signals.length === 0) return null;
-  return (
-    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4 mb-5">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-lg">🎯</span>
-        <h3 className="text-sm font-semibold text-emerald-200">求职意向 · 依据</h3>
-        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">{bundle.signals.length} 条</span>
-      </div>
-      <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
-        以下线索来自公开页面文案扫描、候选人在本站开关，或其登记的对外档案链接。仅供招聘方参考，请以候选人最新表态为准。
-      </p>
-      <ul className="space-y-3">
-        {bundle.signals.map((s, i) => (
-          <li key={`${s.kind}-${s.url}-${i}`} className="rounded-lg border border-white/[0.06] bg-black/20 p-3">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400/90">
-                {JOB_SEEKING_KIND_LABELS[s.kind] || s.kind}
-              </span>
-              <span className="text-xs font-medium text-white">{s.title}</span>
-            </div>
-            <p className="text-[11px] text-slate-400 leading-relaxed mb-2">{s.detail}</p>
-            <a
-              href={s.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[11px] text-sky-400 hover:underline font-mono break-all"
-            >
-              {s.url} ↗
-            </a>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -1044,7 +980,7 @@ export default function GitHubLookupCardPage() {
     );
   }
 
-  const { crawl, analysis, multiPlatform, avatarUrl, jobSeeking } = result;
+  const { crawl, analysis, multiPlatform, avatarUrl } = result;
   const platforms = analysis?.platformsUsed || ['GitHub'];
   const insights = analysis?.multiPlatformInsights;
   const hasMultiPlatform = multiPlatform && (
@@ -1093,33 +1029,6 @@ export default function GitHubLookupCardPage() {
               <PlatformBadges platforms={platforms} />
             </div>
           )}
-
-          {analysis?.jobSeekingInProfile && (
-            <div
-              className={`rounded-xl border p-4 mb-4 ${
-                analysis.jobSeekingInProfile.active
-                  ? 'border-amber-500/35 bg-amber-500/[0.06]'
-                  : 'border-white/[0.06] bg-white/[0.02]'
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500">画像归纳 · 求职</span>
-                {analysis.jobSeekingInProfile.active ? (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-200 font-mono">有公开依据</span>
-                ) : (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-slate-500 font-mono">未见声明</span>
-                )}
-              </div>
-              <p className="text-sm text-slate-200 leading-relaxed">{analysis.jobSeekingInProfile.summary}</p>
-              {analysis.jobSeekingInProfile.active && analysis.jobSeekingInProfile.details ? (
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed whitespace-pre-wrap">
-                  {analysis.jobSeekingInProfile.details}
-                </p>
-              ) : null}
-            </div>
-          )}
-
-          {jobSeeking && <JobSeekingPanel bundle={jobSeeking} />}
 
           {crawl && (
             <div className="grid grid-cols-3 gap-3 mb-5">
