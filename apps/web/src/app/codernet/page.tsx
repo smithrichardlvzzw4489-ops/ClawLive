@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 type TabId = 'lookup' | 'find' | 'outreach' | 'linkedin';
 
@@ -46,6 +47,7 @@ const SEARCH_PHASES = [
 ] as const;
 
 export default function CodernetIndexPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [tab, setTab] = useState<TabId>('lookup');
@@ -197,7 +199,18 @@ export default function CodernetIndexPage() {
       <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/15 blur-[160px]" />
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/10 blur-[160px]" />
 
-      <div className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-16">
+      <div className="relative z-10 min-h-screen">
+        <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6">
+          <Link
+            href="/jobs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300 transition hover:border-violet-500/30 hover:bg-white/10 hover:text-white"
+          >
+            <span aria-hidden>←</span>
+            {t('feedPost.backHome')}
+          </Link>
+        </div>
+
+        <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16 pt-20 sm:pt-24">
         <div className="text-center max-w-2xl w-full">
           <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-1.5 mb-6">
             <span className="text-xs font-mono text-violet-400 tracking-wider">CODERNET</span>
@@ -592,6 +605,7 @@ export default function CodernetIndexPage() {
             ))}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
