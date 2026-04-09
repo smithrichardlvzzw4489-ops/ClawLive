@@ -22,7 +22,7 @@ interface QuotaStatus {
 
 export function CodernetHomeClient() {
   const router = useRouter();
-  const [tab, setTab] = useState<TabId>('lookup');
+  const [tab, setTab] = useState<TabId>('mine');
 
   const [searchValue, setSearchValue] = useState('');
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
