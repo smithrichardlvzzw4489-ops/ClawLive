@@ -303,14 +303,14 @@ function JobSeekerAssistCard({
   };
 
   return (
-    <div className="rounded-xl border border-teal-500/30 bg-teal-950/25 p-4 mb-6">
+    <div className="rounded-xl border border-teal-500/30 bg-teal-950/25 p-4">
       <h3 className="text-sm font-semibold text-teal-200 mb-1">本页使用说明</h3>
       <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
         这是你在 GitLink 上的<strong className="text-slate-300">公开技术名片</strong>：招聘方会从这里看栈与项目时间线；你也可以把它当作投递时的统一「对外叙事」草稿。
       </p>
       <ul className="text-[11px] text-slate-500 mb-3 list-disc pl-4 space-y-1 leading-relaxed">
         <li>在邮件/表单里附上画像链接，减少重复自我介绍。</li>
-        <li>修改 GitHub 简介或仓库后，可用下方「刷新画像」同步最新公开信息。</li>
+        <li>修改 GitHub 简介或仓库后，可点此处的「刷新画像」同步最新公开信息。</li>
       </ul>
       <div className="flex flex-wrap gap-2">
         <button
@@ -729,16 +729,6 @@ export function CodernetCardPageClient({
             </div>
           )}
 
-          {isCardOwner && profile.status === 'ready' && analysis && (
-            <JobSeekerAssistCard
-              profileShareUrl={profileShareUrl}
-              githubUsername={profile.user.githubUsername}
-              analysis={analysis}
-              onRecrawl={handleRecrawlFromAssist}
-              recrawlBusy={recrawlBusy}
-            />
-          )}
-
           {github?.repos && github.repos.length > 0 ? (
             <PortfolioDrillDown
               portfolioDepth={github.portfolioDepth ?? null}
@@ -837,6 +827,18 @@ export function CodernetCardPageClient({
                 </div>
               </div>
             )}
+
+        {isCardOwner && profile.status === 'ready' && analysis && (
+          <div className="mt-8 mb-4">
+            <JobSeekerAssistCard
+              profileShareUrl={profileShareUrl}
+              githubUsername={profile.user.githubUsername}
+              analysis={analysis}
+              onRecrawl={handleRecrawlFromAssist}
+              recrawlBusy={recrawlBusy}
+            />
+          </div>
+        )}
 
         <div className="text-center text-xs text-slate-600 font-mono py-4">
           <span>gitlink · </span>
