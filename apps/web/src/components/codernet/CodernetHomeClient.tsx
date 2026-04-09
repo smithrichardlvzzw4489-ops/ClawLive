@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, FormEvent } from 'react';
+import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
@@ -13,37 +13,17 @@ interface MeBrief {
   githubUsername: string | null;
 }
 
-interface QuotaDim { used: number; limit: number; remaining: number; ratio: number }
-interface QuotaStatus {
-  tier: string;
-  month: string;
-  dimensions: { profile_lookup: QuotaDim; search: QuotaDim; outreach: QuotaDim };
-}
-
 export function CodernetHomeClient() {
   const router = useRouter();
   const [tab, setTab] = useState<TabId>('mine');
 
   const [searchValue, setSearchValue] = useState('');
-  const [quota, setQuota] = useState<QuotaStatus | null>(null);
   const [meBrief, setMeBrief] = useState<MeBrief | null>(null);
   const [meLoading, setMeLoading] = useState(false);
   const [mineBusy, setMineBusy] = useState(false);
   const [mineErr, setMineErr] = useState<string | null>(null);
   const [mineNeedLogin, setMineNeedLogin] = useState(false);
   const [meFetchError, setMeFetchError] = useState(false);
-
-  const fetchQuota = useCallback(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) return;
-    const base = API_BASE_URL || '';
-    fetch(`${base}/api/platform/quota`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (data?.tier) setQuota(data); })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => { fetchQuota(); }, [fetchQuota]);
 
   useEffect(() => {
     if (tab !== 'mine') return;
@@ -321,70 +301,10 @@ export function CodernetHomeClient() {
               </div>
             </div>
           )}
-
-          {/* Quota Usage Bar */}
-          {quota && (
-            <div className="mt-8 max-w-lg mx-auto w-full">
-              <QuotaBar quota={quota} />
-            </div>
-          )}
         </div>
       </div>
       </div>
     </div>
     </MainLayout>
-  );
-}
-
-const QUOTA_DIMS: { key: keyof QuotaStatus['dimensions']; label: string; icon: string; color: string }[] = [
-  { key: 'profile_lookup', label: 'Profile 画像', icon: '📊', color: '#8b5cf6' },
-  { key: 'outreach', label: 'LINK', icon: '📡', color: '#10b981' },
-];
-
-function QuotaBar({ quota }: { quota: QuotaStatus }) {
-  return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">Monthly Usage</span>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 font-mono">
-            {quota.tier}
-          </span>
-        </div>
-        <span className="text-[10px] text-slate-600 font-mono">{quota.month}</span>
-      </div>
-      <div className="space-y-2.5">
-        {QUOTA_DIMS.map(({ key, label, icon, color }) => {
-          const dim = quota.dimensions[key];
-          const pct = dim.limit > 0 ? Math.min(100, (dim.used / dim.limit) * 100) : 0;
-          const isWarning = dim.ratio >= 0.8;
-          const isExceeded = dim.ratio >= 1;
-          return (
-            <div key={key}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-slate-400 flex items-center gap-1.5">
-                  <span>{icon}</span>
-                  {label}
-                </span>
-                <span className={`text-[11px] font-mono ${isExceeded ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-slate-500'}`}>
-                  {dim.used}/{dim.limit}
-                  {isExceeded && ' — 已用完'}
-                  {isWarning && !isExceeded && ' — 即将用完'}
-                </span>
-              </div>
-              <div className="h-1.5 bg-white/[0.04] rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${pct}%`,
-                    backgroundColor: isExceeded ? '#ef4444' : isWarning ? '#f59e0b' : color,
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
