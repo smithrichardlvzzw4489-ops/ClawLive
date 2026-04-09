@@ -47,8 +47,13 @@ export function Header({}: HeaderProps) {
   const { t } = useLocale();
   const pathname = usePathname();
 
-  const active = (href: string) =>
-    href === '/jobs' ? pathname === '/jobs' || pathname.startsWith('/jobs/') : pathname.startsWith(href);
+  const codernetActive = pathname === '/' || pathname.startsWith('/codernet');
+
+  const active = (href: string) => {
+    if (href === '/jobs') return pathname === '/jobs' || pathname.startsWith('/jobs/');
+    if (href === '/codernet') return codernetActive;
+    return pathname.startsWith(href);
+  };
 
   const isHome = false;
 
@@ -60,7 +65,7 @@ export function Header({}: HeaderProps) {
         }`}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
-          <Link href="/jobs" className="flex shrink-0 items-center">
+          <Link href="/" className="flex shrink-0 items-center">
             <Image
               src="/logo.png"
               alt="ClawLab"
@@ -88,10 +93,10 @@ export function Header({}: HeaderProps) {
               active={pathname.startsWith('/job-a2a')}
             />
             <NavItem
-              href="/codernet"
+              href="/"
               label={t('nav.codernet')}
               icon="👤"
-              active={pathname.startsWith('/codernet')}
+              active={codernetActive}
             />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />

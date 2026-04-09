@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   const url = request.nextUrl.clone();
-  url.pathname = '/jobs';
+  url.pathname = '/';
   url.search = '';
   return NextResponse.redirect(url);
 }

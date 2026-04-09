@@ -58,7 +58,7 @@ cd ../..
 pnpm dev
 ```
 
-- 前端：<http://localhost:3000>（默认重定向到 `/jobs`）  
+- 前端：<http://localhost:3000>（首页为 CoderNet 开发者画像入口；`/codernet` 会重定向到 `/`）  
 - 后端 API：<http://localhost:3001>（以实际配置为准）  
 
 更细的云端数据库、Docker 等步骤可参考仓库内既有文档：

@@ -1,5 +1,7 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { CodernetHomeClient } from '@/components/codernet/CodernetHomeClient';
 
 export default function HomePage() {
-  redirect('/jobs');
+  return <CodernetHomeClient />;
 }
