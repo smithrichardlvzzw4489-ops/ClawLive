@@ -682,14 +682,6 @@ export function CodernetCardPageClient({
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-10">
-        <div className="flex items-center gap-2 mb-8">
-          <span className="text-xs font-mono text-violet-400 tracking-wider">GITLINK</span>
-          <span className="text-xs text-slate-600">/</span>
-          <span className="text-xs font-mono text-slate-500">
-            {variant === 'mine' ? '我的 · 开发者画像' : variant === 'home' ? '个人肖像' : 'developer profile'}
-          </span>
-        </div>
-
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
           <div className="flex items-start gap-4 mb-5">
             {profile.user.avatarUrl ? (
