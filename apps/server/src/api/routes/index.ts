@@ -24,12 +24,8 @@ import { platformRoutes } from './platform';
 import { publishedSkillsRoutes } from './published-skills';
 import { openApiRoutes } from './open';
 import { adminRoutes } from './admin';
-import { evolutionNetworkRoutes } from './evolution-network';
-import { evolverRoutes } from './evolver';
-import { darwinRoutes } from './darwin';
 import { jobA2ARoutes } from './job-a2a';
 import { mpRoutes } from './mp';
-import { vibekidsWorksRoutes } from './vibekids-works';
 import { codernetRoutes } from './codernet';
 
 export function setupRoutes(app: Express, io: Server): void {
@@ -40,16 +36,12 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/points', pointsRoutes());
   app.use('/api/platform', platformRoutes());
   app.use('/api/lobster', lobsterRoutes());
-  app.use('/api/vibekids/works', vibekidsWorksRoutes());
   app.use('/api/agent-viewers', agentViewerRoutes(io));
   app.use('/api/user-agent-connections', userAgentConnectionsRoutes());
   app.use('/api/inbox', inboxRoutes(io));
   app.use('/api/user-follows', userFollowsRoutes()); // Before works to avoid :id param conflicts
   app.use('/api/recommendations', recommendationRoutes());
   app.use('/api/feed-posts', feedPostsRoutes());
-  app.use('/api/evolution-network', evolutionNetworkRoutes());
-  app.use('/api/evolver', evolverRoutes());
-  app.use('/api/darwin', darwinRoutes());
   app.use('/api/job-a2a', jobA2ARoutes());
   app.use('/api/codernet', codernetRoutes());
   app.use('/api/search', searchRoutes());

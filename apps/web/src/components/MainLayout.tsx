@@ -2,7 +2,6 @@
 
 import { ReactNode } from 'react';
 import { Header } from './Header';
-import { LobsterWidget } from './LobsterWidget';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -57,9 +56,6 @@ export function MainLayout({
           {children}
         </main>
       </div>
-
-      {/* 虾米悬浮入口（/my-lobster 页面自动隐藏） */}
-      <LobsterWidget />
     </div>
   );
 }

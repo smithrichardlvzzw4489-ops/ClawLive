@@ -7,8 +7,6 @@ import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
-import { DARWIN_ICON } from '@/lib/brand';
-import { FuturisticLabIcon } from '@/components/icons/FuturisticLabIcon';
 
 const navItemBase =
   'flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-medium transition-all duration-150 sm:gap-2.5 sm:px-3.5';
@@ -42,7 +40,6 @@ function NavItem({
 }
 
 type HeaderProps = {
-  /** 保留兼容；主导航始终在顶栏横排展示 */
   leftNav?: boolean;
 };
 
@@ -50,10 +47,8 @@ export function Header({}: HeaderProps) {
   const { t } = useLocale();
   const pathname = usePathname();
 
-  const active = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
-
-  const evolutionHubActive =
-    pathname.startsWith('/evolution-network') && !pathname.startsWith('/evolution-network/observation');
+  const active = (href: string) =>
+    href === '/jobs' ? pathname === '/jobs' || pathname.startsWith('/jobs/') : pathname.startsWith(href);
 
   const isHome = false;
 
@@ -65,7 +60,7 @@ export function Header({}: HeaderProps) {
         }`}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
-          <Link href="/" className="flex shrink-0 items-center">
+          <Link href="/jobs" className="flex shrink-0 items-center">
             <Image
               src="/logo.png"
               alt="ClawLab"
@@ -80,42 +75,11 @@ export function Header({}: HeaderProps) {
             className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto pb-0.5 md:pb-0 [scrollbar-width:thin]"
             aria-label="主导航"
           >
-            <NavItem href="/" label={t('nav.landing')} icon="🚀" active={active('/')} />
-            <NavItem
-              href="/lab"
-              label={t('nav.home')}
-              icon={<FuturisticLabIcon className="h-5 w-5" />}
-              active={active('/lab')}
-            />
-            <NavItem
-              href="/my-lobster"
-              label={t('nav.myLobster')}
-              icon={DARWIN_ICON}
-              active={active('/my-lobster')}
-            />
-            <NavItem
-              href="/evolution-network"
-              label={t('nav.evolutionNetwork')}
-              icon="🕸️"
-              active={evolutionHubActive}
-            />
-            <NavItem
-              href="/evolution-network/observation"
-              label={t('nav.evolutionObservation')}
-              icon="🔭"
-              active={pathname.startsWith('/evolution-network/observation')}
-            />
-            <NavItem
-              href="/darwin"
-              label={t('nav.darwinShowcase')}
-              icon="🧬"
-              active={pathname.startsWith('/darwin')}
-            />
             <NavItem
               href="/jobs"
               label={t('nav.jobsBoard')}
               icon="💼"
-              active={pathname.startsWith('/jobs')}
+              active={active('/jobs')}
             />
             <NavItem
               href="/job-a2a"
@@ -129,14 +93,8 @@ export function Header({}: HeaderProps) {
               icon="👤"
               active={pathname.startsWith('/codernet')}
             />
-            <NavItem
-              href="/vibekids"
-              label={t('nav.vibeKids')}
-              icon="🎨"
-              active={pathname.startsWith('/vibekids')}
-            />
             {SHOW_LIVE_FEATURES && (
-              <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={active('/rooms')} />
+              <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}
           </nav>
 

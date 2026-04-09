@@ -21,13 +21,12 @@ const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@clawlive/shared-types'],
   output: 'standalone',
-  /** Monorepo 中 vibekids 会提升 eslint@9；与 eslint-config-next@14 不兼容，易触发 ESLint 序列化循环引用 */
   eslint: {
     ignoreDuringBuilds: true,
   },
   async redirects() {
     return [
-      { source: '/plaza', destination: '/lab', permanent: true },
+      { source: '/plaza', destination: '/jobs', permanent: true },
     ];
   },
   async rewrites() {
@@ -36,16 +35,7 @@ const nextConfig = {
     if (allowOutboundProxy(apiOrigin)) {
       afterFiles.push(
         { source: '/uploads/:path*', destination: `${apiOrigin}/uploads/:path*` },
-        // VibeKids 作品持久化在 Railway PostgreSQL（Express）；generate/credits/diag 等仍走 Next
-        { source: '/api/vibekids/works', destination: `${apiOrigin}/api/vibekids/works` },
-        {
-          source: '/api/vibekids/works/:path*',
-          destination: `${apiOrigin}/api/vibekids/works/:path*`,
-        },
-        {
-          source: '/api/:path((?!vibekids).*)',
-          destination: `${apiOrigin}/api/:path`,
-        },
+        { source: '/api/:path*', destination: `${apiOrigin}/api/:path*` },
       );
     }
 
