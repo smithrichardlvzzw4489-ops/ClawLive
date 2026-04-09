@@ -46,7 +46,6 @@ export const translations = {
       jobA2A: 'A2A 求职',
       jobsBoard: '在招广场',
       vibeKids: 'VibeKids',
-      codernet: '开发者画像',
       myDeveloperCard: '我的画像',
     },
 
@@ -875,7 +874,6 @@ export const translations = {
       jobA2A: 'A2A Jobs',
       jobsBoard: 'Open roles',
       vibeKids: 'VibeKids',
-      codernet: 'Dev Profile',
       myDeveloperCard: 'My card',
     },
 

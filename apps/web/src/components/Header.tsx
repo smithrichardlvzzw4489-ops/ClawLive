@@ -82,6 +82,12 @@ export function Header({}: HeaderProps) {
             aria-label="主导航"
           >
             <NavItem
+              href="/"
+              label={t('nav.landing')}
+              icon="👤"
+              active={codernetActive}
+            />
+            <NavItem
               href="/jobs"
               label={t('nav.jobsBoard')}
               icon="💼"
@@ -92,12 +98,6 @@ export function Header({}: HeaderProps) {
               label={t('nav.jobA2A')}
               icon="🤝"
               active={pathname.startsWith('/job-a2a')}
-            />
-            <NavItem
-              href="/"
-              label={t('nav.codernet')}
-              icon="👤"
-              active={codernetActive}
             />
             <NavItem
               href="/my/profile"
