@@ -6,7 +6,12 @@ import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 import { MainLayout } from '@/components/MainLayout';
 
-type TabId = 'lookup' | 'outreach';
+type TabId = 'mine' | 'lookup' | 'outreach';
+
+interface MeBrief {
+  username: string;
+  githubUsername: string | null;
+}
 
 interface QuotaDim { used: number; limit: number; remaining: number; ratio: number }
 interface QuotaStatus {
@@ -21,6 +26,12 @@ export function CodernetHomeClient() {
 
   const [searchValue, setSearchValue] = useState('');
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
+  const [meBrief, setMeBrief] = useState<MeBrief | null>(null);
+  const [meLoading, setMeLoading] = useState(false);
+  const [mineBusy, setMineBusy] = useState(false);
+  const [mineErr, setMineErr] = useState<string | null>(null);
+  const [mineNeedLogin, setMineNeedLogin] = useState(false);
+  const [meFetchError, setMeFetchError] = useState(false);
 
   const fetchQuota = useCallback(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -33,6 +44,81 @@ export function CodernetHomeClient() {
   }, []);
 
   useEffect(() => { fetchQuota(); }, [fetchQuota]);
+
+  useEffect(() => {
+    if (tab !== 'mine') return;
+    setMineErr(null);
+    setMeFetchError(false);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      setMeBrief(null);
+      setMineNeedLogin(true);
+      setMeLoading(false);
+      return;
+    }
+    setMineNeedLogin(false);
+    setMeLoading(true);
+    const base = API_BASE_URL || '';
+    fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (r) => {
+        if (!r.ok) {
+          setMeFetchError(true);
+          setMeBrief(null);
+          return;
+        }
+        const u = (await r.json()) as { username?: string; githubUsername?: string | null };
+        if (u?.username) setMeBrief({ username: u.username, githubUsername: u.githubUsername ?? null });
+        else {
+          setMeFetchError(true);
+          setMeBrief(null);
+        }
+      })
+      .catch(() => {
+        setMeFetchError(true);
+        setMeBrief(null);
+      })
+      .finally(() => setMeLoading(false));
+  }, [tab]);
+
+  const handleGenerateMinePortrait = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      router.push('/login?redirect=/codernet');
+      return;
+    }
+    setMineErr(null);
+    setMineBusy(true);
+    const base = API_BASE_URL || '';
+    try {
+      const res = await fetch(`${base}/api/codernet/crawl`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (res.status === 401) {
+        router.push('/login?redirect=/codernet');
+        return;
+      }
+      if (res.status === 400 && data.error === 'NO_GITHUB') {
+        setMineErr(data.message || '请先使用 GitHub 登录并关联账号。');
+        return;
+      }
+      if (res.status === 429) {
+        setMineErr(data.message || '请等待数分钟后再重新生成。');
+        router.push('/my/profile');
+        return;
+      }
+      if (!res.ok) {
+        setMineErr(data.message || data.error || '生成失败，请稍后重试。');
+        return;
+      }
+      router.push('/my/profile');
+    } catch {
+      setMineErr('网络异常，请稍后重试。');
+    } finally {
+      setMineBusy(false);
+    }
+  };
 
   const handleLookup = (e: FormEvent) => {
     e.preventDefault();
@@ -66,11 +152,20 @@ export function CodernetHomeClient() {
           </p>
 
           {/* Tab Switcher */}
-          <div className="grid grid-cols-2 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-md mx-auto">
+          <div className="grid grid-cols-3 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-lg mx-auto">
+            <button
+              type="button"
+              onClick={() => setTab('mine')}
+              className={`py-2 px-1.5 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition ${
+                tab === 'mine' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              我的画像
+            </button>
             <button
               type="button"
               onClick={() => setTab('lookup')}
-              className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition ${
+              className={`py-2 px-1.5 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition ${
                 tab === 'lookup' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -79,13 +174,89 @@ export function CodernetHomeClient() {
             <button
               type="button"
               onClick={() => setTab('outreach')}
-              className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition ${
+              className={`py-2 px-1.5 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition ${
                 tab === 'outreach' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
               LINK
             </button>
           </div>
+
+          {/* My portrait tab */}
+          {tab === 'mine' && (
+            <div className="max-w-md mx-auto text-center">
+              {meLoading ? (
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <div className="h-9 w-9 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
+                  <p className="text-xs text-slate-500 font-mono">加载账号信息…</p>
+                </div>
+              ) : mineNeedLogin ? (
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-6">
+                  <p className="text-sm text-slate-400 mb-4">登录后可基于已关联的 GitHub 账号生成你的开发者画像。</p>
+                  <Link
+                    href="/login?redirect=/codernet"
+                    className="inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 px-5 py-2.5 text-sm font-semibold transition"
+                  >
+                    去登录
+                  </Link>
+                </div>
+              ) : meFetchError ? (
+                <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-5 py-6">
+                  <p className="text-sm text-red-200/90 mb-4">无法获取当前账号信息，请重新登录后再试。</p>
+                  <Link
+                    href="/login?redirect=/codernet"
+                    className="inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 px-5 py-2.5 text-sm font-semibold transition"
+                  >
+                    去登录
+                  </Link>
+                </div>
+              ) : !meBrief?.githubUsername ? (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-5 py-6">
+                  <p className="text-sm text-amber-200/90 mb-4">
+                    当前账号尚未关联 GitHub。请使用 GitHub 登录以启用画像生成。
+                  </p>
+                  <Link
+                    href="/login?redirect=/codernet"
+                    className="inline-flex items-center justify-center rounded-lg bg-violet-600 hover:bg-violet-500 px-5 py-2.5 text-sm font-semibold transition"
+                  >
+                    使用 GitHub 登录
+                  </Link>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-6">
+                  <p className="text-sm text-slate-300 mb-1">
+                    平台用户 <span className="font-mono text-violet-300">@{meBrief.username}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mb-5 font-mono">
+                    GitHub · @{meBrief.githubUsername}
+                  </p>
+                  <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                    点击下方按钮将拉取仓库与公开活动并由 AI 生成画像，完成后可在「我的」画像页查看进度与结果。
+                  </p>
+                  {mineErr && (
+                    <p className="text-xs text-red-300 mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
+                      {mineErr}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    disabled={mineBusy}
+                    onClick={() => void handleGenerateMinePortrait()}
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold transition"
+                  >
+                    {mineBusy ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        正在启动…
+                      </>
+                    ) : (
+                      '生成我的画像'
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Lookup Tab */}
           {tab === 'lookup' && (
