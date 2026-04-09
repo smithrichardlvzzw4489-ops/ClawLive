@@ -317,6 +317,14 @@ export const api = {
       }),
   },
   jobA2A: {
+    publicJobs: (limit?: number) => {
+      const q = limit != null ? `?limit=${encodeURIComponent(String(limit))}` : '';
+      return fetchAPI(`/api/job-a2a/public/jobs${q}`);
+    },
+    publicSeekers: (limit?: number) => {
+      const q = limit != null ? `?limit=${encodeURIComponent(String(limit))}` : '';
+      return fetchAPI(`/api/job-a2a/public/seekers${q}`);
+    },
     dashboard: () => fetchAPI('/api/job-a2a/dashboard'),
     saveSeeker: (body: {
       title: string;

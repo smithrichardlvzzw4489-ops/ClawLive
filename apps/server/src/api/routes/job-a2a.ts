@@ -1,9 +1,11 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import {
   advanceAgentRound,
   getDashboard,
   getMatchDetail,
+  listPublicJobPostings,
+  listPublicSeekerResumes,
   postHumanMessage,
   runAutoMatch,
   unlockHumanChat,
@@ -13,6 +15,30 @@ import {
 
 export function jobA2ARoutes(): Router {
   const router = Router();
+
+  /** GET /api/job-a2a/public/jobs?limit= — 在招广场（无需登录） */
+  router.get('/public/jobs', async (req: Request, res: Response) => {
+    try {
+      const lim = req.query.limit != null ? Number(req.query.limit) : 80;
+      const jobs = await listPublicJobPostings(Number.isFinite(lim) ? lim : 80);
+      res.json({ jobs });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to list jobs' });
+    }
+  });
+
+  /** GET /api/job-a2a/public/seekers?limit= — 公开简历列表（无需登录） */
+  router.get('/public/seekers', async (req: Request, res: Response) => {
+    try {
+      const lim = req.query.limit != null ? Number(req.query.limit) : 80;
+      const seekers = await listPublicSeekerResumes(Number.isFinite(lim) ? lim : 80);
+      res.json({ seekers });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to list resumes' });
+    }
+  });
 
   /** GET /api/job-a2a/dashboard — 双端档案、匹配列表、监控时间线 */
   router.get('/dashboard', authenticateToken, async (req: AuthRequest, res: Response) => {

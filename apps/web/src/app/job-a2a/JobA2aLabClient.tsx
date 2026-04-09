@@ -311,6 +311,26 @@ export function JobA2aLabClient() {
             可与 <Link href="/my-lobster" className="text-lobster hover:underline">Darwin 对话</Link>{' '}
             配合使用：先在对话里理清诉求，再将要点填到表单。
           </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <Link
+              href="/jobs"
+              className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-slate-200 hover:bg-white/10"
+            >
+              在招广场
+            </Link>
+            <Link
+              href="/jobs/post"
+              className="rounded-lg bg-violet-600/35 px-3 py-1.5 text-violet-100 hover:bg-violet-600/55"
+            >
+              发布岗位
+            </Link>
+            <Link
+              href="/jobs/resume"
+              className="rounded-lg bg-emerald-600/25 px-3 py-1.5 text-emerald-100 hover:bg-emerald-600/45"
+            >
+              我的简历
+            </Link>
+          </div>
         </div>
 
         {err && (

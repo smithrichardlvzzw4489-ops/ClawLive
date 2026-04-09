@@ -565,3 +565,86 @@ export async function getDashboard(userId: string) {
     timeline: events,
   };
 }
+
+function skillsToStringArray(skills: unknown): string[] {
+  if (!Array.isArray(skills)) return [];
+  return skills.map((x) => String(x).trim()).filter(Boolean);
+}
+
+/** 招聘方：在招广场可见（active=true） */
+export async function listPublicJobPostings(limit = 80): Promise<
+  Array<{
+    userId: string;
+    username: string;
+    avatarUrl: string | null;
+    jobTitle: string;
+    companyName: string | null;
+    city: string | null;
+    salaryMin: number | null;
+    salaryMax: number | null;
+    skills: string[];
+    narrative: string;
+    updatedAt: Date;
+  }>
+> {
+  const cap = Math.min(200, Math.max(1, limit));
+  const rows = await prisma.jobA2AEmployerProfile.findMany({
+    where: { active: true },
+    orderBy: { updatedAt: 'desc' },
+    take: cap,
+    include: {
+      user: { select: { username: true, avatarUrl: true } },
+    },
+  });
+  return rows.map((r) => ({
+    userId: r.userId,
+    username: r.user.username,
+    avatarUrl: r.user.avatarUrl,
+    jobTitle: r.jobTitle,
+    companyName: r.companyName,
+    city: r.city,
+    salaryMin: r.salaryMin,
+    salaryMax: r.salaryMax,
+    skills: skillsToStringArray(r.skills),
+    narrative: r.narrative,
+    updatedAt: r.updatedAt,
+  }));
+}
+
+/** 求职者：公开简历摘要（active=true） */
+export async function listPublicSeekerResumes(limit = 80): Promise<
+  Array<{
+    userId: string;
+    username: string;
+    avatarUrl: string | null;
+    title: string;
+    city: string | null;
+    salaryMin: number | null;
+    salaryMax: number | null;
+    skills: string[];
+    narrative: string;
+    updatedAt: Date;
+  }>
+> {
+  const cap = Math.min(200, Math.max(1, limit));
+  const rows = await prisma.jobA2ASeekerProfile.findMany({
+    where: { active: true },
+    orderBy: { updatedAt: 'desc' },
+    take: cap,
+    include: {
+      user: { select: { username: true, avatarUrl: true } },
+    },
+  });
+  return rows.map((r) => ({
+    userId: r.userId,
+    username: r.user.username,
+    avatarUrl: r.user.avatarUrl,
+    title: r.title,
+    city: r.city,
+    salaryMin: r.salaryMin,
+    salaryMax: r.salaryMax,
+    skills: skillsToStringArray(r.skills),
+    narrative: r.narrative,
+    updatedAt: r.updatedAt,
+  }));
+}
