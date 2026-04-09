@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
@@ -295,6 +295,102 @@ interface MeUser {
   jobSeekingExternalProfiles?: Array<{ label: string; url: string }> | null;
 }
 
+function JobSeekerAssistCard({
+  profileShareUrl,
+  githubUsername,
+  analysis,
+  onRecrawl,
+  recrawlBusy,
+}: {
+  profileShareUrl: string;
+  githubUsername: string | null | undefined;
+  analysis: CodernetProfile['analysis'];
+  onRecrawl: () => void;
+  recrawlBusy: boolean;
+}) {
+  const [hint, setHint] = useState('');
+
+  const pitchText = useMemo(() => {
+    const lines: string[] = [];
+    if (profileShareUrl) lines.push(`技术画像：${profileShareUrl}`);
+    if (githubUsername) lines.push(`GitHub：https://github.com/${githubUsername}`);
+    if (analysis?.oneLiner) lines.push(`一句话：${analysis.oneLiner}`);
+    if (analysis?.sharpCommentary) lines.push(`AI 评价：${analysis.sharpCommentary}`);
+    if (analysis?.techTags?.length) lines.push(`技术标签：${analysis.techTags.join('、')}`);
+    if (analysis?.jobSeekingInProfile?.summary) lines.push(`求职状态（公开归纳）：${analysis.jobSeekingInProfile.summary}`);
+    if (analysis?.jobSeekingInProfile?.details) lines.push(`求职补充：${analysis.jobSeekingInProfile.details}`);
+    return lines.join('\n');
+  }, [profileShareUrl, githubUsername, analysis]);
+
+  const flash = (msg: string) => {
+    setHint(msg);
+    setTimeout(() => setHint(''), 2500);
+  };
+
+  const copyPitch = async () => {
+    if (!pitchText.trim()) {
+      flash('暂无可复制内容');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(pitchText);
+      flash('已复制投递用简介');
+    } catch {
+      flash('复制失败，请手动选择');
+    }
+  };
+
+  const copyLink = async () => {
+    if (!profileShareUrl) return;
+    try {
+      await navigator.clipboard.writeText(profileShareUrl);
+      flash('已复制画像链接');
+    } catch {
+      flash('复制失败');
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-teal-500/30 bg-teal-950/25 p-4 mb-6">
+      <h3 className="text-sm font-semibold text-teal-200 mb-1">求职者 · 本页可以怎么用</h3>
+      <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
+        这是你在 Codernet 上的<strong className="text-slate-300">公开技术名片</strong>：招聘方会从这里看栈、项目时间线与求职依据；你也可以把它当作投递时的统一「对外叙事」草稿。
+      </p>
+      <ul className="text-[11px] text-slate-500 mb-3 list-disc pl-4 space-y-1 leading-relaxed">
+        <li>在邮件/表单里附上画像链接，减少重复自我介绍。</li>
+        <li>用下方开关与链接，明确你愿意被联系的方式（本站 + Wellfound 等）。</li>
+        <li>GitHub 简介、Profile README、博客里的文字会被当作求职依据——请与真实意愿保持一致。</li>
+      </ul>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => void copyPitch()}
+          className="px-3 py-2 rounded-lg bg-teal-600/80 hover:bg-teal-500 text-xs font-medium text-white transition"
+        >
+          复制「投递用简介」
+        </button>
+        <button
+          type="button"
+          onClick={() => void copyLink()}
+          disabled={!profileShareUrl}
+          className="px-3 py-2 rounded-lg bg-white/[0.06] border border-white/10 hover:bg-white/10 disabled:opacity-40 text-xs font-medium text-slate-200 transition"
+        >
+          仅复制画像链接
+        </button>
+        <button
+          type="button"
+          onClick={onRecrawl}
+          disabled={recrawlBusy}
+          className="px-3 py-2 rounded-lg bg-white/[0.06] border border-white/10 hover:bg-white/10 disabled:opacity-50 text-xs font-medium text-slate-300 transition"
+        >
+          {recrawlBusy ? '已触发…' : '刷新画像（重扫 GitHub）'}
+        </button>
+      </div>
+      {hint ? <p className="text-[11px] text-teal-400/90 mt-2 font-mono">{hint}</p> : null}
+    </div>
+  );
+}
+
 function JobSeekingOwnerCard({
   initialOpen,
   initialExternals,
@@ -349,7 +445,12 @@ function JobSeekingOwnerCard({
     <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4 mb-6">
       <h3 className="text-sm font-semibold text-violet-200 mb-1">管理求职意向展示</h3>
       <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
-        开启后，招聘方在公开技术画像中可看到「本站」依据；自动扫描的 GitHub / 网站线索在每次重新分析后更新。您可补充 Wellfound 等平台个人页链接。
+        <span className="text-slate-400">求职者：</span>
+        登记的链接会出现在「求职依据」里，方便招聘方跳转到你在其他平台的档案。
+        <span className="block mt-1.5">
+          <span className="text-slate-400">对招聘方可见：</span>
+          开启开关后展示本站「开放机会」依据；GitHub / 个人网站上的公开求职表述会在每次重新分析后自动更新。
+        </span>
       </p>
       <label className="flex items-center gap-2 cursor-pointer mb-4">
         <input type="checkbox" checked={open} onChange={(e) => setOpen(e.target.checked)} className="rounded border-white/20" />
@@ -524,6 +625,8 @@ export default function CodernetCardPage() {
   const [pollCount, setPollCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [me, setMe] = useState<MeUser | null>(null);
+  const [recrawlBusy, setRecrawlBusy] = useState(false);
+  const [pageOrigin, setPageOrigin] = useState('');
 
   const fetchProfile = useCallback(async () => {
     if (!username) return null;
@@ -563,6 +666,10 @@ export default function CodernetCardPage() {
   }, [username]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') setPageOrigin(window.location.origin);
+  }, []);
+
+  useEffect(() => {
     if (!profile || profile.status !== 'pending') return;
 
     const doPoll = async () => {
@@ -585,30 +692,52 @@ export default function CodernetCardPage() {
     };
   }, [profile, pollCount, fetchProfile]);
 
-  const handleRetry = async () => {
+  const startCrawl = useCallback(async (): Promise<boolean> => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) {
       router.push('/login');
-      return;
+      return false;
     }
     const base = API_BASE_URL || '';
     try {
-      await fetch(`${base}/api/codernet/crawl`, {
+      const res = await fetch(`${base}/api/codernet/crawl`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
+      if (!res.ok) return false;
       setProfile((prev) =>
         prev
           ? {
               ...prev,
               status: 'pending',
-              progress: { stage: 'queued', percent: 0, detail: 'Restarting...', startedAt: Date.now(), updatedAt: Date.now() },
+              progress: {
+                stage: 'queued',
+                percent: 0,
+                detail: 'Restarting...',
+                startedAt: Date.now(),
+                updatedAt: Date.now(),
+              },
             }
           : prev,
       );
       setPollCount(0);
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
+  }, [router]);
+
+  const handleRetry = async () => {
+    await startCrawl();
   };
+
+  const handleRecrawlFromAssist = () => {
+    setRecrawlBusy(true);
+    void startCrawl().finally(() => setRecrawlBusy(false));
+  };
+
+  const profileShareUrl =
+    pageOrigin && username ? `${pageOrigin}/codernet/card/${encodeURIComponent(username)}` : '';
 
   if (loading) {
     return (
@@ -786,6 +915,16 @@ export default function CodernetCardPage() {
                 </div>
               ))}
             </div>
+          )}
+
+          {isCardOwner && profile.status === 'ready' && analysis && (
+            <JobSeekerAssistCard
+              profileShareUrl={profileShareUrl}
+              githubUsername={profile.user.githubUsername}
+              analysis={analysis}
+              onRecrawl={handleRecrawlFromAssist}
+              recrawlBusy={recrawlBusy}
+            />
           )}
 
           {github?.repos && github.repos.length > 0 ? (
