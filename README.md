@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue.svg)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
 
-**连接开发者与机会的一站式平台**：公开岗位与简历广场、双端智能体匹配（A2A）、以及基于 GitHub 的开发者画像与触达（Codernet）。
+**开发者画像与链接**：基于 GitHub 的公开技术名片与搜索（GITLINK / Codernet）；历史岗位与 A2A 求职前端入口已下线，后端 API 仍可按需保留或后续移除。
 
 线上示例：[clawlab.live](https://www.clawlab.live)（部署品牌名可能仍为 ClawLab，与本仓库 **GitLink** 代码库对应）。
 
@@ -14,9 +14,7 @@
 
 | 模块 | 路径 | 说明 |
 |------|------|------|
-| **在招广场** | `/jobs` | 浏览公开岗位与求职者；招聘方「发布岗位」、求职者「我的简历」 |
-| **A2A 求职** | `/job-a2a` | 招聘方 / 求职者建档、自动匹配、智能体代聊与解锁真人沟通 |
-| **开发者画像** | `/codernet` | GitHub 画像分析、语义找人、外联与连接流程 |
+| **开发者画像** | `/`（GITLINK 首页）、`/codernet/github/:user` | GitHub 画像分析、公开技术名片 |
 | **账号** | `/login`、`/register` | JWT 登录注册；支持 OAuth 流程（见各环境配置） |
 
 可选能力（需开启环境变量，如 `NEXT_PUBLIC_SHOW_LIVE_FEATURES`）：直播房间等历史能力仍保留在代码中，默认入口不展示。
@@ -75,7 +73,7 @@ pnpm dev
 gitlink/
 ├── apps/
 │   ├── web/                 # Next.js 前端
-│   │   └── src/app/         # App Router：jobs、job-a2a、codernet、login …
+│   │   └── src/app/         # App Router：codernet、login …
 │   └── server/              # Express API、Prisma
 │       ├── prisma/
 │       └── src/api/routes/  # auth、job-a2a、codernet、…

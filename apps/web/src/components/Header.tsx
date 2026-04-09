@@ -50,12 +50,6 @@ export function Header({}: HeaderProps) {
 
   const gitlinkSectionActive = pathname === '/' || pathname.startsWith('/codernet');
 
-  const active = (href: string) => {
-    if (href === '/jobs') return pathname === '/jobs' || pathname.startsWith('/jobs/');
-    if (href === '/codernet') return gitlinkSectionActive;
-    return pathname.startsWith(href);
-  };
-
   const isHome = false;
 
   return (
@@ -86,18 +80,6 @@ export function Header({}: HeaderProps) {
               label={t('nav.landing')}
               icon="👤"
               active={gitlinkSectionActive}
-            />
-            <NavItem
-              href="/jobs"
-              label={t('nav.jobsBoard')}
-              icon="💼"
-              active={active('/jobs')}
-            />
-            <NavItem
-              href="/job-a2a"
-              label={t('nav.jobA2A')}
-              icon="🤝"
-              active={pathname.startsWith('/job-a2a')}
             />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />

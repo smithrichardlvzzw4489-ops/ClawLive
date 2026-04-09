@@ -26,7 +26,7 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      { source: '/plaza', destination: '/jobs', permanent: true },
+      { source: '/plaza', destination: '/', permanent: true },
     ];
   },
   async rewrites() {
