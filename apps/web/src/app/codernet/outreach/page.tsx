@@ -58,6 +58,15 @@ const PIPELINE_PHASES = [
   { key: 'ready', label: '准备就绪', icon: '✅' },
 ] as const;
 
+const MAX_RECIPIENT_OPTIONS: { value: number; label: string }[] = [
+  { value: 10, label: '10 人（快速测试）' },
+  { value: 50, label: '50 人' },
+  { value: 100, label: '100 人' },
+  { value: 300, label: '300 人' },
+  { value: 500, label: '500 人' },
+  { value: 1000, label: '1000 人（完整覆盖）' },
+];
+
 const TIER_LABELS: Record<number, { label: string; color: string }> = {
   1: { label: 'Tier 1', color: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
   2: { label: 'Tier 2', color: 'bg-blue-500/20 text-blue-300 border-blue-500/30' },
@@ -77,15 +86,30 @@ export default function OutreachPage() {
   const [senderName, setSenderName] = useState('');
   const [senderInfo, setSenderInfo] = useState('');
   const [maxRecipients, setMaxRecipients] = useState(100);
+  const [maxRecipientsMenuOpen, setMaxRecipientsMenuOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   /* ── Polling for campaign progress ── */
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const maxRecipientsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
+
+  useEffect(() => {
+    if (!maxRecipientsMenuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = maxRecipientsMenuRef.current;
+      if (el && !el.contains(e.target as Node)) setMaxRecipientsMenuOpen(false);
+    };
+    const t = window.setTimeout(() => document.addEventListener('pointerdown', onPointerDown), 0);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [maxRecipientsMenuOpen]);
 
   function startPolling(campaignId: string) {
     if (pollRef.current) clearInterval(pollRef.current);
@@ -258,20 +282,47 @@ export default function OutreachPage() {
                   className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-violet-500/40 transition"
                 />
               </div>
-              <div>
+              <div className="relative" ref={maxRecipientsMenuRef}>
                 <label className="block text-xs text-slate-400 mb-1.5 font-medium">最大外联人数</label>
-                <select
-                  value={maxRecipients}
-                  onChange={(e) => setMaxRecipients(Number(e.target.value))}
-                  className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm text-white outline-none focus:border-violet-500/40 transition appearance-none"
+                <button
+                  type="button"
+                  id="max-recipients-trigger"
+                  aria-haspopup="listbox"
+                  aria-expanded={maxRecipientsMenuOpen}
+                  onClick={() => setMaxRecipientsMenuOpen((o) => !o)}
+                  className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-left text-sm text-white outline-none focus:border-violet-500/40 transition flex items-center justify-between gap-2"
                 >
-                  <option value={10}>10 人（快速测试）</option>
-                  <option value={50}>50 人</option>
-                  <option value={100}>100 人</option>
-                  <option value={300}>300 人</option>
-                  <option value={500}>500 人</option>
-                  <option value={1000}>1000 人（完整覆盖）</option>
-                </select>
+                  <span>{MAX_RECIPIENT_OPTIONS.find((o) => o.value === maxRecipients)?.label ?? `${maxRecipients} 人`}</span>
+                  <span className="text-slate-500 shrink-0" aria-hidden>
+                    ▾
+                  </span>
+                </button>
+                {maxRecipientsMenuOpen && (
+                  <ul
+                    role="listbox"
+                    aria-labelledby="max-recipients-trigger"
+                    className="absolute z-50 mt-1 w-full rounded-xl border border-white/[0.12] bg-[#0c0e14] py-1 shadow-xl shadow-black/50 max-h-64 overflow-y-auto"
+                  >
+                    {MAX_RECIPIENT_OPTIONS.map((opt) => (
+                      <li key={opt.value} role="option" aria-selected={maxRecipients === opt.value}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMaxRecipients(opt.value);
+                            setMaxRecipientsMenuOpen(false);
+                          }}
+                          className={`w-full px-4 py-2.5 text-left text-sm transition ${
+                            maxRecipients === opt.value
+                              ? 'bg-violet-600/35 text-violet-100'
+                              : 'text-slate-200 hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
