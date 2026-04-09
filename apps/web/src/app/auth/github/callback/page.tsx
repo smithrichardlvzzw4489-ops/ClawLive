@@ -53,7 +53,7 @@ function GitHubCallbackInner() {
           next && next.startsWith('/')
             ? next
             : data.user?.githubUsername || data.user?.username
-              ? `/codernet/card/${encodeURIComponent((data.user.githubUsername || data.user.username) as string)}`
+              ? '/my/profile'
               : '/';
         router.replace(path);
       } catch (err) {

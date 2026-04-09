@@ -67,7 +67,7 @@ export function CodernetHomeClient() {
     const base = API_BASE_URL || '';
     fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((user) => { if (user?.username) router.replace(`/codernet/card/${encodeURIComponent(user.username)}`); else setChecking(false); })
+      .then((user) => { if (user?.username) router.replace('/my/profile'); else setChecking(false); })
       .catch(() => setChecking(false));
   }, [router]);
 

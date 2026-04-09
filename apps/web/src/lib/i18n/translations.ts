@@ -47,6 +47,7 @@ export const translations = {
       jobsBoard: '在招广场',
       vibeKids: 'VibeKids',
       codernet: '开发者画像',
+      myDeveloperCard: '我的画像',
     },
 
     evolutionNetwork: {
@@ -861,6 +862,7 @@ export const translations = {
       jobsBoard: 'Open roles',
       vibeKids: 'VibeKids',
       codernet: 'Dev Profile',
+      myDeveloperCard: 'My card',
     },
 
     evolutionNetwork: {

@@ -72,9 +72,9 @@ function LinkedInCallbackInner() {
 
         setStage('success');
         const next =
-          typeof window !== 'undefined' ? sessionStorage.getItem(REDIRECT_KEY) || '/' : '/';
+          typeof window !== 'undefined' ? sessionStorage.getItem(REDIRECT_KEY) || '/my/profile' : '/my/profile';
         if (typeof window !== 'undefined') sessionStorage.removeItem(REDIRECT_KEY);
-        const path = next.startsWith('/') ? next : '/';
+        const path = next.startsWith('/') ? next : '/my/profile';
         router.replace(path);
       } catch (e) {
         setStage('error');

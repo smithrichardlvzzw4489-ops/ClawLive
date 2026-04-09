@@ -33,7 +33,9 @@ export function MainLayout({
 
   return (
     <div
-      className={`bg-void-950 bg-dot ${
+      className={`${
+        flatBackground ? 'bg-[#06080f]' : 'bg-void-950 bg-dot'
+      } ${
         lockViewportHeight ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'
       }`}
     >

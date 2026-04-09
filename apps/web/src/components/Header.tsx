@@ -98,6 +98,12 @@ export function Header({}: HeaderProps) {
               icon="👤"
               active={codernetActive}
             />
+            <NavItem
+              href="/my/profile"
+              label={t('nav.myDeveloperCard')}
+              icon="🪪"
+              active={pathname.startsWith('/my/profile')}
+            />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}

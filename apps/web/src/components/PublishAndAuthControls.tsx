@@ -116,6 +116,9 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               </svg>
             </button>
             <div className="invisible absolute left-0 right-0 z-50 mt-1 w-full rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
+              <Link href="/my/profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
+                🪪 {t('nav.myDeveloperCard')}
+              </Link>
               <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
@@ -210,6 +213,9 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               <span className="font-medium text-gray-700 truncate text-left text-sm">{user.username}</span>
             </button>
             <div className="absolute left-0 right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+              <Link href="/my/profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
+                🪪 {t('nav.myDeveloperCard')}
+              </Link>
               <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
@@ -305,6 +311,9 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
             </svg>
           </button>
           <div className="absolute right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
+            <Link href="/my/profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
+              🪪 {t('nav.myDeveloperCard')}
+            </Link>
             <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
               👤 {t('nav.myProfile')}
             </Link>

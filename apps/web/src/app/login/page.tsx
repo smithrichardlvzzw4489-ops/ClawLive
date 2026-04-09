@@ -65,7 +65,7 @@ function AuthForm() {
 
     try {
       await login(username.trim(), password);
-      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
+      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/my/profile');
     } catch (err: any) {
       const msg = err?.message || '';
       if (msg === 'USER_NOT_FOUND') {
@@ -108,7 +108,7 @@ function AuthForm() {
       )) as { token: string; refreshToken: string };
       localStorage.setItem('token', response.token);
       localStorage.setItem('refreshToken', response.refreshToken);
-      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/');
+      router.push(redirectTo && redirectTo.startsWith('/') ? redirectTo : '/my/profile');
     } catch (err: any) {
       const m = err?.message as string | undefined;
       if (m === 'AVATAR_REQUIRED') setError(t('auth.avatarRequired'));
