@@ -31,6 +31,11 @@ import {
   resolveLinkedInProfileUrl,
   probeWebsiteForDeveloperIdentities,
 } from '../../services/linkedin-resolve';
+import {
+  collectJobSeekingSignals,
+  mergeJobSeekingSignalsForDisplay,
+  type JobSeekingSignal,
+} from '../../services/job-seeking-signals';
 
 /* ── In-memory crawl progress tracker ─────────────────────── */
 export type CrawlStage =
@@ -80,6 +85,13 @@ interface LookupCacheEntry {
   multiPlatform?: MultiPlatformProfile;
   cachedAt: number;
   avatarUrl?: string;
+  jobSeekingDetected?: JobSeekingSignal[];
+}
+
+function siteBaseUrlFromRequest(req: Request): string {
+  const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
+  const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || 'clawlab.live';
+  return `${proto}://${host}`.replace(/\/$/, '');
 }
 
 const lookupCache = new Map<string, LookupCacheEntry>();
@@ -112,6 +124,10 @@ export function codernetRoutes(): IRouter {
           codernetAnalysis: true,
           codernetCrawledAt: true,
           createdAt: true,
+          openToOpportunities: true,
+          openToOpportunitiesUpdatedAt: true,
+          jobSeekingExternalProfiles: true,
+          jobSeekingDetectedSignals: true,
         },
       });
 
@@ -135,6 +151,18 @@ export function codernetRoutes(): IRouter {
 
       const crawl = user.githubProfileJson as Record<string, unknown> | null;
       const analysis = user.codernetAnalysis as Record<string, unknown>;
+      const detected = (user.jobSeekingDetectedSignals as JobSeekingSignal[] | null) || [];
+      const baseUrl = siteBaseUrlFromRequest(req);
+      const jobSeeking = mergeJobSeekingSignalsForDisplay(
+        Array.isArray(detected) ? detected : [],
+        {
+          openToOpportunities: user.openToOpportunities,
+          openToOpportunitiesUpdatedAt: user.openToOpportunitiesUpdatedAt,
+          jobSeekingExternalProfiles: user.jobSeekingExternalProfiles,
+          username: user.username,
+        },
+        baseUrl,
+      );
 
       res.json({
         status: 'ready',
@@ -164,6 +192,7 @@ export function codernetRoutes(): IRouter {
           : null,
         analysis,
         crawledAt: user.codernetCrawledAt,
+        jobSeeking,
       });
     } catch (error) {
       console.error('[Codernet] profile fetch error:', error);
@@ -224,7 +253,34 @@ export function codernetRoutes(): IRouter {
       const ghUser = req.params.ghUsername.toLowerCase();
       const cached = lookupCache.get(ghUser);
       if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
-        return res.json({ status: 'ready', crawl: cached.crawl, analysis: cached.analysis, multiPlatform: cached.multiPlatform || null, avatarUrl: cached.avatarUrl, cachedAt: cached.cachedAt });
+        const platformRow = await prisma.user.findFirst({
+          where: { githubUsername: { equals: ghUser, mode: 'insensitive' } },
+          select: {
+            openToOpportunities: true,
+            openToOpportunitiesUpdatedAt: true,
+            jobSeekingExternalProfiles: true,
+            username: true,
+            jobSeekingDetectedSignals: true,
+          },
+        });
+        const fromDb = platformRow?.jobSeekingDetectedSignals as JobSeekingSignal[] | null;
+        const detected =
+          Array.isArray(fromDb) && fromDb.length > 0 ? fromDb : cached.jobSeekingDetected || [];
+        const baseUrl = siteBaseUrlFromRequest(req);
+        const jobSeeking = mergeJobSeekingSignalsForDisplay(
+          detected,
+          platformRow,
+          baseUrl,
+        );
+        return res.json({
+          status: 'ready',
+          crawl: cached.crawl,
+          analysis: cached.analysis,
+          multiPlatform: cached.multiPlatform || null,
+          avatarUrl: cached.avatarUrl,
+          cachedAt: cached.cachedAt,
+          jobSeeking,
+        });
       }
       const progress = crawlProgressMap.get(`gh:${ghUser}`);
       if (progress) {
@@ -277,6 +333,84 @@ export function codernetRoutes(): IRouter {
     } catch (error) {
       console.error('[Codernet] github lookup post error:', error);
       res.status(500).json({ error: 'Internal error' });
+    }
+  });
+
+  /**
+   * PATCH /api/codernet/job-seeking
+   * 登录用户：开启/关闭「开放机会」并维护对外求职平台链接（须已绑定 GitHub）。
+   */
+  router.patch('/job-seeking', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const bound = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { githubUsername: true },
+      });
+      if (!bound?.githubUsername?.trim()) {
+        return res.status(400).json({ error: '请先绑定 GitHub 后再设置求职意向展示' });
+      }
+
+      const body = req.body as {
+        openToOpportunities?: boolean;
+        externalProfiles?: Array<{ label?: string; url?: string }>;
+      };
+
+      const data: {
+        openToOpportunities?: boolean;
+        openToOpportunitiesUpdatedAt?: Date;
+        jobSeekingExternalProfiles?: object;
+      } = {};
+
+      if (typeof body.openToOpportunities === 'boolean') {
+        data.openToOpportunities = body.openToOpportunities;
+        data.openToOpportunitiesUpdatedAt = new Date();
+      }
+
+      if (body.externalProfiles !== undefined) {
+        if (!Array.isArray(body.externalProfiles)) {
+          return res.status(400).json({ error: 'externalProfiles must be an array' });
+        }
+        if (body.externalProfiles.length > 8) {
+          return res.status(400).json({ error: '最多登记 8 条外链' });
+        }
+        const normalized: Array<{ label: string; url: string; addedAt: string }> = [];
+        for (const p of body.externalProfiles) {
+          if (!p || typeof p !== 'object') continue;
+          const label = String(p.label || '').trim();
+          const url = String(p.url || '').trim();
+          if (!label || !url) continue;
+          if (label.length > 80) {
+            return res.status(400).json({ error: '标题过长（≤80 字）' });
+          }
+          if (!/^https:\/\//i.test(url)) {
+            return res.status(400).json({ error: '链接须以 https:// 开头' });
+          }
+          normalized.push({ label: label.slice(0, 80), url, addedAt: new Date().toISOString() });
+        }
+        data.jobSeekingExternalProfiles = normalized;
+      }
+
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: '请提供 openToOpportunities 或 externalProfiles' });
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: userId },
+        data,
+        select: {
+          openToOpportunities: true,
+          openToOpportunitiesUpdatedAt: true,
+          jobSeekingExternalProfiles: true,
+          username: true,
+          githubUsername: true,
+        },
+      });
+
+      return res.json({ ok: true, jobSeeking: updated });
+    } catch (error) {
+      console.error('[Codernet] job-seeking patch error:', error);
+      return res.status(500).json({ error: 'Failed to update job seeking settings' });
     }
   });
 
@@ -745,11 +879,19 @@ export async function runCrawlAndAnalysis(
     const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
     console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
+    let jobSeekingDetected: JobSeekingSignal[] = [];
+    try {
+      jobSeekingDetected = await collectJobSeekingSignals(crawlData, token);
+    } catch (jsErr) {
+      console.warn(`[Codernet] job-seeking scan failed for @${githubUsername}:`, jsErr);
+    }
+
     setProgress(trackKey, 'saving_results', 95, 'Saving analysis results...');
     await prisma.user.update({
       where: { id: userId },
       data: {
         codernetAnalysis: analysis as any,
+        jobSeekingDetectedSignals: jobSeekingDetected as unknown as object,
       },
     });
 
@@ -824,6 +966,13 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
     const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
     console.log(`[Codernet] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
+    let jobSeekingDetected: JobSeekingSignal[] = [];
+    try {
+      jobSeekingDetected = await collectJobSeekingSignals(crawlData, token);
+    } catch (jsErr) {
+      console.warn(`[Codernet] job-seeking scan failed for @${ghUsername}:`, jsErr);
+    }
+
     const avatarUrl = `https://github.com/${ghUsername}.png`;
 
     lookupCache.set(ghUsername, {
@@ -832,6 +981,7 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
       multiPlatform: multiPlatform || undefined,
       cachedAt: Date.now(),
       avatarUrl,
+      jobSeekingDetected,
     });
 
     setProgress(trackKey, 'complete', 100, 'Profile ready!');

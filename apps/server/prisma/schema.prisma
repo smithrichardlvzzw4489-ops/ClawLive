@@ -36,6 +36,13 @@ model User {
   litellmVirtualKey String?
   /// 首次申请 Darwin 时填写的问卷（JSON），申请成功时写入
   darwinOnboarding  Json?
+  /// Codernet：是否对招聘方展示「开放机会」（站内依据，与 githubUsername 绑定展示）
+  openToOpportunities Boolean @default(false)
+  openToOpportunitiesUpdatedAt DateTime?
+  /// 用户自行填写的对外求职链接 [{ label, url, addedAt? }]，如 Wellfound、个人页等
+  jobSeekingExternalProfiles Json?
+  /// 最近一次 GitHub 爬取时自动检测到的求职文案依据（JSON 数组 JobSeekingSignal）
+  jobSeekingDetectedSignals Json?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

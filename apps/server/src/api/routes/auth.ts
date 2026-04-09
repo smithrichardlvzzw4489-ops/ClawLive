@@ -162,6 +162,10 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
         clawPoints: true,
         createdAt: true,
         updatedAt: true,
+        githubUsername: true,
+        openToOpportunities: true,
+        openToOpportunitiesUpdatedAt: true,
+        jobSeekingExternalProfiles: true,
       },
     });
     if (!user) {

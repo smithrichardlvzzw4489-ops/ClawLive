@@ -22,6 +22,19 @@ interface CrawlProgress {
   error?: string;
 }
 
+interface JobSeekingSignalView {
+  kind: string;
+  title: string;
+  detail: string;
+  url: string;
+  recordedAt: string;
+}
+
+interface JobSeekingBundle {
+  active: boolean;
+  signals: JobSeekingSignalView[];
+}
+
 interface CodernetProfile {
   status: 'ready' | 'pending';
   message?: string;
@@ -56,6 +69,7 @@ interface CodernetProfile {
     generatedAt: string;
   };
   crawledAt?: string;
+  jobSeeking?: JobSeekingBundle;
 }
 
 const LANG_COLORS: Record<string, string> = {
@@ -216,6 +230,153 @@ function LanguageBar({ langs }: { langs: Array<{ language: string; percent: numb
   );
 }
 
+const JOB_SEEKING_KIND_LABELS: Record<string, string> = {
+  platform_toggle: '本站',
+  github_profile_bio: 'GitHub 简介',
+  github_profile_readme: 'GitHub README',
+  personal_website: '个人网站',
+  user_listed_job_board: '求职平台',
+};
+
+function JobSeekingEvidenceBlock({ bundle }: { bundle: JobSeekingBundle }) {
+  if (!bundle.active || bundle.signals.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.07] p-4 mb-5">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-lg">🎯</span>
+        <h3 className="text-sm font-semibold text-emerald-200">求职意向 · 依据</h3>
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono">{bundle.signals.length} 条</span>
+      </div>
+      <ul className="space-y-2">
+        {bundle.signals.map((s, i) => (
+          <li key={`${s.kind}-${i}`} className="rounded-lg border border-white/[0.06] bg-black/20 p-2.5 text-[11px]">
+            <span className="text-emerald-400/90 font-mono text-[10px] uppercase">{JOB_SEEKING_KIND_LABELS[s.kind] || s.kind}</span>
+            <p className="text-slate-300 mt-0.5">{s.title}</p>
+            <p className="text-slate-500 mt-1">{s.detail}</p>
+            <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline font-mono break-all mt-1 inline-block">
+              {s.url} ↗
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+interface MeUser {
+  username: string;
+  githubUsername?: string | null;
+  openToOpportunities?: boolean;
+  jobSeekingExternalProfiles?: Array<{ label: string; url: string }> | null;
+}
+
+function JobSeekingOwnerCard({
+  initialOpen,
+  initialExternals,
+  onSaved,
+}: {
+  initialOpen: boolean;
+  initialExternals: Array<{ label: string; url: string }>;
+  onSaved: () => void;
+}) {
+  const [open, setOpen] = useState(initialOpen);
+  const [rows, setRows] = useState<Array<{ label: string; url: string }>>(
+    initialExternals.length > 0 ? initialExternals : [{ label: '', url: '' }],
+  );
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    setOpen(initialOpen);
+  }, [initialOpen]);
+
+  useEffect(() => {
+    if (initialExternals.length > 0) setRows(initialExternals);
+  }, [initialExternals]);
+
+  const save = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    setSaving(true);
+    setMsg('');
+    try {
+      const base = API_BASE_URL || '';
+      const externalProfiles = rows
+        .map((r) => ({ label: r.label.trim(), url: r.url.trim() }))
+        .filter((r) => r.label && r.url);
+      const res = await fetch(`${base}/api/codernet/job-seeking`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ openToOpportunities: open, externalProfiles }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || '保存失败');
+      setMsg('已保存');
+      onSaved();
+    } catch (e: unknown) {
+      setMsg(e instanceof Error ? e.message : '保存失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-violet-500/25 bg-violet-500/5 p-4 mb-6">
+      <h3 className="text-sm font-semibold text-violet-200 mb-1">管理求职意向展示</h3>
+      <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
+        开启后，招聘方在公开技术画像中可看到「本站」依据；自动扫描的 GitHub / 网站线索在每次重新分析后更新。您可补充 Wellfound 等平台个人页链接。
+      </p>
+      <label className="flex items-center gap-2 cursor-pointer mb-4">
+        <input type="checkbox" checked={open} onChange={(e) => setOpen(e.target.checked)} className="rounded border-white/20" />
+        <span className="text-sm text-slate-300">对招聘方展示「我在看机会」</span>
+      </label>
+      <p className="text-[10px] text-slate-600 mb-2 font-mono">求职平台 / 对外档案链接（https）</p>
+      {rows.map((r, i) => (
+        <div key={i} className="flex flex-col sm:flex-row gap-2 mb-2">
+          <input
+            value={r.label}
+            onChange={(e) => {
+              const next = [...rows];
+              next[i] = { ...next[i], label: e.target.value };
+              setRows(next);
+            }}
+            placeholder="例如 Wellfound"
+            className="flex-1 rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-xs text-white"
+          />
+          <input
+            value={r.url}
+            onChange={(e) => {
+              const next = [...rows];
+              next[i] = { ...next[i], url: e.target.value };
+              setRows(next);
+            }}
+            placeholder="https://..."
+            className="flex-[2] rounded-lg bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-xs font-mono text-white"
+          />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setRows([...rows, { label: '', url: '' }])}
+        className="text-[11px] text-violet-400 hover:underline mb-3"
+      >
+        + 添加一条链接
+      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={save}
+          className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-sm font-medium"
+        >
+          {saving ? '保存中…' : '保存求职意向'}
+        </button>
+        {msg && <span className={`text-xs ${msg === '已保存' ? 'text-emerald-400' : 'text-red-400'}`}>{msg}</span>}
+      </div>
+    </div>
+  );
+}
+
 function formatElapsed(ms: number): string {
   const s = Math.floor(ms / 1000);
   if (s < 60) return `${s}s`;
@@ -337,6 +498,7 @@ export default function CodernetCardPage() {
   const [error, setError] = useState('');
   const [pollCount, setPollCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [me, setMe] = useState<MeUser | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!username) return null;
@@ -358,6 +520,22 @@ export default function CodernetCardPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [username, fetchProfile]);
+
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      setMe(null);
+      return;
+    }
+    const base = API_BASE_URL || '';
+    fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u: MeUser | null) => {
+        if (u?.username) setMe(u);
+        else setMe(null);
+      })
+      .catch(() => setMe(null));
+  }, [username]);
 
   useEffect(() => {
     if (!profile || profile.status !== 'pending') return;
@@ -498,6 +676,7 @@ export default function CodernetCardPage() {
   }
 
   const { analysis, github } = profile;
+  const isCardOwner = !!(me?.username && username && me.username === username && profile.user.githubUsername);
 
   return (
     <div className="min-h-screen bg-[#06080f] text-white">
@@ -558,6 +737,34 @@ export default function CodernetCardPage() {
               ))}
             </div>
           )}
+
+          {isCardOwner && (
+            <JobSeekingOwnerCard
+              initialOpen={!!me?.openToOpportunities}
+              initialExternals={
+                me && Array.isArray(me.jobSeekingExternalProfiles) ? me.jobSeekingExternalProfiles : []
+              }
+              onSaved={() => {
+                fetchProfile()
+                  .then((p) => {
+                    if (p) setProfile(p);
+                  })
+                  .catch(() => {});
+                const token = localStorage.getItem('token');
+                const base = API_BASE_URL || '';
+                if (token) {
+                  fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+                    .then((r) => (r.ok ? r.json() : null))
+                    .then((u: MeUser | null) => {
+                      if (u?.username) setMe(u);
+                    })
+                    .catch(() => {});
+                }
+              }}
+            />
+          )}
+
+          {profile.jobSeeking && <JobSeekingEvidenceBlock bundle={profile.jobSeeking} />}
 
           {analysis?.sharpCommentary && (
             <div className="rounded-lg bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-3 mb-5">
