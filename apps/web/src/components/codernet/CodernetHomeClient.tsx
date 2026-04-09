@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
+import { MainLayout } from '@/components/MainLayout';
 
 type TabId = 'lookup' | 'find' | 'outreach';
 
@@ -122,22 +123,25 @@ export function CodernetHomeClient() {
 
   if (checking) {
     return (
-      <div className="min-h-screen bg-[#06080f] flex items-center justify-center">
-        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
-      </div>
+      <MainLayout>
+        <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-[#06080f]">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
+        </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#06080f] text-white">
+    <MainLayout>
+      <div className="relative min-h-[calc(100dvh-4rem)] bg-[#06080f] text-white">
       <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/15 blur-[160px]" />
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/10 blur-[160px]" />
 
-      <div className="relative z-10 min-h-screen">
-        <div className="flex min-h-screen flex-col items-center justify-center px-4 py-16">
+      <div className="relative z-10 min-h-[calc(100dvh-4rem)]">
+        <div className="flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center px-4 py-10 sm:py-16">
         <div className="text-center max-w-2xl w-full">
           <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-1.5 mb-6">
-            <span className="text-xs font-mono text-violet-400 tracking-wider">CODERNET</span>
+            <span className="text-xs font-mono text-violet-400 tracking-wider">GITLINK</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
@@ -380,6 +384,7 @@ export function CodernetHomeClient() {
       </div>
       </div>
     </div>
+    </MainLayout>
   );
 }
 
