@@ -6,11 +6,16 @@ import { API_BASE_URL } from '@/lib/api';
 
 type Stage = 'exchanging' | 'success' | 'error';
 
-function GitHubCallbackInner() {
+const STATE_KEY = 'linkedin_oauth_state';
+const REDIRECT_KEY = 'post_oauth_redirect';
+
+function LinkedInCallbackInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const code = searchParams.get('code');
-  const ghError = searchParams.get('error');
+  const err = searchParams.get('error');
+  const state = searchParams.get('state');
+  const desc = searchParams.get('error_description');
 
   const [stage, setStage] = useState<Stage>('exchanging');
   const [errorMsg, setErrorMsg] = useState('');
@@ -20,25 +25,45 @@ function GitHubCallbackInner() {
     if (didRun.current) return;
     didRun.current = true;
 
-    if (ghError || !code) {
+    if (err) {
       setStage('error');
-      setErrorMsg(ghError === 'access_denied' ? '你取消了 GitHub 授权' : '未获取到授权码');
+      setErrorMsg(
+        err === 'user_cancelled_login' || err === 'access_denied'
+          ? '你取消了 LinkedIn 授权'
+          : desc || err || 'LinkedIn 授权失败',
+      );
       return;
     }
+
+    if (!code) {
+      setStage('error');
+      setErrorMsg('未获取到授权码');
+      return;
+    }
+
+    const storedState = typeof window !== 'undefined' ? sessionStorage.getItem(STATE_KEY) : null;
+    if (typeof window !== 'undefined') sessionStorage.removeItem(STATE_KEY);
+    if (!state || !storedState || state !== storedState) {
+      setStage('error');
+      setErrorMsg('安全校验失败，请返回登录页重试');
+      return;
+    }
+
+    const redirectUri = `${window.location.origin}/auth/linkedin/callback`;
 
     (async () => {
       try {
         const base = API_BASE_URL || '';
-        const res = await fetch(`${base}/api/auth/github`, {
+        const res = await fetch(`${base}/api/auth/linkedin`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code, redirectUri }),
         });
         const data = await res.json();
 
         if (!res.ok || !data.token) {
           setStage('error');
-          setErrorMsg(data.detail || data.error || 'GitHub 登录失败');
+          setErrorMsg(data.detail || data.error || 'LinkedIn 登录失败');
           return;
         }
 
@@ -47,32 +72,27 @@ function GitHubCallbackInner() {
 
         setStage('success');
         const next =
-          typeof window !== 'undefined' ? sessionStorage.getItem('post_oauth_redirect') : null;
-        if (typeof window !== 'undefined') sessionStorage.removeItem('post_oauth_redirect');
-        const path =
-          next && next.startsWith('/')
-            ? next
-            : data.user?.githubUsername || data.user?.username
-              ? `/codernet/card/${encodeURIComponent((data.user.githubUsername || data.user.username) as string)}`
-              : '/';
+          typeof window !== 'undefined' ? sessionStorage.getItem(REDIRECT_KEY) || '/' : '/';
+        if (typeof window !== 'undefined') sessionStorage.removeItem(REDIRECT_KEY);
+        const path = next.startsWith('/') ? next : '/';
         router.replace(path);
-      } catch (err) {
+      } catch (e) {
         setStage('error');
-        setErrorMsg(err instanceof Error ? err.message : '网络错误');
+        setErrorMsg(e instanceof Error ? e.message : '网络错误');
       }
     })();
-  }, [code, ghError, router]);
+  }, [code, err, state, desc, router]);
 
   return (
     <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4">
-      <div className="pointer-events-none absolute -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/25 blur-[160px]" />
-      <div className="pointer-events-none absolute -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/25 blur-[160px]" />
+      <div className="pointer-events-none absolute -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-[#0A66C2]/20 blur-[160px]" />
+      <div className="pointer-events-none absolute -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/20 blur-[160px]" />
 
       <div className="relative z-10 w-full max-w-sm rounded-2xl border border-white/[0.08] bg-white/[0.05] p-8 text-center shadow-2xl backdrop-blur-xl">
         {stage === 'exchanging' && (
           <>
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
-            <p className="text-white/70 text-sm">正在完成 GitHub 登录…</p>
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-[#0A66C2] border-t-transparent" />
+            <p className="text-white/70 text-sm">正在完成 LinkedIn 登录…</p>
           </>
         )}
         {stage === 'success' && (
@@ -87,9 +107,12 @@ function GitHubCallbackInner() {
         )}
         {stage === 'error' && (
           <>
-            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20 text-red-400 text-lg font-bold">!</div>
+            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-red-500/20 text-red-400 text-lg font-bold">
+              !
+            </div>
             <p className="mb-4 text-red-300 text-sm">{errorMsg}</p>
             <button
+              type="button"
               onClick={() => router.push('/login')}
               className="rounded-lg bg-white/[0.1] px-5 py-2 text-sm text-white transition hover:bg-white/[0.15]"
             >
@@ -102,16 +125,16 @@ function GitHubCallbackInner() {
   );
 }
 
-export default function GitHubCallbackPage() {
+export default function LinkedInCallbackPage() {
   return (
     <Suspense
       fallback={
         <div className="min-h-screen bg-[#06080f] flex items-center justify-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#0A66C2] border-t-transparent" />
         </div>
       }
     >
-      <GitHubCallbackInner />
+      <LinkedInCallbackInner />
     </Suspense>
   );
 }
