@@ -5,7 +5,18 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 
-type TabId = 'lookup' | 'find' | 'outreach';
+type TabId = 'lookup' | 'find' | 'outreach' | 'linkedin';
+
+interface LinkedInResolveResponse {
+  linkedinVanity: string | null;
+  normalizedLinkedInUrl: string | null;
+  fetchStatus: 'ok' | 'blocked' | 'empty' | 'invalid_url' | 'network_error';
+  githubUsernames: string[];
+  gitlabUsernames: string[];
+  portfolioUrls: string[];
+  pageTitleHint: string | null;
+  guidanceZh: string;
+}
 
 interface QuotaDim { used: number; limit: number; remaining: number; ratio: number }
 interface QuotaStatus {
@@ -48,6 +59,13 @@ export default function CodernetIndexPage() {
   const [searchError, setSearchError] = useState('');
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
 
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [linkedinResolving, setLinkedinResolving] = useState(false);
+  const [linkedinResult, setLinkedinResult] = useState<LinkedInResolveResponse | null>(null);
+  const [linkedinError, setLinkedinError] = useState('');
+  const [probingSite, setProbingSite] = useState<string | null>(null);
+  const [probeHintByUrl, setProbeHintByUrl] = useState<Record<string, { githubUsername: string | null; gitlabUsername: string | null }>>({});
+
   const fetchQuota = useCallback(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) return;
@@ -75,6 +93,52 @@ export default function CodernetIndexPage() {
     const val = searchValue.trim().replace(/^@/, '');
     if (!val) return;
     router.push(`/codernet/github/${encodeURIComponent(val)}`);
+  };
+
+  const handleLinkedInResolve = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!linkedinUrl.trim() || linkedinResolving) return;
+    setLinkedinResolving(true);
+    setLinkedinError('');
+    setLinkedinResult(null);
+    setProbeHintByUrl({});
+    try {
+      const base = API_BASE_URL || '';
+      const res = await fetch(`${base}/api/codernet/linkedin/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkedinUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setLinkedinResult(data as LinkedInResolveResponse);
+    } catch (err: unknown) {
+      setLinkedinError(err instanceof Error ? err.message : '解析失败');
+    } finally {
+      setLinkedinResolving(false);
+    }
+  };
+
+  const probePortfolio = async (siteUrl: string) => {
+    setProbingSite(siteUrl);
+    try {
+      const base = API_BASE_URL || '';
+      const res = await fetch(`${base}/api/codernet/linkedin/probe-website`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: siteUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'probe failed');
+      setProbeHintByUrl((prev) => ({
+        ...prev,
+        [siteUrl]: { githubUsername: data.githubUsername || null, gitlabUsername: data.gitlabUsername || null },
+      }));
+    } catch {
+      setProbeHintByUrl((prev) => ({ ...prev, [siteUrl]: { githubUsername: null, gitlabUsername: null } }));
+    } finally {
+      setProbingSite(null);
+    }
   };
 
   const handleFind = async (e: FormEvent) => {
@@ -151,26 +215,38 @@ export default function CodernetIndexPage() {
           </p>
 
           {/* Tab Switcher */}
-          <div className="flex justify-center gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-md mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-xl mx-auto">
             <button
+              type="button"
               onClick={() => setTab('lookup')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+              className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition ${
                 tab === 'lookup' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
-              查 GitHub 用户
+              GitHub 画像
             </button>
             <button
+              type="button"
+              onClick={() => setTab('linkedin')}
+              className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition ${
+                tab === 'linkedin' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              LinkedIn → 画像
+            </button>
+            <button
+              type="button"
               onClick={() => setTab('find')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+              className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition ${
                 tab === 'find' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
               找开发者
             </button>
             <button
+              type="button"
               onClick={() => setTab('outreach')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition ${
+              className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition ${
                 tab === 'outreach' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
@@ -206,6 +282,149 @@ export default function CodernetIndexPage() {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* LinkedIn → Profile (HR) */}
+          {tab === 'linkedin' && (
+            <div className="max-w-lg mx-auto text-left">
+              <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+                粘贴候选人在 LinkedIn 的<strong className="text-slate-400">个人主页链接</strong>。我们会尝试从公开页面提取 GitHub、GitLab 或个人网站；若 LinkedIn 拦截访问，请按下方说明从页面手动复制 GitHub 用户名。
+              </p>
+              <form onSubmit={handleLinkedInResolve} className="mb-4">
+                <input
+                  type="url"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="https://www.linkedin.com/in/candidate-name"
+                  className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none focus:border-violet-500/40 transition"
+                  autoComplete="off"
+                />
+                <button
+                  type="submit"
+                  disabled={!linkedinUrl.trim() || linkedinResolving}
+                  className="mt-3 w-full py-3 rounded-xl bg-[#0a66c2]/90 hover:bg-[#0a66c2] disabled:bg-white/10 disabled:cursor-not-allowed text-sm font-semibold transition flex items-center justify-center gap-2"
+                >
+                  {linkedinResolving ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                      正在解析页面…
+                    </>
+                  ) : (
+                    '提取开发者链接并生成画像'
+                  )}
+                </button>
+              </form>
+              {linkedinError && (
+                <div className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300 mb-4">{linkedinError}</div>
+              )}
+              {linkedinResult && (
+                <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 space-y-4">
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider font-mono mb-1">状态</p>
+                    <p className="text-xs text-slate-300">
+                      {linkedinResult.fetchStatus === 'ok' && <span className="text-emerald-400">已获取页面</span>}
+                      {linkedinResult.fetchStatus === 'blocked' && <span className="text-amber-400">无法读取完整页面（常见：需登录）</span>}
+                      {linkedinResult.fetchStatus === 'empty' && <span className="text-amber-400">返回内容过少</span>}
+                      {linkedinResult.fetchStatus === 'invalid_url' && <span className="text-red-400">链接无效</span>}
+                      {linkedinResult.fetchStatus === 'network_error' && <span className="text-amber-400">网络错误</span>}
+                    </p>
+                    {linkedinResult.pageTitleHint && (
+                      <p className="text-[11px] text-slate-500 mt-1 truncate" title={linkedinResult.pageTitleHint}>
+                        页面标题线索：{linkedinResult.pageTitleHint}
+                      </p>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-400 leading-relaxed">{linkedinResult.guidanceZh}</p>
+                  {linkedinResult.githubUsernames.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase font-mono mb-2">GitHub（点击生成画像）</p>
+                      <div className="flex flex-wrap gap-2">
+                        {linkedinResult.githubUsernames.map((u) => (
+                          <button
+                            key={u}
+                            type="button"
+                            onClick={() => router.push(`/codernet/github/${encodeURIComponent(u)}`)}
+                            className="px-3 py-1.5 rounded-lg bg-violet-600/80 hover:bg-violet-500 text-xs font-mono"
+                          >
+                            @{u}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {linkedinResult.gitlabUsernames.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase font-mono mb-2">GitLab（打开主页）</p>
+                      <div className="flex flex-wrap gap-2">
+                        {linkedinResult.gitlabUsernames.map((u) => (
+                          <a
+                            key={u}
+                            href={`https://gitlab.com/${u}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded-lg border border-[#fc6d26]/40 text-xs font-mono text-[#fc6d26] hover:bg-[#fc6d26]/10"
+                          >
+                            @{u} ↗
+                          </a>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-600 mt-2">完整技术画像目前以 GitHub 为主；若有 GitHub 请优先点上方按钮。</p>
+                    </div>
+                  )}
+                  {linkedinResult.portfolioUrls.length > 0 && (
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase font-mono mb-2">个人网站 / 作品集</p>
+                      <ul className="space-y-2">
+                        {linkedinResult.portfolioUrls.map((u) => {
+                          const hint = probeHintByUrl[u];
+                          return (
+                            <li key={u} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <a href={u} target="_blank" rel="noopener noreferrer" className="text-xs text-sky-400 hover:underline break-all flex-1 min-w-0">
+                                  {u}
+                                </a>
+                                <button
+                                  type="button"
+                                  disabled={probingSite === u}
+                                  onClick={() => probePortfolio(u)}
+                                  className="text-[10px] px-2 py-1 rounded border border-white/10 text-slate-400 hover:text-white shrink-0"
+                                >
+                                  {probingSite === u ? '探测中…' : '探测页内 GitHub'}
+                                </button>
+                              </div>
+                              {hint?.githubUsername && (
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/codernet/github/${encodeURIComponent(hint.githubUsername!)}`)}
+                                  className="mt-2 text-xs text-violet-300 hover:underline"
+                                >
+                                  使用 @{hint.githubUsername} 生成画像 →
+                                </button>
+                              )}
+                              {hint && !hint.githubUsername && probingSite !== u && (
+                                <p className="text-[10px] text-slate-600 mt-1">未在网站首页发现 GitHub 链接</p>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                  {linkedinResult.githubUsernames.length === 0 &&
+                    (linkedinResult.fetchStatus !== 'ok' ||
+                      (linkedinResult.portfolioUrls.length === 0 && linkedinResult.gitlabUsernames.length === 0)) && (
+                    <div className="rounded-lg bg-white/[0.02] border border-white/[0.06] p-3 text-xs text-slate-500 space-y-2">
+                      <p className="font-medium text-slate-400">手动步骤</p>
+                      <ol className="list-decimal list-inside space-y-1">
+                        <li>在 LinkedIn 打开候选人主页 → 查看简介、Featured、联系方式中的网站或 GitHub</li>
+                        <li>切换到「GitHub 画像」标签，输入 GitHub 用户名即可生成技术画像</li>
+                        <li>若只有个人网站：把网站加入书签后，在下方列表点「探测页内 GitHub」</li>
+                      </ol>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

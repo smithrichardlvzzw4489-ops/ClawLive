@@ -25,8 +25,12 @@ import {
   pauseCampaign,
   previewMessage,
 } from '../../services/codernet-outreach';
-import { requireQuota, consumeQuota, checkQuota, type QuotaDimension } from '../../services/quota-manager';
+import { consumeQuota, checkQuota } from '../../services/quota-manager';
 import { getUserIdFromBearer } from '../middleware/auth';
+import {
+  resolveLinkedInProfileUrl,
+  probeWebsiteForDeveloperIdentities,
+} from '../../services/linkedin-resolve';
 
 /* ── In-memory crawl progress tracker ─────────────────────── */
 export type CrawlStage =
@@ -309,6 +313,42 @@ export function codernetRoutes(): IRouter {
     } catch (error) {
       console.error('[Codernet] search error:', error);
       res.status(500).json({ error: 'Search failed' });
+    }
+  });
+
+  /**
+   * POST /api/codernet/linkedin/resolve
+   * HR：粘贴 LinkedIn 个人主页 URL，尝试从公开 HTML 提取 GitHub / GitLab / 外链（无额度消耗）。
+   */
+  router.post('/linkedin/resolve', async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body as { url?: string };
+      if (!url || typeof url !== 'string' || !url.trim()) {
+        return res.status(400).json({ error: 'url is required' });
+      }
+      const result = await resolveLinkedInProfileUrl(url.trim());
+      return res.json(result);
+    } catch (e) {
+      console.error('[Codernet] linkedin/resolve error:', e);
+      return res.status(500).json({ error: 'LinkedIn resolve failed' });
+    }
+  });
+
+  /**
+   * POST /api/codernet/linkedin/probe-website
+   * 对个人网站再探测页内 GitHub 等链接（无额度消耗）。
+   */
+  router.post('/linkedin/probe-website', async (req: Request, res: Response) => {
+    try {
+      const { url } = req.body as { url?: string };
+      if (!url || typeof url !== 'string' || !url.trim()) {
+        return res.status(400).json({ error: 'url is required' });
+      }
+      const hints = await probeWebsiteForDeveloperIdentities(url.trim());
+      return res.json(hints);
+    } catch (e) {
+      console.error('[Codernet] linkedin/probe-website error:', e);
+      return res.status(500).json({ error: 'Probe failed' });
     }
   });
 
