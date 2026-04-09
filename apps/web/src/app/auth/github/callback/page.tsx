@@ -49,12 +49,7 @@ function GitHubCallbackInner() {
         const next =
           typeof window !== 'undefined' ? sessionStorage.getItem('post_oauth_redirect') : null;
         if (typeof window !== 'undefined') sessionStorage.removeItem('post_oauth_redirect');
-        const path =
-          next && next.startsWith('/')
-            ? next
-            : data.user?.githubUsername || data.user?.username
-              ? '/my/profile'
-              : '/';
+        const path = next && next.startsWith('/') ? next : '/';
         router.replace(path);
       } catch (err) {
         setStage('error');

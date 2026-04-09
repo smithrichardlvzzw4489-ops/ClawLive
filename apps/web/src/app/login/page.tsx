@@ -45,8 +45,7 @@ function AuthForm() {
   const startGithubOAuth = () => {
     if (!githubClientId) return;
     const redirect = `${window.location.origin}/auth/github/callback`;
-    const after =
-      redirectTo && redirectTo.startsWith('/') ? redirectTo : '/my/profile';
+    const after = redirectTo && redirectTo.startsWith('/') ? redirectTo : '/';
     sessionStorage.setItem('post_oauth_redirect', after);
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&redirect_uri=${encodeURIComponent(redirect)}&scope=read:user,user:email,public_repo`;
   };

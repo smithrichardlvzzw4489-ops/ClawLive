@@ -9,7 +9,6 @@ import { UPLOADS_DIR } from '../../lib/data-path';
 import { encrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { LoginRequest } from '@clawlive/shared-types';
-import { runCrawlAndAnalysis } from './codernet';
 const router: IRouter = Router();
 
 /** 注册头像：≤2MB，data URL */
@@ -358,10 +357,6 @@ router.post('/github', async (req: Request, res: Response) => {
     const { passwordHash: _, litellmVirtualKey: __vk, githubAccessToken: __gat, ...userWithoutSensitive } = user;
 
     res.json({ user: userWithoutSensitive, token, refreshToken });
-
-    runCrawlAndAnalysis(user.id, encryptedGhToken, ghUser.login, user.username).catch((err) =>
-      console.error('[Auth] post-login Codernet crawl failed:', err),
-    );
   } catch (error) {
     console.error('GitHub OAuth error:', error);
     res.status(500).json({ error: 'GitHub login failed' });

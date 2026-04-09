@@ -17,7 +17,6 @@ interface QuotaStatus {
 
 export function CodernetHomeClient() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
   const [tab, setTab] = useState<TabId>('lookup');
 
   const [searchValue, setSearchValue] = useState('');
@@ -35,32 +34,12 @@ export function CodernetHomeClient() {
 
   useEffect(() => { fetchQuota(); }, [fetchQuota]);
 
-  useEffect(() => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) { setChecking(false); return; }
-    const base = API_BASE_URL || '';
-    fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((user) => { if (user?.username) router.replace('/my/profile'); else setChecking(false); })
-      .catch(() => setChecking(false));
-  }, [router]);
-
   const handleLookup = (e: FormEvent) => {
     e.preventDefault();
     const val = searchValue.trim().replace(/^@/, '');
     if (!val) return;
     router.push(`/codernet/github/${encodeURIComponent(val)}`);
   };
-
-  if (checking) {
-    return (
-      <MainLayout>
-        <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-[#06080f]">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
-        </div>
-      </MainLayout>
-    );
-  }
 
   return (
     <MainLayout>
@@ -174,7 +153,7 @@ export function CodernetHomeClient() {
 
           <div className="flex justify-center my-8">
             <Link
-              href="/login?redirect=/my/profile"
+              href="/login?redirect=/codernet"
               className="inline-flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.04] hover:bg-white/[0.08] px-6 py-2.5 text-sm font-medium transition"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
