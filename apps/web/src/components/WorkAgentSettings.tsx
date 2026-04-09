@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { API_BASE_URL } from '@/lib/api';
-import { DARWIN_ICON } from '@/lib/brand';
+import { BRAND_ICON } from '@/lib/brand';
 
 interface UserConnection {
   id: string;
@@ -254,7 +254,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
       {/* Header */}
       <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{DARWIN_ICON}</span>
+          <span className="text-2xl">{BRAND_ICON}</span>
           <h2 className="text-xl font-bold">{inline ? 'Agent 配置' : 'Agent 设置'}</h2>
         </div>
         {!inline && (
@@ -366,7 +366,7 @@ export function WorkAgentSettings({ workId, onClose, onConfigComplete, inline, o
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-lobster focus:border-transparent"
                     />
                     <p className="text-sm text-gray-500 mt-1">
-                      你的 OpenClaw Agent 的 Telegram 用户名或 ID
+                      你的 GITLINK Agent 的 Telegram 用户名或 ID
                     </p>
                   </div>
 

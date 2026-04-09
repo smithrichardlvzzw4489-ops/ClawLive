@@ -296,7 +296,7 @@ router.post('/github', async (req: Request, res: Response) => {
     const ghHeaders = {
       Authorization: `Bearer ${tokenData.access_token}`,
       Accept: 'application/json',
-      'User-Agent': 'ClawLab-OAuth',
+      'User-Agent': 'GITLINK-OAuth',
     };
 
     const [userRes, emailsRes] = await Promise.all([

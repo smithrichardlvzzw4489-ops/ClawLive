@@ -31,7 +31,7 @@ export const translations = {
       publishRetro: '写复盘',
       publishSkill: '创建能力流',
       publishLive: '创建直播',
-      myLobster: 'DarwinClaw',
+      myLobster: 'GITLINK',
       myAgent: '我的 Agent',
       myStreams: '我的直播',
       myProfile: '个人中心',
@@ -42,7 +42,7 @@ export const translations = {
       points: '积分兑换',
       evolutionNetwork: '进化网络',
       evolutionObservation: '进化观察',
-      darwinShowcase: 'Darwin 展厅',
+      darwinShowcase: 'GITLINK 展厅',
       jobA2A: 'A2A 求职',
       jobsBoard: '在招广场',
       vibeKids: 'VibeKids',
@@ -110,12 +110,12 @@ export const translations = {
       pointWorksBlurb: '以下为该进化点下已发布的作品与图文，布局与实验室首页一致。',
       pointWorksSection: '作品与产出',
       pointWorksEmpty:
-        '该进化点下暂无关联作品。带「进化点 ID」的帖子会出现在这里；Darwin 进化器每轮结束也会自动发一条纪要（需已部署该功能）。',
-      evolverBoardTitle: 'Darwin 进化器看板',
+        '该进化点下暂无关联作品。带「进化点 ID」的帖子会出现在这里；GITLINK 进化器每轮结束也会自动发一条纪要（需已部署该功能）。',
+      evolverBoardTitle: 'GITLINK 进化器看板',
       evolverBoardBlurb:
-        'Darwin 接入后会自动开始进化；服务端约每 24 小时尝试一轮（能力评估、改进项、进化网络、GitHub 技能检索、关闭条件检视）。下方按钮可尝试立即补跑，仍受同一用户最小间隔限制。',
+        'GITLINK 接入后会自动开始进化；服务端约每 24 小时尝试一轮（能力评估、改进项、进化网络、GitHub 技能检索、关闭条件检视）。下方按钮可尝试立即补跑，仍受同一用户最小间隔限制。',
       evolverLoading: '加载中…',
-      evolverEmpty: '暂无记录：新接入 Darwin 后首轮会自动执行；之后约每 24 小时一轮（同一用户两轮间隔不少于 24 小时）。也可点右侧按钮尝试立即执行（仍受最小间隔限制）。',
+      evolverEmpty: '暂无记录：新接入 GITLINK 后首轮会自动执行；之后约每 24 小时一轮（同一用户两轮间隔不少于 24 小时）。也可点右侧按钮尝试立即执行（仍受最小间隔限制）。',
       evolverRounds: '轮次列表',
       evolverRoundLabel: '第 {n} 轮',
       evolverTimeline: '本轮事件',
@@ -146,7 +146,7 @@ export const translations = {
       commentsClosed: '该进化点已结束，仅可查看历史评论。',
       authorPanelTitle: '发起者：技能验收与闭环',
       authorPanelBlurb:
-        '若本点关联可安装的 Skill，请先填写技能文档、生成系统验收用例并运行通过，再确认目标达成；闭环后技能将安装到你的 Darwin。',
+        '若本点关联可安装的 Skill，请先填写技能文档、生成系统验收用例并运行通过，再确认目标达成；闭环后技能将安装到你的 GITLINK。',
       linkedSkillsTitle: '关联技能包',
       skillTitleLabel: '标题',
       skillIdOptional: 'ID（可选，留空则自动生成）',
@@ -174,7 +174,7 @@ export const translations = {
       completing: '处理中…',
       cancelPoint: '取消进化点',
       cancelling: '取消中…',
-      installedSkillsToast: '已为 Darwin 安装 {n} 个技能。',
+      installedSkillsToast: '已为 GITLINK 安装 {n} 个技能。',
       confirmCancelPoint: '确定要取消此进化点吗？',
       linkedSkillsSavedOk: '关联技能已保存。',
       generateCasesOk: '验收用例已生成。',
@@ -183,16 +183,16 @@ export const translations = {
     },
 
     darwinShowcase: {
-      title: 'Darwin 展厅',
+      title: 'GITLINK 展厅',
       subtitle:
-        '浏览已接入 Darwin 的用户：已安装技能数量、进化点与进化器摘要；可一键克隆技能到当前账号。',
+        '浏览已接入 GITLINK 的用户：已安装技能数量、进化点与进化器摘要；可一键克隆技能到当前账号。',
       skillCount: '已安装技能',
       evoPointCount: '进化点',
       viewProfile: '查看档案',
-      empty: '暂无已接入 Darwin 的用户。',
-      profileTitle: 'Darwin 进化档案',
+      empty: '暂无已接入 GITLINK 的用户。',
+      profileTitle: 'GITLINK 进化档案',
       skillsSection: '已安装技能（量化）',
-      skillsHint: '以下为该账号实际安装并注入 Darwin 对话的技能；不含仅平台默认开放、未安装的官方索引。',
+      skillsHint: '以下为该账号实际安装并注入 GITLINK 对话的技能；不含仅平台默认开放、未安装的官方索引。',
       sourcePlatform: '市场',
       sourceWeb: '网络学习',
       evoPointsSection: '进化点',
@@ -201,12 +201,12 @@ export const translations = {
       evolutionResult: '进化结果（摘要）',
       cloneTitle: '克隆技能',
       cloneHint: '将对方全部已安装技能复制到你的账号（同 skillId 会覆盖为你的副本）。',
-      cloneButton: '克隆此 Darwin 的全部技能',
+      cloneButton: '克隆此 GITLINK 的全部技能',
       cloneLogin: '后可克隆全部技能',
       cloneOk: '已合并到你的账号',
       cloneFail: '克隆失败',
       loading: '加载中…',
-      notFound: '未找到该 Darwin 或对方未接入 Darwin。',
+      notFound: '未找到该 GITLINK 或对方未接入 GITLINK。',
     },
 
     points: {
@@ -222,7 +222,7 @@ export const translations = {
       redeem: '兑换',
       redeeming: '兑换中…',
       notConfigured: '平台尚未配置 LiteLLM 代理（LITELLM_BASE_URL / LITELLM_MASTER_KEY），请联系管理员。',
-      proxyUrl: '代理地址（OpenClaw / API Base）',
+      proxyUrl: '代理地址（GITLINK / API Base）',
       copy: '复制',
       virtualKey: '虚拟 Key',
       showKey: '显示完整 Key',
@@ -478,14 +478,14 @@ export const translations = {
     // 作品
     works: {
       title: '作品',
-      subtitle: '探索 OpenClaw AI 创作的精彩作品',
+      subtitle: '探索 GITLINK AI 创作的精彩作品',
       create: '创建作品',
       noWorks: '暂无作品',
       createFirst: '创建第一个作品',
       partitionAll: '推荐',
     },
 
-    // 作品分区（参考 OpenClaw Skills）
+    // 作品分区（参考 GITLINK Skills）
     partitions: {
       productivity: '效率工具',
       writing: '写作与内容',
@@ -695,11 +695,11 @@ export const translations = {
 
     // 登录/注册
     auth: {
-      loginTitle: '登录 DarwinClaw',
+      loginTitle: '登录 GITLINK',
       loginSubtitle: '仅支持使用 GitHub 账号登录',
       githubSignIn: '使用 GitHub 登录',
       githubClientMissing: '未配置 GitHub 登录（缺少环境变量 NEXT_PUBLIC_GITHUB_CLIENT_ID）',
-      agentKeysGithubTitle: '🤖 你的 Agent 正在等待接入 ClawLab',
+      agentKeysGithubTitle: '🤖 你的 Agent 正在等待接入 GITLINK',
       agentKeysGithubBody:
         '请使用下方按钮通过 GitHub 登录，完成后将进入 API Key 页面，把 Key 复制给你的 Agent 即可完成接入。',
       username: '用户名',
@@ -710,7 +710,7 @@ export const translations = {
       registerNow: '立即注册',
       backToRooms: '返回房间列表',
       backToHome: '返回首页',
-      registerTitle: '注册 DarwinClaw',
+      registerTitle: '注册 GITLINK',
       registerSubtitle: '创建账号，开始你的龙虾直播',
       email: '邮箱',
       confirmPassword: '确认密码',
@@ -790,7 +790,7 @@ export const translations = {
       sampleOutput: '样例输出',
       useCases: '适用场景',
       accessMethods: '接入方式',
-      copyToAgent: '复制到 OpenClaw / 其他 Agent 即可使用',
+      copyToAgent: '复制到 GITLINK / 其他 Agent 即可使用',
       tabOverview: '概览',
       tabDiscussions: '讨论',
       tabIntegrate: '接入说明',
@@ -859,7 +859,7 @@ export const translations = {
       publishRetro: 'Write Retro',
       publishSkill: 'Create Skill',
       publishLive: 'Create Live',
-      myLobster: 'DarwinClaw',
+      myLobster: 'GITLINK',
       myProfile: 'My profile',
       myAgent: 'My Agent',
       myStreams: 'My Streams',
@@ -870,7 +870,7 @@ export const translations = {
       points: 'Points',
       evolutionNetwork: 'Evolution Network',
       evolutionObservation: 'Evolution log',
-      darwinShowcase: 'Darwin gallery',
+      darwinShowcase: 'GITLINK gallery',
       jobA2A: 'A2A Jobs',
       jobsBoard: 'Open roles',
       vibeKids: 'VibeKids',
@@ -939,12 +939,12 @@ export const translations = {
       pointWorksBlurb: 'Posts and works under this evolution point (same layout as the Lab feed).',
       pointWorksSection: 'Works & posts',
       pointWorksEmpty:
-        'No posts linked to this evolution point yet. Posts with this point ID appear here; the Darwin evolver can also auto-publish a round summary after deploy.',
-      evolverBoardTitle: 'Darwin evolver board',
+        'No posts linked to this evolution point yet. Posts with this point ID appear here; the GITLINK evolver can also auto-publish a round summary after deploy.',
+      evolverBoardTitle: 'GITLINK evolver board',
       evolverBoardBlurb:
-        'When Darwin is enabled, the server tries about one round per 24 hours (assessment, evolution network, GitHub skills, close checks). The button requests an extra run; the per-user minimum interval still applies.',
+        'When GITLINK is enabled, the server tries about one round per 24 hours (assessment, evolution network, GitHub skills, close checks). The button requests an extra run; the per-user minimum interval still applies.',
       evolverLoading: 'Loading…',
-      evolverEmpty: 'No rounds yet. First run after Darwin setup; then about every 24 hours (min 24 hours between runs per user). Or click the button (still subject to the interval).',
+      evolverEmpty: 'No rounds yet. First run after GITLINK setup; then about every 24 hours (min 24 hours between runs per user). Or click the button (still subject to the interval).',
       evolverRounds: 'Rounds',
       evolverRoundLabel: 'Round {n}',
       evolverTimeline: 'Events',
@@ -975,7 +975,7 @@ export const translations = {
       commentsClosed: 'This evolution point has ended; comments are read-only.',
       authorPanelTitle: 'Author: skill acceptance & close',
       authorPanelBlurb:
-        'If this point ships installable Skills, add skill docs, generate acceptance cases, run tests until they pass, then mark complete. After closing, skills are installed to your Darwin.',
+        'If this point ships installable Skills, add skill docs, generate acceptance cases, run tests until they pass, then mark complete. After closing, skills are installed to your GITLINK.',
       linkedSkillsTitle: 'Linked skills',
       skillTitleLabel: 'Title',
       skillIdOptional: 'ID (optional)',
@@ -1003,7 +1003,7 @@ export const translations = {
       completing: 'Working…',
       cancelPoint: 'Cancel point',
       cancelling: 'Cancelling…',
-      installedSkillsToast: 'Installed {n} skill(s) on Darwin.',
+      installedSkillsToast: 'Installed {n} skill(s) on GITLINK.',
       confirmCancelPoint: 'Cancel this evolution point?',
       linkedSkillsSavedOk: 'Linked skills saved.',
       generateCasesOk: 'Acceptance cases generated.',
@@ -1012,17 +1012,17 @@ export const translations = {
     },
 
     darwinShowcase: {
-      title: 'Darwin gallery',
+      title: 'GITLINK gallery',
       subtitle:
-        'Browse users with Darwin: installed skill counts, evolution points, and evolver summaries. Clone skills to your account.',
+        'Browse users with GITLINK: installed skill counts, evolution points, and evolver summaries. Clone skills to your account.',
       skillCount: 'Installed skills',
       evoPointCount: 'Evolution points',
       viewProfile: 'View profile',
-      empty: 'No Darwin users yet.',
-      profileTitle: 'Darwin evolution profile',
+      empty: 'No GITLINK users yet.',
+      profileTitle: 'GITLINK evolution profile',
       skillsSection: 'Installed skills (quantified)',
       skillsHint:
-        'Skills actually installed for this account and injected into Darwin chat; default platform index entries are not counted here.',
+        'Skills actually installed for this account and injected into GITLINK chat; default platform index entries are not counted here.',
       sourcePlatform: 'Market',
       sourceWeb: 'Web learned',
       evoPointsSection: 'Evolution points',
@@ -1031,12 +1031,12 @@ export const translations = {
       evolutionResult: 'Evolution result (summary)',
       cloneTitle: 'Clone skills',
       cloneHint: 'Copy all installed skills from this user to your account (same skillId overwrites your copy).',
-      cloneButton: 'Clone all skills from this Darwin',
+      cloneButton: 'Clone all skills from this GITLINK',
       cloneLogin: ' to clone all skills',
       cloneOk: 'Merged into your account',
       cloneFail: 'Clone failed',
       loading: 'Loading…',
-      notFound: 'Darwin not found or user has not enabled Darwin.',
+      notFound: 'GITLINK not found or user has not enabled GITLINK.',
     },
 
     createVideo: {
@@ -1142,7 +1142,7 @@ export const translations = {
     },
 
     home: {
-      heroTitle: 'Play with AI on XiaKe — unlock more ways to play',
+      heroTitle: 'Play with AI on GITLINK — unlock more ways to play',
       heroSubtitle: 'Let sharing be seen, value discovered, and learning easier.',
       btnSkillsFlow: 'View Skills',
       btnCommunity: 'Community',
@@ -1251,7 +1251,7 @@ export const translations = {
 
     works: {
       title: 'Works',
-      subtitle: 'Explore works created with OpenClaw AI',
+      subtitle: 'Explore works created with GITLINK AI',
       create: 'Create Work',
       noWorks: 'No works yet',
       createFirst: 'Create your first work',
@@ -1457,11 +1457,11 @@ export const translations = {
     },
 
     auth: {
-      loginTitle: 'Sign in to XiaKe',
+      loginTitle: 'Sign in to GITLINK',
       loginSubtitle: 'Sign in with GitHub only',
       githubSignIn: 'Continue with GitHub',
       githubClientMissing: 'GitHub sign-in is not configured (missing NEXT_PUBLIC_GITHUB_CLIENT_ID)',
-      agentKeysGithubTitle: '🤖 Your Agent is waiting to connect to ClawLab',
+      agentKeysGithubTitle: '🤖 Your Agent is waiting to connect to GITLINK',
       agentKeysGithubBody:
         'Sign in with GitHub below. You will land on the API Key page—copy the key to your Agent to finish setup.',
       username: 'Username',
@@ -1472,7 +1472,7 @@ export const translations = {
       registerNow: 'Register',
       backToRooms: 'Back to rooms',
       backToHome: 'Back to home',
-      registerTitle: 'Join XiaKe',
+      registerTitle: 'Join GITLINK',
       registerSubtitle: 'Create account and start streaming',
       email: 'Email',
       confirmPassword: 'Confirm password',
@@ -1550,7 +1550,7 @@ export const translations = {
       sampleOutput: 'Sample Output',
       useCases: 'Use Cases',
       accessMethods: 'Access Methods',
-      copyToAgent: 'Copy to OpenClaw or other Agent',
+      copyToAgent: 'Copy to GITLINK or other Agent',
       tabOverview: 'Overview',
       tabDiscussions: 'Discussions',
       tabIntegrate: 'Integration',

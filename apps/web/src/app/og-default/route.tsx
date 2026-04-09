@@ -3,7 +3,7 @@
  * 动态 /works/[id]/og 在 Vercel Edge 下返回 0 字节，故此图作为作品页分享预览
  */
 import { ImageResponse } from 'next/og';
-import { BRAND_ZH, DARWIN_ICON } from '@/lib/brand';
+import { BRAND_ZH, BRAND_ICON } from '@/lib/brand';
 
 export const runtime = 'edge';
 
@@ -47,7 +47,7 @@ export async function GET() {
               boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
             }}
           >
-            {DARWIN_ICON}
+            {BRAND_ICON}
           </div>
         </div>
         <div
@@ -60,7 +60,7 @@ export async function GET() {
           }}
         >
           <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', marginBottom: 14 }}>
-            clawlab.live
+            GITLINK
           </div>
           <div style={{ fontSize: 44, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 18 }}>
             {BRAND_ZH} 作品

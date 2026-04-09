@@ -9,7 +9,7 @@ import { useLocale } from '@/lib/i18n/LocaleContext';
 import { WorkAgentSettings } from '@/components/WorkAgentSettings';
 import { WORK_PARTITIONS, DEFAULT_PARTITION } from '@/lib/work-partitions';
 import { VideoUrlPlayer } from '@/components/VideoUrlPlayer';
-import { BRAND_ZH, DARWIN_ICON } from '@/lib/brand';
+import { BRAND_ZH, BRAND_ICON } from '@/lib/brand';
 
 interface Message {
   id: string;
@@ -298,7 +298,7 @@ export default function WorkStudioPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <header className="bg-white border-b px-4 py-3">
           <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity">
-            {DARWIN_ICON} {BRAND_ZH}
+            {BRAND_ICON} {BRAND_ZH}
           </Link>
         </header>
         <div className="flex-1 flex items-center justify-center">
@@ -316,7 +316,7 @@ export default function WorkStudioPage() {
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <header className="bg-white border-b px-4 py-3">
           <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity">
-            {DARWIN_ICON} {BRAND_ZH}
+            {BRAND_ICON} {BRAND_ZH}
           </Link>
         </header>
         <div className="flex-1 flex items-center justify-center">
@@ -339,11 +339,11 @@ export default function WorkStudioPage() {
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 text-xl font-bold hover:opacity-80 transition-opacity">
-            {DARWIN_ICON} {BRAND_ZH}
+            {BRAND_ICON} {BRAND_ZH}
           </Link>
           <div>
             <h1 className="text-xl font-bold">{work.title}</h1>
-            <p className="text-sm text-gray-600">{DARWIN_ICON} {work.lobsterName} • 创作中</p>
+            <p className="text-sm text-gray-600">{BRAND_ICON} {work.lobsterName} • 创作中</p>
           </div>
         </div>
         <div className="flex items-center gap-3 flex-wrap">

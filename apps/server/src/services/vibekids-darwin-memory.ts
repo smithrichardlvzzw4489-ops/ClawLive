@@ -39,7 +39,7 @@ export async function formatVibekidsDarwinMemoryBlock(userId: string): Promise<s
     const k = e.kind ? ` · ${e.kind}` : '';
     return `- 曾${tag}${k}：${e.snippet}`;
   });
-  return `【Darwin 同步的近期创作线索（勿复述原文，仅作主题与风格连贯参考）】\n${lines.join('\n')}`;
+  return `【GITLINK 同步的近期创作线索（勿复述原文，仅作主题与风格连贯参考）】\n${lines.join('\n')}`;
 }
 
 export async function appendVibekidsDarwinMemory(

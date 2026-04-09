@@ -998,7 +998,7 @@ export default function GitHubLookupCardPage() {
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-10">
         <div className="flex items-center gap-2 mb-8">
-          <Link href="/codernet" className="text-xs font-mono text-violet-400 tracking-wider hover:text-violet-300 transition">CODERNET</Link>
+          <Link href="/codernet" className="text-xs font-mono text-violet-400 tracking-wider hover:text-violet-300 transition">GITLINK</Link>
           <span className="text-xs text-slate-600">/</span>
           <span className="text-xs font-mono text-slate-500">@{ghUsername}</span>
         </div>
@@ -1048,7 +1048,7 @@ export default function GitHubLookupCardPage() {
           {analysis?.sharpCommentary && (
             <div className="rounded-lg bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-3 mb-5">
               <p className="text-sm text-slate-200 leading-relaxed italic">&ldquo;{analysis.sharpCommentary}&rdquo;</p>
-              <p className="text-[10px] text-slate-500 mt-1 font-mono">— Codernet AI · {platforms.join(' + ')} Analysis</p>
+              <p className="text-[10px] text-slate-500 mt-1 font-mono">— GITLINK AI · {platforms.join(' + ')} Analysis</p>
             </div>
           )}
 
@@ -1196,7 +1196,7 @@ export default function GitHubLookupCardPage() {
             ← Search another developer
           </Link>
           <span className="text-slate-700 mx-2">·</span>
-          <span className="text-xs text-slate-600 font-mono">codernet by <Link href="/" className="text-violet-500 hover:text-violet-400 transition">clawlab.live</Link></span>
+          <span className="text-xs text-slate-600 font-mono">GITLINK</span>
         </div>
       </div>
 

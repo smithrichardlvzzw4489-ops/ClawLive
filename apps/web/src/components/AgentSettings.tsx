@@ -144,7 +144,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '配置失败');
       setLoginStep('done');
-      setMessage({ type: 'success', text: '✅ 直连 OpenClaw 已配置！' });
+      setMessage({ type: 'success', text: '✅ 直连 GITLINK 已配置！' });
       onConfigComplete?.();
       if (isPreLiveConfig) setTimeout(() => onClose(), 1500);
     } catch (err: any) {
@@ -367,11 +367,11 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
               onClick={() => { setAgentMode('direct'); setMessage(null); }}
               className={`flex-1 px-4 py-2 rounded-lg font-medium ${agentMode === 'direct' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
             >
-              直连 OpenClaw
+              直连 GITLINK
             </button>
           </div>
 
-          {/* OpenClaw Direct Config */}
+          {/* GITLINK / Gateway direct config */}
           {agentMode === 'direct' && (
             <div className="space-y-4 p-4 border border-teal-200 rounded-lg bg-teal-50">
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -422,7 +422,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
               </div>
               {loginStep === 'done' && agentMode === 'direct' && (
                 <div className="bg-green-50 border border-green-200 rounded p-3 text-sm text-green-800">
-                  ✅ 直连 OpenClaw 已配置
+                  ✅ 直连 GITLINK 已配置
                 </div>
               )}
             </div>
@@ -520,7 +520,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
                     className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
                   />
                   <p className="text-xs text-gray-600 mt-1">
-                    你的 OpenClaw Agent 的 Telegram 用户名或 ID
+                    你的 GITLINK Agent 的 Telegram 用户名或 ID
                   </p>
                 </div>
 
@@ -650,7 +650,7 @@ export function AgentSettings({ roomId, onClose, onConfigComplete, isPreLiveConf
             >
               {message.text}
               {message.type === 'error' && (message.text.includes('408') || message.text.includes('超时')) && (
-                <p className="mt-2 text-sm opacity-90">多为穿透超时。确认 gateway 和 localtunnel 窗口都在运行，或换 ngrok 试。详见《直连 OpenClaw 傻瓜指南》</p>
+                <p className="mt-2 text-sm opacity-90">多为穿透超时。确认 gateway 和 localtunnel 窗口都在运行，或换 ngrok 试。详见《直连 GITLINK 傻瓜指南》</p>
               )}
             </div>
           )}

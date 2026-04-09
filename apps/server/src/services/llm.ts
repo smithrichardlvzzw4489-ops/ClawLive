@@ -5,7 +5,7 @@
  * 若同时配置了 LiteLLM 与 OpenRouter，默认仍优先 LiteLLM；需让进化器/摘要走 OpenRouter 时请设
  * SERVER_LLM_USE_OPENROUTER=1，并设置 OPENROUTER_API_KEY 与 OPENROUTER_MODEL。
  *
- * 「发布/摘要」类服务端调用（作品一句话摘要、帖子 excerpt、Darwin 进化器评估等）共用
+ * 「发布/摘要」类服务端调用（作品一句话摘要、帖子 excerpt、GITLINK 进化器评估等）共用
  * {@link getPublishingLlmClient}。
  */
 
@@ -77,7 +77,7 @@ function openRouterPublishingClient(): LlmClient {
 }
 
 /**
- * 与作品结果摘要、社区帖子摘要、Darwin 进化器评估共用：同一客户端与模型选择。
+ * 与作品结果摘要、社区帖子摘要、GITLINK 进化器评估共用：同一客户端与模型选择。
  */
 export function getPublishingLlmClient(): LlmClient {
   if (publishingLlmForceOpenRouter()) {
@@ -168,7 +168,7 @@ function stripMarkdownJsonFence(text: string): string {
   return s;
 }
 
-/** Darwin 进化器一轮评估：与 generateResultSummary / generateFeedPostExcerpt 同 KEY、同模型；失败时返回 null */
+/** GITLINK 进化器一轮评估：与 generateResultSummary / generateFeedPostExcerpt 同 KEY、同模型；失败时返回 null */
 export async function generateEvolverAssessment(context: {
   username: string;
   onboardingSnippet: string;
@@ -177,12 +177,12 @@ export async function generateEvolverAssessment(context: {
 }): Promise<{ summary: string; improvements: string[]; selfAssessment: string } | null> {
   try {
     const { client, model } = getPublishingLlmClient();
-    const prompt = `你是 Darwin Agent 的「进化顾问」。根据以下信息，输出**仅一段 JSON 对象**（不要其它说明文字），格式如下（键名必须一致）：
+    const prompt = `你是 GITLINK Agent 的「进化顾问」。根据以下信息，输出**仅一段 JSON 对象**（不要其它说明文字），格式如下（键名必须一致）：
 {"summary":"本轮能力评估一句话","selfAssessment":"自我能力简述（2-3句）","improvements":["改进项1（具体可执行）","改进项2","改进项3"]}
 改进项最多 3 条，与技能、工具、与主人协作相关；若信息不足可写通用能力提升方向。
 
 用户名：${context.username}
-Darwin 问卷/背景（节选）：${context.onboardingSnippet || '（无）'}
+GITLINK 问卷/背景（节选）：${context.onboardingSnippet || '（无）'}
 最近对话节选：${context.recentMessages || '（无）'}
 待学习技能提示：${context.pendingSkill || '（无）'}`;
 

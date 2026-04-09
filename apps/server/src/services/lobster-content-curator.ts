@@ -90,7 +90,7 @@ async function generateArticle(
   topic: string,
   searchResults: string,
 ): Promise<{ title: string; content: string } | null> {
-  const systemPrompt = `你是一位专注 AI 领域的内容创作者，为 ClawLab（面向 AI 学习者的社区平台）撰写实用文章。
+  const systemPrompt = `你是一位专注 AI 领域的内容创作者，为 GITLINK（面向 AI 学习者的社区平台）撰写实用文章。
 文章风格：专业但易读，有实际操作价值，中文写作。
 文章要求：
 - 标题吸引人，不超过 30 字

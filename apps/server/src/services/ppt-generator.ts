@@ -39,7 +39,7 @@ export async function generatePptx(
   pptx.layout = 'LAYOUT_WIDE';
   pptx.title = presentationTitle;
   pptx.subject = presentationTitle;
-  pptx.author = 'ClawLab DarwinClaw';
+  pptx.author = 'GITLINK';
 
   // 定义 master slide 背景
   pptx.defineSlideMaster({
@@ -82,7 +82,7 @@ export async function generatePptx(
   }
 
   // 底部品牌标识
-  coverSlide.addText('ClawLab · DarwinClaw 生成', {
+  coverSlide.addText('GITLINK 生成', {
     x: 0, y: 6.8, w: '100%', h: 0.4,
     fontSize: 11,
     color: THEME.subtext,

@@ -2,7 +2,7 @@
  * 动态 OG 图 - 从 URL 查询参数读取 title、desc，无 fetch，Edge 可正常工作
  */
 import { ImageResponse } from 'next/og';
-import { BRAND_ZH, DARWIN_ICON } from '@/lib/brand';
+import { BRAND_ZH, BRAND_ICON } from '@/lib/brand';
 
 export const runtime = 'edge';
 
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
               boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
             }}
           >
-            {DARWIN_ICON}
+            {BRAND_ICON}
           </div>
         </div>
         <div

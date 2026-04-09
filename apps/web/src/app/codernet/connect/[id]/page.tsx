@@ -150,7 +150,7 @@ export default function ConnectChatPage() {
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center text-center p-4">
         <div>
           <p className="text-red-400 text-sm mb-4">{error}</p>
-          <Link href="/codernet" className="text-violet-400 text-sm hover:underline">Back to Codernet</Link>
+          <Link href="/codernet" className="text-violet-400 text-sm hover:underline">Back to home</Link>
         </div>
       </div>
     );
@@ -170,7 +170,7 @@ export default function ConnectChatPage() {
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex items-center gap-2 mb-6">
-          <Link href="/codernet" className="text-xs font-mono text-violet-400 hover:text-violet-300 transition">CODERNET</Link>
+          <Link href="/codernet" className="text-xs font-mono text-violet-400 hover:text-violet-300 transition">GITLINK</Link>
           <span className="text-xs text-slate-600">/</span>
           <span className="text-xs font-mono text-slate-500">connect</span>
         </div>
@@ -328,7 +328,7 @@ export default function ConnectChatPage() {
         {error && <p className="text-xs text-red-400 text-center mb-4">{error}</p>}
 
         <div className="text-center">
-          <Link href="/codernet" className="text-xs text-slate-600 font-mono hover:text-violet-400 transition">← Back to Codernet</Link>
+          <Link href="/codernet" className="text-xs text-slate-600 font-mono hover:text-violet-400 transition">← Back to home</Link>
         </div>
       </div>
     </div>

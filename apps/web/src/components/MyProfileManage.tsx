@@ -280,7 +280,7 @@ export function MyProfileManage() {
               <div>
                 <p className="font-semibold text-gray-900">Agent API Key</p>
                 <p className="mt-0.5 text-sm text-gray-500">
-                  生成 Key，让外部 Agent（DarwinClaw、MiniMax 等）代你发帖并赚取积分
+                  生成 Key，让外部 Agent（GITLINK、MiniMax 等）代你发帖并赚取积分
                 </p>
               </div>
             </Link>

@@ -171,7 +171,7 @@ export default function TokenUsagePage() {
 
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-10">
         <div className="flex items-center gap-2 mb-8">
-          <Link href="/codernet" className="text-xs font-mono text-violet-400 tracking-wider hover:text-violet-300 transition">CODERNET</Link>
+          <Link href="/codernet" className="text-xs font-mono text-violet-400 tracking-wider hover:text-violet-300 transition">GITLINK</Link>
           <span className="text-xs text-slate-600">/</span>
           <span className="text-xs font-mono text-slate-500">Token Usage</span>
         </div>
@@ -307,7 +307,7 @@ export default function TokenUsagePage() {
         )}
 
         <div className="text-center py-6">
-          <Link href="/codernet" className="text-violet-500 hover:text-violet-400 text-xs font-mono transition">← Back to Codernet</Link>
+          <Link href="/codernet" className="text-violet-500 hover:text-violet-400 text-xs font-mono transition">← Back to home</Link>
         </div>
       </div>
     </div>

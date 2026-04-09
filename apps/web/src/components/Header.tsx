@@ -48,11 +48,11 @@ export function Header({}: HeaderProps) {
   const { t } = useLocale();
   const pathname = usePathname();
 
-  const codernetActive = pathname === '/' || pathname.startsWith('/codernet');
+  const gitlinkSectionActive = pathname === '/' || pathname.startsWith('/codernet');
 
   const active = (href: string) => {
     if (href === '/jobs') return pathname === '/jobs' || pathname.startsWith('/jobs/');
-    if (href === '/codernet') return codernetActive;
+    if (href === '/codernet') return gitlinkSectionActive;
     return pathname.startsWith(href);
   };
 
@@ -69,7 +69,7 @@ export function Header({}: HeaderProps) {
           <Link href="/" className="flex shrink-0 items-center">
             <Image
               src="/logo.png"
-              alt="ClawLab"
+              alt="GITLINK"
               width={120}
               height={40}
               className="h-9 w-auto object-contain sm:h-10"
@@ -85,7 +85,7 @@ export function Header({}: HeaderProps) {
               href="/"
               label={t('nav.landing')}
               icon="👤"
-              active={codernetActive}
+              active={gitlinkSectionActive}
             />
             <NavItem
               href="/jobs"

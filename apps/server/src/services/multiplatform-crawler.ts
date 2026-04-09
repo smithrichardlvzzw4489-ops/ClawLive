@@ -179,7 +179,7 @@ interface GitHubIdentity {
 async function fetchGitHubIdentity(username: string, token?: string): Promise<GitHubIdentity> {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'ClawLab-Codernet/1.0',
+    'User-Agent': 'GITLINK/1.0',
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 

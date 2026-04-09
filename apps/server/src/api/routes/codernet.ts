@@ -100,7 +100,7 @@ export function codernetRoutes(): IRouter {
 
   /**
    * GET /api/codernet/profile/:username
-   * Public endpoint — returns Codernet profile card data.
+   * Public endpoint — returns GITLINK profile card data.
    */
   router.get('/profile/:username', async (req: Request, res: Response) => {
     try {
@@ -122,7 +122,7 @@ export function codernetRoutes(): IRouter {
       });
 
       if (!user || !user.githubId) {
-        return res.status(404).json({ error: 'Codernet profile not found' });
+        return res.status(404).json({ error: 'Profile not found' });
       }
 
       if (!user.codernetAnalysis) {
@@ -187,7 +187,7 @@ export function codernetRoutes(): IRouter {
         crawledAt: user.codernetCrawledAt,
       });
     } catch (error) {
-      console.error('[Codernet] profile fetch error:', error);
+      console.error('[GITLINK] profile fetch error:', error);
       res.status(500).json({ error: 'Failed to fetch profile' });
     }
   });
@@ -212,7 +212,7 @@ export function codernetRoutes(): IRouter {
       if (!user?.githubAccessToken || !user.githubUsername) {
         return res.status(400).json({
           error: 'NO_GITHUB',
-          message: 'Please login with GitHub first to enable Codernet profile.',
+          message: 'Please login with GitHub first to enable your GITLINK profile.',
         });
       }
 
@@ -228,10 +228,10 @@ export function codernetRoutes(): IRouter {
       res.json({ status: 'crawling', message: 'GitHub profile crawl started.' });
 
       runCrawlAndAnalysis(userId, user.githubAccessToken, user.githubUsername, user.username).catch((err) =>
-        console.error('[Codernet] background crawl failed:', err),
+        console.error('[GITLINK] background crawl failed:', err),
       );
     } catch (error) {
-      console.error('[Codernet] crawl trigger error:', error);
+      console.error('[GITLINK] crawl trigger error:', error);
       res.status(500).json({ error: 'Failed to start crawl' });
     }
   });
@@ -260,7 +260,7 @@ export function codernetRoutes(): IRouter {
       }
       return res.status(404).json({ status: 'not_found' });
     } catch (error) {
-      console.error('[Codernet] github lookup get error:', error);
+      console.error('[GITLINK] github lookup get error:', error);
       res.status(500).json({ error: 'Internal error' });
     }
   });
@@ -300,10 +300,10 @@ export function codernetRoutes(): IRouter {
       res.json({ status: 'started', message: 'Crawl started.' });
 
       runPublicLookup(ghUser).catch((err) =>
-        console.error('[Codernet] public lookup failed:', err),
+        console.error('[GITLINK] public lookup failed:', err),
       );
     } catch (error) {
-      console.error('[Codernet] github lookup post error:', error);
+      console.error('[GITLINK] github lookup post error:', error);
       res.status(500).json({ error: 'Internal error' });
     }
   });
@@ -339,7 +339,7 @@ export function codernetRoutes(): IRouter {
       const results = await searchDevelopers(query.trim(), lookupCache, token);
       res.json({ results });
     } catch (error) {
-      console.error('[Codernet] search error:', error);
+      console.error('[GITLINK] search error:', error);
       res.status(500).json({ error: 'Search failed' });
     }
   });
@@ -357,7 +357,7 @@ export function codernetRoutes(): IRouter {
       const result = await resolveLinkedInProfileUrl(url.trim());
       return res.json(result);
     } catch (e) {
-      console.error('[Codernet] linkedin/resolve error:', e);
+      console.error('[GITLINK] linkedin/resolve error:', e);
       return res.status(500).json({ error: 'LinkedIn resolve failed' });
     }
   });
@@ -375,12 +375,12 @@ export function codernetRoutes(): IRouter {
       const hints = await probeWebsiteForDeveloperIdentities(url.trim());
       return res.json(hints);
     } catch (e) {
-      console.error('[Codernet] linkedin/probe-website error:', e);
+      console.error('[GITLINK] linkedin/probe-website error:', e);
       return res.status(500).json({ error: 'Probe failed' });
     }
   });
 
-  /* ── Codernet Connect (Agent pre-communication) ─────────── */
+  /* ── GITLINK Connect (Agent pre-communication) ─────────── */
 
   /**
    * POST /api/codernet/connect
@@ -402,7 +402,7 @@ export function codernetRoutes(): IRouter {
       const targetProfile = buildConnectProfile(targetGhUsername.toLowerCase());
 
       if (!initProfile || !targetProfile) {
-        return res.status(400).json({ error: 'Both developers must have Codernet profiles. Generate their profiles first.' });
+        return res.status(400).json({ error: 'Both developers must have GITLINK profiles. Generate their profiles first.' });
       }
 
       const session = createConnectSession(
@@ -413,12 +413,12 @@ export function codernetRoutes(): IRouter {
       );
 
       runConnectAgentRound(session.id).catch((err) =>
-        console.error('[CodernetConnect] initial round failed:', err),
+        console.error('[GITLINK-Connect] initial round failed:', err),
       );
 
       res.json({ session: sanitizeSession(session) });
     } catch (error) {
-      console.error('[Codernet] connect create error:', error);
+      console.error('[GITLINK] connect create error:', error);
       res.status(500).json({ error: 'Failed to create connect session' });
     }
   });
@@ -433,7 +433,7 @@ export function codernetRoutes(): IRouter {
       if (!session) return res.status(404).json({ error: 'Session not found' });
       res.json({ session: sanitizeSession(session) });
     } catch (error) {
-      console.error('[Codernet] connect get error:', error);
+      console.error('[GITLINK] connect get error:', error);
       res.status(500).json({ error: 'Failed to get session' });
     }
   });
@@ -448,7 +448,7 @@ export function codernetRoutes(): IRouter {
       res.json({ session: sanitizeSession(session) });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      console.error('[Codernet] agent step error:', error);
+      console.error('[GITLINK] agent step error:', error);
       res.status(400).json({ error: msg });
     }
   });
@@ -718,7 +718,7 @@ export async function runCrawlAndAnalysis(
   platformUsername?: string,
 ): Promise<void> {
   const trackKey = platformUsername || githubUsername;
-  console.log(`[Codernet] starting crawl for @${githubUsername} (user ${userId})`);
+  console.log(`[GITLINK] starting crawl for @${githubUsername} (user ${userId})`);
 
   setProgress(trackKey, 'queued', 0, 'Starting crawl pipeline...');
 
@@ -727,7 +727,7 @@ export async function runCrawlAndAnalysis(
     setProgress(trackKey, 'decrypting_token', 5, 'Decrypting access token...');
     token = decrypt(encryptedToken);
   } catch (err) {
-    console.error('[Codernet] token decrypt failed:', err);
+    console.error('[GITLINK] token decrypt failed:', err);
     setProgress(trackKey, 'error', 5, 'Token decryption failed', String(err));
     clearProgress(trackKey);
     return;
@@ -746,7 +746,7 @@ export async function runCrawlAndAnalysis(
     });
 
     console.log(
-      `[Codernet] crawled ${crawlData.repos.length} repos, ${Object.keys(crawlData.languageStats).length} languages for @${githubUsername}`,
+      `[GITLINK] crawled ${crawlData.repos.length} repos, ${Object.keys(crawlData.languageStats).length} languages for @${githubUsername}`,
     );
 
     setProgress(trackKey, 'saving_results', 65, 'Saving GitHub data...');
@@ -766,12 +766,12 @@ export async function runCrawlAndAnalysis(
         setProgress(trackKey, 'crawling_platforms', 72, detail);
       });
     } catch (mpErr) {
-      console.warn(`[Codernet] multi-platform scan failed for @${githubUsername}:`, mpErr);
+      console.warn(`[GITLINK] multi-platform scan failed for @${githubUsername}:`, mpErr);
     }
 
     setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating unified profile...');
     const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
-    console.log(`[Codernet] analysis complete for @${githubUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
+    console.log(`[GITLINK] analysis complete for @${githubUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
     setProgress(trackKey, 'saving_results', 95, 'Saving analysis results...');
     await prisma.user.update({
@@ -785,7 +785,7 @@ export async function runCrawlAndAnalysis(
     clearProgress(trackKey);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[Codernet] crawl pipeline error for @${githubUsername}:`, err);
+    console.error(`[GITLINK] crawl pipeline error for @${githubUsername}:`, err);
     setProgress(trackKey, 'error', 0, 'Crawl failed', msg);
     clearProgress(trackKey);
   }
@@ -797,7 +797,7 @@ export async function runCrawlAndAnalysis(
  */
 async function runPublicLookup(ghUsername: string): Promise<void> {
   const trackKey = `gh:${ghUsername}`;
-  console.log(`[Codernet] public lookup for @${ghUsername}`);
+  console.log(`[GITLINK] public lookup for @${ghUsername}`);
 
   setProgress(trackKey, 'queued', 0, 'Starting public lookup...');
 
@@ -817,7 +817,7 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
     });
 
     console.log(
-      `[Codernet] public lookup crawled ${crawlData.repos.length} repos for @${ghUsername}`,
+      `[GITLINK] public lookup crawled ${crawlData.repos.length} repos for @${ghUsername}`,
     );
 
     setProgress(trackKey, 'crawling_platforms', 65, 'Scanning Stack Overflow, npm, PyPI, DEV.to...');
@@ -843,14 +843,14 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
       const graphInfo = multiPlatform.identityGraph
         ? ` | identity: ${multiPlatform.identityGraph.platforms.length} platforms, ${multiPlatform.identityGraph.links.length} links`
         : '';
-      console.log(`[Codernet] multi-platform scan for @${ghUsername}: found [${foundPlatforms.join(', ') || 'none'}]${graphInfo}`);
+      console.log(`[GITLINK] multi-platform scan for @${ghUsername}: found [${foundPlatforms.join(', ') || 'none'}]${graphInfo}`);
     } catch (mpErr) {
-      console.warn(`[Codernet] multi-platform scan failed for @${ghUsername}, continuing with GitHub only:`, mpErr);
+      console.warn(`[GITLINK] multi-platform scan failed for @${ghUsername}, continuing with GitHub only:`, mpErr);
     }
 
     setProgress(trackKey, 'analyzing_with_ai', 78, 'AI is generating the unified profile...');
     const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
-    console.log(`[Codernet] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
+    console.log(`[GITLINK] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
     const avatarUrl = `https://github.com/${ghUsername}.png`;
 
@@ -866,7 +866,7 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
     clearProgress(trackKey);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[Codernet] public lookup error for @${ghUsername}:`, err);
+    console.error(`[GITLINK] public lookup error for @${ghUsername}:`, err);
     setProgress(trackKey, 'error', 0, 'Lookup failed', msg);
     clearProgress(trackKey);
   }

@@ -343,7 +343,7 @@ export default function CreateRoomPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '配置失败');
-      setMessage({ type: 'success', text: '✅ 直连 OpenClaw 已配置！正在开始直播...' });
+      setMessage({ type: 'success', text: '✅ 直连 GITLINK 已配置！正在开始直播...' });
       await startLivestream();
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || '配置失败' });
@@ -535,12 +535,12 @@ export default function CreateRoomPage() {
                     onClick={() => { setConnectionChoice('direct'); setMessage(null); }}
                     className="w-full px-6 py-3 border-2 border-dashed border-teal-500 text-teal-600 rounded-lg hover:bg-teal-50 font-semibold"
                   >
-                    🔌 直连 OpenClaw（无需 Telegram）
+                    🔌 直连 GITLINK（无需 Telegram）
                   </button>
                 </div>
               )}
 
-              {/* OpenClaw Direct 配置 */}
+              {/* GITLINK / Gateway 直连配置 */}
               {connectionChoice === 'direct' && (
                 <div className="space-y-4 p-4 border border-teal-200 rounded-lg bg-teal-50">
                   <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
@@ -643,7 +643,7 @@ export default function CreateRoomPage() {
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      你的 OpenClaw Agent 的 Telegram 用户名或 ID
+                      你的 GITLINK Agent 的 Telegram 用户名或 ID
                     </p>
                   </div>
 
@@ -789,7 +789,7 @@ export default function CreateRoomPage() {
                 >
                   <p>{message.text}</p>
                   {message.type === 'error' && (message.text.includes('408') || message.text.includes('超时')) && (
-                    <p className="mt-2 text-sm opacity-90">多为云端到本机穿透超时。建议：① 确认本机 <code>openclaw gateway start</code> 和 localtunnel 窗口都在运行 ② 换 ngrok 试 ③ 查看《直连 OpenClaw 傻瓜指南》</p>
+                    <p className="mt-2 text-sm opacity-90">多为云端到本机穿透超时。建议：① 确认本机 <code>openclaw gateway start</code> 和 localtunnel 窗口都在运行 ② 换 ngrok 试 ③ 查看《直连 GITLINK 傻瓜指南》</p>
                   )}
                   {message.type === 'error' && createdRoomId && (
                     <Link

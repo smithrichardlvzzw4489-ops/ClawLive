@@ -206,7 +206,7 @@ export default function OutreachPage() {
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-12">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
-          <Link href="/codernet" className="text-slate-500 hover:text-white transition text-sm">&larr; Codernet</Link>
+          <Link href="/codernet" className="text-slate-500 hover:text-white transition text-sm">&larr; GITLINK</Link>
           <div className="h-4 w-px bg-white/10" />
           <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1">
             <span className="text-xs font-mono text-violet-400 tracking-wider">OUTREACH</span>

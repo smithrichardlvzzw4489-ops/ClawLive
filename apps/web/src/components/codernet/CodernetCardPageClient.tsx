@@ -841,7 +841,7 @@ export function CodernetCardPageClient({
         <div className="text-center text-xs text-slate-600 font-mono py-4">
           <span>gitlink · </span>
           <Link href="/" className="text-violet-500 hover:text-violet-400 transition">
-            {variant === 'mine' ? '返回站点首页' : variant === 'home' ? '个人肖像首页' : '公开画像 · clawlab.live'}
+            {variant === 'mine' ? '返回站点首页' : variant === 'home' ? '个人肖像首页' : '公开画像 · GITLINK'}
           </Link>
           {profile.crawledAt && (
             <span className="ml-2">

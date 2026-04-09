@@ -50,7 +50,7 @@ export default function SkillsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">🧩 Skills 市场</h1>
           <p className="mt-1 text-sm text-gray-500">
-            平台官方技能 + 用户创作的付费技能，DarwinClaw 通过积分调用
+            平台官方技能 + 用户创作的付费技能，GITLINK 通过积分调用
           </p>
         </div>
 
@@ -471,7 +471,7 @@ function SkillDetailModal({
         )}
 
         <p className="mt-4 text-xs text-gray-400">
-          在 DarwinClaw 对话框中说&ldquo;帮我安装技能 {skill.id}&rdquo;，DarwinClaw 会自动安装并使用此技能。
+          在 GITLINK 对话框中说&ldquo;帮我安装技能 {skill.id}&rdquo;，GITLINK 会自动安装并使用此技能。
         </p>
       </div>
     </div>

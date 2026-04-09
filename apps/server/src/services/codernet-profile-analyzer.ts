@@ -1,5 +1,5 @@
 /**
- * Codernet 画像分析：基于 GitHub + 多平台数据，调用 LLM 生成技术标签、能力象限、锐评。
+ * GITLINK 画像分析：基于 GitHub + 多平台数据，调用 LLM 生成技术标签、能力象限、锐评。
  */
 
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';

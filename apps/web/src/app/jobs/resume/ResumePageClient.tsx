@@ -109,7 +109,7 @@ export function ResumePageClient() {
           <p className="mt-1 text-sm text-slate-500">
             面向求职者：补充意向与经历摘要，用于广场展示与 A2A 匹配；技术细节可同步维护{' '}
             <Link href="/codernet" className="text-sky-400 hover:underline">
-              Codernet 画像
+              GITLINK 画像
             </Link>
             。
           </p>

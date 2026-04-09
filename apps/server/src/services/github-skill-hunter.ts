@@ -179,7 +179,7 @@ export async function searchGitHubSkillPackages(options: {
   return { hits, warnings };
 }
 
-/** Darwin 进化器专用：从改进项列表检索 */
+/** GITLINK 进化器专用：从改进项列表检索 */
 export async function searchGitHubSkillPackagesForEvolver(
   improvements: string[],
 ): Promise<GitHubSkillSearchResult> {

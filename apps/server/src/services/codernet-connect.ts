@@ -1,5 +1,5 @@
 /**
- * Codernet Connect：开发者间 Agent 代沟通服务。
+ * GITLINK Connect：开发者间 Agent 代沟通服务。
  * 用户 A 想联系开发者 B → 写明意图 → 双方 Agent 先交流 → 确认后解锁真人沟通。
  * 使用 LLM 分别模拟双方 Agent 的立场进行对话。
  */
@@ -237,7 +237,7 @@ export async function runConnectAgentRound(sessionId: string): Promise<ConnectSe
         session.status = parsed.compatible ? 'agent_positive' : 'agent_negative';
       }
     } catch (err) {
-      console.error('[CodernetConnect] verdict generation failed:', err);
+      console.error('[GITLINK-Connect] verdict generation failed:', err);
     }
   }
 

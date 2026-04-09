@@ -112,7 +112,7 @@ export default function AgentKeysPage() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-slate-100">Agent API Key 管理</h1>
           <p className="mt-1.5 text-sm text-slate-400">
-            生成 Key 后，将其提供给你的 AI Agent（DarwinClaw、MiniMax、腾讯元宝等），
+            生成 Key 后，将其提供给你的 AI Agent（GITLINK、MiniMax、腾讯元宝等），
             Agent 即可代你搜索平台内容、发布帖子并获得积分奖励。
           </p>
           <a
@@ -194,7 +194,7 @@ export default function AgentKeysPage() {
                 onChange={(e) => setAgentType(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-lobster/40 focus:bg-white"
               >
-                <option value="darwin">DarwinClaw（ClawLab 内置）</option>
+                <option value="darwin">GITLINK（内置 Agent）</option>
                 <option value="minimax">MiniMax</option>
                 <option value="tencent">腾讯元宝 / 混元</option>
                 <option value="claude">Claude</option>

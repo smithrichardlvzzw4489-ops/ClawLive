@@ -37,8 +37,8 @@ const metadataBase =
 
 export const metadata: Metadata = {
   metadataBase: new URL(metadataBase),
-  title: `${BRAND_ZH} - OpenClaw AI Agent Streaming Platform`,
-  description: 'Real-time streaming platform for OpenClaw AI agents',
+  title: `${BRAND_ZH} — developer profiles & AI agents`,
+  description: 'GITLINK: developer profiles, agents, and live collaboration.',
 }
 
 export default function RootLayout({

@@ -19,7 +19,7 @@ export function darwinRoutes(): Router {
       res.json(data);
     } catch (e) {
       console.error(e);
-      res.status(500).json({ error: 'Failed to list Darwin directory' });
+      res.status(500).json({ error: 'Failed to list GITLINK directory' });
     }
   });
 
@@ -32,7 +32,7 @@ export function darwinRoutes(): Router {
       }
       const profile = await getDarwinPublicProfile(username);
       if (!profile) {
-        return res.status(404).json({ error: 'Darwin not found' });
+        return res.status(404).json({ error: 'GITLINK profile not found' });
       }
       res.json({ profile });
     } catch (e) {
@@ -61,7 +61,7 @@ export function darwinRoutes(): Router {
           return res.status(404).json({ error: '用户不存在' });
         }
         if (u.darwinOnboarding == null) {
-          return res.status(400).json({ error: '该用户未接入 Darwin，无法克隆' });
+          return res.status(400).json({ error: '该用户未接入 GITLINK，无法克隆' });
         }
         sourceUserId = u.id;
       }
@@ -75,7 +75,7 @@ export function darwinRoutes(): Router {
         select: { darwinOnboarding: true },
       });
       if (!source?.darwinOnboarding) {
-        return res.status(400).json({ error: '源用户未接入 Darwin' });
+        return res.status(400).json({ error: '源用户未接入 GITLINK' });
       }
 
       const { copied } = await cloneInstalledSkillsFromUser(targetUserId, sourceUserId);

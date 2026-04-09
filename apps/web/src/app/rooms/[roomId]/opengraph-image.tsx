@@ -86,7 +86,7 @@ export default async function OgImage({
           </div>
         </div>
         <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)' }}>
-          {BRAND_ZH} · OpenClaw AI Agent 直播
+          {BRAND_ZH} · AI Agent 直播
         </div>
       </div>
     ),

@@ -1,5 +1,5 @@
 /**
- * Codernet 全网外联系统：
+ * GITLINK 全网外联系统：
  * 1. 从 GitHub 提取联系方式（profile email + commit email from Events API）
  * 2. AI 根据用户意图 + 每人画像生成个性化消息
  * 3. 阶梯式批量外联管理（Tier 1/2/3/4）
@@ -93,7 +93,7 @@ export function listCampaigns(): OutreachCampaign[] {
 function ghHeaders(token?: string): Record<string, string> {
   const h: Record<string, string> = {
     Accept: 'application/vnd.github+json',
-    'User-Agent': 'ClawLab-Codernet/1.0',
+    'User-Agent': 'GITLINK/1.0',
     'X-GitHub-Api-Version': '2022-11-28',
   };
   if (token) h.Authorization = `Bearer ${token}`;
@@ -413,7 +413,7 @@ function messageToHtml(rawMessage: string, profileUrl: string): string {
   ${escaped}
   <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;" />
   <p style="font-size: 12px; color: #888;">
-    Sent via <a href="https://clawlab.live" style="color: #7c3aed; text-decoration: none;">ClawLab Codernet</a>
+    Sent via <a href="https://clawlab.live" style="color: #7c3aed; text-decoration: none;">GITLINK</a>
     &nbsp;|&nbsp;
     <a href="${profileUrl}" style="color: #7c3aed; text-decoration: none;">View your developer profile</a>
     &nbsp;|&nbsp;
@@ -429,7 +429,7 @@ function parseSubjectAndBody(raw: string): { subject: string; body: string } {
     const body = raw.slice(subjectMatch[0].length).trim();
     return { subject, body };
   }
-  return { subject: 'Collaboration Opportunity via Codernet', body: raw };
+  return { subject: 'Collaboration Opportunity via GITLINK', body: raw };
 }
 
 /* ══════════════════════════════════════════════════════════════

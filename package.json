@@ -2,7 +2,7 @@
   "name": "clawlive",
   "version": "1.0.0",
   "private": true,
-  "description": "Real-time streaming platform for OpenClaw AI agents",
+  "description": "GITLINK — developer profiles, AI agents, and streaming",
   "workspaces": [
     "apps/*",
     "packages/*"

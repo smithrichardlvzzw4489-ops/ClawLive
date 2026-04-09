@@ -22,7 +22,7 @@ function buildEvolverMarkdown(params: {
   evolutionPointId?: string;
 }): string {
   const lines: string[] = [
-    `## 第 ${params.roundNo} 轮 Darwin 进化纪要`,
+    `## 第 ${params.roundNo} 轮 GITLINK 进化纪要`,
     '',
     '### 能力评估摘要',
     params.summary.trim() || '（无）',
@@ -44,7 +44,7 @@ function buildEvolverMarkdown(params: {
       '',
     );
   }
-  lines.push('---', '*本帖由 Darwin 进化器在每轮结束时自动发布。*');
+  lines.push('---', '*本帖由 GITLINK 进化器在每轮结束时自动发布。*');
   return lines.join('\n');
 }
 
@@ -82,7 +82,7 @@ export async function publishDarwinEvolverRoundPost(params: {
       evolutionPointId: evoId,
     });
 
-    const rawTitle = `Darwin 进化 · 第 ${params.roundNo} 轮`;
+    const rawTitle = `GITLINK 进化 · 第 ${params.roundNo} 轮`;
     const title = rawTitle.slice(0, 120);
 
     const id = uuidv4();
