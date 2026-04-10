@@ -796,7 +796,9 @@ export default function GitHubLookupCardPage() {
         </Link>
         <div className="text-center">
           <h1 className="text-xl text-white/80 font-bold mb-2">User not found</h1>
-          <p className="text-slate-400 text-sm mb-4">@{ghUsername} doesn't seem to exist on GitHub.</p>
+          <p className="text-slate-400 text-sm mb-4">
+            @{ghUsername} doesn&apos;t seem to exist on GitHub.
+          </p>
           <Link href="/codernet" className="text-violet-400 text-sm hover:underline">Try another username</Link>
         </div>
       </div>

@@ -97,6 +97,9 @@ export function CodernetPortraitOgElement({
                 <div
                   key={k}
                   style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
                     padding: '10px 18px',
                     borderRadius: 12,
                     background: 'rgba(255,255,255,0.06)',
@@ -212,7 +215,7 @@ export function CodernetPortraitLongElement({
             {ghUsername[0]?.toUpperCase() || '?'}
           </div>
         )}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ fontSize: 52, fontWeight: 800, color: '#f8fafc', lineHeight: 1.1 }}>{name}</div>
           <div style={{ fontSize: 24, color: '#64748b', fontFamily: 'ui-monospace, monospace', marginTop: 8 }}>
             @{ghUsername}
@@ -242,6 +245,9 @@ export function CodernetPortraitLongElement({
             <div
               key={k}
               style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
                 flex: 1,
                 padding: '16px 12px',
                 borderRadius: 14,
@@ -260,6 +266,8 @@ export function CodernetPortraitLongElement({
       {sharp ? (
         <div
           style={{
+            display: 'flex',
+            flexDirection: 'column',
             padding: '20px 22px',
             borderRadius: 16,
             background: 'rgba(139,92,246,0.1)',
@@ -275,7 +283,7 @@ export function CodernetPortraitLongElement({
       ) : null}
 
       {tags.length > 0 ? (
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 24 }}>
           <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12, textTransform: 'uppercase' }}>技术标签</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             {tags.map((t) => (
@@ -298,7 +306,7 @@ export function CodernetPortraitLongElement({
       ) : null}
 
       {langs.length > 0 ? (
-        <div style={{ marginBottom: 28 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 28 }}>
           <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12, textTransform: 'uppercase' }}>语言分布</div>
           {langs.map((l) => (
             <div key={l.language} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
@@ -322,7 +330,7 @@ export function CodernetPortraitLongElement({
       ) : null}
 
       {q ? (
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 32 }}>
           <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12, textTransform: 'uppercase' }}>
             能力象限
           </div>
@@ -338,6 +346,8 @@ export function CodernetPortraitLongElement({
               <div
                 key={label}
                 style={{
+                  display: 'flex',
+                  flexDirection: 'column',
                   width: '47%',
                   padding: '14px 16px',
                   borderRadius: 12,
