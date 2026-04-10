@@ -2,6 +2,7 @@ import { ImageResponse } from 'next/og';
 import { fetchCodernetPortraitForShare } from '@/lib/codernet-portrait-share';
 import { CodernetPortraitOgElement } from '@/lib/codernet-portrait-share-jsx';
 import { fetchAvatarAsDataUrl } from '@/lib/codernet-portrait-avatar-data-url';
+import { loadNotoSansScFontsForOg } from '@/lib/og-noto-sans-sc';
 
 export const runtime = 'edge';
 export const alt = 'GITLINK 开发者画像';
@@ -11,7 +12,10 @@ export const revalidate = 300;
 
 export default async function Image({ params }: { params: { username: string } }) {
   const gh = decodeURIComponent(params.username);
-  const data = await fetchCodernetPortraitForShare(gh);
+  const [data, fonts] = await Promise.all([
+    fetchCodernetPortraitForShare(gh),
+    loadNotoSansScFontsForOg(),
+  ]);
   const u = (data?.ghUsername || gh).toLowerCase();
   const avatarDataUrl = data?.avatarUrl ? await fetchAvatarAsDataUrl(data.avatarUrl) : null;
 
@@ -20,6 +24,10 @@ export default async function Image({ params }: { params: { username: string } }
     {
       width: 1200,
       height: 630,
+      fonts,
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
+      },
     },
   );
 }

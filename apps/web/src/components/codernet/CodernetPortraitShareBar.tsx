@@ -25,7 +25,10 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
 
   const pagePath = `/codernet/github/${encodeURIComponent(ghUsername)}`;
-  const shareImagePath = `${pagePath}/share-image`;
+  const shareImageUrl = useCallback(
+    () => `${pagePath}/share-image?v=2&_=${Date.now()}`,
+    [pagePath],
+  );
 
   const fullPageUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -46,7 +49,7 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     setBusy('dl');
     setMsg(null);
     try {
-      const res = await fetch(shareImagePath, { cache: 'no-store' });
+      const res = await fetch(shareImageUrl(), { cache: 'no-store' });
       if (!res.ok) {
         const detail = await readFetchError(res);
         throw new Error(detail);
@@ -71,13 +74,13 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     } finally {
       setBusy(null);
     }
-  }, [ghUsername, shareImagePath]);
+  }, [ghUsername, shareImageUrl]);
 
   const systemShare = useCallback(async () => {
     setBusy('share');
     setMsg(null);
     try {
-      const res = await fetch(shareImagePath, { cache: 'no-store' });
+      const res = await fetch(shareImageUrl(), { cache: 'no-store' });
       if (!res.ok) {
         const detail = await readFetchError(res);
         throw new Error(detail);
@@ -106,7 +109,7 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     } finally {
       setBusy(null);
     }
-  }, [fullPageUrl, ghUsername, shareImagePath]);
+  }, [fullPageUrl, ghUsername, shareImageUrl]);
 
   const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 

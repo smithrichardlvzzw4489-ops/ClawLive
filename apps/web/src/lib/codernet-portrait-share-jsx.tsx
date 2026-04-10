@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import type { CodernetPortraitSharePayload } from './codernet-portrait-share';
 import { BRAND_ZH } from './brand';
 import { truncateForOg } from './codernet-portrait-share';
+import { OG_CJK_FONT_FAMILY } from './og-noto-sans-sc';
 
 function appOrigin(): string {
   return (
@@ -43,8 +44,7 @@ export function CodernetPortraitOgElement({
         flexDirection: 'column',
         background: 'linear-gradient(145deg, #0c0f1a 0%, #12182c 45%, #1a1035 100%)',
         padding: 40,
-        fontFamily:
-          'ui-sans-serif, system-ui, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif',
+        fontFamily: OG_CJK_FONT_FAMILY,
         color: '#e2e8f0',
       }}
     >
@@ -175,8 +175,7 @@ export function CodernetPortraitLongElement({
         flexDirection: 'column',
         background: 'linear-gradient(180deg, #06080f 0%, #0f1020 40%, #151028 100%)',
         padding: 48,
-        fontFamily:
-          'ui-sans-serif, system-ui, "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif',
+        fontFamily: OG_CJK_FONT_FAMILY,
         color: '#e2e8f0',
       }}
     >
