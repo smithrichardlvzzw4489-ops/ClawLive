@@ -745,7 +745,14 @@ export default function GitHubLookupCardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#06080f] flex items-center justify-center">
+      <div className="min-h-screen bg-[#06080f] flex items-center justify-center relative">
+        <Link
+          href="/codernet"
+          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
+        >
+          <span className="text-lg leading-none" aria-hidden>←</span>
+          返回上一级
+        </Link>
         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
       </div>
     );
@@ -754,7 +761,14 @@ export default function GitHubLookupCardPage() {
   if (!result || result.status === 'pending' || (result.status === 'not_found' && triggered)) {
     const hasError = result?.progress?.stage === 'error';
     return (
-      <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4 relative">
+        <Link
+          href="/codernet"
+          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
+        >
+          <span className="text-lg leading-none" aria-hidden>←</span>
+          返回上一级
+        </Link>
         <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/10 blur-[160px]" />
         <div className="relative z-10 text-center w-full max-w-lg">
           <ProgressTimeline progress={result?.progress || null} ghUsername={ghUsername} />
@@ -771,7 +785,14 @@ export default function GitHubLookupCardPage() {
 
   if (result.status === 'not_found') {
     return (
-      <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4 relative">
+        <Link
+          href="/codernet"
+          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
+        >
+          <span className="text-lg leading-none" aria-hidden>←</span>
+          返回上一级
+        </Link>
         <div className="text-center">
           <h1 className="text-xl text-white/80 font-bold mb-2">User not found</h1>
           <p className="text-slate-400 text-sm mb-4">@{ghUsername} doesn't seem to exist on GitHub.</p>
@@ -798,6 +819,13 @@ export default function GitHubLookupCardPage() {
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-10">
+        <Link
+          href="/codernet"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition mb-4"
+        >
+          <span className="text-lg leading-none" aria-hidden>←</span>
+          返回上一级
+        </Link>
         <div className="flex items-center gap-2 mb-8">
           <Link href="/codernet" className="text-xs font-mono text-violet-400 tracking-wider hover:text-violet-300 transition">GITLINK</Link>
           <span className="text-xs text-slate-600">/</span>
