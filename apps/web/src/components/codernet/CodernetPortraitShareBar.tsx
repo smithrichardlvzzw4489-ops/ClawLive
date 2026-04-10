@@ -31,14 +31,24 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     setBusy('dl');
     setMsg(null);
     try {
-      const res = await fetch(shareImagePath);
-      if (!res.ok) throw new Error('fetch failed');
+      const res = await fetch(shareImagePath, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ct = res.headers.get('content-type') || '';
       const blob = await res.blob();
+      if (blob.size < 256 || !ct.includes('image/png')) {
+        const hint = await blob.text().catch(() => '');
+        throw new Error(hint.slice(0, 120) || `invalid image (${blob.size} bytes)`);
+      }
+      const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
+      a.href = objectUrl;
       a.download = `${BRAND_ZH}-${ghUsername}-portrait.png`;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(a.href);
+      a.remove();
+      // 立即 revoke 会导致 Chrome/Edge 下载到 0 字节文件
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
       setMsg('长图已保存到本地，可直接发到聊天或朋友圈。');
     } catch {
       setMsg('生成分享图失败，请稍后重试。');
@@ -51,9 +61,13 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     setBusy('share');
     setMsg(null);
     try {
-      const res = await fetch(shareImagePath);
-      if (!res.ok) throw new Error('fetch failed');
+      const res = await fetch(shareImagePath, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
+      const ct = res.headers.get('content-type') || '';
+      if (blob.size < 256 || !ct.includes('image/png')) {
+        throw new Error('invalid image');
+      }
       const file = new File([blob], `${BRAND_ZH}-${ghUsername}-portrait.png`, { type: 'image/png' });
       const pageUrl = fullPageUrl();
       const withFiles = { files: [file], title: `@${ghUsername} · ${BRAND_ZH} 开发者画像`, text: `查看 @${ghUsername} 的技术画像`, url: pageUrl };
