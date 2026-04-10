@@ -15,11 +15,13 @@ export function codernetPortraitPageUrl(ghUsername: string): string {
   return `${appOrigin()}/codernet/github/${encodeURIComponent(ghUsername)}`;
 }
 
+type PortraitOgProps = {
+  data: CodernetPortraitSharePayload | null;
+  ghUsername: string;
+};
+
 /** 1200×630 — 链接预览（Open Graph / Twitter） */
-export function CodernetPortraitOgElement(
-  data: CodernetPortraitSharePayload | null,
-  ghUsername: string,
-): ReactElement {
+export function CodernetPortraitOgElement({ data, ghUsername }: PortraitOgProps): ReactElement {
   const url = codernetPortraitPageUrl(ghUsername);
   const name = data?.displayName || ghUsername;
   const one = truncateForOg(data?.oneLiner, 120);
@@ -144,10 +146,7 @@ export function CodernetPortraitOgElement(
 }
 
 /** 长图 — 下载 / 系统分享用 */
-export function CodernetPortraitLongElement(
-  data: CodernetPortraitSharePayload | null,
-  ghUsername: string,
-): ReactElement {
+export function CodernetPortraitLongElement({ data, ghUsername }: PortraitOgProps): ReactElement {
   const url = codernetPortraitPageUrl(ghUsername);
   const name = data?.displayName || ghUsername;
   const one = truncateForOg(data?.oneLiner, 200);

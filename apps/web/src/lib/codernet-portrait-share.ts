@@ -84,6 +84,6 @@ export async function fetchCodernetPortraitForShare(
   };
 }
 
-export function truncateForOg(text: string | null, max: number): string {
+export function truncateForOg(text: string | null | undefined, max: number): string {
   return truncate(text, max);
 }
