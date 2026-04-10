@@ -1,0 +1,16 @@
+{
+  "name": "openclaw-gitlink-github-portrait",
+  "version": "1.0.0",
+  "description": "Agent skill: GITLINK public API for any GitHub user's tech portrait",
+  "main": "skill.ts",
+  "author": "ClawLive Community",
+  "license": "MIT",
+  "keywords": [
+    "openclaw",
+    "skill",
+    "gitlink",
+    "codernet",
+    "github",
+    "portrait"
+  ]
+}
