@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
@@ -60,15 +59,14 @@ export function Header({}: HeaderProps) {
         }`}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
-          <Link href="/" className="flex shrink-0 items-center">
-            <Image
-              src="/logo.png"
-              alt="GITLINK"
-              width={120}
-              height={40}
-              className="h-9 w-auto object-contain sm:h-10"
-              priority
-            />
+          <Link
+            href="/"
+            className="flex shrink-0 items-center rounded-lg px-1 py-0.5 outline-none ring-violet-500/30 focus-visible:ring-2"
+            aria-label="GITLINK"
+          >
+            <span className="text-lg font-black font-mono tracking-[0.18em] text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-cyan-400 sm:text-xl">
+              GITLINK
+            </span>
           </Link>
 
           <nav
