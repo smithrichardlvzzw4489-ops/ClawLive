@@ -2,6 +2,9 @@
  * Fetch public Codernet GitHub portrait for OG / share PNG generation (server/edge).
  */
 
+/** Response header + upstream API header for correlating Edge image logs with Node lookup logs. */
+export const CODENET_SHARE_TRACE_HEADER = 'X-Codernet-Trace-Id';
+
 export type CodernetPortraitSharePayload = {
   ghUsername: string;
   displayName: string;
@@ -25,17 +28,37 @@ function truncate(s: string | null | undefined, max: number): string {
   return `${t.slice(0, max - 1)}…`;
 }
 
-export async function fetchCodernetPortraitForShare(
+export type CodernetPortraitFetchMeta = {
+  httpStatus: number;
+  jsonStatus?: string;
+  durationMs: number;
+};
+
+export async function fetchCodernetPortraitForShareWithMeta(
   ghUsername: string,
-): Promise<CodernetPortraitSharePayload | null> {
+  opts?: { traceId?: string },
+): Promise<{ data: CodernetPortraitSharePayload | null; meta: CodernetPortraitFetchMeta }> {
   const api = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
   const u = decodeURIComponent(ghUsername).trim().toLowerCase();
-  if (!u) return null;
+  if (!u) {
+    return { data: null, meta: { httpStatus: 0, jsonStatus: 'empty_username', durationMs: 0 } };
+  }
+
+  const t0 = Date.now();
+  const headers: Record<string, string> = {};
+  if (opts?.traceId) headers['X-Codernet-Trace-Id'] = opts.traceId;
 
   const res = await fetch(`${api}/api/codernet/github/${encodeURIComponent(u)}`, {
+    headers,
     next: { revalidate: 300 },
   });
-  if (!res.ok) return null;
+  const durationMs = Date.now() - t0;
+  if (!res.ok) {
+    return {
+      data: null,
+      meta: { httpStatus: res.status, durationMs },
+    };
+  }
   const json = (await res.json()) as {
     status?: string;
     crawl?: {
@@ -56,7 +79,16 @@ export async function fetchCodernetPortraitForShare(
     avatarUrl?: string;
   };
 
-  if (json.status !== 'ready' || !json.crawl) return null;
+  if (json.status !== 'ready' || !json.crawl) {
+    return {
+      data: null,
+      meta: {
+        httpStatus: res.status,
+        jsonStatus: typeof json.status === 'string' ? json.status : undefined,
+        durationMs,
+      },
+    };
+  }
 
   const crawl = json.crawl;
   const analysis = json.analysis;
@@ -64,24 +96,35 @@ export async function fetchCodernetPortraitForShare(
     json.avatarUrl?.trim() || `https://github.com/${encodeURIComponent(u)}.png`;
 
   return {
-    ghUsername: u,
-    displayName: crawl.username || u,
-    avatarUrl,
-    oneLiner: analysis?.oneLiner ?? null,
-    bio: crawl.bio ?? null,
-    repos: crawl.totalPublicRepos ?? 0,
-    stars: crawl.totalStars ?? 0,
-    followers: crawl.followers ?? 0,
-    sharpCommentary: analysis?.sharpCommentary ?? null,
-    techTags: Array.isArray(analysis?.techTags) ? analysis!.techTags!.slice(0, 24) : [],
-    langs: Array.isArray(analysis?.languageDistribution)
-      ? analysis!.languageDistribution!.slice(0, 8)
-      : [],
-    quadrant: analysis?.capabilityQuadrant ?? null,
-    platforms: Array.isArray(analysis?.platformsUsed) && analysis!.platformsUsed!.length
-      ? analysis!.platformsUsed!
-      : ['GitHub'],
+    data: {
+      ghUsername: u,
+      displayName: crawl.username || u,
+      avatarUrl,
+      oneLiner: analysis?.oneLiner ?? null,
+      bio: crawl.bio ?? null,
+      repos: crawl.totalPublicRepos ?? 0,
+      stars: crawl.totalStars ?? 0,
+      followers: crawl.followers ?? 0,
+      sharpCommentary: analysis?.sharpCommentary ?? null,
+      techTags: Array.isArray(analysis?.techTags) ? analysis!.techTags!.slice(0, 24) : [],
+      langs: Array.isArray(analysis?.languageDistribution)
+        ? analysis!.languageDistribution!.slice(0, 8)
+        : [],
+      quadrant: analysis?.capabilityQuadrant ?? null,
+      platforms: Array.isArray(analysis?.platformsUsed) && analysis!.platformsUsed!.length
+        ? analysis!.platformsUsed!
+        : ['GitHub'],
+    },
+    meta: { httpStatus: res.status, jsonStatus: 'ready', durationMs },
   };
+}
+
+export async function fetchCodernetPortraitForShare(
+  ghUsername: string,
+  opts?: { traceId?: string },
+): Promise<CodernetPortraitSharePayload | null> {
+  const { data } = await fetchCodernetPortraitForShareWithMeta(ghUsername, opts);
+  return data;
 }
 
 export function truncateForOg(text: string | null | undefined, max: number): string {

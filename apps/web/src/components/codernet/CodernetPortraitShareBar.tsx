@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { BRAND_ZH } from '@/lib/brand';
+import { CODENET_SHARE_TRACE_HEADER } from '@/lib/codernet-portrait-share';
 
 type Props = { ghUsername: string };
 
@@ -10,13 +11,20 @@ async function blobIsPng(blob: Blob): Promise<boolean> {
   return h.length >= 4 && h[0] === 0x89 && h[1] === 0x50 && h[2] === 0x4e && h[3] === 0x47;
 }
 
-async function readFetchError(res: Response): Promise<string> {
+function formatTraceHint(traceId: string | null | undefined): string {
+  if (!traceId) return '';
+  return `（追踪 ID：${traceId}，可查 Edge/服务端日志）`;
+}
+
+async function readFetchError(res: Response): Promise<{ detail: string; traceId?: string }> {
   const text = await res.text().catch(() => '');
   try {
-    const j = JSON.parse(text) as { message?: string; error?: string };
-    return j?.message || j?.error || text.slice(0, 200) || `HTTP ${res.status}`;
+    const j = JSON.parse(text) as { message?: string; error?: string; traceId?: string };
+    const detail = j?.message || j?.error || text.slice(0, 200) || `HTTP ${res.status}`;
+    const traceId = typeof j?.traceId === 'string' ? j.traceId : undefined;
+    return { detail, traceId };
   } catch {
-    return text.slice(0, 200) || `HTTP ${res.status}`;
+    return { detail: text.slice(0, 200) || `HTTP ${res.status}` };
   }
 }
 
@@ -49,14 +57,28 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     setBusy('dl');
     setMsg(null);
     try {
-      const res = await fetch(shareImageUrl(), { cache: 'no-store' });
+      const url = shareImageUrl();
+      const res = await fetch(url, { cache: 'no-store' });
+      const headerTrace = res.headers.get(CODENET_SHARE_TRACE_HEADER) || null;
       if (!res.ok) {
-        const detail = await readFetchError(res);
-        throw new Error(detail);
+        const { detail, traceId } = await readFetchError(res);
+        const tid = traceId || headerTrace || undefined;
+        console.error('[CodernetPortraitShare] download http_error', { url, status: res.status, traceId: tid, detail });
+        throw new Error(`${detail}${formatTraceHint(tid)}`);
       }
       const blob = await res.blob();
+      const ct = res.headers.get('content-type') || '';
       if (blob.size < 64 || !(await blobIsPng(blob))) {
-        throw new Error(`无效图片响应（${blob.size} bytes）`);
+        console.error('[CodernetPortraitShare] download invalid_png', {
+          url,
+          status: res.status,
+          contentType: ct,
+          size: blob.size,
+          traceId: headerTrace,
+        });
+        throw new Error(
+          `无效图片响应（${blob.size} bytes，类型 ${ct || '?'}）` + formatTraceHint(headerTrace),
+        );
       }
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -80,14 +102,26 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     setBusy('share');
     setMsg(null);
     try {
-      const res = await fetch(shareImageUrl(), { cache: 'no-store' });
+      const url = shareImageUrl();
+      const res = await fetch(url, { cache: 'no-store' });
+      const headerTrace = res.headers.get(CODENET_SHARE_TRACE_HEADER) || null;
       if (!res.ok) {
-        const detail = await readFetchError(res);
-        throw new Error(detail);
+        const { detail, traceId } = await readFetchError(res);
+        const tid = traceId || headerTrace || undefined;
+        console.error('[CodernetPortraitShare] share http_error', { url, status: res.status, traceId: tid, detail });
+        throw new Error(`${detail}${formatTraceHint(tid)}`);
       }
       const blob = await res.blob();
+      const ct = res.headers.get('content-type') || '';
       if (blob.size < 64 || !(await blobIsPng(blob))) {
-        throw new Error('无效图片，请改用「下载分享长图」');
+        console.error('[CodernetPortraitShare] share invalid_png', {
+          url,
+          status: res.status,
+          contentType: ct,
+          size: blob.size,
+          traceId: headerTrace,
+        });
+        throw new Error(`无效图片（${blob.size} bytes）请改用「下载分享长图」${formatTraceHint(headerTrace)}`);
       }
       const file = new File([blob], `${BRAND_ZH}-${ghUsername}-portrait.png`, { type: 'image/png' });
       const pageUrl = fullPageUrl();

@@ -99,8 +99,17 @@ function getServerToken(): string | undefined {
 export async function handleCodernetGithubLookupGet(req: Request, res: Response): Promise<void> {
   try {
     const ghUser = req.params.ghUsername.toLowerCase();
+    const traceId = (req.get('x-codernet-trace-id') || '').trim() || undefined;
+    const logLookup = (outcome: string, extra?: Record<string, unknown>) => {
+      if (!traceId) return;
+      console.log(
+        `[GITLINK] codernet-lookup ${JSON.stringify({ traceId, ghUser, outcome, ...extra })}`,
+      );
+    };
+
     const cached = lookupCache.get(ghUser);
     if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
+      logLookup('cache_hit');
       res.json({
         status: 'ready',
         crawl: cached.crawl,
@@ -113,9 +122,11 @@ export async function handleCodernetGithubLookupGet(req: Request, res: Response)
     }
     const progress = crawlProgressMap.get(`gh:${ghUser}`);
     if (progress) {
+      logLookup('pending', { stage: progress.stage });
       res.json({ status: 'pending', progress });
       return;
     }
+    logLookup('not_found');
     res.status(404).json({ status: 'not_found' });
   } catch (error) {
     console.error('[GITLINK] github lookup get error:', error);
