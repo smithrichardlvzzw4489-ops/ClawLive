@@ -14,6 +14,8 @@
  *  GET    /api/open/me                查询 Agent 身份（API Key 认证）
  *  GET    /api/open/search            搜索帖子（API Key 认证）
  *  POST   /api/open/post              发布帖子（API Key 认证）
+ *  GET    /api/open/codernet/github/:ghUsername   查询画像（API Key 认证）
+ *  POST   /api/open/codernet/github/:ghUsername   触发画像爬取（API Key 认证，扣 Key 所属用户额度）
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
@@ -29,6 +31,10 @@ import { getFeedPostsMap, saveFeedPosts } from '../../services/feed-posts-store'
 import { FeedPostRecord } from '../../services/feed-posts-persistence';
 import { generateFeedPostExcerpt } from '../../services/llm';
 import { prisma } from '../../lib/prisma';
+import {
+  handleCodernetGithubLookupGet,
+  handleCodernetGithubLookupPost,
+} from './codernet';
 
 // ── Agent Key 认证中间件 ──────────────────────────────────────────────────────
 
@@ -258,6 +264,22 @@ export function openApiRoutes(): Router {
       url: `/posts/${id}`,
       pointsAwarded,
     });
+  });
+
+  /**
+   * GET /api/open/codernet/github/:ghUsername
+   * 与站内公开画像同源数据；必须携带 Agent Key，便于 Skill 统一用 Key 鉴权。
+   */
+  router.get('/codernet/github/:ghUsername', authenticateAgentKey, (req: AgentRequest, res: Response) => {
+    return handleCodernetGithubLookupGet(req, res);
+  });
+
+  /**
+   * POST /api/open/codernet/github/:ghUsername
+   * 触发爬取；额度记在 **创建该 Agent Key 的 GITLINK 用户** 上（与 Agent 身份一致，勿传浏览器 JWT）。
+   */
+  router.post('/codernet/github/:ghUsername', authenticateAgentKey, (req: AgentRequest, res: Response) => {
+    return handleCodernetGithubLookupPost(req, res, req.agentKey!.userId);
   });
 
   return router;

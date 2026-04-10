@@ -1,6 +1,6 @@
 # GITLINK GitHub 画像 Skill
 
-供 Agent（Cursor、OpenClaw、其它读取 `SKILL.md` 的运行时）安装后使用：给定 **任意 GitHub 用户名**，通过 GITLINK 公开 API 生成技术画像。
+供 Agent 安装后使用：给定 **任意 GitHub 用户名**，通过 GITLINK **Open API** 与 **Agent 自己的 `clw_` Key** 生成技术画像（不依赖对话用户的浏览器 JWT）。
 
 ## 安装
 
@@ -35,14 +35,14 @@ cp -r openclaw-skills/gitlink-github-portrait ~/.openclaw/skills/
 
 | 方法 | 路径 | 作用 |
 |------|------|------|
-| POST | `/api/codernet/github/:ghUsername` | 触发爬取与分析 |
-| GET | `/api/codernet/github/:ghUsername` | 轮询状态；`ready` 时返回 `crawl` + `analysis` |
+| POST | `/api/open/codernet/github/:ghUsername` | 触发爬取与分析（`Authorization: Bearer clw_...`） |
+| GET | `/api/open/codernet/github/:ghUsername` | 轮询状态；`ready` 时返回 `crawl` + `analysis` |
 
-默认主机：`https://clawlab.live`。详见 **`SKILL.md`**。
+默认主机：`https://clawlab.live`。新画像爬取额度记在 **创建该 Key 的账号** 上。详见 **`SKILL.md`**。
 
 ## 可选代码
 
-`skill.ts` 提供 `pollGitHubPortrait(baseUrl, username)`，便于在 Node/TS 宿主内直接调用（与 OpenClaw 是否加载 TS 无关；多数 Agent 只读 `SKILL.md`）。
+`skill.ts` 提供 `pollGitHubPortrait({ baseUrl, githubUsername, agentApiKey })`，便于在 Node/TS 宿主内直接调用。
 
 ## 许可
 

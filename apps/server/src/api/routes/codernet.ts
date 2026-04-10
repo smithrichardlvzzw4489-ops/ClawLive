@@ -95,6 +95,80 @@ function getServerToken(): string | undefined {
   return process.env.GITHUB_SERVER_TOKEN?.trim() || undefined;
 }
 
+/** GET /api/codernet/github/:ghUsername — 与 Open API 共用 */
+export async function handleCodernetGithubLookupGet(req: Request, res: Response): Promise<void> {
+  try {
+    const ghUser = req.params.ghUsername.toLowerCase();
+    const cached = lookupCache.get(ghUser);
+    if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
+      res.json({
+        status: 'ready',
+        crawl: cached.crawl,
+        analysis: analysisJsonForClient(cached.analysis as unknown),
+        multiPlatform: cached.multiPlatform || null,
+        avatarUrl: cached.avatarUrl,
+        cachedAt: cached.cachedAt,
+      });
+      return;
+    }
+    const progress = crawlProgressMap.get(`gh:${ghUser}`);
+    if (progress) {
+      res.json({ status: 'pending', progress });
+      return;
+    }
+    res.status(404).json({ status: 'not_found' });
+  } catch (error) {
+    console.error('[GITLINK] github lookup get error:', error);
+    res.status(500).json({ error: 'Internal error' });
+  }
+}
+
+/**
+ * POST 触发公开 GitHub 画像爬取。
+ * @param quotaUserId 非空时按该用户扣 profile_lookup 额度（JWT 或 Agent Key 所属用户）
+ */
+export async function handleCodernetGithubLookupPost(
+  req: Request,
+  res: Response,
+  quotaUserId: string | null,
+): Promise<void> {
+  try {
+    const ghUser = req.params.ghUsername.toLowerCase();
+
+    const cached = lookupCache.get(ghUser);
+    if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
+      res.json({ status: 'ready', message: 'Already cached.' });
+      return;
+    }
+
+    const existing = crawlProgressMap.get(`gh:${ghUser}`);
+    if (existing && existing.stage !== 'error' && existing.stage !== 'complete') {
+      res.json({ status: 'already_running', message: 'Crawl already in progress.' });
+      return;
+    }
+
+    if (quotaUserId) {
+      const check = checkQuota(quotaUserId, 'profile_lookup');
+      if (!check.allowed) {
+        res.status(429).json({
+          error: '本月画像生成额度已用完',
+          code: 'QUOTA_EXCEEDED',
+          quota: { dimension: 'profile_lookup', used: check.used, limit: check.limit, tier: check.tier },
+        });
+        return;
+      }
+      consumeQuota(quotaUserId, 'profile_lookup');
+    }
+
+    res.json({ status: 'started', message: 'Crawl started.' });
+
+    runPublicLookup(ghUser).catch((err) => console.error('[GITLINK] public lookup failed:', err));
+  } catch (error) {
+    console.error('[GITLINK] github lookup post error:', error);
+    res.status(500).json({ error: 'Internal error' });
+  }
+}
+
 export function codernetRoutes(): IRouter {
   const router = Router();
 
@@ -153,6 +227,9 @@ export function codernetRoutes(): IRouter {
         },
         github: crawl
           ? {
+              /** GitHub 登录名，与公开 lookup 页 crawl.username 一致 */
+              username: String(crawl.username || user.githubUsername || ''),
+              bio: (crawl.bio as string | null | undefined) ?? null,
               totalPublicRepos: crawl.totalPublicRepos,
               totalStars: crawl.totalStars,
               followers: crawl.followers,
@@ -240,73 +317,15 @@ export function codernetRoutes(): IRouter {
    * GET /api/codernet/github/:ghUsername
    * Public — returns cached lookup result for any GitHub user.
    */
-  router.get('/github/:ghUsername', async (req: Request, res: Response) => {
-    try {
-      const ghUser = req.params.ghUsername.toLowerCase();
-      const cached = lookupCache.get(ghUser);
-      if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
-        return res.json({
-          status: 'ready',
-          crawl: cached.crawl,
-          analysis: analysisJsonForClient(cached.analysis as unknown),
-          multiPlatform: cached.multiPlatform || null,
-          avatarUrl: cached.avatarUrl,
-          cachedAt: cached.cachedAt,
-        });
-      }
-      const progress = crawlProgressMap.get(`gh:${ghUser}`);
-      if (progress) {
-        return res.json({ status: 'pending', progress });
-      }
-      return res.status(404).json({ status: 'not_found' });
-    } catch (error) {
-      console.error('[GITLINK] github lookup get error:', error);
-      res.status(500).json({ error: 'Internal error' });
-    }
-  });
+  router.get('/github/:ghUsername', handleCodernetGithubLookupGet);
 
   /**
    * POST /api/codernet/github/:ghUsername
    * Public — triggers crawl + analysis for any GitHub user (rate limited + quota).
    */
-  router.post('/github/:ghUsername', async (req: Request, res: Response) => {
-    try {
-      const ghUser = req.params.ghUsername.toLowerCase();
-
-      const cached = lookupCache.get(ghUser);
-      if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
-        return res.json({ status: 'ready', message: 'Already cached.' });
-      }
-
-      const existing = crawlProgressMap.get(`gh:${ghUser}`);
-      if (existing && existing.stage !== 'error' && existing.stage !== 'complete') {
-        return res.json({ status: 'already_running', message: 'Crawl already in progress.' });
-      }
-
-      // Quota: only charge when a new crawl is actually triggered
-      const callerId = getUserIdFromBearer(req);
-      if (callerId) {
-        const check = checkQuota(callerId, 'profile_lookup');
-        if (!check.allowed) {
-          return res.status(429).json({
-            error: '本月画像生成额度已用完',
-            code: 'QUOTA_EXCEEDED',
-            quota: { dimension: 'profile_lookup', used: check.used, limit: check.limit, tier: check.tier },
-          });
-        }
-        consumeQuota(callerId, 'profile_lookup');
-      }
-
-      res.json({ status: 'started', message: 'Crawl started.' });
-
-      runPublicLookup(ghUser).catch((err) =>
-        console.error('[GITLINK] public lookup failed:', err),
-      );
-    } catch (error) {
-      console.error('[GITLINK] github lookup post error:', error);
-      res.status(500).json({ error: 'Internal error' });
-    }
-  });
+  router.post('/github/:ghUsername', (req: Request, res: Response) =>
+    handleCodernetGithubLookupPost(req, res, getUserIdFromBearer(req)),
+  );
 
   /* ── Developer Search ───────────────────────────────────── */
 
