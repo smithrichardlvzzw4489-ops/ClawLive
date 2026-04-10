@@ -1,18 +1,15 @@
 import { ImageResponse } from 'next/og';
 import { fetchCodernetPortraitForShare } from '@/lib/codernet-portrait-share';
 import { CodernetPortraitLongElement } from '@/lib/codernet-portrait-share-jsx';
+import { fetchAvatarAsDataUrl } from '@/lib/codernet-portrait-avatar-data-url';
 
-/** Node 运行时：Edge 上大尺寸 ImageResponse 易出现空响应；与 Satori 更稳 */
-export const runtime = 'nodejs';
+/** next/og 在 Vercel 上应以 Edge 运行；Node 路由易出现空响应 */
+export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-/** 过高画布在部分环境会渲染失败，2000 仍可覆盖长图内容 */
 const SHARE_W = 1200;
-const SHARE_H = 2000;
+const SHARE_H = 1800;
 
-/**
- * 长图 PNG：下载或带图分享。路径：/codernet/github/:user/share-image
- */
 export async function GET(
   _request: Request,
   { params }: { params: { username: string } },
@@ -21,13 +18,11 @@ export async function GET(
   try {
     const data = await fetchCodernetPortraitForShare(gh);
     const u = (data?.ghUsername || gh).toLowerCase();
+    const avatarDataUrl = data?.avatarUrl ? await fetchAvatarAsDataUrl(data.avatarUrl) : null;
 
     return new ImageResponse(
-      <CodernetPortraitLongElement data={data} ghUsername={u} />,
-      {
-        width: SHARE_W,
-        height: SHARE_H,
-      },
+      <CodernetPortraitLongElement data={data} ghUsername={u} avatarDataUrl={avatarDataUrl} />,
+      { width: SHARE_W, height: SHARE_H },
     );
   } catch (err) {
     console.error('[share-image] render failed', gh, err);

@@ -15,13 +15,19 @@ export function codernetPortraitPageUrl(ghUsername: string): string {
   return `${appOrigin()}/codernet/github/${encodeURIComponent(ghUsername)}`;
 }
 
-type PortraitOgProps = {
+export type PortraitOgProps = {
   data: CodernetPortraitSharePayload | null;
   ghUsername: string;
+  /** 服务端内联头像；勿让 Satori 直接请求 GitHub */
+  avatarDataUrl?: string | null;
 };
 
 /** 1200×630 — 链接预览（Open Graph / Twitter） */
-export function CodernetPortraitOgElement({ data, ghUsername }: PortraitOgProps): ReactElement {
+export function CodernetPortraitOgElement({
+  data,
+  ghUsername,
+  avatarDataUrl,
+}: PortraitOgProps): ReactElement {
   const url = codernetPortraitPageUrl(ghUsername);
   const name = data?.displayName || ghUsername;
   const one = truncateForOg(data?.oneLiner, 120);
@@ -43,10 +49,10 @@ export function CodernetPortraitOgElement({ data, ghUsername }: PortraitOgProps)
       }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 28, flex: 1 }}>
-        {data ? (
+        {data && avatarDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- next/og supports img
           <img
-            src={data.avatarUrl}
+            src={avatarDataUrl}
             width={140}
             height={140}
             alt=""
@@ -146,7 +152,11 @@ export function CodernetPortraitOgElement({ data, ghUsername }: PortraitOgProps)
 }
 
 /** 长图 — 下载 / 系统分享用 */
-export function CodernetPortraitLongElement({ data, ghUsername }: PortraitOgProps): ReactElement {
+export function CodernetPortraitLongElement({
+  data,
+  ghUsername,
+  avatarDataUrl,
+}: PortraitOgProps): ReactElement {
   const url = codernetPortraitPageUrl(ghUsername);
   const name = data?.displayName || ghUsername;
   const one = truncateForOg(data?.oneLiner, 200);
@@ -176,10 +186,10 @@ export function CodernetPortraitLongElement({ data, ghUsername }: PortraitOgProp
       <div style={{ fontSize: 15, color: '#475569', marginBottom: 32 }}>{url}</div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 32, marginBottom: 28 }}>
-        {data ? (
+        {data && avatarDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={data.avatarUrl}
+            src={avatarDataUrl}
             width={160}
             height={160}
             alt=""

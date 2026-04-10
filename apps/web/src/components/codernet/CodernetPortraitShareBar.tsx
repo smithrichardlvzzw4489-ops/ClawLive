@@ -5,6 +5,21 @@ import { BRAND_ZH } from '@/lib/brand';
 
 type Props = { ghUsername: string };
 
+async function blobIsPng(blob: Blob): Promise<boolean> {
+  const h = new Uint8Array(await blob.slice(0, 8).arrayBuffer());
+  return h.length >= 4 && h[0] === 0x89 && h[1] === 0x50 && h[2] === 0x4e && h[3] === 0x47;
+}
+
+async function readFetchError(res: Response): Promise<string> {
+  const text = await res.text().catch(() => '');
+  try {
+    const j = JSON.parse(text) as { message?: string; error?: string };
+    return j?.message || j?.error || text.slice(0, 200) || `HTTP ${res.status}`;
+  } catch {
+    return text.slice(0, 200) || `HTTP ${res.status}`;
+  }
+}
+
 export function CodernetPortraitShareBar({ ghUsername }: Props) {
   const [busy, setBusy] = useState<'dl' | 'share' | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -32,12 +47,13 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     setMsg(null);
     try {
       const res = await fetch(shareImagePath, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const ct = res.headers.get('content-type') || '';
+      if (!res.ok) {
+        const detail = await readFetchError(res);
+        throw new Error(detail);
+      }
       const blob = await res.blob();
-      if (blob.size < 256 || !ct.includes('image/png')) {
-        const hint = await blob.text().catch(() => '');
-        throw new Error(hint.slice(0, 120) || `invalid image (${blob.size} bytes)`);
+      if (blob.size < 64 || !(await blobIsPng(blob))) {
+        throw new Error(`无效图片响应（${blob.size} bytes）`);
       }
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -47,11 +63,11 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
       document.body.appendChild(a);
       a.click();
       a.remove();
-      // 立即 revoke 会导致 Chrome/Edge 下载到 0 字节文件
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
       setMsg('长图已保存到本地，可直接发到聊天或朋友圈。');
-    } catch {
-      setMsg('生成分享图失败，请稍后重试。');
+    } catch (e) {
+      const t = e instanceof Error ? e.message : '未知错误';
+      setMsg(`生成分享图失败：${t}`);
     } finally {
       setBusy(null);
     }
@@ -62,11 +78,13 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
     setMsg(null);
     try {
       const res = await fetch(shareImagePath, { cache: 'no-store' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const detail = await readFetchError(res);
+        throw new Error(detail);
+      }
       const blob = await res.blob();
-      const ct = res.headers.get('content-type') || '';
-      if (blob.size < 256 || !ct.includes('image/png')) {
-        throw new Error('invalid image');
+      if (blob.size < 64 || !(await blobIsPng(blob))) {
+        throw new Error('无效图片，请改用「下载分享长图」');
       }
       const file = new File([blob], `${BRAND_ZH}-${ghUsername}-portrait.png`, { type: 'image/png' });
       const pageUrl = fullPageUrl();
@@ -80,11 +98,11 @@ export function CodernetPortraitShareBar({ ghUsername }: Props) {
         await navigator.share(linkOnly);
         return;
       }
-      setMsg('当前环境不支持系统分享，请使用「下载分享长图」。');
+      setMsg('当前环境不支持带图分享，请使用「下载分享长图」。');
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        setMsg('分享已取消或失败。');
-      }
+      if ((e as Error).name === 'AbortError') return;
+      const t = e instanceof Error ? e.message : '未知错误';
+      setMsg(`分享失败：${t}`);
     } finally {
       setBusy(null);
     }
