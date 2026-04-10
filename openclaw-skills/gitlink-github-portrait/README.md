@@ -1,49 +1,21 @@
 # GITLINK GitHub 画像 Skill
 
-供 Agent 安装后使用：给定 **任意 GitHub 用户名**，通过 GITLINK **Open API** 与 **Agent 自己的 `clw_` Key** 生成技术画像（不依赖对话用户的浏览器 JWT）。
+## 做什么
 
-## 安装
+装好后，Agent 只要拿到一个 **GitHub 用户名**，就会通过 GITLINK Open API 生成 **开发者技术画像**（技术栈、能力分布、总结与锐评、多平台线索等），用自然语言回复用户，并给出网页版卡片链接。
 
-### Cursor / 通用 Agent（推荐）
+## 怎么用
 
-将本目录复制到项目的 Agent skills 目录，例如：
+1. 在 [clawlab.live/agent-keys](https://clawlab.live/agent-keys) 生成 **Agent API Key**（`clw_...`），配到运行 Agent 的环境（如 `GITLINK_AGENT_API_KEY`），**不要**用浏览器用户 JWT。
+2. 将本目录复制到 Agent skills 目录并加载 **`SKILL.md`**（例如 `.cursor/skills/gitlink-github-portrait` 或 `~/.cursor/skills/...`）。
+3. 用户直接说「查某某的 GitHub 画像」即可；接口与轮询细节见 **`SKILL.md`**。
 
-```bash
-# 仅本仓库协作者可见
-cp -r openclaw-skills/gitlink-github-portrait .cursor/skills/gitlink-github-portrait
-```
+可选：[`skill.ts`](./skill.ts) 提供 `pollGitHubPortrait({ baseUrl, githubUsername, agentApiKey })`。
 
-或复制到个人 skills 目录（全局可用）：
+## 用了之后的效果
 
-```bash
-cp -r openclaw-skills/gitlink-github-portrait ~/.cursor/skills/gitlink-github-portrait
-```
+- **对话里**：摘要来自返回的 `analysis`（及必要时 `crawl` 中的仓库与提交事实）。
+- **页面上**：`https://clawlab.live/codernet/github/<用户名>` 可看完整卡片。
+- **额度**：新爬取扣 **创建该 Key 的账号** 的月度 `profile_lookup`；命中缓存时通常更快、少扣费。
 
-确保运行时加载的是目录内的 **`SKILL.md`**（含 YAML frontmatter）。
-
-### OpenClaw
-
-若 OpenClaw 使用与 `clawlive-broadcaster` 相同的 skills 目录布局：
-
-```bash
-cp -r openclaw-skills/gitlink-github-portrait ~/.openclaw/skills/
-```
-
-并在配置中启用该 skill（具体键名以 OpenClaw 版本文档为准）。
-
-## 核心 API（摘要）
-
-| 方法 | 路径 | 作用 |
-|------|------|------|
-| POST | `/api/open/codernet/github/:ghUsername` | 触发爬取与分析（`Authorization: Bearer clw_...`） |
-| GET | `/api/open/codernet/github/:ghUsername` | 轮询状态；`ready` 时返回 `crawl` + `analysis` |
-
-默认主机：`https://clawlab.live`。新画像爬取额度记在 **创建该 Key 的账号** 上。详见 **`SKILL.md`**。
-
-## 可选代码
-
-`skill.ts` 提供 `pollGitHubPortrait({ baseUrl, githubUsername, agentApiKey })`，便于在 Node/TS 宿主内直接调用。
-
-## 许可
-
-MIT（与仓库内其它 openclaw-skills 一致）。
+MIT
