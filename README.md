@@ -8,6 +8,12 @@
 
 线上示例：[clawlab.live](https://www.clawlab.live)（部署品牌名可能仍为 ClawLab，与本仓库 **GitLink** 代码库对应）。
 
+### 开发者画像页（示例）
+
+以下为线上页面 [`/codernet/github/sindresorhus`](https://www.clawlab.live/codernet/github/sindresorhus) 的截图（可用 `npx playwright screenshot …` 在本地更新 `docs/images/codernet-github-sindresorhus.png`）。
+
+[![GITLINK 开发者画像页示例：@sindresorhus](./docs/images/codernet-github-sindresorhus.png)](https://www.clawlab.live/codernet/github/sindresorhus)
+
 ---
 
 ## 当前产品能力
