@@ -1,39 +1,39 @@
-# GITLINK GitHub 画像 Skill
+# GITLINK GitHub 画像 Skill（OpenClaw 小龙虾）
 
-用 **GitHub 用户名** 生成 **开发者技术画像**（对话总结 + 可选网页卡片）。
+给 **OpenClaw 小龙虾** 用：聊天里给一个 **GitHub 用户名**，生成 **开发者技术画像**。
 
 ---
 
-## 第一步：安装（复制粘贴）
+## 安装（复制到小龙虾技能目录）
 
-在 **ClawLive 仓库根目录** 打开终端，执行下面**其中一种**。
+### 从本仓库（你在开发 ClawLive 时）
 
-### Windows PowerShell
+**Windows PowerShell**（在 ClawLive 仓库根目录执行）：
 
 ```powershell
-New-Item -ItemType Directory -Force -Path ".cursor\skills" | Out-Null
-Copy-Item -Recurse -Force "openclaw-skills\gitlink-github-portrait" ".cursor\skills\gitlink-github-portrait"
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.openclaw\skills" | Out-Null
+Copy-Item -Recurse -Force "openclaw-skills\gitlink-github-portrait" "$env:USERPROFILE\.openclaw\skills\gitlink-github-portrait"
 ```
 
-### Mac / Linux
+**Mac / Linux**：
 
 ```bash
-mkdir -p .cursor/skills && cp -r openclaw-skills/gitlink-github-portrait .cursor/skills/gitlink-github-portrait
+mkdir -p ~/.openclaw/skills && cp -r openclaw-skills/gitlink-github-portrait ~/.openclaw/skills/gitlink-github-portrait
 ```
 
-### 从 GitHub 单独拉 skill（与主仓库无关时）
+### 从 GitHub 拉独立包（发给用户时）
 
 ```bash
-mkdir -p .cursor/skills && git clone https://github.com/smithrichardlvzzw4489-ops/gitprofile-skill.git .cursor/skills/gitprofile-skill
+mkdir -p ~/.openclaw/skills && git clone https://github.com/smithrichardlvzzw4489-ops/gitprofile-skill.git ~/.openclaw/skills/gitprofile-skill
 ```
 
-装好后**重开 Cursor 或项目**。
+装完 **重启 OpenClaw / 小龙虾**；若客户端里要 **启用技能**，勾选对应目录名即可。
 
 ---
 
-## 第二步：使用
+## 使用
 
-在 Agent 对话里输入（把 `octocat` 换成目标用户名）：
+对小龙虾发（替换用户名）：
 
 ```text
 帮我查一下 GitHub 用户 octocat 的技术画像
@@ -41,11 +41,10 @@ mkdir -p .cursor/skills && git clone https://github.com/smithrichardlvzzw4489-op
 
 ---
 
-## 你会得到什么
+## 效果
 
-- 对话里的文字解读。  
-- 可能附带 GITLINK 上的画像页面链接。
+对话总结 + 可能出现的 GITLINK 画像网页链接。
 
-装不好或报错 → 交给负责环境的人排查；不必改 skill 内文件。
+装不好 → 找负责环境的人；不必改 skill 内文件。
 
 MIT
