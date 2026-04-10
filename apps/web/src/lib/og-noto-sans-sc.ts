@@ -1,6 +1,7 @@
 /**
  * next/og (Satori) 渲染中文必须注册 CJK 字体，否则常见结果为「200 + image/png + 0 字节」。
- * 通过 Google Fonts CSS 解析 woff2 地址后拉取（Edge 可用）。
+ * Chrome UA 的 Google Fonts CSS 只给 WOFF2；Satori 会报 Unsupported OpenType signature wOF2 并产出空 PNG。
+ * 使用旧版 UA 让 Google 返回 WOFF（或 TTF），再拉取二进制（Edge 可用）。
  */
 
 /** next/og FontOptions.weight 为字面量联合 */
@@ -14,8 +15,9 @@ export async function loadNotoSansScFontsForOg(): Promise<OgFont[]> {
     'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap',
     {
       headers: {
+        // 非 Chrome UA → CSS 中为 format('woff') / truetype，避免 WOFF2（Satori 不支持）
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; Trident/6.0)',
       },
     },
   );
@@ -26,7 +28,7 @@ export async function loadNotoSansScFontsForOg(): Promise<OgFont[]> {
   const seen = new Set<string>();
 
   const re =
-    /font-weight:\s*(\d+)[^}]*?url\(([^)]+)\)\s*format\(['"]woff2['"]\)/gs;
+    /font-weight:\s*(\d+)[^}]*?url\(([^)]+)\)\s*format\(['"](?:woff|truetype|opentype)['"]\)/gs;
   let m: RegExpExecArray | null;
   while ((m = re.exec(css)) !== null) {
     const wn = Number(m[1]);
@@ -44,7 +46,9 @@ export async function loadNotoSansScFontsForOg(): Promise<OgFont[]> {
   }
 
   if (!out.length) {
-    throw new Error('No Noto Sans SC woff2 fonts could be loaded for OG');
+    throw new Error(
+      'No Noto Sans SC fonts could be loaded for OG (expected WOFF/TTF from Google Fonts, not WOFF2)',
+    );
   }
   return out;
 }
