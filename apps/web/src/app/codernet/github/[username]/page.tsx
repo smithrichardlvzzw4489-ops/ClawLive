@@ -16,6 +16,7 @@ import {
   PlatformBadges,
 } from '@/components/codernet/CodernetProfileExtras';
 import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
+import { CodernetPortraitShareBar } from '@/components/codernet/CodernetPortraitShareBar';
 
 interface CrawlProgress {
   stage: string;
@@ -831,6 +832,8 @@ export default function GitHubLookupCardPage() {
           <span className="text-xs text-slate-600">/</span>
           <span className="text-xs font-mono text-slate-500">@{ghUsername}</span>
         </div>
+
+        <CodernetPortraitShareBar ghUsername={ghUsername} />
 
         {/* Profile Card */}
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
