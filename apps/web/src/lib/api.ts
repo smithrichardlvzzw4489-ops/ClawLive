@@ -241,4 +241,12 @@ export const api = {
         body: JSON.stringify(body),
       }),
   },
+  codernet: {
+    /** Semantic developer search → ranked GitHub users (no email). */
+    searchDevelopers: (query: string) =>
+      fetchAPI('/api/codernet/search', {
+        method: 'POST',
+        body: JSON.stringify({ query }),
+      }),
+  },
 };

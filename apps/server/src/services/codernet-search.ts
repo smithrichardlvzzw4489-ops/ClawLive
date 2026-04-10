@@ -180,7 +180,7 @@ async function enrichCandidates(
   token?: string,
   lookupCache?: Map<string, any>,
 ): Promise<EnrichedCandidate[]> {
-  const top = users.slice(0, 5);
+  const top = users.slice(0, 10);
 
   const results = await Promise.allSettled(
     top.map(async (user): Promise<EnrichedCandidate> => {
@@ -250,7 +250,7 @@ ${list}
 
 规则：
 - score 范围 0-1
-- 最多返回 5 个，只返回 score >= 0.3 的
+- 最多返回 12 个，只返回 score >= 0.3 的
 - reason 必须中文
 - 综合考虑技术栈匹配度、经验（stars/followers/repos）、地域、AI画像分析
 - 没有匹配的返回空数组 []`;
@@ -317,7 +317,7 @@ export async function searchDevelopers(
     githubQuery: parsed.githubQuery,
   });
 
-  const ghUsers = await searchGitHubUsers(parsed, token, 10);
+  const ghUsers = await searchGitHubUsers(parsed, token, 24);
   if (ghUsers.length === 0) {
     onProgress?.({ phase: 'done', detail: 'No GitHub users found', totalFound: 0 });
     return [];
@@ -325,7 +325,7 @@ export async function searchDevelopers(
 
   onProgress?.({
     phase: 'enriching',
-    detail: `Analyzing top ${Math.min(ghUsers.length, 5)} developers...`,
+    detail: `Analyzing top ${Math.min(ghUsers.length, 10)} developers...`,
     totalFound: ghUsers.length,
   });
 
@@ -338,7 +338,7 @@ export async function searchDevelopers(
   const results: DeveloperSearchResult[] = ranked
     .filter((r) => r.score >= 0.3 && r.index >= 0 && r.index < enriched.length)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
+    .slice(0, 12)
     .map((r) => {
       const c = enriched[r.index];
       return {

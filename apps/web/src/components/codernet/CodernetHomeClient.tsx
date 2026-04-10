@@ -3,8 +3,21 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { API_BASE_URL } from '@/lib/api';
+import { API_BASE_URL, api, APIError } from '@/lib/api';
 import { MainLayout } from '@/components/MainLayout';
+
+interface SemanticSearchHit {
+  githubUsername: string;
+  avatarUrl: string;
+  oneLiner: string;
+  techTags: string[];
+  sharpCommentary: string;
+  score: number;
+  reason: string;
+  stats: { totalPublicRepos: number; totalStars: number; followers: number };
+  bio: string | null;
+  location: string | null;
+}
 
 type TabId = 'mine' | 'lookup' | 'outreach';
 
@@ -24,6 +37,11 @@ export function CodernetHomeClient() {
   const [mineErr, setMineErr] = useState<string | null>(null);
   const [mineNeedLogin, setMineNeedLogin] = useState(false);
   const [meFetchError, setMeFetchError] = useState(false);
+
+  const [linkQuery, setLinkQuery] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkErr, setLinkErr] = useState<string | null>(null);
+  const [linkResults, setLinkResults] = useState<SemanticSearchHit[] | null>(null);
 
   useEffect(() => {
     if (tab !== 'mine') return;
@@ -105,6 +123,27 @@ export function CodernetHomeClient() {
     const val = searchValue.trim().replace(/^@/, '');
     if (!val) return;
     router.push(`/codernet/github/${encodeURIComponent(val)}`);
+  };
+
+  const handleSemanticSearch = async (e: FormEvent) => {
+    e.preventDefault();
+    const q = linkQuery.trim();
+    if (!q || linkLoading) return;
+    setLinkErr(null);
+    setLinkLoading(true);
+    setLinkResults(null);
+    try {
+      const data = (await api.codernet.searchDevelopers(q)) as { results?: SemanticSearchHit[] };
+      setLinkResults(data.results ?? []);
+    } catch (err) {
+      if (err instanceof APIError) {
+        setLinkErr(err.message || '搜索失败');
+      } else {
+        setLinkErr('网络异常，请稍后重试');
+      }
+    } finally {
+      setLinkLoading(false);
+    }
   };
 
   return (
@@ -263,37 +302,108 @@ export function CodernetHomeClient() {
             </div>
           )}
 
-          {/* LINK: search → view portrait (same flow as GitHub 画像 tab) */}
+          {/* LINK: semantic search → many ranked developers → open portrait (no email) */}
           {tab === 'outreach' && (
-            <div className="max-w-lg mx-auto">
-              <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-8 text-center">
-                <div className="text-4xl mb-4">🔍</div>
-                <h3 className="text-lg font-bold mb-2">搜索开发者画像</h3>
-                <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-                  输入 GitHub 用户名 → 拉取公开仓库与动态 → AI 生成技术画像 → 在画像页直接查看，无需邮箱或外联
+            <div className="max-w-xl mx-auto w-full text-left">
+              <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-6 sm:p-8 mb-6">
+                <div className="text-center text-4xl mb-3">🔍</div>
+                <h3 className="text-center text-lg font-bold mb-2">语义搜索开发者</h3>
+                <p className="text-center text-sm text-slate-400 mb-5 leading-relaxed">
+                  用自然语言描述你要找的人（技术栈、地区、经验等）→ AI 解析并在 GitHub 上检索 → 精排后列出<strong className="text-slate-300">多位</strong>
+                  合适开发者。点击即可打开完整画像；<strong className="text-slate-300">不涉及发邮件或外联</strong>。
                 </p>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                    <p className="text-xl font-bold text-green-400">公开</p>
-                    <p className="text-[10px] text-slate-500">仓库与贡献数据</p>
+                <div className="grid grid-cols-3 gap-3 mb-5 text-center">
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5">
+                    <p className="text-lg font-bold text-green-400">多选</p>
+                    <p className="text-[10px] text-slate-500 leading-tight">一次返回多人</p>
                   </div>
-                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                    <p className="text-xl font-bold text-violet-400">AI</p>
-                    <p className="text-[10px] text-slate-500">技术栈与画像总结</p>
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5">
+                    <p className="text-lg font-bold text-violet-400">AI</p>
+                    <p className="text-[10px] text-slate-500 leading-tight">解析 + 精排</p>
                   </div>
-                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3">
-                    <p className="text-xl font-bold text-blue-400">即看</p>
-                    <p className="text-[10px] text-slate-500">一页浏览完整画像</p>
+                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5">
+                    <p className="text-lg font-bold text-blue-400">画像</p>
+                    <p className="text-[10px] text-slate-500 leading-tight">跳转即看</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setTab('lookup')}
-                  className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-violet-600 hover:bg-violet-500 text-sm font-semibold transition"
-                >
-                  去搜索并查看画像 →
-                </button>
+                <form onSubmit={(e) => void handleSemanticSearch(e)} className="space-y-3">
+                  <textarea
+                    value={linkQuery}
+                    onChange={(e) => setLinkQuery(e.target.value)}
+                    placeholder="例如：在上海做 Rust 后端、有开源贡献的开发者"
+                    rows={3}
+                    className="w-full rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none focus:border-violet-500/40 resize-y min-h-[5rem]"
+                  />
+                  {linkErr && (
+                    <p className="text-xs text-red-300 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">{linkErr}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={linkLoading || !linkQuery.trim()}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold transition"
+                  >
+                    {linkLoading ? (
+                      <>
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                        搜索中…
+                      </>
+                    ) : (
+                      '搜索并列出候选人'
+                    )}
+                  </button>
+                </form>
+                <p className="text-[10px] text-slate-600 text-center mt-3 font-mono">
+                  登录用户受月度搜索额度限制；结果来自公开 GitHub 数据。
+                </p>
               </div>
+
+              {linkResults && linkResults.length === 0 && !linkLoading && (
+                <p className="text-center text-sm text-slate-500 mb-6">未找到足够匹配的开发者，可换个描述再试。</p>
+              )}
+
+              {linkResults && linkResults.length > 0 && (
+                <div className="space-y-3 mb-8">
+                  <p className="text-xs text-slate-500 font-mono text-center mb-2">共 {linkResults.length} 人 · 按匹配度排序</p>
+                  {linkResults.map((hit) => (
+                    <Link
+                      key={hit.githubUsername}
+                      href={`/codernet/github/${encodeURIComponent(hit.githubUsername)}`}
+                      className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 transition hover:border-violet-500/30 hover:bg-white/[0.05]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={hit.avatarUrl}
+                        alt=""
+                        className="h-14 w-14 shrink-0 rounded-lg border border-white/10"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-baseline gap-2">
+                          <span className="font-mono font-semibold text-white">@{hit.githubUsername}</span>
+                          <span className="text-[10px] text-violet-400 font-mono">
+                            匹配 {(hit.score * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                        {hit.oneLiner ? (
+                          <p className="text-xs text-violet-200/90 mt-1 line-clamp-2">{hit.oneLiner}</p>
+                        ) : null}
+                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{hit.reason}</p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {hit.techTags.slice(0, 6).map((t) => (
+                            <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-slate-600 mt-2 font-mono">
+                          {hit.stats.followers.toLocaleString()} followers · {hit.stats.totalPublicRepos} repos
+                          {hit.location ? ` · ${hit.location}` : ''}
+                        </p>
+                      </div>
+                      <span className="self-center text-violet-400 text-sm shrink-0">→</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
