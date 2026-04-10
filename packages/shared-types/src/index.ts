@@ -6,6 +6,8 @@ export interface User {
   avatarUrl?: string;
   /** 虾米积分；未返回时视为 0 */
   clawPoints?: number;
+  /** 站内管理员；仅本人可见，用于前端展示管理入口 */
+  isAdmin?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

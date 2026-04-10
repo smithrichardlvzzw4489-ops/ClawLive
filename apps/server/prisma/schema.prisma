@@ -45,6 +45,8 @@ model User {
   jobSeekingExternalProfiles Json?
   /// 最近一次 GitHub 爬取时自动检测到的求职文案依据（JSON 数组 JobSeekingSignal）
   jobSeekingDetectedSignals Json?
+  /// 站内管理员：可访问用户与使用情况看板（JWT 鉴权 + 服务端校验）
+  isAdmin           Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

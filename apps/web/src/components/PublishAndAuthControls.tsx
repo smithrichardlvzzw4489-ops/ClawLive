@@ -23,7 +23,12 @@ const navBtn =
 export function PublishAndAuthControls({ variant = 'nav', showPublish = false }: { variant?: Variant; showPublish?: boolean }) {
   const { t } = useLocale();
   const router = useRouter();
-  const [user, setUser] = useState<{ id: string; username: string; avatarUrl?: string } | null>(null);
+  const [user, setUser] = useState<{
+    id: string;
+    username: string;
+    avatarUrl?: string;
+    isAdmin?: boolean;
+  } | null>(null);
   const [showPublishMenu, setShowPublishMenu] = useState(false);
 
   useEffect(() => {
@@ -122,6 +127,14 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
+              {user.isAdmin && (
+                <Link
+                  href="/admin/users"
+                  className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
+                >
+                  📊 用户与使用统计
+                </Link>
+              )}
               <div className="border-t border-white/10" />
               <button
                 type="button"
@@ -219,6 +232,14 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
                 👤 {t('nav.myProfile')}
               </Link>
+              {user.isAdmin && (
+                <Link
+                  href="/admin/users"
+                  className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
+                >
+                  📊 用户与使用统计
+                </Link>
+              )}
               <div className="border-t border-white/10" />
               <button
                 type="button"
@@ -317,6 +338,14 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
             <Link href="/my-profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
               👤 {t('nav.myProfile')}
             </Link>
+            {user.isAdmin && (
+              <Link
+                href="/admin/users"
+                className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
+              >
+                📊 用户与使用统计
+              </Link>
+            )}
             <div className="border-t border-white/10" />
             <button
               type="button"

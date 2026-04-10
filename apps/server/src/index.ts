@@ -25,6 +25,7 @@ import {
   runEvolverRoundsForAllDarwinUsers,
 } from './services/darwin-evolver-service';
 import { bootstrapPersistentStateFromPostgres } from './services/persistent-bootstrap';
+import { syncAdminBootstrapFromEnv } from './services/admin-bootstrap';
 
 // 捕获未处理异常，便于 Railway 等平台排查部署崩溃
 process.on('uncaughtException', (err) => {
@@ -96,6 +97,7 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
   console.log(`[ClawLive] Server running on http://0.0.0.0:${PORT}`);
   try {
     await bootstrapPersistentStateFromPostgres();
+    await syncAdminBootstrapFromEnv();
     await initRoomsStore();
     setupRoutes(app, io);
     setupSocketIO(io);

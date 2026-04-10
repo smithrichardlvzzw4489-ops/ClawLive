@@ -1,8 +1,10 @@
 /**
  * 管理员接口 — 数据清理、线上发放 LiteLLM 虚拟 Key、调整虾米积分等
  * 通过 ADMIN_SECRET 保护（query ?secret= 或 Header X-Admin-Secret）；仅在部署环境配置，不依赖本机 .env 脚本
+ *
+ * 另：登录用户且 User.isAdmin 时，可带 JWT 访问 /api/admin/users-overview（用户与产品使用汇总）。
  */
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { works, workMessages } from './rooms-simple';
 import { WorksPersistence } from '../../services/works-persistence';
 import { clearAllFeedPostsAndRelated, getFeedPostsMap } from '../../services/feed-posts-store';
@@ -14,6 +16,9 @@ import {
   increaseVirtualKeyBudget,
   isLitellmConfigured,
 } from '../../services/litellm-budget';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { requireAdmin } from '../middleware/requireAdmin';
+import { getAgentBehaviorStatsForUser, getHumanBehaviorStatsForUser } from '../../services/user-behavior';
 
 export function adminRoutes(): Router {
   const router = Router();
@@ -32,6 +37,86 @@ export function adminRoutes(): Router {
     }
     return true;
   }
+
+  /**
+   * GET /api/admin/users-overview
+   * 需登录且 isAdmin；返回用户总数及每人各产品维度的使用概况（Prisma 计数 + 行为文件统计）。
+   */
+  router.get('/users-overview', authenticateToken, requireAdmin, async (_req: AuthRequest, res: Response) => {
+    try {
+      const totalUsers = await prisma.user.count();
+      const rows = await prisma.user.findMany({
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          createdAt: true,
+          updatedAt: true,
+          isAdmin: true,
+          clawPoints: true,
+          githubId: true,
+          githubUsername: true,
+          codernetCrawledAt: true,
+          _count: {
+            select: {
+              rooms: true,
+              feedPosts: true,
+              publishedSkills: true,
+              vibekidsWorks: true,
+              installedUserSkills: true,
+              evolverRounds: true,
+              comments: true,
+              pointLedger: true,
+            },
+          },
+          lobsterInstance: {
+            select: { messageCount: true, lastActiveAt: true },
+          },
+        },
+      });
+
+      const users = rows.map((row) => {
+        const humanBehaviors = getHumanBehaviorStatsForUser(row.id);
+        const agentBehaviors = getAgentBehaviorStatsForUser(row.id);
+        const li = row.lobsterInstance;
+        return {
+          id: row.id,
+          username: row.username,
+          email: row.email,
+          isAdmin: row.isAdmin,
+          clawPoints: row.clawPoints,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+          usage: {
+            roomsHosted: row._count.rooms,
+            feedPosts: row._count.feedPosts,
+            publishedSkills: row._count.publishedSkills,
+            vibekidsWorks: row._count.vibekidsWorks,
+            installedDarwinSkills: row._count.installedUserSkills,
+            evolverRounds: row._count.evolverRounds,
+            comments: row._count.comments,
+            pointLedgerEntries: row._count.pointLedger,
+            darwin: li
+              ? {
+                  lobsterMessages: li.messageCount,
+                  lastActiveAt: li.lastActiveAt.toISOString(),
+                }
+              : null,
+            githubLinked: Boolean(row.githubId || row.githubUsername),
+            codernetCrawledAt: row.codernetCrawledAt?.toISOString() ?? null,
+            humanBehaviors,
+            agentBehaviors,
+          },
+        };
+      });
+
+      res.json({ totalUsers, users });
+    } catch (e) {
+      console.error('[Admin] users-overview', e);
+      res.status(500).json({ error: 'Failed to load users overview' });
+    }
+  });
 
   /** GET /api/admin/status — 查看数据量 */
   router.get('/status', (req, res) => {

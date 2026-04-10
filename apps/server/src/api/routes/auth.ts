@@ -159,6 +159,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
         bio: true,
         telegramId: true,
         clawPoints: true,
+        isAdmin: true,
         createdAt: true,
         updatedAt: true,
         githubUsername: true,

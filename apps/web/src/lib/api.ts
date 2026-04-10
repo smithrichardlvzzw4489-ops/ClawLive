@@ -249,4 +249,7 @@ export const api = {
         body: JSON.stringify({ query }),
       }),
   },
+  admin: {
+    usersOverview: () => fetchAPI('/api/admin/users-overview'),
+  },
 };

@@ -365,3 +365,23 @@ export function getWorkPersonalizationBoost(
 
   return 1 + Math.min(boost, 0.5); // 总加成上限 50%
 }
+
+/** 人轨：某用户最近行为条数与按类型计数（用于管理端） */
+export function getHumanBehaviorStatsForUser(userId: string): { total: number; byType: Record<string, number> } {
+  const list = userBehaviors.get(userId) || [];
+  const byType: Record<string, number> = {};
+  for (const b of list) {
+    byType[b.type] = (byType[b.type] || 0) + 1;
+  }
+  return { total: list.length, byType };
+}
+
+/** Agent 轨：某用户关联的虾米行为计数（用于管理端） */
+export function getAgentBehaviorStatsForUser(userId: string): { total: number; byType: Record<string, number> } {
+  const list = agentBehaviorList.filter((b) => b.ownerUserId === userId);
+  const byType: Record<string, number> = {};
+  for (const b of list) {
+    byType[b.type] = (byType[b.type] || 0) + 1;
+  }
+  return { total: list.length, byType };
+}
