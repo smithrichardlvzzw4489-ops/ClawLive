@@ -9,6 +9,13 @@ import {
   type PortfolioDepthShape,
   type ActivityDeepDiveShape,
 } from '@/components/codernet/PortfolioDrillDown';
+import {
+  type AIEngagement,
+  AIEngagementCard,
+  InfluenceBar,
+  PlatformBadges,
+  type ProfileMultiPlatformInsights,
+} from '@/components/codernet/CodernetProfileExtras';
 
 export type CodernetCardVariant = 'public' | 'home' | 'mine';
 
@@ -47,6 +54,9 @@ interface CodernetProfile {
     memberSince?: string;
   };
   github?: {
+    /** GitHub 登录名（与 lookup 页主标题数据源一致） */
+    username?: string;
+    bio?: string | null;
     totalPublicRepos: number;
     totalStars: number;
     followers: number;
@@ -82,6 +92,9 @@ interface CodernetProfile {
     oneLiner: string;
     generatedAt: string;
     activityDeepDive?: ActivityDeepDiveShape;
+    platformsUsed?: string[];
+    multiPlatformInsights?: ProfileMultiPlatformInsights;
+    aiEngagement?: AIEngagement;
   };
   crawledAt?: string;
 }
@@ -306,11 +319,11 @@ function JobSeekerAssistCard({
     <div className="rounded-xl border border-teal-500/30 bg-teal-950/25 p-4">
       <h3 className="text-sm font-semibold text-teal-200 mb-1">本页使用说明</h3>
       <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
-        这是你在 GitLink 上的<strong className="text-slate-300">公开技术名片</strong>：招聘方会从这里看栈与项目时间线；你也可以把它当作投递时的统一「对外叙事」草稿。
+        这是你在 <strong className="text-slate-300">GITLINK</strong> 上的<strong className="text-slate-300">公开技术名片</strong>：招聘方会从这里看栈与项目时间线；你也可以把它当作投递时的统一「对外叙事」草稿。
       </p>
       <ul className="text-[11px] text-slate-500 mb-3 list-disc pl-4 space-y-1 leading-relaxed">
         <li>在邮件/表单里附上画像链接，减少重复自我介绍。</li>
-        <li>修改 GitHub 简介或仓库后，可点此处的「刷新画像」同步最新公开信息。</li>
+        <li>修改 GitHub 简介或仓库后，可用此处「刷新画像」同步最新公开信息。</li>
       </ul>
       <div className="flex flex-wrap gap-2">
         <button
@@ -470,6 +483,11 @@ export function CodernetCardPageClient({
   const [me, setMe] = useState<MeUser | null>(null);
   const [recrawlBusy, setRecrawlBusy] = useState(false);
   const [pageOrigin, setPageOrigin] = useState('');
+  const [tokenCost, setTokenCost] = useState<{
+    totalTokens: number;
+    estimatedCostUsd: number;
+    callCount: number;
+  } | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!username) return null;
@@ -511,6 +529,23 @@ export function CodernetCardPageClient({
   useEffect(() => {
     if (typeof window !== 'undefined') setPageOrigin(window.location.origin);
   }, []);
+
+  useEffect(() => {
+    if (profile?.status !== 'ready' || !profile.user.githubUsername) return;
+    const base = API_BASE_URL || '';
+    fetch(`${base}/api/platform/token-usage/profile/${encodeURIComponent(profile.user.githubUsername)}`)
+      .then((r) => r.json())
+      .then((data: { totalTokens?: number; estimatedCostUsd?: number; callCount?: number }) => {
+        if (data.totalTokens != null && data.totalTokens > 0) {
+          setTokenCost({
+            totalTokens: data.totalTokens,
+            estimatedCostUsd: data.estimatedCostUsd ?? 0,
+            callCount: data.callCount ?? 0,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [profile?.status, profile?.user.githubUsername]);
 
   useEffect(() => {
     if (!profile || profile.status !== 'pending') return;
@@ -674,6 +709,22 @@ export function CodernetCardPageClient({
 
   const { analysis, github } = profile;
   const isCardOwner = !!(me?.username && username && me.username === username && profile.user.githubUsername);
+  const platforms =
+    analysis?.platformsUsed && analysis.platformsUsed.length > 0 ? analysis.platformsUsed : ['GitHub'];
+  const insights = analysis?.multiPlatformInsights;
+  const showInfluence = !!(
+    insights &&
+    (insights.communityInfluenceScore != null ||
+      insights.knowledgeSharingScore != null ||
+      insights.packageImpactScore != null ||
+      insights.aiMlImpactScore != null ||
+      insights.algorithmScore != null)
+  );
+  const displayTitle =
+    (github?.username && String(github.username).trim()) || profile.user.githubUsername || profile.user.username;
+  const displayBio = github?.bio ?? profile.user.bio ?? null;
+  const breadcrumbHandle = profile.user.githubUsername || username;
+  const portfolioHasRepos = !!(github?.repos && github.repos.length > 0);
 
   return (
     <div className="min-h-[calc(100dvh-4rem)] bg-[#06080f] text-white">
@@ -682,8 +733,17 @@ export function CodernetCardPageClient({
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-10">
+        <div className="flex items-center gap-2 mb-8">
+          <Link href="/" className="text-xs font-mono text-violet-400 tracking-wider hover:text-violet-300 transition">
+            GITLINK
+          </Link>
+          <span className="text-xs text-slate-600">/</span>
+          <span className="text-xs font-mono text-slate-500">@{breadcrumbHandle}</span>
+        </div>
+
+        {/* Profile card — same block order as /codernet/github/:user */}
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-          <div className="flex items-start gap-4 mb-5">
+          <div className="flex items-start gap-4 mb-4">
             {profile.user.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -697,7 +757,7 @@ export function CodernetCardPageClient({
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold truncate">{profile.user.username}</h1>
+              <h1 className="text-2xl font-bold truncate">{displayTitle}</h1>
               {profile.user.githubUsername && (
                 <a
                   href={`https://github.com/${profile.user.githubUsername}`}
@@ -711,8 +771,15 @@ export function CodernetCardPageClient({
               {analysis?.oneLiner && (
                 <p className="mt-1 text-sm font-medium text-violet-300">{analysis.oneLiner}</p>
               )}
+              {displayBio ? <p className="mt-1 text-xs text-slate-500">{displayBio}</p> : null}
             </div>
           </div>
+
+          {platforms.length > 1 && (
+            <div className="mb-4">
+              <PlatformBadges platforms={platforms} />
+            </div>
+          )}
 
           {github && (
             <div className="grid grid-cols-3 gap-3 mb-5">
@@ -721,7 +788,10 @@ export function CodernetCardPageClient({
                 { label: 'Stars', value: github.totalStars },
                 { label: 'Followers', value: github.followers },
               ].map((s) => (
-                <div key={s.label} className="rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2 text-center">
+                <div
+                  key={s.label}
+                  className="rounded-lg bg-white/[0.04] border border-white/[0.06] px-3 py-2 text-center"
+                >
                   <div className="text-lg font-bold font-mono text-white">{s.value.toLocaleString()}</div>
                   <div className="text-[10px] text-slate-500 uppercase tracking-wider">{s.label}</div>
                 </div>
@@ -729,32 +799,14 @@ export function CodernetCardPageClient({
             </div>
           )}
 
-          {github?.repos && github.repos.length > 0 ? (
-            <PortfolioDrillDown
-              portfolioDepth={github.portfolioDepth ?? null}
-              repos={github.repos.map((r) => ({
-                name: r.name,
-                full_name: r.full_name,
-                description: r.description,
-                language: r.language,
-                stars: r.stars,
-                forks: r.forks,
-                topics: r.topics,
-                url: r.url,
-                created_at: r.created_at,
-                pushed_at: r.pushed_at,
-              }))}
-              recentCommits={github.recentCommits ?? []}
-              activityDeepDive={analysis?.activityDeepDive ?? null}
-            />
-          ) : null}
-
           {analysis?.sharpCommentary && (
             <div className="rounded-lg bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-3 mb-5">
               <p className="text-sm text-slate-200 leading-relaxed italic">
                 &ldquo;{analysis.sharpCommentary}&rdquo;
               </p>
-              <p className="text-[10px] text-slate-500 mt-1 font-mono">— GitLink AI Analysis</p>
+              <p className="text-[10px] text-slate-500 mt-1 font-mono">
+                — GITLINK AI · {platforms.join(' + ')} Analysis
+              </p>
             </div>
           )}
 
@@ -779,6 +831,37 @@ export function CodernetCardPageClient({
           )}
         </div>
 
+        {analysis?.aiEngagement && (
+          <div className="mb-6">
+            <AIEngagementCard data={analysis.aiEngagement} />
+          </div>
+        )}
+
+        {showInfluence && insights && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
+            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">
+              Cross-Platform Influence
+            </h3>
+            <div className="space-y-3">
+              {insights.communityInfluenceScore != null && (
+                <InfluenceBar label="Community" score={insights.communityInfluenceScore} color="#8b5cf6" />
+              )}
+              {insights.aiMlImpactScore != null && (
+                <InfluenceBar label="AI/ML" score={insights.aiMlImpactScore} color="#ffcc00" />
+              )}
+              {insights.algorithmScore != null && (
+                <InfluenceBar label="Algorithm" score={insights.algorithmScore} color="#ffa116" />
+              )}
+              {insights.knowledgeSharingScore != null && (
+                <InfluenceBar label="Knowledge" score={insights.knowledgeSharingScore} color="#f48024" />
+              )}
+              {insights.packageImpactScore != null && (
+                <InfluenceBar label="Package" score={insights.packageImpactScore} color="#cb3837" />
+              )}
+            </div>
+          </div>
+        )}
+
         {analysis?.capabilityQuadrant && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
             <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Capability Quadrant</h3>
@@ -786,47 +869,99 @@ export function CodernetCardPageClient({
           </div>
         )}
 
-        {github?.repos && github.repos.length > 0
-          ? null
-          : github?.topRepos && github.topRepos.length > 0 && (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-                <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Top Repositories</h3>
-                <div className="grid gap-3">
-                  {github.topRepos.map((repo) => (
-                    <a
-                      key={repo.name}
-                      href={repo.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group flex items-start gap-3 rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 transition hover:bg-white/[0.06] hover:border-violet-500/20"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-slate-200 group-hover:text-violet-300 transition truncate">
-                            {repo.name}
-                          </span>
-                          {repo.language && (
-                            <span className="flex items-center gap-1 text-[10px] text-slate-500 shrink-0">
-                              <span
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: LANG_COLORS[repo.language] || '#666' }}
-                              />
-                              {repo.language}
-                            </span>
-                          )}
-                        </div>
-                        {repo.description && (
-                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{repo.description}</p>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-500 shrink-0 font-mono">
-                        &#9733; {repo.stars}
+        {portfolioHasRepos && github?.repos && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
+            <PortfolioDrillDown
+              portfolioDepth={github.portfolioDepth ?? null}
+              repos={github.repos.map((r) => ({
+                name: r.name,
+                full_name: r.full_name,
+                description: r.description,
+                language: r.language,
+                stars: r.stars,
+                forks: r.forks,
+                topics: r.topics,
+                url: r.url,
+                created_at: r.created_at,
+                pushed_at: r.pushed_at,
+              }))}
+              recentCommits={github.recentCommits ?? []}
+              activityDeepDive={analysis?.activityDeepDive ?? null}
+            />
+          </div>
+        )}
+
+        {!portfolioHasRepos && github?.topRepos && github.topRepos.length > 0 && (
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
+            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Top Repositories</h3>
+            <div className="grid gap-3">
+              {github.topRepos.map((repo) => (
+                <a
+                  key={repo.name}
+                  href={repo.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-start gap-3 rounded-lg bg-white/[0.03] border border-white/[0.05] p-3 transition hover:bg-white/[0.06] hover:border-violet-500/20"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-slate-200 group-hover:text-violet-300 transition truncate">
+                        {repo.name}
                       </span>
-                    </a>
-                  ))}
-                </div>
+                      {repo.language && (
+                        <span className="flex items-center gap-1 text-[10px] text-slate-500 shrink-0">
+                          <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: LANG_COLORS[repo.language] || '#666' }}
+                          />
+                          {repo.language}
+                        </span>
+                      )}
+                    </div>
+                    {repo.description && (
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{repo.description}</p>
+                    )}
+                  </div>
+                  <span className="text-xs text-slate-500 shrink-0 font-mono">&#9733; {repo.stars}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tokenCost && (
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 mb-6">
+            <div className="flex items-center gap-2 mb-1">
+              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">AI Generation Cost</span>
+            </div>
+            <div className="flex items-baseline gap-4">
+              <div>
+                <span className="text-sm font-bold font-mono text-emerald-400">
+                  {tokenCost.totalTokens.toLocaleString()}
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1">tokens</span>
               </div>
-            )}
+              <div>
+                <span className="text-sm font-bold font-mono text-emerald-400">
+                  ${tokenCost.estimatedCostUsd.toFixed(4)}
+                </span>
+                <span className="text-[10px] text-slate-500 ml-1">estimated</span>
+              </div>
+              <div>
+                <span className="text-sm font-bold font-mono text-slate-400">{tokenCost.callCount}</span>
+                <span className="text-[10px] text-slate-500 ml-1">LLM calls</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {isCardOwner && profile.status === 'ready' && analysis && (
           <div className="mt-8 mb-4">
@@ -840,14 +975,15 @@ export function CodernetCardPageClient({
           </div>
         )}
 
-        <div className="text-center text-xs text-slate-600 font-mono py-4">
-          <span>gitlink · </span>
-          <Link href="/" className="text-violet-500 hover:text-violet-400 transition">
-            {variant === 'mine' ? '返回站点首页' : variant === 'home' ? '个人肖像首页' : '公开画像 · GITLINK'}
+        <div className="text-center py-4">
+          <Link href="/" className="text-violet-500 hover:text-violet-400 text-xs font-mono transition">
+            {variant === 'mine' ? '← 查看其他开发者画像' : '← GITLINK 首页'}
           </Link>
+          <span className="text-slate-700 mx-2">·</span>
+          <span className="text-xs text-slate-600 font-mono">GITLINK</span>
           {profile.crawledAt && (
-            <span className="ml-2">
-              · last scanned {new Date(profile.crawledAt).toLocaleDateString()}
+            <span className="block mt-2 text-[10px] text-slate-600 font-mono">
+              last scanned {new Date(profile.crawledAt).toLocaleDateString()}
             </span>
           )}
         </div>
