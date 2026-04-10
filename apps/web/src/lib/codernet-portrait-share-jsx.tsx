@@ -77,15 +77,28 @@ export function CodernetPortraitOgElement({
           </div>
         )}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-          <div style={{ fontSize: 22, color: '#a78bfa', fontWeight: 700, letterSpacing: 2 }}>
+          <div
+            style={{ display: 'flex', fontSize: 22, color: '#a78bfa', fontWeight: 700, letterSpacing: 2 }}
+          >
             {BRAND_ZH}
           </div>
-          <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1.15, color: '#f8fafc' }}>{name}</div>
-          <div style={{ fontSize: 22, color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
+          <div style={{ display: 'flex', fontSize: 44, fontWeight: 800, lineHeight: 1.15, color: '#f8fafc' }}>
+            {name}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 22,
+              color: '#94a3b8',
+              fontFamily: 'ui-monospace, monospace',
+            }}
+          >
             {`@${ghUsername}`}
           </div>
           {one ? (
-            <div style={{ fontSize: 22, color: '#c4b5fd', lineHeight: 1.4, marginTop: 4 }}>{one}</div>
+            <div style={{ display: 'flex', fontSize: 22, color: '#c4b5fd', lineHeight: 1.4, marginTop: 4 }}>
+              {one}
+            </div>
           ) : null}
           {data ? (
             <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
@@ -106,8 +119,12 @@ export function CodernetPortraitOgElement({
                     border: '1px solid rgba(255,255,255,0.08)',
                   }}
                 >
-                  <div style={{ fontSize: 26, fontWeight: 800, color: '#fff' }}>{Number(v).toLocaleString()}</div>
-                  <div style={{ fontSize: 14, color: '#64748b', textTransform: 'uppercase' }}>{k}</div>
+                  <div style={{ display: 'flex', fontSize: 26, fontWeight: 800, color: '#fff' }}>
+                    {Number(v).toLocaleString()}
+                  </div>
+                  <div style={{ display: 'flex', fontSize: 14, color: '#64748b', textTransform: 'uppercase' }}>
+                    {k}
+                  </div>
                 </div>
               ))}
             </div>
@@ -117,6 +134,7 @@ export function CodernetPortraitOgElement({
       {sharp ? (
         <div
           style={{
+            display: 'flex',
             marginTop: 16,
             padding: '14px 18px',
             borderRadius: 14,
@@ -149,7 +167,9 @@ export function CodernetPortraitOgElement({
           ))}
         </div>
       ) : null}
-      <div style={{ marginTop: 'auto', paddingTop: 16, fontSize: 16, color: '#64748b' }}>{url}</div>
+      <div style={{ display: 'flex', marginTop: 'auto', paddingTop: 16, fontSize: 16, color: '#64748b' }}>
+        {url}
+      </div>
     </div>
   );
 }
@@ -182,10 +202,19 @@ export function CodernetPortraitLongElement({
         color: '#e2e8f0',
       }}
     >
-      <div style={{ fontSize: 20, color: '#a78bfa', fontWeight: 700, letterSpacing: 3, marginBottom: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          fontSize: 20,
+          color: '#a78bfa',
+          fontWeight: 700,
+          letterSpacing: 3,
+          marginBottom: 8,
+        }}
+      >
         {`${BRAND_ZH} · 开发者画像`}
       </div>
-      <div style={{ fontSize: 15, color: '#475569', marginBottom: 32 }}>{url}</div>
+      <div style={{ display: 'flex', fontSize: 15, color: '#475569', marginBottom: 32 }}>{url}</div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 32, marginBottom: 28 }}>
         {data && avatarDataUrl ? (
@@ -216,12 +245,22 @@ export function CodernetPortraitLongElement({
           </div>
         )}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ fontSize: 52, fontWeight: 800, color: '#f8fafc', lineHeight: 1.1 }}>{name}</div>
-          <div style={{ fontSize: 24, color: '#64748b', fontFamily: 'ui-monospace, monospace', marginTop: 8 }}>
+          <div style={{ display: 'flex', fontSize: 52, fontWeight: 800, color: '#f8fafc', lineHeight: 1.1 }}>
+            {name}
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 24,
+              color: '#64748b',
+              fontFamily: 'ui-monospace, monospace',
+              marginTop: 8,
+            }}
+          >
             {`@${ghUsername}`}
           </div>
           {data?.platforms?.length ? (
-            <div style={{ fontSize: 18, color: '#818cf8', marginTop: 10 }}>
+            <div style={{ display: 'flex', fontSize: 18, color: '#818cf8', marginTop: 10 }}>
               {data.platforms.slice(0, 8).join(' · ')}
             </div>
           ) : null}
@@ -229,10 +268,14 @@ export function CodernetPortraitLongElement({
       </div>
 
       {one ? (
-        <div style={{ fontSize: 26, color: '#c4b5fd', lineHeight: 1.45, marginBottom: 16 }}>{one}</div>
+        <div style={{ display: 'flex', fontSize: 26, color: '#c4b5fd', lineHeight: 1.45, marginBottom: 16 }}>
+          {one}
+        </div>
       ) : null}
       {bio ? (
-        <div style={{ fontSize: 20, color: '#94a3b8', lineHeight: 1.5, marginBottom: 24 }}>{bio}</div>
+        <div style={{ display: 'flex', fontSize: 20, color: '#94a3b8', lineHeight: 1.5, marginBottom: 24 }}>
+          {bio}
+        </div>
       ) : null}
 
       {data ? (
@@ -256,8 +299,20 @@ export function CodernetPortraitLongElement({
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: 36, fontWeight: 800, color: '#fff' }}>{Number(v).toLocaleString()}</div>
-              <div style={{ fontSize: 14, color: '#64748b', textTransform: 'uppercase', marginTop: 4 }}>{k}</div>
+              <div style={{ display: 'flex', fontSize: 36, fontWeight: 800, color: '#fff' }}>
+                {Number(v).toLocaleString()}
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  fontSize: 14,
+                  color: '#64748b',
+                  textTransform: 'uppercase',
+                  marginTop: 4,
+                }}
+              >
+                {k}
+              </div>
             </div>
           ))}
         </div>
@@ -275,8 +330,18 @@ export function CodernetPortraitLongElement({
             marginBottom: 28,
           }}
         >
-          <div style={{ fontSize: 14, color: '#7c3aed', fontWeight: 700, marginBottom: 10 }}>AI 锐评</div>
-          <div style={{ fontSize: 22, color: '#e2e8f0', lineHeight: 1.55, fontStyle: 'italic' }}>
+          <div style={{ display: 'flex', fontSize: 14, color: '#7c3aed', fontWeight: 700, marginBottom: 10 }}>
+            AI 锐评
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 22,
+              color: '#e2e8f0',
+              lineHeight: 1.55,
+              fontStyle: 'italic',
+            }}
+          >
             {`\u201c${sharp}\u201d`}
           </div>
         </div>
@@ -284,7 +349,17 @@ export function CodernetPortraitLongElement({
 
       {tags.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 24 }}>
-          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12, textTransform: 'uppercase' }}>技术标签</div>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 14,
+              color: '#64748b',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+            }}
+          >
+            技术标签
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             {tags.map((t) => (
               <span
@@ -307,11 +382,29 @@ export function CodernetPortraitLongElement({
 
       {langs.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 28 }}>
-          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12, textTransform: 'uppercase' }}>语言分布</div>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 14,
+              color: '#64748b',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+            }}
+          >
+            语言分布
+          </div>
           {langs.map((l) => (
             <div key={l.language} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-              <div style={{ width: 120, fontSize: 18, color: '#94a3b8' }}>{l.language}</div>
-              <div style={{ flex: 1, height: 12, borderRadius: 6, background: 'rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', width: 120, fontSize: 18, color: '#94a3b8' }}>{l.language}</div>
+              <div
+                style={{
+                  display: 'flex',
+                  flex: 1,
+                  height: 12,
+                  borderRadius: 6,
+                  background: 'rgba(255,255,255,0.08)',
+                }}
+              >
                 <div
                   style={{
                     width: `${Math.min(100, Math.round(l.percent))}%`,
@@ -321,7 +414,15 @@ export function CodernetPortraitLongElement({
                   }}
                 />
               </div>
-              <div style={{ width: 48, fontSize: 16, color: '#cbd5e1', textAlign: 'right' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  width: 48,
+                  fontSize: 16,
+                  color: '#cbd5e1',
+                  textAlign: 'right',
+                }}
+              >
                 {`${Math.round(l.percent)}%`}
               </div>
             </div>
@@ -331,7 +432,15 @@ export function CodernetPortraitLongElement({
 
       {q ? (
         <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 32 }}>
-          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 12, textTransform: 'uppercase' }}>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 14,
+              color: '#64748b',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+            }}
+          >
             能力象限
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
@@ -355,8 +464,10 @@ export function CodernetPortraitLongElement({
                   border: '1px solid rgba(255,255,255,0.08)',
                 }}
               >
-                <div style={{ fontSize: 16, color: '#64748b', marginBottom: 4 }}>{label}</div>
-                <div style={{ fontSize: 28, fontWeight: 800, color: '#a78bfa' }}>{Math.round(v)}</div>
+                <div style={{ display: 'flex', fontSize: 16, color: '#64748b', marginBottom: 4 }}>{label}</div>
+                <div style={{ display: 'flex', fontSize: 28, fontWeight: 800, color: '#a78bfa' }}>
+                  {Math.round(v)}
+                </div>
               </div>
             ))}
           </div>
@@ -365,6 +476,8 @@ export function CodernetPortraitLongElement({
 
       <div
         style={{
+          display: 'flex',
+          justifyContent: 'center',
           marginTop: 'auto',
           paddingTop: 24,
           borderTop: '1px solid rgba(255,255,255,0.08)',
