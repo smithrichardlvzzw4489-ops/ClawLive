@@ -276,6 +276,70 @@ ${timelineBlock}${multiPlatformSection}
 - commitPatterns：严格根据 Commit 消息样本归纳，禁止臆测私有或未列出仓库`;
 }
 
+const HEX = /^[0-9a-fA-F]$/;
+
+/** LLM 常在 JSON 字符串值内输出真实换行，违反 JSON 规范（Bad control character in string literal）。仅在引号对内修复。 */
+function repairUnescapedControlCharsInJsonStrings(raw: string): string {
+  let out = '';
+  let i = 0;
+  let inString = false;
+  while (i < raw.length) {
+    const c = raw[i];
+    if (!inString) {
+      if (c === '"') {
+        inString = true;
+      }
+      out += c;
+      i++;
+      continue;
+    }
+    if (c === '\\') {
+      out += c;
+      i++;
+      if (i >= raw.length) break;
+      const n = raw[i];
+      if (n === 'u' && i + 4 < raw.length && HEX.test(raw[i + 1]) && HEX.test(raw[i + 2]) && HEX.test(raw[i + 3]) && HEX.test(raw[i + 4])) {
+        out += raw.slice(i, i + 5);
+        i += 5;
+      } else {
+        out += raw[i];
+        i++;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inString = false;
+      out += c;
+      i++;
+      continue;
+    }
+    const code = c.charCodeAt(0);
+    if (code < 32) {
+      if (c === '\n') out += '\\n';
+      else if (c === '\r') out += '\\r';
+      else if (c === '\t') out += '\\t';
+      else out += `\\u${code.toString(16).padStart(4, '0')}`;
+    } else {
+      out += c;
+    }
+    i++;
+  }
+  return out;
+}
+
+function parseLlmJsonObject(blob: string): unknown {
+  try {
+    return JSON.parse(blob);
+  } catch (first) {
+    try {
+      return JSON.parse(repairUnescapedControlCharsInJsonStrings(blob));
+    } catch {
+      const msg = first instanceof Error ? first.message : String(first);
+      throw new Error(`LLM JSON parse failed: ${msg}; snippet: ${blob.slice(0, 400)}`);
+    }
+  }
+}
+
 export async function analyzeGitHubProfile(
   crawlData: GitHubCrawlResult,
   multiPlatform?: MultiPlatformProfile | null,
@@ -306,7 +370,7 @@ export async function analyzeGitHubProfile(
     throw new Error(`LLM returned no JSON: ${raw.slice(0, 300)}`);
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as {
+  const parsed = parseLlmJsonObject(jsonMatch[0]) as {
     techTags?: string[];
     capabilityQuadrant?: Record<string, number>;
     sharpCommentary?: string;
