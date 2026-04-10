@@ -82,7 +82,7 @@ export function CodernetPortraitOgElement({
           </div>
           <div style={{ fontSize: 44, fontWeight: 800, lineHeight: 1.15, color: '#f8fafc' }}>{name}</div>
           <div style={{ fontSize: 22, color: '#94a3b8', fontFamily: 'ui-monospace, monospace' }}>
-            @{ghUsername}
+            {`@${ghUsername}`}
           </div>
           {one ? (
             <div style={{ fontSize: 22, color: '#c4b5fd', lineHeight: 1.4, marginTop: 4 }}>{one}</div>
@@ -128,7 +128,7 @@ export function CodernetPortraitOgElement({
             lineHeight: 1.45,
           }}
         >
-          &ldquo;{sharp}&rdquo;
+          {`\u201c${sharp}\u201d`}
         </div>
       ) : null}
       {tags.length > 0 ? (
@@ -183,7 +183,7 @@ export function CodernetPortraitLongElement({
       }}
     >
       <div style={{ fontSize: 20, color: '#a78bfa', fontWeight: 700, letterSpacing: 3, marginBottom: 8 }}>
-        {BRAND_ZH} · 开发者画像
+        {`${BRAND_ZH} · 开发者画像`}
       </div>
       <div style={{ fontSize: 15, color: '#475569', marginBottom: 32 }}>{url}</div>
 
@@ -218,7 +218,7 @@ export function CodernetPortraitLongElement({
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div style={{ fontSize: 52, fontWeight: 800, color: '#f8fafc', lineHeight: 1.1 }}>{name}</div>
           <div style={{ fontSize: 24, color: '#64748b', fontFamily: 'ui-monospace, monospace', marginTop: 8 }}>
-            @{ghUsername}
+            {`@${ghUsername}`}
           </div>
           {data?.platforms?.length ? (
             <div style={{ fontSize: 18, color: '#818cf8', marginTop: 10 }}>
@@ -277,7 +277,7 @@ export function CodernetPortraitLongElement({
         >
           <div style={{ fontSize: 14, color: '#7c3aed', fontWeight: 700, marginBottom: 10 }}>AI 锐评</div>
           <div style={{ fontSize: 22, color: '#e2e8f0', lineHeight: 1.55, fontStyle: 'italic' }}>
-            &ldquo;{sharp}&rdquo;
+            {`\u201c${sharp}\u201d`}
           </div>
         </div>
       ) : null}
@@ -322,7 +322,7 @@ export function CodernetPortraitLongElement({
                 />
               </div>
               <div style={{ width: 48, fontSize: 16, color: '#cbd5e1', textAlign: 'right' }}>
-                {Math.round(l.percent)}%
+                {`${Math.round(l.percent)}%`}
               </div>
             </div>
           ))}
@@ -373,7 +373,7 @@ export function CodernetPortraitLongElement({
           textAlign: 'center',
         }}
       >
-        打开链接查看完整画像与多平台数据 · {BRAND_ZH}
+        {`打开链接查看完整画像与多平台数据 · ${BRAND_ZH}`}
       </div>
     </div>
   );
