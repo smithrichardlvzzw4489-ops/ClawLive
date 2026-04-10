@@ -16,6 +16,7 @@ import {
   PlatformBadges,
   type ProfileMultiPlatformInsights,
 } from '@/components/codernet/CodernetProfileExtras';
+import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
 
 export type CodernetCardVariant = 'public' | 'home' | 'mine';
 
@@ -146,86 +147,6 @@ const STAGE_ORDER = [
   'saving_results',
   'complete',
 ];
-
-function QuadrantChart({ data }: { data: NonNullable<CodernetProfile['analysis']>['capabilityQuadrant'] }) {
-  const dims = [
-    { key: 'frontend', label: 'Frontend', angle: -90 },
-    { key: 'backend', label: 'Backend', angle: 0 },
-    { key: 'infra', label: 'Infra/DevOps', angle: 90 },
-    { key: 'ai_ml', label: 'AI/ML', angle: 180 },
-  ] as const;
-
-  const size = 200;
-  const cx = size / 2;
-  const cy = size / 2;
-  const maxR = 80;
-
-  const points = dims.map((d) => {
-    const val = data[d.key] / 100;
-    const rad = (d.angle * Math.PI) / 180;
-    return {
-      ...d,
-      x: cx + Math.cos(rad) * maxR * val,
-      y: cy + Math.sin(rad) * maxR * val,
-      lx: cx + Math.cos(rad) * (maxR + 18),
-      ly: cy + Math.sin(rad) * (maxR + 18),
-      val: data[d.key],
-    };
-  });
-
-  const polyPoints = points.map((p) => `${p.x},${p.y}`).join(' ');
-
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[220px] mx-auto">
-      {[0.25, 0.5, 0.75, 1].map((s) => (
-        <circle key={s} cx={cx} cy={cy} r={maxR * s} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={0.5} />
-      ))}
-      {dims.map((d) => {
-        const rad = (d.angle * Math.PI) / 180;
-        return (
-          <line
-            key={d.key}
-            x1={cx}
-            y1={cy}
-            x2={cx + Math.cos(rad) * maxR}
-            y2={cy + Math.sin(rad) * maxR}
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth={0.5}
-          />
-        );
-      })}
-      <polygon points={polyPoints} fill="rgba(139,92,246,0.2)" stroke="rgba(139,92,246,0.7)" strokeWidth={1.5} />
-      {points.map((p) => (
-        <g key={p.key}>
-          <circle cx={p.x} cy={p.y} r={3} fill="#8b5cf6" />
-          <text
-            x={p.lx}
-            y={p.ly}
-            textAnchor="middle"
-            dominantBaseline="central"
-            className="fill-slate-400"
-            fontSize={8}
-            fontFamily="monospace"
-          >
-            {p.label}
-          </text>
-          <text
-            x={p.lx}
-            y={p.ly + 10}
-            textAnchor="middle"
-            dominantBaseline="central"
-            className="fill-violet-400"
-            fontSize={7}
-            fontWeight="bold"
-            fontFamily="monospace"
-          >
-            {p.val}
-          </text>
-        </g>
-      ))}
-    </svg>
-  );
-}
 
 function LanguageBar({ langs }: { langs: Array<{ language: string; percent: number }> }) {
   return (
@@ -483,11 +404,6 @@ export function CodernetCardPageClient({
   const [me, setMe] = useState<MeUser | null>(null);
   const [recrawlBusy, setRecrawlBusy] = useState(false);
   const [pageOrigin, setPageOrigin] = useState('');
-  const [tokenCost, setTokenCost] = useState<{
-    totalTokens: number;
-    estimatedCostUsd: number;
-    callCount: number;
-  } | null>(null);
 
   const fetchProfile = useCallback(async () => {
     if (!username) return null;
@@ -529,23 +445,6 @@ export function CodernetCardPageClient({
   useEffect(() => {
     if (typeof window !== 'undefined') setPageOrigin(window.location.origin);
   }, []);
-
-  useEffect(() => {
-    if (profile?.status !== 'ready' || !profile.user.githubUsername) return;
-    const base = API_BASE_URL || '';
-    fetch(`${base}/api/platform/token-usage/profile/${encodeURIComponent(profile.user.githubUsername)}`)
-      .then((r) => r.json())
-      .then((data: { totalTokens?: number; estimatedCostUsd?: number; callCount?: number }) => {
-        if (data.totalTokens != null && data.totalTokens > 0) {
-          setTokenCost({
-            totalTokens: data.totalTokens,
-            estimatedCostUsd: data.estimatedCostUsd ?? 0,
-            callCount: data.callCount ?? 0,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [profile?.status, profile?.user.githubUsername]);
 
   useEffect(() => {
     if (!profile || profile.status !== 'pending') return;
@@ -864,8 +763,7 @@ export function CodernetCardPageClient({
 
         {analysis?.capabilityQuadrant && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Capability Quadrant</h3>
-            <QuadrantChart data={analysis.capabilityQuadrant} />
+            <CapabilityQuadrantPanel data={analysis.capabilityQuadrant} />
           </div>
         )}
 
@@ -925,40 +823,6 @@ export function CodernetCardPageClient({
                   <span className="text-xs text-slate-500 shrink-0 font-mono">&#9733; {repo.stars}</span>
                 </a>
               ))}
-            </div>
-          </div>
-        )}
-
-        {tokenCost && (
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 mb-6">
-            <div className="flex items-center gap-2 mb-1">
-              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">AI Generation Cost</span>
-            </div>
-            <div className="flex items-baseline gap-4">
-              <div>
-                <span className="text-sm font-bold font-mono text-emerald-400">
-                  {tokenCost.totalTokens.toLocaleString()}
-                </span>
-                <span className="text-[10px] text-slate-500 ml-1">tokens</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold font-mono text-emerald-400">
-                  ${tokenCost.estimatedCostUsd.toFixed(4)}
-                </span>
-                <span className="text-[10px] text-slate-500 ml-1">estimated</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold font-mono text-slate-400">{tokenCost.callCount}</span>
-                <span className="text-[10px] text-slate-500 ml-1">LLM calls</span>
-              </div>
             </div>
           </div>
         )}

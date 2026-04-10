@@ -15,6 +15,7 @@ import {
   InfluenceBar,
   PlatformBadges,
 } from '@/components/codernet/CodernetProfileExtras';
+import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
 
 interface CrawlProgress {
   stage: string;
@@ -314,35 +315,6 @@ function ProgressTimeline({ progress, ghUsername }: { progress: CrawlProgress | 
         </div>
       )}
     </div>
-  );
-}
-
-function QuadrantChart({ data }: { data: { frontend: number; backend: number; infra: number; ai_ml: number } }) {
-  const dims = [
-    { key: 'frontend' as const, label: 'Frontend', angle: -90 },
-    { key: 'backend' as const, label: 'Backend', angle: 0 },
-    { key: 'infra' as const, label: 'Infra/DevOps', angle: 90 },
-    { key: 'ai_ml' as const, label: 'AI/ML', angle: 180 },
-  ];
-  const size = 200, cx = 100, cy = 100, maxR = 80;
-  const points = dims.map((d) => {
-    const val = data[d.key] / 100;
-    const rad = (d.angle * Math.PI) / 180;
-    return { ...d, x: cx + Math.cos(rad) * maxR * val, y: cy + Math.sin(rad) * maxR * val, lx: cx + Math.cos(rad) * (maxR + 18), ly: cy + Math.sin(rad) * (maxR + 18), val: data[d.key] };
-  });
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[220px] mx-auto">
-      {[0.25, 0.5, 0.75, 1].map((s) => <circle key={s} cx={cx} cy={cy} r={maxR * s} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={0.5} />)}
-      {dims.map((d) => { const rad = (d.angle * Math.PI) / 180; return <line key={d.key} x1={cx} y1={cy} x2={cx + Math.cos(rad) * maxR} y2={cy + Math.sin(rad) * maxR} stroke="rgba(255,255,255,0.08)" strokeWidth={0.5} />; })}
-      <polygon points={points.map((p) => `${p.x},${p.y}`).join(' ')} fill="rgba(139,92,246,0.2)" stroke="rgba(139,92,246,0.7)" strokeWidth={1.5} />
-      {points.map((p) => (
-        <g key={p.key}>
-          <circle cx={p.x} cy={p.y} r={3} fill="#8b5cf6" />
-          <text x={p.lx} y={p.ly} textAnchor="middle" dominantBaseline="central" className="fill-slate-400" fontSize={8} fontFamily="monospace">{p.label}</text>
-          <text x={p.lx} y={p.ly + 10} textAnchor="middle" dominantBaseline="central" className="fill-violet-400" fontSize={7} fontWeight="bold" fontFamily="monospace">{p.val}</text>
-        </g>
-      ))}
-    </svg>
   );
 }
 
@@ -719,8 +691,6 @@ export default function GitHubLookupCardPage() {
   const [pollCount, setPollCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [tokenCost, setTokenCost] = useState<{ totalTokens: number; estimatedCostUsd: number; callCount: number } | null>(null);
-
   const base = API_BASE_URL || '';
 
   const fetchStatus = useCallback(async (): Promise<LookupResult | null> => {
@@ -755,15 +725,6 @@ export default function GitHubLookupCardPage() {
       .catch(() => triggerCrawl())
       .finally(() => setLoading(false));
   }, [ghUsername, fetchStatus, triggerCrawl]);
-
-  useEffect(() => {
-    if (result?.status === 'ready') {
-      fetch(`${base}/api/platform/token-usage/profile/${encodeURIComponent(ghUsername)}`)
-        .then((r) => r.json())
-        .then((data) => { if (data.totalTokens > 0) setTokenCost(data); })
-        .catch(() => {});
-    }
-  }, [result?.status, base, ghUsername]);
 
   useEffect(() => {
     if (!result || result.status === 'ready') return;
@@ -941,8 +902,7 @@ export default function GitHubLookupCardPage() {
 
         {analysis?.capabilityQuadrant && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Capability Quadrant</h3>
-            <QuadrantChart data={analysis.capabilityQuadrant} />
+            <CapabilityQuadrantPanel data={analysis.capabilityQuadrant} />
           </div>
         )}
 
@@ -992,30 +952,6 @@ export default function GitHubLookupCardPage() {
               recentCommits={crawl.recentCommits ?? []}
               activityDeepDive={analysis?.activityDeepDive ?? null}
             />
-          </div>
-        )}
-
-        {/* Token Cost Transparency */}
-        {tokenCost && (
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 mb-6">
-            <div className="flex items-center gap-2 mb-1">
-              <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-mono">AI Generation Cost</span>
-            </div>
-            <div className="flex items-baseline gap-4">
-              <div>
-                <span className="text-sm font-bold font-mono text-emerald-400">{tokenCost.totalTokens.toLocaleString()}</span>
-                <span className="text-[10px] text-slate-500 ml-1">tokens</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold font-mono text-emerald-400">${tokenCost.estimatedCostUsd.toFixed(4)}</span>
-                <span className="text-[10px] text-slate-500 ml-1">estimated</span>
-              </div>
-              <div>
-                <span className="text-sm font-bold font-mono text-slate-400">{tokenCost.callCount}</span>
-                <span className="text-[10px] text-slate-500 ml-1">LLM calls</span>
-              </div>
-            </div>
           </div>
         )}
 
