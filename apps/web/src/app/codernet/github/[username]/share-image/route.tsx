@@ -11,7 +11,8 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 const SHARE_W = 1200;
-const SHARE_H = 1800;
+/** 容纳完整文案、多平台摘要、仓库列表等；过低会裁切底部 */
+const SHARE_H = 5400;
 
 /** 禁止缓存空/错响应（曾出现 Content-Length:0 + X-Vercel-Cache:HIT） */
 const NO_STORE_HEADERS = {

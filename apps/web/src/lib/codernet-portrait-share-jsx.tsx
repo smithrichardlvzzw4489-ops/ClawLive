@@ -4,6 +4,40 @@ import { BRAND_ZH } from './brand';
 import { truncateForOg } from './codernet-portrait-share';
 import { OG_CJK_FONT_FAMILY } from './og-noto-sans-sc';
 
+const LONG_SHARE_ONE_LINER_MAX = 420;
+const LONG_SHARE_BIO_MAX = 600;
+const LONG_SHARE_SHARP_MAX = 4800;
+const LONG_SHARE_AI_SUMMARY_MAX = 1200;
+
+function InflRow({ label, score, color }: { label: string; score: number; color: string }) {
+  const w = Math.min(100, Math.max(0, Math.round(score)));
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+      <div style={{ display: 'flex', width: 112, fontSize: 15, color: '#64748b' }}>{label}</div>
+      <div
+        style={{
+          display: 'flex',
+          flex: 1,
+          height: 10,
+          borderRadius: 5,
+          background: 'rgba(255,255,255,0.08)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            width: `${w}%`,
+            height: '100%',
+            borderRadius: 5,
+            background: color,
+          }}
+        />
+      </div>
+      <div style={{ display: 'flex', width: 36, fontSize: 15, color, fontWeight: 700 }}>{w}</div>
+    </div>
+  );
+}
+
 function appOrigin(): string {
   return (
     process.env.NEXT_PUBLIC_APP_URL ||
@@ -182,12 +216,29 @@ export function CodernetPortraitLongElement({
 }: PortraitOgProps): ReactElement {
   const url = codernetPortraitPageUrl(ghUsername);
   const name = data?.displayName || ghUsername;
-  const one = truncateForOg(data?.oneLiner, 200);
-  const bio = truncateForOg(data?.bio, 220);
-  const sharp = truncateForOg(data?.sharpCommentary, 520);
+  const one = truncateForOg(data?.oneLiner, LONG_SHARE_ONE_LINER_MAX);
+  const bio = truncateForOg(data?.bio, LONG_SHARE_BIO_MAX);
+  const sharp = truncateForOg(data?.sharpCommentary, LONG_SHARE_SHARP_MAX);
   const tags = data?.techTags || [];
   const langs = data?.langs || [];
   const q = data?.quadrant;
+  const ins = data?.insights;
+  const ae = data?.aiEngagement;
+  const mpLines = data?.multiPlatformLines || [];
+  const topRepos = data?.topRepos || [];
+  const recentLines = data?.recentActivityLines || [];
+  const metaBits = data
+    ? [data.location, data.company, data.blog]
+        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+        .map((x) => truncateForOg(x, 96))
+    : [];
+  const hasInsights =
+    ins &&
+    (ins.communityInfluenceScore != null ||
+      ins.aiMlImpactScore != null ||
+      ins.algorithmScore != null ||
+      ins.knowledgeSharingScore != null ||
+      ins.packageImpactScore != null);
 
   return (
     <div
@@ -260,8 +311,21 @@ export function CodernetPortraitLongElement({
             {`@${ghUsername}`}
           </div>
           {data?.platforms?.length ? (
-            <div style={{ display: 'flex', fontSize: 18, color: '#818cf8', marginTop: 10 }}>
-              {data.platforms.slice(0, 8).join(' · ')}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px 14px',
+                fontSize: 17,
+                color: '#818cf8',
+                marginTop: 10,
+              }}
+            >
+              {data.platforms.map((p) => (
+                <span key={p} style={{ display: 'flex' }}>
+                  {p}
+                </span>
+              ))}
             </div>
           ) : null}
         </div>
@@ -278,34 +342,58 @@ export function CodernetPortraitLongElement({
         </div>
       ) : null}
 
+      {metaBits.length > 0 ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            fontSize: 17,
+            color: '#64748b',
+            lineHeight: 1.45,
+            marginBottom: 22,
+          }}
+        >
+          {metaBits.map((line, i) => (
+            <div key={`m-${i}`} style={{ display: 'flex' }}>
+              {line}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {data ? (
-        <div style={{ display: 'flex', gap: 20, marginBottom: 28 }}>
-          {[
-            ['Repos', data.repos],
-            ['Stars', data.stars],
-            ['Followers', data.followers],
-          ].map(([k, v]) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 28 }}>
+          {(
+            [
+              ['Repos', data.repos],
+              ['Stars', data.stars],
+              ['Followers', data.followers],
+              ['Following', data.following],
+            ] as const
+          ).map(([k, v]) => (
             <div
               key={k}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                flex: 1,
-                padding: '16px 12px',
+                flex: '1 1 22%',
+                minWidth: 120,
+                padding: '14px 10px',
                 borderRadius: 14,
                 background: 'rgba(255,255,255,0.05)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 textAlign: 'center',
               }}
             >
-              <div style={{ display: 'flex', fontSize: 36, fontWeight: 800, color: '#fff' }}>
+              <div style={{ display: 'flex', fontSize: 32, fontWeight: 800, color: '#fff' }}>
                 {Number(v).toLocaleString()}
               </div>
               <div
                 style={{
                   display: 'flex',
-                  fontSize: 14,
+                  fontSize: 13,
                   color: '#64748b',
                   textTransform: 'uppercase',
                   marginTop: 4,
@@ -430,6 +518,75 @@ export function CodernetPortraitLongElement({
         </div>
       ) : null}
 
+      {ae ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '18px 20px',
+            borderRadius: 16,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ display: 'flex', fontSize: 14, color: '#64748b', marginBottom: 10, textTransform: 'uppercase' }}>
+            AI 参与度
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
+            <span style={{ display: 'flex', fontSize: 36, fontWeight: 800, color: '#fbbf24' }}>{Math.round(ae.overall)}</span>
+            {ae.levelLabel ? (
+              <span style={{ display: 'flex', fontSize: 18, color: '#94a3b8' }}>{ae.levelLabel}</span>
+            ) : null}
+          </div>
+          {ae.summary ? (
+            <div style={{ display: 'flex', fontSize: 17, color: '#cbd5e1', lineHeight: 1.5, marginBottom: 12 }}>
+              {truncateForOg(ae.summary, LONG_SHARE_AI_SUMMARY_MAX)}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 16px', fontSize: 15, color: '#64748b' }}>
+            <span style={{ display: 'flex' }}>{`项目 ${ae.breakdown.aiProjects}`}</span>
+            <span style={{ display: 'flex' }}>{`工具 ${ae.breakdown.aiToolUsage}`}</span>
+            <span style={{ display: 'flex' }}>{`模型 ${ae.breakdown.aiModelPublishing}`}</span>
+            <span style={{ display: 'flex' }}>{`分享 ${ae.breakdown.aiKnowledgeSharing}`}</span>
+            <span style={{ display: 'flex' }}>{`包 ${ae.breakdown.aiPackageContrib}`}</span>
+          </div>
+        </div>
+      ) : null}
+
+      {hasInsights && ins ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '18px 20px',
+            borderRadius: 16,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            marginBottom: 24,
+          }}
+        >
+          <div style={{ display: 'flex', fontSize: 14, color: '#64748b', marginBottom: 12, textTransform: 'uppercase' }}>
+            跨平台影响力
+          </div>
+          {ins.communityInfluenceScore != null ? (
+            <InflRow label="社区" score={ins.communityInfluenceScore} color="#8b5cf6" />
+          ) : null}
+          {ins.aiMlImpactScore != null ? (
+            <InflRow label="AI/ML" score={ins.aiMlImpactScore} color="#facc15" />
+          ) : null}
+          {ins.algorithmScore != null ? (
+            <InflRow label="算法" score={ins.algorithmScore} color="#fb923c" />
+          ) : null}
+          {ins.knowledgeSharingScore != null ? (
+            <InflRow label="知识" score={ins.knowledgeSharingScore} color="#f97316" />
+          ) : null}
+          {ins.packageImpactScore != null ? (
+            <InflRow label="包生态" score={ins.packageImpactScore} color="#ef4444" />
+          ) : null}
+        </div>
+      ) : null}
+
       {q ? (
         <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 32 }}>
           <div
@@ -474,6 +631,114 @@ export function CodernetPortraitLongElement({
         </div>
       ) : null}
 
+      {mpLines.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 28 }}>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 14,
+              color: '#64748b',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+            }}
+          >
+            多平台数据摘要
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              padding: '16px 18px',
+              borderRadius: 14,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.07)',
+            }}
+          >
+            {mpLines.map((line, i) => (
+              <div
+                key={`mp-${i}`}
+                style={{ display: 'flex', fontSize: 16, color: '#94a3b8', lineHeight: 1.45 }}
+              >
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {topRepos.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 28 }}>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 14,
+              color: '#64748b',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+            }}
+          >
+            仓库亮点（按 Star）
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {topRepos.map((r, ri) => (
+              <div
+                key={`${r.name}-${ri}`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  padding: '12px 14px',
+                  borderRadius: 12,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.07)',
+                }}
+              >
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ display: 'flex', fontSize: 18, fontWeight: 700, color: '#e2e8f0' }}>{r.name}</span>
+                  <span style={{ display: 'flex', fontSize: 15, color: '#a78bfa', fontFamily: 'ui-monospace, monospace' }}>
+                    {`★${r.stars.toLocaleString()}`}
+                  </span>
+                  {r.language ? (
+                    <span style={{ display: 'flex', fontSize: 14, color: '#64748b' }}>{r.language}</span>
+                  ) : null}
+                </div>
+                {r.description ? (
+                  <div style={{ display: 'flex', fontSize: 15, color: '#94a3b8', lineHeight: 1.4, marginTop: 6 }}>
+                    {r.description}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {recentLines.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 28 }}>
+          <div
+            style={{
+              display: 'flex',
+              fontSize: 14,
+              color: '#64748b',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+            }}
+          >
+            近期提交摘要
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {recentLines.map((line, i) => (
+              <div
+                key={`rc-${i}`}
+                style={{ display: 'flex', fontSize: 15, color: '#94a3b8', lineHeight: 1.45 }}
+              >
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div
         style={{
           display: 'flex',
@@ -486,7 +751,7 @@ export function CodernetPortraitLongElement({
           textAlign: 'center',
         }}
       >
-        {`打开链接查看完整画像与多平台数据 · ${BRAND_ZH}`}
+        {`打开链接查看交互式 drill-down 与实时数据 · ${BRAND_ZH}`}
       </div>
     </div>
   );
