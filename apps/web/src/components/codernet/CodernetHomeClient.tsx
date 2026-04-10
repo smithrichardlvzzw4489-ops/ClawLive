@@ -302,15 +302,13 @@ export function CodernetHomeClient() {
             </div>
           )}
 
-          {/* LINK: semantic search → many ranked developers → open portrait (no email) */}
+          {/* LINK: semantic search → many ranked developers → open portrait */}
           {tab === 'outreach' && (
             <div className="max-w-xl mx-auto w-full text-left">
               <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-6 sm:p-8 mb-6">
-                <div className="text-center text-4xl mb-3">🔍</div>
-                <h3 className="text-center text-lg font-bold mb-2">语义搜索开发者</h3>
                 <p className="text-center text-sm text-slate-400 mb-5 leading-relaxed">
                   用自然语言描述你要找的人（技术栈、地区、经验等）→ AI 解析并在 GitHub 上检索 → 精排后列出<strong className="text-slate-300">多位</strong>
-                  合适开发者。点击即可打开完整画像；<strong className="text-slate-300">不涉及发邮件或外联</strong>。
+                  合适开发者。
                 </p>
                 <div className="grid grid-cols-3 gap-3 mb-5 text-center">
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-2.5">
@@ -348,7 +346,7 @@ export function CodernetHomeClient() {
                         搜索中…
                       </>
                     ) : (
-                      '搜索并列出候选人'
+                      '搜索'
                     )}
                   </button>
                 </form>
