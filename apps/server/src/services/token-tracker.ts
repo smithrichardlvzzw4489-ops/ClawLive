@@ -23,6 +23,7 @@ export type TokenFeature =
   | 'feed_excerpt'
   | 'evolver_assessment'
   | 'evolution_acceptance'
+  | 'github_graph_blurb'
   | 'llm_test'
   | 'other';
 

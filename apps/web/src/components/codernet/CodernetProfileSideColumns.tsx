@@ -4,8 +4,8 @@ import { useCallback, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { API_BASE_URL } from '@/lib/api';
 
-type SimilarRow = { githubUsername: string; avatarUrl: string; similarityPercent: number };
-type RelationRow = { githubUsername: string; avatarUrl: string; connectionDensity: number };
+type SimilarRow = { githubUsername: string; avatarUrl: string; similarityPercent: number; summary?: string };
+type RelationRow = { githubUsername: string; avatarUrl: string; connectionDensity: number; summary?: string };
 
 function PanelShell({
   title,
@@ -139,16 +139,21 @@ export function CodernetProfileSideColumns({
               <li key={p.githubUsername}>
                 <Link
                   href={`/codernet/github/${encodeURIComponent(p.githubUsername)}`}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.06] transition group"
+                  className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.06] transition group"
                 >
-                  <span className="text-[10px] font-mono text-violet-400 w-10 shrink-0 text-right">
+                  <span className="text-[10px] font-mono text-violet-400 w-10 shrink-0 text-right leading-7">
                     {p.similarityPercent}%
                   </span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.avatarUrl} alt="" className="h-7 w-7 rounded-md border border-white/10 shrink-0" />
-                  <span className="text-xs font-mono text-slate-200 truncate group-hover:text-violet-200">
-                    @{p.githubUsername}
-                  </span>
+                  <img src={p.avatarUrl} alt="" className="h-7 w-7 rounded-md border border-white/10 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-mono text-slate-200 truncate group-hover:text-violet-200">
+                      @{p.githubUsername}
+                    </span>
+                    {p.summary ? (
+                      <p className="mt-1 text-[10px] text-slate-400 leading-snug line-clamp-3">{p.summary}</p>
+                    ) : null}
+                  </div>
                 </Link>
               </li>
             ))}
@@ -177,16 +182,24 @@ export function CodernetProfileSideColumns({
               <li key={p.githubUsername}>
                 <Link
                   href={`/codernet/github/${encodeURIComponent(p.githubUsername)}`}
-                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.06] transition group"
+                  className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.06] transition group"
                 >
-                  <span className="text-[10px] font-mono text-cyan-400/90 w-10 shrink-0 text-right" title="连接强度（0–100）">
+                  <span
+                    className="text-[10px] font-mono text-cyan-400/90 w-10 shrink-0 text-right leading-7"
+                    title="连接强度（0–100）"
+                  >
                     {p.connectionDensity}%
                   </span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.avatarUrl} alt="" className="h-7 w-7 rounded-md border border-white/10 shrink-0" />
-                  <span className="text-xs font-mono text-slate-200 truncate group-hover:text-cyan-200/90">
-                    @{p.githubUsername}
-                  </span>
+                  <img src={p.avatarUrl} alt="" className="h-7 w-7 rounded-md border border-white/10 shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xs font-mono text-slate-200 truncate group-hover:text-cyan-200/90">
+                      @{p.githubUsername}
+                    </span>
+                    {p.summary ? (
+                      <p className="mt-1 text-[10px] text-slate-400 leading-snug line-clamp-3">{p.summary}</p>
+                    ) : null}
+                  </div>
                 </Link>
               </li>
             ))}

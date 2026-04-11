@@ -10,6 +10,7 @@ import {
   type ParsedQuery,
   type GHSearchUserItem,
 } from './codernet-search';
+import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 
 const GH_API = 'https://api.github.com';
 
@@ -27,6 +28,8 @@ export type SimilarPersonRow = {
   githubUsername: string;
   avatarUrl: string;
   similarityPercent: number;
+  /** 一句中文技术画像短评（主画像「锐评」风格，基于公开 GitHub 字段生成） */
+  summary: string;
 };
 
 export type RelationPersonRow = {
@@ -34,7 +37,154 @@ export type RelationPersonRow = {
   avatarUrl: string;
   connectionDensity: number;
   rawWeight: number;
+  summary: string;
 };
+
+/** GitHub GET /users/:login 中用于侧栏一句话的公开字段 */
+export type GHUserPublicBlurb = {
+  login: string;
+  name: string | null;
+  bio: string | null;
+  company: string | null;
+  location: string | null;
+  followers: number;
+  public_repos: number;
+};
+
+async function mapPool<T, R>(items: T[], concurrency: number, worker: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  async function runWorker() {
+    while (true) {
+      if (cursor >= items.length) return;
+      const i = cursor++;
+      if (i >= items.length) return;
+      results[i] = await worker(items[i], i);
+    }
+  }
+  const n = Math.max(1, Math.min(concurrency, items.length));
+  await Promise.all(Array.from({ length: n }, runWorker));
+  return results;
+}
+
+async function fetchGitHubUserPublic(login: string, token: string | undefined): Promise<GHUserPublicBlurb | null> {
+  try {
+    const res = await fetch(`${GH_API}/users/${encodeURIComponent(login)}`, { headers: ghHeaders(token) });
+    if (!res.ok) return null;
+    const j = (await res.json()) as Record<string, unknown>;
+    const lo = typeof j.login === 'string' ? j.login : login;
+    return {
+      login: lo,
+      name: typeof j.name === 'string' ? j.name : null,
+      bio: typeof j.bio === 'string' ? j.bio : null,
+      company: typeof j.company === 'string' ? j.company : null,
+      location: typeof j.location === 'string' ? j.location : null,
+      followers: typeof j.followers === 'number' ? j.followers : 0,
+      public_repos: typeof j.public_repos === 'number' ? j.public_repos : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function compactBlurbLine(login: string, card: GHUserPublicBlurb | null): string {
+  const bio = (card?.bio || '').replace(/\|/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+  const name = (card?.name || '').replace(/\|/g, ' ').trim().slice(0, 48);
+  const company = (card?.company || '').replace(/\|/g, ' ').trim().slice(0, 48);
+  const loc = (card?.location || '').replace(/\|/g, ' ').trim().slice(0, 48);
+  const f = card?.followers ?? 0;
+  const r = card?.public_repos ?? 0;
+  return `${login.toLowerCase()}|${name}|${bio}|${company}|${loc}|${f}|${r}`;
+}
+
+function buildFallbackSummary(card: GHUserPublicBlurb | null, login: string): string {
+  if (card?.bio?.trim()) return card.bio.trim().slice(0, 120);
+  const f = card?.followers ?? 0;
+  const r = card?.public_repos ?? 0;
+  if (f > 2000 || r > 40) {
+    return `@${login} 在 GitHub 上公开活跃度很高（约 ${f.toLocaleString()} 关注者、${r} 个公开仓库），多为社区可见的工程向账号。`;
+  }
+  if (f > 200 || r > 15) {
+    return `@${login} 有一定公开工程痕迹（约 ${f.toLocaleString()} 关注者、${r} 个公开仓库）。`;
+  }
+  return `@${login} 的 GitHub 公开资料偏少，多为协同或小众仓库参与。`;
+}
+
+async function synthesizeSummariesWithLlm(
+  logins: string[],
+  getCard: (login: string) => GHUserPublicBlurb | null,
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (logins.length === 0) return out;
+  const { model } = getPublishingLlmClient();
+  const chunkSize = 26;
+  for (let i = 0; i < logins.length; i += chunkSize) {
+    try {
+    const chunk = logins.slice(i, i + chunkSize);
+    const lines = chunk.map((login) => compactBlurbLine(login, getCard(login)));
+    const prompt = `你是 GITLINK 侧栏文案：根据下列 GitHub 用户的公开字段，为每人写一句中文「技术画像」短评。
+风格：略带机智与数据感，类似科技媒体一句话点名其气质或长板；20–55 个汉字；不用引号包裹整句；不要编造具体项目名或公司内幕；bio 为空时可结合粉丝数与仓库数写泛化但不过分夸张的评价。
+
+每行格式：login|name|bio片段|company|location|followers|public_repos
+
+${lines.join('\n')}
+
+仅输出一个 JSON 对象，形如：{"items":[{"login":"小写","summary":"一句中文"}]}
+必须覆盖以上每一位 login（小写），不要遗漏，不要额外键。`;
+
+    const response = await trackedChatCompletion(
+      {
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 3600,
+        temperature: 0.5,
+      },
+      'github_graph_blurb',
+    );
+    const raw = response.choices[0]?.message?.content?.trim() || '';
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) continue;
+    try {
+      const parsed = JSON.parse(jsonMatch[0]) as { items?: Array<{ login?: string; summary?: string }> };
+      for (const it of parsed.items || []) {
+        const lo = it.login?.trim().toLowerCase();
+        const s = it.summary?.trim();
+        if (lo && s) out.set(lo, s.slice(0, 160));
+      }
+    } catch {
+      /* ignore chunk parse */
+    }
+    } catch (e) {
+      console.warn('[GitHubProfileGraph] summary LLM chunk failed:', e instanceof Error ? e.message : e);
+    }
+  }
+  return out;
+}
+
+async function enrichPeopleWithSummaries<T extends { githubUsername: string }>(
+  rows: T[],
+  token: string | undefined,
+): Promise<Array<T & { summary: string }>> {
+  if (rows.length === 0) return [];
+  const logins = [...new Set(rows.map((r) => r.githubUsername))];
+  const cards = await mapPool(logins, 8, (login) => fetchGitHubUserPublic(login, token));
+  const cardByLogin = new Map<string, GHUserPublicBlurb | null>();
+  logins.forEach((login, idx) => cardByLogin.set(login.toLowerCase(), cards[idx]));
+
+  let llmMap = new Map<string, string>();
+  try {
+    llmMap = await synthesizeSummariesWithLlm(logins, (login) => cardByLogin.get(login.toLowerCase()) ?? null);
+  } catch (e) {
+    console.warn('[GitHubProfileGraph] LLM summaries skipped:', e instanceof Error ? e.message : e);
+  }
+
+  return rows.map((r) => {
+    const key = r.githubUsername.toLowerCase();
+    const card = cardByLogin.get(key) ?? null;
+    const summary = (llmMap.get(key) || '').trim() || buildFallbackSummary(card, r.githubUsername);
+    return { ...r, summary };
+  });
+}
 
 function ghLangForSearch(display: string): string {
   const k = display.trim();
@@ -165,7 +315,10 @@ function buildSimilarFallbackQueries(seed: string, crawl: GitHubCrawlResult, ana
   return out;
 }
 
-function mapSearchItemsToSimilar(filtered: GHSearchUserItem[], seed: string): SimilarPersonRow[] {
+function mapSearchItemsToSimilar(
+  filtered: GHSearchUserItem[],
+  seed: string,
+): Pick<SimilarPersonRow, 'githubUsername' | 'avatarUrl' | 'similarityPercent'>[] {
   const f = filtered.filter((u) => u.login?.toLowerCase() !== seed && (!u.type || String(u.type).toLowerCase() === 'user'));
   const scores = f.map((u) => (typeof u.score === 'number' && u.score > 0 ? u.score : 0));
   const maxScore = Math.max(...scores, 0);
@@ -241,7 +394,7 @@ export async function fetchSimilarGitHubUsers(
       }
     }
   }
-  return rows;
+  return enrichPeopleWithSummaries(rows, token);
 }
 
 interface GHContributor {
@@ -338,10 +491,11 @@ export async function fetchGitHubRelationPeople(
     .slice(0, 100);
 
   const maxW = Math.max(...rows.map((r) => r.w), 1);
-  return rows.map((r) => ({
+  const mapped = rows.map((r) => ({
     githubUsername: r.login,
     avatarUrl: r.avatar || `https://github.com/${encodeURIComponent(r.login)}.png`,
     rawWeight: r.w,
     connectionDensity: Math.min(100, Math.max(5, Math.round((r.w / maxW) * 100))),
   }));
+  return enrichPeopleWithSummaries(mapped, token);
 }

@@ -104,8 +104,10 @@ const lookupCache = new Map<string, LookupCacheEntry>();
 const LOOKUP_CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 const GRAPH_CACHE_TTL = 10 * 60 * 1000;
-const similarPeopleCache = new Map<string, { at: number; people: SimilarPersonRow[] }>();
-const relationsPeopleCache = new Map<string, { at: number; people: RelationPersonRow[] }>();
+/** 侧栏人物增加 summary 等字段时递增，避免命中旧结构内存缓存 */
+const GRAPH_PEOPLE_CACHE_VERSION = 2;
+const similarPeopleCache = new Map<string, { at: number; people: SimilarPersonRow[]; v: number }>();
+const relationsPeopleCache = new Map<string, { at: number; people: RelationPersonRow[]; v: number }>();
 
 /**
  * 相似的人 / 关系图谱 需要 crawl + analysis。
@@ -390,12 +392,12 @@ export function codernetRoutes(): IRouter {
         });
       }
       const hit = similarPeopleCache.get(ghUser);
-      if (hit && Date.now() - hit.at < GRAPH_CACHE_TTL) {
+      if (hit?.v === GRAPH_PEOPLE_CACHE_VERSION && Date.now() - hit.at < GRAPH_CACHE_TTL) {
         return res.json({ people: hit.people });
       }
       const token = getServerGitHubToken();
       const people = await fetchSimilarGitHubUsers(ghUser, bundle.crawl, bundle.analysis, token);
-      similarPeopleCache.set(ghUser, { at: Date.now(), people });
+      similarPeopleCache.set(ghUser, { at: Date.now(), people, v: GRAPH_PEOPLE_CACHE_VERSION });
       res.json({ people });
     } catch (e) {
       console.error('[GITLINK] github similar', e);
@@ -422,12 +424,12 @@ export function codernetRoutes(): IRouter {
         });
       }
       const hit = relationsPeopleCache.get(ghUser);
-      if (hit && Date.now() - hit.at < GRAPH_CACHE_TTL) {
+      if (hit?.v === GRAPH_PEOPLE_CACHE_VERSION && Date.now() - hit.at < GRAPH_CACHE_TTL) {
         return res.json({ people: hit.people });
       }
       const token = getServerGitHubToken();
       const people = await fetchGitHubRelationPeople(ghUser, bundle.crawl, token);
-      relationsPeopleCache.set(ghUser, { at: Date.now(), people });
+      relationsPeopleCache.set(ghUser, { at: Date.now(), people, v: GRAPH_PEOPLE_CACHE_VERSION });
       res.json({ people });
     } catch (e) {
       console.error('[GITLINK] github relations', e);
