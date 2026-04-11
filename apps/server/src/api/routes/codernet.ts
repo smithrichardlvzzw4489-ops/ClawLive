@@ -26,7 +26,11 @@ import {
   previewMessage,
 } from '../../services/codernet-outreach';
 import { consumeQuota, checkQuota } from '../../services/quota-manager';
-import { recordCodernetInterfaceUsage } from '../../services/codernet-interface-usage';
+import {
+  recordCodernetInterfaceUsage,
+  recordCodernetPortraitShareUsage,
+  type CodernetPortraitShareAction,
+} from '../../services/codernet-interface-usage';
 import {
   fetchSimilarGitHubUsers,
   fetchGitHubRelationPeople,
@@ -413,6 +417,35 @@ export function codernetRoutes(): IRouter {
   router.post('/github/:ghUsername', (req: Request, res: Response) =>
     handleCodernetGithubLookupPost(req, res, getUserIdFromBearer(req)),
   );
+
+  /**
+   * POST /api/codernet/portrait-share
+   * 已登录：GitHub 画像页「复制链接 / 下载长图 / 系统分享」各入口计数 +1（无额度消耗）。
+   */
+  router.post('/portrait-share', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const raw = (req.body as { action?: unknown })?.action;
+      const action =
+        raw === 'copyLink' || raw === 'downloadPng' || raw === 'nativeShare'
+          ? (raw as CodernetPortraitShareAction)
+          : null;
+      if (!action) {
+        return res.status(400).json({
+          error: 'INVALID_ACTION',
+          message: 'action must be copyLink, downloadPng, or nativeShare',
+        });
+      }
+      const uid = req.user?.id;
+      if (!uid) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      await recordCodernetPortraitShareUsage(uid, action);
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('[GITLINK] portrait-share', e);
+      res.status(500).json({ error: 'portrait-share failed' });
+    }
+  });
 
   /* ── Developer Search ───────────────────────────────────── */
 

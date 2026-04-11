@@ -13,6 +13,9 @@ import { prisma } from '../lib/prisma';
 
 export type CodernetInterfaceSource = 'minePortrait' | 'githubPortrait' | 'linkSearch';
 
+/** GitHub 画像页「复制链接 / 下载长图 / 系统分享」——仅已登录 POST /api/codernet/portrait-share 时累加 */
+export type CodernetPortraitShareAction = 'copyLink' | 'downloadPng' | 'nativeShare';
+
 const DATA_DIR = path.join(process.cwd(), '.data');
 const LEGACY_FILE = path.join(DATA_DIR, 'codernet-interface-usage.json');
 
@@ -31,6 +34,24 @@ export async function recordCodernetInterfaceUsage(
     await prisma.user.update({ where: { id: userId }, data });
   } catch (e) {
     console.warn('[GITLINK] codernet interface usage increment failed:', userId, source, e);
+  }
+}
+
+export async function recordCodernetPortraitShareUsage(
+  userId: string | null | undefined,
+  action: CodernetPortraitShareAction,
+): Promise<void> {
+  if (!userId || typeof userId !== 'string') return;
+  const data =
+    action === 'copyLink'
+      ? { codernetPortraitShareCopyCalls: { increment: 1 } }
+      : action === 'downloadPng'
+        ? { codernetPortraitShareDownloadCalls: { increment: 1 } }
+        : { codernetPortraitShareNativeCalls: { increment: 1 } };
+  try {
+    await prisma.user.update({ where: { id: userId }, data });
+  } catch (e) {
+    console.warn('[GITLINK] codernet portrait share increment failed:', userId, action, e);
   }
 }
 

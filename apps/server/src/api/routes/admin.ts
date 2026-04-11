@@ -61,6 +61,9 @@ export function adminRoutes(): Router {
           codernetMinePortraitCalls: true,
           codernetGithubPortraitCalls: true,
           codernetLinkSearchCalls: true,
+          codernetPortraitShareCopyCalls: true,
+          codernetPortraitShareDownloadCalls: true,
+          codernetPortraitShareNativeCalls: true,
           _count: {
             select: {
               rooms: true,
@@ -116,6 +119,9 @@ export function adminRoutes(): Router {
               githubPortrait: row.codernetGithubPortraitCalls,
               linkSearch: row.codernetLinkSearchCalls,
               portraitGenerations,
+              portraitShareCopy: row.codernetPortraitShareCopyCalls,
+              portraitShareDownload: row.codernetPortraitShareDownloadCalls,
+              portraitShareNative: row.codernetPortraitShareNativeCalls,
             },
           },
         };

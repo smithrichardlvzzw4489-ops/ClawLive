@@ -30,6 +30,12 @@ model User {
   codernetGithubPortraitCalls Int @default(0)
   /// POST /api/codernet/search 已登录扣 search（LINK）
   codernetLinkSearchCalls     Int @default(0)
+  /// GITLINK GitHub 画像页：复制页面链接（已登录 POST /api/codernet/portrait-share）
+  codernetPortraitShareCopyCalls   Int @default(0)
+  /// 下载分享长图 PNG
+  codernetPortraitShareDownloadCalls Int @default(0)
+  /// 系统原生分享（Web Share API）
+  codernetPortraitShareNativeCalls   Int @default(0)
   /// 微信小程序 openid，与站内账号绑定后用于 wx.login 换票
   wechatMpOpenid    String?  @unique
   username          String   @unique
