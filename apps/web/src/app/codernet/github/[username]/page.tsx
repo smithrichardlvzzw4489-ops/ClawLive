@@ -17,6 +17,7 @@ import {
 } from '@/components/codernet/CodernetProfileExtras';
 import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
 import { CodernetPortraitShareBar } from '@/components/codernet/CodernetPortraitShareBar';
+import { CodernetProfileSideColumns } from '@/components/codernet/CodernetProfileSideColumns';
 
 interface CrawlProgress {
   stage: string;
@@ -821,7 +822,9 @@ export default function GitHubLookupCardPage() {
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/15 blur-[160px]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-10">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-10">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,42rem)_minmax(0,18rem)] xl:grid-cols-[minmax(0,42rem)_20rem] items-start">
+        <div className="min-w-0 w-full max-w-2xl lg:max-w-none">
         <Link
           href="/codernet"
           className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition mb-4"
@@ -994,6 +997,9 @@ export default function GitHubLookupCardPage() {
           </Link>
           <span className="text-slate-700 mx-2">·</span>
           <span className="text-xs text-slate-600 font-mono">GITLINK</span>
+        </div>
+        </div>
+        <CodernetProfileSideColumns ghUsername={ghUsername} enabled />
         </div>
       </div>
     </div>

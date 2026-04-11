@@ -27,6 +27,12 @@ import {
 } from '../../services/codernet-outreach';
 import { consumeQuota, checkQuota } from '../../services/quota-manager';
 import { recordCodernetInterfaceUsage } from '../../services/codernet-interface-usage';
+import {
+  fetchSimilarGitHubUsers,
+  fetchGitHubRelationPeople,
+  type SimilarPersonRow,
+  type RelationPersonRow,
+} from '../../services/github-profile-graph';
 import { getUserIdFromBearer } from '../middleware/auth';
 import {
   resolveLinkedInProfileUrl,
@@ -91,6 +97,10 @@ function analysisJsonForClient(stored: unknown): Record<string, unknown> {
 
 const lookupCache = new Map<string, LookupCacheEntry>();
 const LOOKUP_CACHE_TTL = 30 * 60 * 1000; // 30 min
+
+const GRAPH_CACHE_TTL = 10 * 60 * 1000;
+const similarPeopleCache = new Map<string, { at: number; people: SimilarPersonRow[] }>();
+const relationsPeopleCache = new Map<string, { at: number; people: RelationPersonRow[] }>();
 
 function getServerToken(): string | undefined {
   return process.env.GITHUB_SERVER_TOKEN?.trim() || undefined;
@@ -325,6 +335,68 @@ export function codernetRoutes(): IRouter {
     } catch (error) {
       console.error('[GITLINK] crawl trigger error:', error);
       res.status(500).json({ error: 'Failed to start crawl' });
+    }
+  });
+
+  /**
+   * GET /api/codernet/github/:ghUsername/similar
+   * 基于当前缓存画像的语言栈在 GitHub 搜相似用户（最多 100），需先有 lookup 缓存。
+   */
+  router.get('/github/:ghUsername/similar', async (req: Request, res: Response) => {
+    try {
+      const ghUser = req.params.ghUsername.toLowerCase();
+      const cached = lookupCache.get(ghUser);
+      if (!cached?.crawl) {
+        return res.status(404).json({
+          error: 'NOT_READY',
+          message: 'Profile not in server cache yet. Wait for the portrait to finish loading.',
+        });
+      }
+      const hit = similarPeopleCache.get(ghUser);
+      if (hit && Date.now() - hit.at < GRAPH_CACHE_TTL) {
+        return res.json({ people: hit.people });
+      }
+      const token = getServerToken();
+      const people = await fetchSimilarGitHubUsers(ghUser, cached.crawl, cached.analysis, token);
+      similarPeopleCache.set(ghUser, { at: Date.now(), people });
+      res.json({ people });
+    } catch (e) {
+      console.error('[GITLINK] github similar', e);
+      res.status(500).json({
+        error: 'SIMILAR_FAILED',
+        message: e instanceof Error ? e.message : 'Failed to load similar users',
+      });
+    }
+  });
+
+  /**
+   * GET /api/codernet/github/:ghUsername/relations
+   * 聚合高星仓库 contributors 作为 GitHub 工程语境下的「关系」与连接度。
+   */
+  router.get('/github/:ghUsername/relations', async (req: Request, res: Response) => {
+    try {
+      const ghUser = req.params.ghUsername.toLowerCase();
+      const cached = lookupCache.get(ghUser);
+      if (!cached?.crawl?.repos?.length) {
+        return res.status(404).json({
+          error: 'NOT_READY',
+          message: 'No repository data in cache yet.',
+        });
+      }
+      const hit = relationsPeopleCache.get(ghUser);
+      if (hit && Date.now() - hit.at < GRAPH_CACHE_TTL) {
+        return res.json({ people: hit.people });
+      }
+      const token = getServerToken();
+      const people = await fetchGitHubRelationPeople(ghUser, cached.crawl.repos, token);
+      relationsPeopleCache.set(ghUser, { at: Date.now(), people });
+      res.json({ people });
+    } catch (e) {
+      console.error('[GITLINK] github relations', e);
+      res.status(500).json({
+        error: 'RELATIONS_FAILED',
+        message: e instanceof Error ? e.message : 'Failed to load relations',
+      });
     }
   });
 
