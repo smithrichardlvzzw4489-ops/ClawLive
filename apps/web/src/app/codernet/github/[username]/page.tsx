@@ -12,9 +12,9 @@ import {
 import {
   type AIEngagement,
   AIEngagementCard,
-  InfluenceBar,
   PlatformBadges,
 } from '@/components/codernet/CodernetProfileExtras';
+import { CrossPlatformInfluencePanel } from '@/components/codernet/CrossPlatformInfluencePanel';
 import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
 import { CodernetPortraitShareStrip } from '@/components/codernet/CodernetPortraitShareStrip';
 import { CodernetProfileSideColumns } from '@/components/codernet/CodernetProfileSideColumns';
@@ -914,26 +914,11 @@ export default function GitHubLookupCardPage() {
 
         {/* Community Influence Scores */}
         {insights && (insights.communityInfluenceScore || insights.knowledgeSharingScore || insights.packageImpactScore || insights.aiMlImpactScore || insights.algorithmScore) && (
-          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-4 font-mono">Cross-Platform Influence</h3>
-            <div className="space-y-3">
-              {insights.communityInfluenceScore != null && (
-                <InfluenceBar label="Community" score={insights.communityInfluenceScore} color="#8b5cf6" />
-              )}
-              {insights.aiMlImpactScore != null && (
-                <InfluenceBar label="AI/ML" score={insights.aiMlImpactScore} color="#ffcc00" />
-              )}
-              {insights.algorithmScore != null && (
-                <InfluenceBar label="Algorithm" score={insights.algorithmScore} color="#ffa116" />
-              )}
-              {insights.knowledgeSharingScore != null && (
-                <InfluenceBar label="Knowledge" score={insights.knowledgeSharingScore} color="#f48024" />
-              )}
-              {insights.packageImpactScore != null && (
-                <InfluenceBar label="Package" score={insights.packageImpactScore} color="#cb3837" />
-              )}
-            </div>
-          </div>
+          <CrossPlatformInfluencePanel
+            insights={insights}
+            multiPlatform={multiPlatform}
+            platformsUsed={analysis?.platformsUsed}
+          />
         )}
 
         {analysis?.capabilityQuadrant && (
