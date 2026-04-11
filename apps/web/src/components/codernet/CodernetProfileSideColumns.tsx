@@ -123,7 +123,7 @@ export function CodernetProfileSideColumns({
     <aside className="space-y-4 lg:sticky lg:top-6">
       <PanelShell
         title="相似的人"
-        subtitle="按本画像语言栈在 GitHub 检索，最多 100 人；相似度为检索相关度估算。"
+        subtitle="根据本画像综合信息由 AI 生成 GitHub 检索条件，最多 100 人；相似度为检索相关度估算。"
         open={simOpen}
         onToggle={toggleSim}
       >

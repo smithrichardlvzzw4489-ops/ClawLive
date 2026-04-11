@@ -92,7 +92,7 @@ GitHub Search Users 支持的 qualifier：
 
 /* ── Phase 2: GitHub Search API 搜人 ─────────────────────── */
 
-interface GHSearchUserItem {
+export interface GHSearchUserItem {
   login: string;
   id: number;
   avatar_url: string;
@@ -115,14 +115,21 @@ interface GHSearchResponse {
   items: GHSearchUserItem[];
 }
 
-async function searchGitHubUsers(
+/**
+ * 执行 GitHub Search Users（已解析的 q）。供「相似的人」等场景复用。
+ * enrichProfiles=false 时不请求 /users/:login，适合一次拉取较多候选（如 100）。
+ */
+export async function runGitHubUserSearchFromParsed(
   parsedQuery: ParsedQuery,
-  token?: string,
-  maxResults: number = 10,
+  token: string | undefined,
+  opts: { perPage?: number; enrichProfiles?: boolean },
 ): Promise<GHSearchUserItem[]> {
+  const perPage = Math.min(100, Math.max(1, opts.perPage ?? 30));
+  const enrich = opts.enrichProfiles !== false;
+
   const params = new URLSearchParams({
     q: parsedQuery.githubQuery,
-    per_page: String(Math.min(maxResults, 30)),
+    per_page: String(perPage),
   });
   if (parsedQuery.sort) params.set('sort', parsedQuery.sort);
   if (parsedQuery.order) params.set('order', parsedQuery.order);
@@ -147,10 +154,11 @@ async function searchGitHubUsers(
   const data = (await res.json()) as GHSearchResponse;
   console.log(`[CodernetSearch] GitHub returned ${data.total_count} total, ${data.items.length} items`);
 
-  const users = data.items.filter((u) => u.type === 'User');
+  const users = data.items.filter((u) => u.type === 'User').slice(0, perPage);
+  if (!enrich) return users;
 
   const enriched = await Promise.allSettled(
-    users.slice(0, maxResults).map(async (u) => {
+    users.map(async (u) => {
       try {
         const profileRes = await fetch(`https://api.github.com/users/${u.login}`, { headers });
         if (profileRes.ok) {
@@ -165,6 +173,19 @@ async function searchGitHubUsers(
   return enriched
     .filter((r): r is PromiseFulfilledResult<GHSearchUserItem> => r.status === 'fulfilled')
     .map((r) => r.value);
+}
+
+async function searchGitHubUsers(
+  parsedQuery: ParsedQuery,
+  token?: string,
+  maxResults: number = 10,
+): Promise<GHSearchUserItem[]> {
+  const n = Math.min(maxResults, 30);
+  const rows = await runGitHubUserSearchFromParsed(parsedQuery, token, {
+    perPage: n,
+    enrichProfiles: true,
+  });
+  return rows.slice(0, maxResults);
 }
 
 /* ── Phase 3: 批量爬取 + AI 分析（lightweight，只对 top 5）── */
