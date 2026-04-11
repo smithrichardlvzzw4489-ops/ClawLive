@@ -3,7 +3,7 @@ import type { IRouter } from 'express';
 import { prisma } from '../../lib/prisma';
 import { decrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { crawlGitHubProfile, type GitHubCrawlResult } from '../../services/github-crawler';
+import { crawlGitHubProfile, getServerGitHubToken, type GitHubCrawlResult } from '../../services/github-crawler';
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
 import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
 import { searchDevelopers } from '../../services/codernet-search';
@@ -105,10 +105,6 @@ const LOOKUP_CACHE_TTL = 30 * 60 * 1000; // 30 min
 const GRAPH_CACHE_TTL = 10 * 60 * 1000;
 const similarPeopleCache = new Map<string, { at: number; people: SimilarPersonRow[] }>();
 const relationsPeopleCache = new Map<string, { at: number; people: RelationPersonRow[] }>();
-
-function getServerToken(): string | undefined {
-  return process.env.GITHUB_SERVER_TOKEN?.trim() || undefined;
-}
 
 /** GET /api/codernet/github/:ghUsername — 与 Open API 共用 */
 export async function handleCodernetGithubLookupGet(req: Request, res: Response): Promise<void> {
@@ -360,7 +356,7 @@ export function codernetRoutes(): IRouter {
       if (hit && Date.now() - hit.at < GRAPH_CACHE_TTL) {
         return res.json({ people: hit.people });
       }
-      const token = getServerToken();
+      const token = getServerGitHubToken();
       const people = await fetchSimilarGitHubUsers(ghUser, cached.crawl, cached.analysis, token);
       similarPeopleCache.set(ghUser, { at: Date.now(), people });
       res.json({ people });
@@ -391,7 +387,7 @@ export function codernetRoutes(): IRouter {
       if (hit && Date.now() - hit.at < GRAPH_CACHE_TTL) {
         return res.json({ people: hit.people });
       }
-      const token = getServerToken();
+      const token = getServerGitHubToken();
       const people = await fetchGitHubRelationPeople(ghUser, cached.crawl, token);
       relationsPeopleCache.set(ghUser, { at: Date.now(), people });
       res.json({ people });
@@ -475,7 +471,7 @@ export function codernetRoutes(): IRouter {
         void recordCodernetInterfaceUsage(callerId, 'linkSearch');
       }
 
-      const token = getServerToken();
+      const token = getServerGitHubToken();
       const results = await searchDevelopers(query.trim(), lookupCache, token);
       res.json({ results });
     } catch (error) {
@@ -705,7 +701,7 @@ export function codernetRoutes(): IRouter {
 
       res.json({ campaign });
 
-      const token = getServerToken();
+      const token = getServerGitHubToken();
       runCampaignPipeline(campaign.id, token).catch((err) =>
         console.error('[Outreach] pipeline error:', err),
       );
@@ -933,7 +929,7 @@ export async function runCrawlAndAnalysis(
 
 /**
  * Public lookup: crawl any GitHub user without needing a platform account.
- * Uses GITHUB_SERVER_TOKEN if available, otherwise unauthenticated (60 req/hr).
+ * Uses GITHUB_SERVER_TOKEN / GITHUB_TOKEN / GH_TOKEN if set, otherwise unauthenticated (~60 req/hr per IP).
  */
 async function runPublicLookup(ghUsername: string): Promise<void> {
   const trackKey = `gh:${ghUsername}`;
@@ -941,7 +937,7 @@ async function runPublicLookup(ghUsername: string): Promise<void> {
 
   setProgress(trackKey, 'queued', 0, 'Starting public lookup...');
 
-  const token = getServerToken();
+  const token = getServerGitHubToken();
 
   try {
     setProgress(trackKey, 'fetching_profile', 10, `Fetching @${ghUsername} profile...`);

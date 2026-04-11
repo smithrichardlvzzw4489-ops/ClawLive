@@ -1,6 +1,6 @@
 /**
  * GitHub 数据爬取：仓库、语言分布、近期 commit 消息。
- * 支持用户 OAuth token、服务端 token (GITHUB_SERVER_TOKEN) 或无 token (公开 API 60 req/hr)。
+ * 支持 Bearer：GITHUB_SERVER_TOKEN（推荐）或 GITHUB_TOKEN / GH_TOKEN；未配置时走匿名（约 60 req/hr/IP，易被限流）。
  */
 
 import { buildPortfolioDepth, type PortfolioDepth } from './github-portfolio-depth';
@@ -17,8 +17,12 @@ function ghHeaders(token?: string): Record<string, string> {
   return h;
 }
 
+/** 服务端调用 GitHub REST API 时使用的 PAT（勿使用 OAuth client_secret 作为 Bearer）。 */
 export function getServerGitHubToken(): string | undefined {
-  return process.env.GITHUB_SERVER_TOKEN?.trim() || process.env.GITHUB_OAUTH_CLIENT_SECRET ? undefined : undefined;
+  const a = process.env.GITHUB_SERVER_TOKEN?.trim();
+  const b = process.env.GITHUB_TOKEN?.trim();
+  const c = process.env.GH_TOKEN?.trim();
+  return a || b || c || undefined;
 }
 
 export interface GHRepo {
@@ -64,7 +68,14 @@ async function ghFetch<T>(url: string, token?: string): Promise<T> {
   const res = await fetch(url, { headers: ghHeaders(token) });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`GitHub API ${res.status}: ${text.slice(0, 200)}`);
+    const snippet = text.slice(0, 280);
+    const rateLimited = res.status === 403 && /rate limit/i.test(snippet);
+    const hint = rateLimited
+      ? token
+        ? '（已带 Token 仍限流：请稍后重试，或检查 Token 权限/是否与其他服务共用配额。）'
+        : '（匿名 IP 限流：请在部署环境配置 GITHUB_SERVER_TOKEN 或 GITHUB_TOKEN / GH_TOKEN 以提高额度。）'
+      : '';
+    throw new Error(`GitHub API ${res.status}: ${snippet}${hint}`);
   }
   return res.json() as Promise<T>;
 }
