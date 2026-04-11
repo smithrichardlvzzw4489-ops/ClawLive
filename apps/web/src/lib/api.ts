@@ -1,17 +1,27 @@
 import type { DarwinOnboardingAnswers } from '@clawlive/shared-types';
 
 const _BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const _PUBLIC_API_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 
 /**
- * Client-side: use NEXT_PUBLIC_API_URL directly to call Railway backend,
- * bypassing Vercel's serverless proxy (which has a 10-60s timeout that kills SSE streams).
- * Falls back to '' (relative URL via Next.js rewrite) only in local dev without env var.
- * Server-side: always use the full backend URL.
+ * 浏览器：若配置的 API 与当前站点不同源，则使用 ''（同源 `/api/...`），由 next.config.js
+ * rewrites 反代到后端。避免直连 Railway 时当前 Origin 未写入后端 CORS 而出现 `Failed to fetch`。
+ * Socket 等仍可用 NEXT_PUBLIC_SOCKET_URL 直连（见 socket.ts）。
+ * 服务端 / SSR：始终使用完整后端地址。
  */
+function getBrowserApiBaseUrl(): string {
+  if (!_PUBLIC_API_URL) return '';
+  try {
+    const apiOrigin = new URL(_PUBLIC_API_URL).origin;
+    if (apiOrigin !== window.location.origin) return '';
+  } catch {
+    return _PUBLIC_API_URL;
+  }
+  return _PUBLIC_API_URL;
+}
+
 export const API_BASE_URL =
-  typeof window === 'undefined'
-    ? _BACKEND_URL
-    : process.env.NEXT_PUBLIC_API_URL || '';
+  typeof window === 'undefined' ? _BACKEND_URL : getBrowserApiBaseUrl();
 
 /** Actual backend origin for server-only contexts (e.g. video-proxy, OG images). */
 export const SERVER_API_URL = _BACKEND_URL;
@@ -32,7 +42,7 @@ export function resolveMediaUrl(path: string | null | undefined): string {
 }
 
 const NETWORK_ERROR_MSG =
-  '无法连接服务器，请确认后端服务已启动（默认端口 3001）';
+  '无法连接服务器。本地请确认后端已启动（默认端口 3001）；线上请稍后重试或检查网络。';
 
 function getNetworkErrorMsg(): string {
   return NETWORK_ERROR_MSG;
