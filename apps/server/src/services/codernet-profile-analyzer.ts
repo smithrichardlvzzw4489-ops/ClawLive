@@ -81,6 +81,39 @@ function collectYearsFromCrawl(crawl: GitHubCrawlResult): Set<number> {
   return s;
 }
 
+/** LLM 常只写最近一年；对仍有仓库/commit 证据却未返回 narrative 的年份用 crawl 自动补一条，避免 UI 缺块 */
+function buildYearActivityFallback(
+  year: number,
+  crawl: GitHubCrawlResult,
+): { year: number; narrative: string; highlights: string[] } | null {
+  const repos = crawl.repos.filter((r) => r.created_at && new Date(r.created_at).getUTCFullYear() === year);
+  const commits = crawl.recentCommits.filter((c) => new Date(c.date).getUTCFullYear() === year);
+  if (repos.length === 0 && commits.length === 0) return null;
+
+  const highlights: string[] = [];
+  const topByStars = [...repos].sort((a, b) => b.stargazers_count - a.stargazers_count).slice(0, 3);
+  for (const r of topByStars) {
+    highlights.push(`${r.name}（${r.language || '—'}，★${r.stargazers_count.toLocaleString()}）`.slice(0, 80));
+  }
+
+  const commitRepoCounts = new Map<string, number>();
+  for (const c of commits) {
+    commitRepoCounts.set(c.repo, (commitRepoCounts.get(c.repo) || 0) + 1);
+  }
+  const topReposByCommits = [...commitRepoCounts.entries()].sort((a, b) => b[1] - a[1]);
+  for (const [repoName, n] of topReposByCommits) {
+    if (highlights.length >= 4) break;
+    if (topByStars.some((r) => r.name === repoName)) continue;
+    highlights.push(`${repoName}：该年提交样本约 ${n} 条`.slice(0, 80));
+  }
+
+  const head = `${year}：新建公开仓库 ${repos.length} 个，commit 样本 ${commits.length} 条`;
+  const tail = topByStars[0] ? `；亮点含 ${topByStars.map((r) => r.name).join('、')}。` : '。';
+  const narrative = (head + tail).slice(0, 120);
+
+  return { year, narrative, highlights: highlights.slice(0, 4) };
+}
+
 function buildAnalysisPrompt(data: GitHubCrawlResult, multiPlatform?: MultiPlatformProfile | null): string {
   const topRepos = data.repos.slice(0, 28).map((r) => {
     const topics = r.topics.length ? ` [${r.topics.join(', ')}]` : '';
@@ -275,7 +308,7 @@ ${timelineBlock}${multiPlatformSection}
 - capabilityQuadrant 四个维度各 0-100，综合所有平台数据客观推断
 - sharpCommentary 必须中文，120字以内，要综合多平台数据形成洞察
 - oneLiner 必须中文，10字以内
-- activityByYear：仅包含「按年的时间线摘要」中出现的年份或仓库创建/commits 中出现的年份；每年 narrative 60 字内，highlights 每条 40 字内、最多 4 条；无则返回空数组
+- activityByYear：**须覆盖下方「按年的时间线摘要」中出现的每一个年份**（每年一条，按年份降序亦可）；每年 narrative 60 字内，highlights 每条 40 字内、最多 4 条；漏掉的年份系统会用数据统计自动补一条（质量较差），请尽量避免遗漏
 - repoDeepDives：覆盖最有代表性的公开仓库，最多 12 条，repo 字段必须与上文仓库列表中的名称一致；不得编造未出现的仓库名；每条必须含 repoContentDeepDive 与 personContributionDeepDive，各 180–420 个汉字（约 3–6 句），信息密度高、避免空话套话
 - commitPatterns：严格根据上文 commits 归纳，禁止臆测私有或未列出仓库`;
 }
@@ -515,7 +548,7 @@ export async function analyzeGitHubProfile(
   const validRepoNames = new Set(crawlData.repos.map((r) => r.name));
   const yearsWithEvidence = collectYearsFromCrawl(crawlData);
   const byYearRaw = Array.isArray(parsed.activityByYear) ? parsed.activityByYear : [];
-  const byYear = byYearRaw
+  const llmYearRows = byYearRaw
     .map((row) => ({
       year: Math.min(2100, Math.max(1970, Math.floor(Number(row.year) || 0))),
       narrative: String(row.narrative || '').trim().slice(0, 120),
@@ -523,13 +556,24 @@ export async function analyzeGitHubProfile(
         ? row.highlights.map((h) => String(h).trim().slice(0, 80)).filter(Boolean).slice(0, 4)
         : [],
     }))
-    .filter(
-      (row) =>
-        row.year > 1970 &&
-        yearsWithEvidence.has(row.year) &&
-        (row.narrative || row.highlights.length > 0),
-    )
-    .slice(0, 15);
+    .filter((row) => row.year > 1970 && yearsWithEvidence.has(row.year));
+
+  const llmByYear = new Map<number, { year: number; narrative: string; highlights: string[] }>();
+  for (const r of llmYearRows) {
+    if (r.narrative || r.highlights.length > 0) llmByYear.set(r.year, r);
+  }
+
+  const sortedYears = [...yearsWithEvidence].sort((a, b) => b - a).slice(0, 15);
+  const byYear: Array<{ year: number; narrative: string; highlights: string[] }> = [];
+  for (const year of sortedYears) {
+    const fromLlm = llmByYear.get(year);
+    if (fromLlm) {
+      byYear.push(fromLlm);
+      continue;
+    }
+    const fb = buildYearActivityFallback(year, crawlData);
+    if (fb) byYear.push(fb);
+  }
 
   const divesRaw = Array.isArray(parsed.repoDeepDives) ? parsed.repoDeepDives : [];
   const repoDeepDives = divesRaw
