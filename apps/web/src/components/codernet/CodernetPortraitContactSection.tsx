@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 
 function twitterFromBio(bio: string | null | undefined): { href: string; label: string } | null {
@@ -108,6 +109,27 @@ export function CodernetPortraitContactSection({
     ? `https://dev.to/${encodeURIComponent(multiPlatform.devto.username)}`
     : null;
 
+  let filledLinkCount = 1; // GitHub 主链始终展示为有效
+  if (blog?.href) filledLinkCount++;
+  if (primaryEmail) filledLinkCount++;
+  if (twitterApi) filledLinkCount++;
+  if (linkedinUrls.size > 0) filledLinkCount++;
+  if (multiPlatform?.stackOverflow?.profileUrl) filledLinkCount++;
+  if (multiPlatform?.gitlab?.profileUrl) filledLinkCount++;
+  if (normalizeHttpUrl(multiPlatform?.gitlab?.websiteUrl ?? undefined)?.href) filledLinkCount++;
+  if (devtoUrl) filledLinkCount++;
+  if (multiPlatform?.huggingface?.profileUrl) filledLinkCount++;
+  if (multiPlatform?.leetcode?.profileUrl) filledLinkCount++;
+  if (multiPlatform?.kaggle?.profileUrl) filledLinkCount++;
+  if (multiPlatform?.codeforces?.profileUrl) filledLinkCount++;
+  if (multiPlatform?.dockerhub?.profileUrl) filledLinkCount++;
+  if (multiPlatform?.cratesio?.profileUrl) filledLinkCount++;
+  if (npmHome) filledLinkCount++;
+  if (crawl?.location?.trim()) filledLinkCount++;
+  if (crawl?.company?.trim()) filledLinkCount++;
+
+  const [expanded, setExpanded] = useState(false);
+
   const LinkOrEmpty = ({ href, text }: { href: string | null | undefined; text?: string }) =>
     href ? (
       <a href={href} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline break-all font-mono">
@@ -119,11 +141,30 @@ export function CodernetPortraitContactSection({
 
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm mb-6">
-      <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 font-mono">联系方式与主页</h3>
-      <p className="text-[10px] text-slate-600 font-mono mb-3 leading-relaxed">
-        以下为公开渠道汇总；无数据时显示「{EMPTY}」。邮箱多为 GitHub 主动公开或身份图谱中的线索。
-      </p>
-      <div className="divide-y-0">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="w-full flex items-start justify-between gap-3 text-left rounded-lg -m-1 p-1 hover:bg-white/[0.04] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+      >
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 font-mono">联系方式与主页</h3>
+          {expanded ? (
+            <p className="text-[10px] text-slate-600 font-mono leading-relaxed">
+              以下为公开渠道汇总；无数据时显示「{EMPTY}」。邮箱多为 GitHub 主动公开或身份图谱中的线索。
+            </p>
+          ) : (
+            <p className="text-[10px] text-slate-600 font-mono leading-relaxed">
+              当前约 <span className="text-slate-400">{filledLinkCount}</span> 项有公开链接，其余为「{EMPTY}」。点击展开完整列表。
+            </p>
+          )}
+        </div>
+        <span className="text-slate-500 text-xs font-mono shrink-0 mt-0.5" aria-hidden>
+          {expanded ? '▼' : '▶'}
+        </span>
+      </button>
+      {expanded ? (
+      <div className="divide-y-0 mt-3">
         <Row label="GitHub">
           <LinkOrEmpty href={ghMain} text={`@${githubLogin}`} />
         </Row>
@@ -198,6 +239,7 @@ export function CodernetPortraitContactSection({
           {crawl?.company?.trim() ? <span className="text-slate-300">{crawl.company}</span> : <span className="text-slate-600">{EMPTY}</span>}
         </Row>
       </div>
+      ) : null}
     </div>
   );
 }
