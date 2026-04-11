@@ -38,6 +38,10 @@ export interface AISignal {
   signal: string;
   weight: number;
   source: string;
+  /** 主站上的权威入口（仓库、HF 列表、npm 包页等） */
+  href?: string;
+  /** 人类可读的细节：多行文本，供侧栏「洞穿」展示 */
+  detail?: string;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -125,7 +129,22 @@ function scoreRepos(repos: GHRepo[]): { score: number; signals: AISignal[] } {
       repoIsAI = true;
       const w = Math.min(8, aiTopics.length * 3);
       score += w;
-      signals.push({ category: 'repo', signal: `${repo.name}: topics [${aiTopics.join(', ')}]`, weight: w, source: 'GitHub' });
+      signals.push({
+        category: 'repo',
+        signal: `${repo.name}: topics [${aiTopics.join(', ')}]`,
+        weight: w,
+        source: 'GitHub',
+        href: repo.html_url,
+        detail: [
+          `仓库：${repo.full_name || repo.name}`,
+          `Stars：${repo.stargazers_count.toLocaleString()} · Forks：${(repo.forks_count ?? 0).toLocaleString()}`,
+          `Language：${repo.language || '—'}`,
+          `AI topics：${aiTopics.join(', ')}`,
+          repo.description ? `Description：${repo.description}` : null,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+      });
     }
 
     if (!repoIsAI) {
@@ -133,7 +152,16 @@ function scoreRepos(repos: GHRepo[]): { score: number; signals: AISignal[] } {
         if (pat.test(repo.name)) {
           repoIsAI = true;
           score += 4;
-          signals.push({ category: 'repo', signal: `${repo.name}: AI-related name`, weight: 4, source: 'GitHub' });
+          signals.push({
+            category: 'repo',
+            signal: `${repo.name}: AI-related name`,
+            weight: 4,
+            source: 'GitHub',
+            href: repo.html_url,
+            detail: `仓库：${repo.full_name || repo.name}\nStars：${repo.stargazers_count.toLocaleString()}\nLanguage：${repo.language || '—'}\n${
+              repo.description ? `Description：${repo.description}` : '（无描述）'
+            }`,
+          });
           break;
         }
       }
@@ -144,7 +172,14 @@ function scoreRepos(repos: GHRepo[]): { score: number; signals: AISignal[] } {
         if (pat.test(repo.description)) {
           repoIsAI = true;
           score += 3;
-          signals.push({ category: 'repo', signal: `${repo.name}: "${repo.description.slice(0, 60)}..."`, weight: 3, source: 'GitHub' });
+          signals.push({
+            category: 'repo',
+            signal: `${repo.name}: "${repo.description.slice(0, 60)}..."`,
+            weight: 3,
+            source: 'GitHub',
+            href: repo.html_url,
+            detail: `仓库：${repo.full_name || repo.name}\n完整描述：\n${repo.description}\n\nTopics：${(repo.topics || []).join(', ') || '—'}`,
+          });
           break;
         }
       }
@@ -159,7 +194,11 @@ function scoreRepos(repos: GHRepo[]): { score: number; signals: AISignal[] } {
   return { score: Math.min(35, score), signals };
 }
 
-function scoreToolUsage(repos: GHRepo[], commits: GitHubCrawlResult['recentCommits']): { score: number; signals: AISignal[] } {
+function scoreToolUsage(
+  repos: GHRepo[],
+  commits: GitHubCrawlResult['recentCommits'],
+  githubLogin: string,
+): { score: number; signals: AISignal[] } {
   const signals: AISignal[] = [];
   let score = 0;
   const toolsSeen = new Set<string>();
@@ -170,7 +209,16 @@ function scoreToolUsage(repos: GHRepo[], commits: GitHubCrawlResult['recentCommi
         if (!toolsSeen.has(cfg.tool)) {
           toolsSeen.add(cfg.tool);
           score += cfg.weight;
-          signals.push({ category: 'tool', signal: `Uses ${cfg.tool}`, weight: cfg.weight, source: `GitHub: ${repo.name}` });
+          signals.push({
+            category: 'tool',
+            signal: `Uses ${cfg.tool}`,
+            weight: cfg.weight,
+            source: `GitHub: ${repo.name}`,
+            href: repo.html_url,
+            detail: `推断依据：仓库名或描述匹配 ${cfg.tool} 相关配置/关键词。\n仓库：${repo.full_name || repo.name}\n${
+              repo.description ? `Description：${repo.description}` : ''
+            }`.trim(),
+          });
         }
       }
     }
@@ -182,7 +230,16 @@ function scoreToolUsage(repos: GHRepo[], commits: GitHubCrawlResult['recentCommi
       if (pat.pattern.test(commit.message) && !commitToolsSeen.has(pat.tool)) {
         commitToolsSeen.add(pat.tool);
         score += 3;
-        signals.push({ category: 'commit', signal: `Commit mentions ${pat.tool}`, weight: 3, source: `${commit.repo}` });
+        const repoPath = `${githubLogin}/${commit.repo}`;
+        const repoUrl = `https://github.com/${encodeURIComponent(githubLogin)}/${encodeURIComponent(commit.repo)}`;
+        signals.push({
+          category: 'commit',
+          signal: `Commit mentions ${pat.tool}`,
+          weight: 3,
+          source: `${commit.repo}`,
+          href: `${repoUrl}/commits`,
+          detail: `仓库：${repoPath}\n时间：${commit.date}\n匹配工具线索：${pat.tool}\n\n提交说明：\n${commit.message}`,
+        });
       }
     }
   }
@@ -194,29 +251,78 @@ function scoreHuggingFace(hf: MultiPlatformProfile['huggingface']): { score: num
   if (!hf) return { score: 0, signals: [] };
   const signals: AISignal[] = [];
   let score = 0;
+  const base = hf.profileUrl.replace(/\/$/, '');
 
   if (hf.models.length > 0) {
     const w = Math.min(15, hf.models.length * 3);
     score += w;
-    signals.push({ category: 'model', signal: `${hf.models.length} models published`, weight: w, source: 'Hugging Face' });
+    const topModels = [...hf.models].sort((a, b) => b.downloads - a.downloads).slice(0, 12);
+    signals.push({
+      category: 'model',
+      signal: `${hf.models.length} models published`,
+      weight: w,
+      source: 'Hugging Face',
+      href: `${base}/models`,
+      detail: [
+        `HF 用户：@${hf.username}`,
+        `模型总数：${hf.models.length}`,
+        '',
+        '代表性模型（可逐一点开）：',
+        ...topModels.map(
+          (m) => `• ${m.modelId}\n  下载 ${m.downloads.toLocaleString()} · ❤ ${m.likes} · pipeline: ${m.pipelineTag || '—'}\n  https://huggingface.co/${m.modelId}`,
+        ),
+      ].join('\n'),
+    });
 
     if (hf.totalDownloads > 1000) {
       const dlBonus = Math.min(10, Math.floor(Math.log10(hf.totalDownloads)) * 2);
       score += dlBonus;
-      signals.push({ category: 'model', signal: `${hf.totalDownloads.toLocaleString()} total downloads`, weight: dlBonus, source: 'Hugging Face' });
+      signals.push({
+        category: 'model',
+        signal: `${hf.totalDownloads.toLocaleString()} total downloads`,
+        weight: dlBonus,
+        source: 'Hugging Face',
+        href: `${base}/models`,
+        detail: `全站模型累计下载：${hf.totalDownloads.toLocaleString()}\n\n下载量靠前的模型：\n${topModels
+          .slice(0, 8)
+          .map((m) => `• ${m.modelId} — ${m.downloads.toLocaleString()} 次\n  https://huggingface.co/${m.modelId}`)
+          .join('\n')}`,
+      });
     }
   }
 
   if (hf.datasets.length > 0) {
     const w = Math.min(8, hf.datasets.length * 2);
     score += w;
-    signals.push({ category: 'model', signal: `${hf.datasets.length} datasets published`, weight: w, source: 'Hugging Face' });
+    const dsLines = hf.datasets.slice(0, 12).map((d) => {
+      const url = `https://huggingface.co/datasets/${encodeURIComponent(d.id)}`;
+      return `• ${d.id} — 下载 ${d.downloads.toLocaleString()} · ❤ ${d.likes}\n  ${url}`;
+    });
+    signals.push({
+      category: 'model',
+      signal: `${hf.datasets.length} datasets published`,
+      weight: w,
+      source: 'Hugging Face',
+      href: `${base}/datasets`,
+      detail: [`数据集共 ${hf.datasets.length} 个：`, '', ...dsLines].join('\n'),
+    });
   }
 
   if (hf.spaces.length > 0) {
     const w = Math.min(6, hf.spaces.length * 2);
     score += w;
-    signals.push({ category: 'model', signal: `${hf.spaces.length} Spaces (demos)`, weight: w, source: 'Hugging Face' });
+    const spLines = hf.spaces.slice(0, 10).map((s) => {
+      const url = `https://huggingface.co/spaces/${encodeURIComponent(s.id)}`;
+      return `• ${s.id} · SDK ${s.sdk || '—'}\n  ${url}`;
+    });
+    signals.push({
+      category: 'model',
+      signal: `${hf.spaces.length} Spaces (demos)`,
+      weight: w,
+      source: 'Hugging Face',
+      href: `${base}/spaces`,
+      detail: [`Spaces 共 ${hf.spaces.length} 个：`, '', ...spLines].join('\n'),
+    });
   }
 
   return { score: Math.min(30, score), signals };
@@ -234,7 +340,17 @@ function scorePackages(
       pkg.keywords.some((k) => k.toLowerCase().includes('ai') || k.toLowerCase().includes('llm') || k.toLowerCase().includes('ml'));
     if (isAI) {
       score += 4;
-      signals.push({ category: 'package', signal: `npm: ${pkg.name}`, weight: 4, source: 'npm' });
+      const npmUrl = `https://www.npmjs.com/package/${encodeURIComponent(pkg.name)}`;
+      signals.push({
+        category: 'package',
+        signal: `npm: ${pkg.name}`,
+        weight: 4,
+        source: 'npm',
+        href: pkg.homepage?.trim() || npmUrl,
+        detail: [`包名：${pkg.name}`, `周下载：${pkg.weeklyDownloads.toLocaleString()}`, `版本：${pkg.version}`, pkg.description ? `说明：${pkg.description}` : null, pkg.repository ? `源码：${pkg.repository}` : null, `npm 页：${npmUrl}`, pkg.keywords?.length ? `keywords: ${pkg.keywords.slice(0, 20).join(', ')}` : null]
+          .filter(Boolean)
+          .join('\n'),
+      });
     }
   }
 
@@ -243,7 +359,17 @@ function scorePackages(
       /\b(ai|ml|llm|neural|transform|diffus|torch|tensorflow)\b/i.test(pkg.name);
     if (isAI) {
       score += 4;
-      signals.push({ category: 'package', signal: `PyPI: ${pkg.name}`, weight: 4, source: 'PyPI' });
+      const pypiUrl = pkg.projectUrl || `https://pypi.org/project/${encodeURIComponent(pkg.name)}/`;
+      signals.push({
+        category: 'package',
+        signal: `PyPI: ${pkg.name}`,
+        weight: 4,
+        source: 'PyPI',
+        href: pypiUrl,
+        detail: [`项目：${pkg.name}`, `版本：${pkg.version}`, pkg.summary ? `摘要：${pkg.summary}` : null, pkg.downloadsInfo ? `下载：${pkg.downloadsInfo}` : null, pkg.homePage ? `主页：${pkg.homePage}` : null, `PyPI：${pypiUrl}`]
+          .filter(Boolean)
+          .join('\n'),
+      });
     }
   }
 
@@ -263,7 +389,14 @@ function scoreContent(devto: MultiPlatformProfile['devto']): { score: number; si
 
     if (aiTags.length > 0 || titleIsAI) {
       score += 3;
-      signals.push({ category: 'content', signal: `"${article.title.slice(0, 50)}"`, weight: 3, source: 'DEV.to' });
+      signals.push({
+        category: 'content',
+        signal: `"${article.title.slice(0, 50)}"`,
+        weight: 3,
+        source: 'DEV.to',
+        href: article.url,
+        detail: [`标题：${article.title}`, `发布时间：${article.publishedAt}`, `👍 ${article.positiveReactions}`, article.tags.length ? `标签：${article.tags.join(', ')}` : null].filter(Boolean).join('\n'),
+      });
     }
   }
 
@@ -320,7 +453,7 @@ export function calculateAIEngagement(
   multiPlatform?: MultiPlatformProfile | null,
 ): AIEngagementScore {
   const repoResult = scoreRepos(crawlData.repos);
-  const toolResult = scoreToolUsage(crawlData.repos, crawlData.recentCommits);
+  const toolResult = scoreToolUsage(crawlData.repos, crawlData.recentCommits, crawlData.username);
   const hfResult = scoreHuggingFace(multiPlatform?.huggingface ?? null);
   const pkgResult = scorePackages(
     multiPlatform?.npmPackages ?? [],
