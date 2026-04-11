@@ -30,6 +30,8 @@ export type ProfileMultiPlatformInsights = {
   packageImpactScore?: number;
   aiMlImpactScore?: number;
   algorithmScore?: number;
+  hfTopPipelineTags?: string[];
+  stackOverflowTopTags?: string[];
 };
 
 export function PlatformBadges({ platforms }: { platforms: string[] }) {

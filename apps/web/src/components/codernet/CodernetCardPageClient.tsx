@@ -748,7 +748,24 @@ export function CodernetCardPageClient({
 
         {analysis?.capabilityQuadrant && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <CapabilityQuadrantPanel data={analysis.capabilityQuadrant} />
+            <CapabilityQuadrantPanel
+              data={analysis.capabilityQuadrant}
+              evidence={{
+                languageDistribution: analysis.languageDistribution,
+                techTags: analysis.techTags,
+                repos: github?.repos?.map((r) => ({
+                  name: r.name,
+                  language: r.language,
+                  description: r.description,
+                  topics: r.topics,
+                  stars: r.stars,
+                  url: r.url,
+                })),
+                recentCommits: github?.recentCommits,
+                hfTopPipelineTags: analysis.multiPlatformInsights?.hfTopPipelineTags,
+                stackOverflowTopTags: analysis.multiPlatformInsights?.stackOverflowTopTags,
+              }}
+            />
           </div>
         )}
 

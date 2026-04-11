@@ -923,7 +923,24 @@ export default function GitHubLookupCardPage() {
 
         {analysis?.capabilityQuadrant && (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-sm mb-6">
-            <CapabilityQuadrantPanel data={analysis.capabilityQuadrant} />
+            <CapabilityQuadrantPanel
+              data={analysis.capabilityQuadrant}
+              evidence={{
+                languageDistribution: analysis.languageDistribution,
+                techTags: analysis.techTags,
+                repos: crawl?.repos?.map((repo) => ({
+                  name: repo.name,
+                  language: repo.language,
+                  description: repo.description,
+                  topics: repo.topics,
+                  stars: repo.stargazers_count,
+                  url: repo.html_url,
+                })),
+                recentCommits: crawl?.recentCommits,
+                hfTopPipelineTags: analysis.multiPlatformInsights?.hfTopPipelineTags,
+                stackOverflowTopTags: analysis.multiPlatformInsights?.stackOverflowTopTags,
+              }}
+            />
           </div>
         )}
 

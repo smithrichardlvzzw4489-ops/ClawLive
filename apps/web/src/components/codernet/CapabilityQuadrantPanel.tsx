@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { buildQuadrantEvidenceReport, type QuadrantEvidenceContext } from './quadrant-evidence';
 
 export type QuadrantData = {
   frontend: number;
@@ -138,7 +139,7 @@ function AxisChip({
     >
       <span className="text-[11px] font-medium leading-snug text-slate-200">{label}</span>
       <span className="font-mono text-base font-bold tabular-nums text-violet-400">{score}</span>
-      <span className="text-[10px] text-violet-400/70">推断依据 →</span>
+      <span className="text-[10px] text-violet-400/70">详细报告 →</span>
     </button>
   );
 }
@@ -146,17 +147,39 @@ function AxisChip({
 export function CapabilityQuadrantPanel({
   data,
   title = 'Capability Quadrant',
+  evidence,
 }: {
   data: QuadrantData;
   title?: string;
+  /** 用于生成本维度「数据侧」详细报告（仓库、语言、commits、多平台标签）；不传则仅展示定性说明 */
+  evidence?: QuadrantEvidenceContext | null;
 }) {
   const [open, setOpen] = useState(false);
   const [openKey, setOpenKey] = useState<keyof QuadrantData | null>(null);
+
+  const closeAll = useCallback(() => {
+    setOpen(false);
+    setOpenKey(null);
+  }, []);
+
+  useEffect(() => {
+    if (!open && !openKey) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeAll();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, openKey, closeAll]);
 
   const openDimension = (k: keyof QuadrantData) => {
     setOpen(false);
     setOpenKey(k);
   };
+
+  const dimReport = useMemo(() => {
+    if (!openKey) return null;
+    return buildQuadrantEvidenceReport(openKey, data[openKey], evidence);
+  }, [openKey, data, evidence]);
 
   return (
     <div className="overflow-visible">
@@ -217,7 +240,7 @@ export function CapabilityQuadrantPanel({
       <p className="mt-3 text-center text-[10px] leading-relaxed text-slate-600">
         分数为 <strong className="text-slate-500">0–100</strong> 的估计值，由画像生成时的 LLM 根据
         <strong className="text-slate-500"> 公开 GitHub 与多平台信号</strong>写入{' '}
-        <code className="text-[9px] text-violet-500/90">capabilityQuadrant</code>。点击任一维度或「数据从哪来？」查看说明。
+        <code className="text-[9px] text-violet-500/90">capabilityQuadrant</code>。点击任一维度查看详细报告，或点「数据从哪来？」查看总体说明。
       </p>
 
       {open && (
@@ -226,7 +249,7 @@ export function CapabilityQuadrantPanel({
           role="dialog"
           aria-modal="true"
           aria-labelledby="cq-modal-title"
-          onClick={() => setOpen(false)}
+          onClick={closeAll}
         >
           <div
             className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-[#0c101c] p-5 shadow-2xl"
@@ -249,7 +272,7 @@ export function CapabilityQuadrantPanel({
             <p className="mb-4 text-[10px] font-mono text-slate-600">与技术标签、锐评、仓库下钻等同一次分析流水线产出。</p>
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={closeAll}
               className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"
             >
               关闭
@@ -264,24 +287,105 @@ export function CapabilityQuadrantPanel({
           role="dialog"
           aria-modal="true"
           aria-labelledby="cq-dim-title"
-          onClick={() => setOpenKey(null)}
+          onClick={closeAll}
         >
           <div
-            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-[#0c101c] p-5 shadow-2xl"
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-[#0c101c] p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {(() => {
               const d = DIM_META.find((x) => x.key === openKey)!;
+              const r = dimReport;
               return (
                 <>
                   <h4 id="cq-dim-title" className="mb-1 text-sm font-bold text-white">
                     {d.label} <span className="font-mono text-violet-400">· {data[d.key]}</span>
                   </h4>
-                  <p className="mb-3 font-mono text-xs text-slate-500">该维度分数的推断依据（说明）</p>
-                  <p className="mb-5 text-xs leading-relaxed text-slate-300">{d.detail}</p>
+                  <p className="mb-2 font-mono text-xs text-slate-500">详细报告（LLM 分数 + 本次抓取的启发式证据）</p>
+                  <p className="mb-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.06] px-2.5 py-2 text-[11px] leading-relaxed text-amber-100/90">
+                    分档解读：{r?.band}
+                  </p>
+                  <p className="mb-4 text-xs leading-relaxed text-slate-300">{d.detail}</p>
+
+                  {!evidence ||
+                  (!evidence.repos?.length &&
+                    !evidence.recentCommits?.length &&
+                    !evidence.languageDistribution?.length &&
+                    !evidence.techTags?.length &&
+                    !evidence.hfTopPipelineTags?.length &&
+                    !evidence.stackOverflowTopTags?.length) ? (
+                    <p className="mb-4 text-[11px] leading-relaxed text-slate-500">
+                      当前未传入可用于匹配的原始信号（仓库、commits、语言分布等），下方「数据侧」证据为空；请在画像数据就绪的页面查看或重新生成画像。
+                    </p>
+                  ) : null}
+
+                  {r && r.languageLines.length > 0 && (
+                    <div className="mb-4">
+                      <p className="mb-1.5 text-[10px] font-mono uppercase text-slate-500">语言统计（可能相关）</p>
+                      <ul className="space-y-1">
+                        {r.languageLines.map((line, i) => (
+                          <li key={i} className="text-[11px] text-slate-400 border-l border-white/[0.08] pl-2">
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {r && r.repoRows.length > 0 && (
+                    <div className="mb-4">
+                      <p className="mb-1.5 text-[10px] font-mono uppercase text-slate-500">仓库（关键词 / 语言启发式匹配）</p>
+                      <ul className="max-h-48 space-y-2 overflow-y-auto pr-1">
+                        {r.repoRows.map((row) => (
+                          <li key={row.name} className="text-[11px] text-slate-400 leading-snug">
+                            {row.url ? (
+                              <a href={row.url} target="_blank" rel="noopener noreferrer" className="font-mono text-sky-400 hover:underline">
+                                {row.name}
+                              </a>
+                            ) : (
+                              <span className="font-mono text-slate-300">{row.name}</span>
+                            )}
+                            <span className="text-slate-600"> · ★{row.stars}</span>
+                            <p className="mt-0.5 text-[10px] text-slate-500">{row.snippet}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {r && r.commitRows.length > 0 && (
+                    <div className="mb-4">
+                      <p className="mb-1.5 text-[10px] font-mono uppercase text-slate-500">Commits（首行消息关键词匹配，至多 45 条）</p>
+                      <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-1 font-mono text-[10px] text-slate-500">
+                        {r.commitRows.map((c, i) => (
+                          <li key={`${c.repo}-${c.date}-${i}`} className="leading-snug">
+                            <span className="text-slate-600">{c.date}</span>{' '}
+                            <span className="text-amber-400/90">{c.repo}</span> {c.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {r && r.platformLines.length > 0 && (
+                    <div className="mb-4">
+                      <p className="mb-1.5 text-[10px] font-mono uppercase text-slate-500">多平台信号</p>
+                      <ul className="space-y-1">
+                        {r.platformLines.map((line, i) => (
+                          <li key={i} className="text-[11px] text-slate-400 border-l border-violet-500/25 pl-2">
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <p className="mb-4 text-[10px] leading-relaxed text-slate-600">
+                    启发式匹配仅用于辅助阅读，与 LLM 输出分数无逐项一一对应；若需更细粒度需查看各仓库 README 与完整 commit 历史。
+                  </p>
                   <button
                     type="button"
-                    onClick={() => setOpenKey(null)}
+                    onClick={closeAll}
                     className="w-full rounded-xl border border-white/10 bg-white/[0.08] py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/[0.12]"
                   >
                     关闭
