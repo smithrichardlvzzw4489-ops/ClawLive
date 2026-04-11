@@ -1,5 +1,5 @@
 /**
- * GitHub 数据爬取：仓库、语言分布、该用户在各公开仓的 commit（按 REST 分页尽量拉全，受单仓页数上限约束）。
+ * GitHub 数据爬取：仓库、语言分布、该用户在各公开仓的 commit（REST 分页，默认单仓与总量有上限以控制耗时；可用环境变量放宽）。
  * 支持 Bearer：GITHUB_SERVER_TOKEN（推荐）或 GITHUB_TOKEN / GH_TOKEN；未配置时走匿名（约 60 req/hr/IP，易被限流）。
  */
 
@@ -137,8 +137,18 @@ async function fetchLanguageStats(
   return stats;
 }
 
-/** 单仓库分页上限（每页 100，500 页 ≈ 5 万条/仓，防止极端仓库拖死请求） */
-const COMMIT_PAGES_PER_REPO_MAX = 500;
+function clampIntEnv(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** 单仓 commits 列表最多请求页数（每页 100）。默认 15 → 单仓约 ≤1500 条，避免 linux 类巨仓拖数分钟。 */
+const COMMIT_PAGES_PER_REPO_MAX = clampIntEnv('GITHUB_COMMIT_PAGES_PER_REPO_MAX', 15, 1, 500);
+/** 合并去重后保留的 commit 条数上限（按时间新→旧）。默认 6000。 */
+const COMMIT_TOTAL_CAP = clampIntEnv('GITHUB_COMMIT_TOTAL_CAP', 6000, 500, 80000);
 const COMMITS_PER_PAGE = 100;
 const REPO_FETCH_CONCURRENCY = 5;
 
@@ -170,7 +180,7 @@ async function fetchCommitsForRepo(
 }
 
 /**
- * 在用户全部非 fork 公开仓中分页拉取该 author 的 commits，合并去重后按时间新→旧排序。
+ * 在用户全部非 fork 公开仓中分页拉取该 author 的 commits，合并去重后按时间新→旧排序，并截断到 COMMIT_TOTAL_CAP。
  */
 async function fetchRecentCommits(
   token: string | undefined,
@@ -190,6 +200,7 @@ async function fetchRecentCommits(
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(c);
+    if (deduped.length >= COMMIT_TOTAL_CAP) break;
   }
   return deduped;
 }
