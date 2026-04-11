@@ -59,6 +59,10 @@ export interface CodernetAnalysis {
       roleEstimate: string;
       contributionSummary: string;
       techFocus: string;
+      /** 基于描述、语言、topics、stars、日期的仓库定位与技术叙事（较长） */
+      repoContentDeepDive: string;
+      /** 结合提交样本与时间线，对该人物在此仓的贡献与角色的展开叙述 */
+      personContributionDeepDive: string;
     }>;
     commitPatterns?: string;
   };
@@ -262,7 +266,7 @@ ${timelineBlock}${multiPlatformSection}
   "sharpCommentary": "120字以内锐评，用犀利但不失幽默的口吻综合所有平台数据评价此开发者。如果有 SO 数据要点评答题风格，有 npm 数据要点评包的影响力。中文。",
   "oneLiner": "一句话标语（10字以内），如'全栈暴走族'、'AI工具狂人'、'基建默默铺路人'",
   "activityByYear": [ { "year": 2024, "narrative": "该年在公开样本中的技术主线（60字内）", "highlights": ["可验证亮点1", "亮点2"] } ],
-  "repoDeepDives": [ { "repo": "仓库名（与列表一致）", "roleEstimate": "推断：主导/核心贡献/探索/归档 等", "contributionSummary": "基于描述与 stars 的公开贡献叙事（80字内）", "techFocus": "技术关键词，逗号分隔" } ],
+  "repoDeepDives": [ { "repo": "仓库名（与列表一致）", "roleEstimate": "推断：主导/核心贡献/探索/归档 等", "contributionSummary": "一句话总括此人在该仓的公开贡献印象（40字内）", "techFocus": "技术关键词，逗号分隔", "repoContentDeepDive": "仅依据上文该仓的公开字段：分 2–4 句写清仓库可能解决什么问题、技术栈信号（语言/topics）、star/fork 量级暗示的社区关注度、从创建日/最近推送推断的维护节奏；禁止编造未出现的仓库名或私有信息", "personContributionDeepDive": "结合该仓库在「近期 Commit 消息」与按年摘要中的出现：分 2–5 句写此人在该仓的推断角色、可能的贡献类型（功能/修复/文档/发布等）、提交风格是否一致；须明确区分「提交样本中可见事实」与「合理推断」，禁止捏造具体 issue/PR 编号" } ],
   "commitPatterns": "根据提交消息样本归纳：提交粒度、语言风格、是否偏功能/修 bug/文档等（100字内）"
 }
 
@@ -272,7 +276,7 @@ ${timelineBlock}${multiPlatformSection}
 - sharpCommentary 必须中文，120字以内，要综合多平台数据形成洞察
 - oneLiner 必须中文，10字以内
 - activityByYear：仅包含「按年的时间线摘要」中出现的年份或仓库创建/提交样本中出现的年份；每年 narrative 60 字内，highlights 每条 40 字内、最多 4 条；无则返回空数组
-- repoDeepDives：覆盖最有代表性的公开仓库，最多 12 条，repo 字段必须与上文仓库列表中的名称一致；不得编造未出现的仓库名
+- repoDeepDives：覆盖最有代表性的公开仓库，最多 12 条，repo 字段必须与上文仓库列表中的名称一致；不得编造未出现的仓库名；每条必须含 repoContentDeepDive 与 personContributionDeepDive，各 180–420 个汉字（约 3–6 句），信息密度高、避免空话套话
 - commitPatterns：严格根据 Commit 消息样本归纳，禁止臆测私有或未列出仓库`;
 }
 
@@ -352,13 +356,13 @@ export async function analyzeGitHubProfile(
   let response;
   try {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 4500, temperature: 0.65, response_format: { type: 'json_object' } },
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 7200, temperature: 0.65, response_format: { type: 'json_object' } },
       'profile_analysis',
       meta,
     );
   } catch {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 4500, temperature: 0.65 },
+      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 7200, temperature: 0.65 },
       'profile_analysis',
       meta,
     );
@@ -381,6 +385,8 @@ export async function analyzeGitHubProfile(
       roleEstimate?: string;
       contributionSummary?: string;
       techFocus?: string;
+      repoContentDeepDive?: string;
+      personContributionDeepDive?: string;
     }>;
     commitPatterns?: string;
   };
@@ -530,8 +536,10 @@ export async function analyzeGitHubProfile(
     .map((d) => ({
       repo: String(d.repo || '').trim().slice(0, 120),
       roleEstimate: String(d.roleEstimate || '').trim().slice(0, 60),
-      contributionSummary: String(d.contributionSummary || '').trim().slice(0, 200),
+      contributionSummary: String(d.contributionSummary || '').trim().slice(0, 120),
       techFocus: String(d.techFocus || '').trim().slice(0, 120),
+      repoContentDeepDive: String(d.repoContentDeepDive || '').trim().slice(0, 2200),
+      personContributionDeepDive: String(d.personContributionDeepDive || '').trim().slice(0, 2200),
     }))
     .filter((d) => d.repo && validRepoNames.has(d.repo))
     .slice(0, 12);

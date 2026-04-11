@@ -44,6 +44,10 @@ export interface ActivityDeepDiveShape {
     roleEstimate: string;
     contributionSummary: string;
     techFocus: string;
+    /** 仓库本身的内容与定位（较长解读，可能来自旧缓存为空） */
+    repoContentDeepDive?: string;
+    /** 该人物在此仓的贡献展开（较长解读） */
+    personContributionDeepDive?: string;
   }>;
   commitPatterns?: string;
 }
@@ -130,6 +134,14 @@ export function PortfolioDrillDown({
     for (const d of activityDeepDive?.repoDeepDives || []) m.set(d.repo, d);
     return m;
   }, [activityDeepDive]);
+
+  const commitSampleCountByRepo = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const c of recentCommits) {
+      m[c.repo] = (m[c.repo] || 0) + 1;
+    }
+    return m;
+  }, [recentCommits]);
 
   if (!repos.length && !recentCommits.length && !byYear.length) return null;
 
@@ -291,8 +303,8 @@ export function PortfolioDrillDown({
                   </div>
                 </button>
                 {expanded && (
-                  <div className="px-3 pb-3 pt-0 border-t border-white/[0.05] space-y-2">
-                    {r.description ? <p className="text-xs text-slate-400">{r.description}</p> : null}
+                  <div className="px-3 pb-3 pt-0 border-t border-white/[0.05] space-y-3">
+                    {r.description ? <p className="text-xs text-slate-400 leading-relaxed">{r.description}</p> : null}
                     {r.topics && r.topics.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {r.topics.map((t) => (
@@ -302,19 +314,49 @@ export function PortfolioDrillDown({
                         ))}
                       </div>
                     ) : null}
+                    <div className="rounded-lg border border-white/[0.08] bg-slate-950/40 p-2.5 text-[11px] text-slate-400 space-y-1">
+                      <p className="text-[10px] font-mono uppercase text-slate-500">可验证公开指标</p>
+                      <p className="leading-relaxed">
+                        主语言 {r.language || '—'}；★{r.stars}
+                        {r.forks != null ? `；fork ${r.forks}` : ''}；创建于 {formatDate(r.created_at)}；最近推送 {formatDate(r.pushed_at)}。
+                        {recentCommits.length > 0 ? (
+                          <>
+                            {' '}
+                            在近期抓取到的提交样本中，此仓库出现{' '}
+                            <span className="text-slate-200 tabular-nums">{commitSampleCountByRepo[r.name] ?? 0}</span> 条（全样本共{' '}
+                            {recentCommits.length} 条）。
+                          </>
+                        ) : null}
+                      </p>
+                    </div>
+                    {dive?.repoContentDeepDive ? (
+                      <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.06] p-2.5">
+                        <p className="text-[10px] font-mono uppercase text-sky-400/90 mb-1.5">仓库内容解读</p>
+                        <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">{dive.repoContentDeepDive}</p>
+                      </div>
+                    ) : null}
                     {dive ? (
-                      <div className="rounded-lg bg-violet-500/10 border border-violet-500/20 p-2.5 text-[11px] space-y-1">
-                        <p className="text-violet-200/90">
-                          <span className="text-slate-500">角色推断：</span>
-                          {dive.roleEstimate}
-                        </p>
-                        <p className="text-slate-300">{dive.contributionSummary}</p>
-                        {dive.techFocus ? (
-                          <p className="text-slate-500 font-mono text-[10px]">技术：{dive.techFocus}</p>
+                      <div className="rounded-lg bg-violet-500/10 border border-violet-500/20 p-2.5 text-[11px] space-y-2">
+                        <div>
+                          <p className="text-[10px] font-mono uppercase text-violet-300/80 mb-1">角色与贡献（摘要）</p>
+                          <p className="text-violet-200/90">
+                            <span className="text-slate-500">角色推断：</span>
+                            {dive.roleEstimate}
+                          </p>
+                          {dive.contributionSummary ? <p className="text-slate-300 mt-1 leading-relaxed">{dive.contributionSummary}</p> : null}
+                          {dive.techFocus ? (
+                            <p className="text-slate-500 font-mono text-[10px] mt-1">技术：{dive.techFocus}</p>
+                          ) : null}
+                        </div>
+                        {dive.personContributionDeepDive ? (
+                          <div className="border-t border-violet-500/15 pt-2">
+                            <p className="text-[10px] font-mono uppercase text-violet-300/80 mb-1.5">本人在此仓的贡献 · 展开解读</p>
+                            <p className="text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">{dive.personContributionDeepDive}</p>
+                          </div>
                         ) : null}
                       </div>
                     ) : (
-                      <p className="text-[10px] text-slate-600 font-mono">暂无该仓库的单独 AI 解读（可重新生成画像）</p>
+                      <p className="text-[10px] text-slate-600 font-mono">暂无该仓库的单独 AI 解读（重新生成画像后将包含仓库与贡献的长文解读）</p>
                     )}
                   </div>
                 )}
