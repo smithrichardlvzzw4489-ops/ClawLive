@@ -26,7 +26,6 @@ import {
   previewMessage,
 } from '../../services/codernet-outreach';
 import { consumeQuota, checkQuota } from '../../services/quota-manager';
-import { recordCodernetInterfaceUsage } from '../../services/codernet-interface-usage';
 import { getUserIdFromBearer } from '../middleware/auth';
 import {
   resolveLinkedInProfileUrl,
@@ -170,7 +169,6 @@ export async function handleCodernetGithubLookupPost(
         return;
       }
       consumeQuota(quotaUserId, 'profile_lookup');
-      recordCodernetInterfaceUsage(quotaUserId, 'githubPortrait');
     }
 
     res.json({ status: 'started', message: 'Crawl started.' });
@@ -315,8 +313,6 @@ export function codernetRoutes(): IRouter {
         });
       }
 
-      recordCodernetInterfaceUsage(userId, 'minePortrait');
-
       res.json({ status: 'crawling', message: 'GitHub profile crawl started.' });
 
       runCrawlAndAnalysis(userId, user.githubAccessToken, user.githubUsername, user.username).catch((err) =>
@@ -367,7 +363,6 @@ export function codernetRoutes(): IRouter {
           });
         }
         consumeQuota(callerId, 'search');
-        recordCodernetInterfaceUsage(callerId, 'linkSearch');
       }
 
       const token = getServerToken();

@@ -31,12 +31,6 @@ type OverviewUser = {
     codernetCrawledAt: string | null;
     humanBehaviors: BehaviorBreakdown;
     agentBehaviors: BehaviorBreakdown;
-    codernetInterfaces: {
-      minePortrait: number;
-      githubPortrait: number;
-      linkSearch: number;
-      portraitGenerations: number;
-    };
   };
 };
 
@@ -110,7 +104,7 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-white/[0.08] glass">
-        <table className="w-full min-w-[1120px] border-collapse text-left text-sm text-slate-300">
+        <table className="w-full min-w-[960px] border-collapse text-left text-sm text-slate-300">
           <thead>
             <tr className="border-b border-white/10 text-xs uppercase tracking-wide text-slate-500">
               <th className="px-3 py-3 font-medium">用户</th>
@@ -119,7 +113,6 @@ export default function AdminUsersPage() {
               <th className="px-3 py-3 font-medium">直播/帖/技能/作品</th>
               <th className="px-3 py-3 font-medium">Darwin</th>
               <th className="px-3 py-3 font-medium">GitHub/Codenet</th>
-              <th className="px-3 py-3 font-medium">GITLINK 三入口</th>
               <th className="px-3 py-3 font-medium">行为（人轨）</th>
               <th className="px-3 py-3 font-medium">行为（虾米轨）</th>
             </tr>
@@ -165,17 +158,6 @@ export default function AdminUsersPage() {
                   <br />
                   Codenet 爬取 {u.usage.codernetCrawledAt ? u.usage.codernetCrawledAt.slice(0, 10) : '—'}
                 </td>
-                <td className="px-3 py-3 align-top text-xs leading-relaxed">
-                  我的画像 {u.usage.codernetInterfaces.minePortrait}
-                  <br />
-                  GitHub 画像 {u.usage.codernetInterfaces.githubPortrait}
-                  <br />
-                  LINK {u.usage.codernetInterfaces.linkSearch}
-                  <br />
-                  <span className="text-slate-500">
-                    画像生成合计 {u.usage.codernetInterfaces.portraitGenerations}（我的+GitHub）
-                  </span>
-                </td>
                 <td className="px-3 py-3 align-top font-mono text-xs text-slate-400">
                   共 {u.usage.humanBehaviors.total}
                   <br />
@@ -197,10 +179,6 @@ export default function AdminUsersPage() {
       </div>
 
       <p className="mt-4 text-xs text-slate-500">
-        GITLINK 三入口：累计次数（自统计上线后起算），对应首页 Tab「我的画像」→ <code className="text-slate-600">POST /api/codernet/crawl</code>；「GitHub
-        画像」→ 已登录触发 <code className="text-slate-600">POST /api/codernet/github/:user</code>；「LINK」→{' '}
-        <code className="text-slate-600">POST /api/codernet/search</code>。画像生成合计不含 LINK 搜索。
-        <br />
         人轨行为来自推荐用隐式反馈（浏览/进房等）；虾米轨来自 Darwin 侧技能安装与引用等。单机文件存储，与数据库用户 id 对齐。
       </p>
     </div>
