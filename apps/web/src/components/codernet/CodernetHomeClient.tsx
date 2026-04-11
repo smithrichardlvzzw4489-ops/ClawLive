@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState, FormEvent } from 'react';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { API_BASE_URL, api, APIError } from '@/lib/api';
+import { withReturnTo } from '@/hooks/useHistoryBack';
 import { MainLayout } from '@/components/MainLayout';
 
 interface SemanticSearchHit {
@@ -28,6 +29,12 @@ interface MeBrief {
 
 export function CodernetHomeClient() {
   const router = useRouter();
+  const pathname = usePathname() || '';
+  const searchParams = useSearchParams();
+  const here = useMemo(
+    () => `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
+    [pathname, searchParams],
+  );
   const [tab, setTab] = useState<TabId>('mine');
 
   const [searchValue, setSearchValue] = useState('');
@@ -122,7 +129,7 @@ export function CodernetHomeClient() {
     e.preventDefault();
     const val = searchValue.trim().replace(/^@/, '');
     if (!val) return;
-    router.push(`/codernet/github/${encodeURIComponent(val)}`);
+    router.push(withReturnTo(`/codernet/github/${encodeURIComponent(val)}`, here));
   };
 
   const handleSemanticSearch = async (e: FormEvent) => {
@@ -294,7 +301,11 @@ export function CodernetHomeClient() {
               <div className="flex flex-wrap justify-center gap-2">
                 <span className="text-[10px] text-slate-600 self-center mr-1">Try:</span>
                 {['torvalds', 'yyx990803', 'tj', 'sindresorhus', 'antirez'].map((n) => (
-                  <button key={n} onClick={() => router.push(`/codernet/github/${n}`)} className="text-xs font-mono px-2.5 py-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-violet-300 hover:border-violet-500/30 transition">
+                  <button
+                    key={n}
+                    onClick={() => router.push(withReturnTo(`/codernet/github/${encodeURIComponent(n)}`, here))}
+                    className="text-xs font-mono px-2.5 py-1 rounded-md border border-white/[0.08] bg-white/[0.03] text-slate-400 hover:text-violet-300 hover:border-violet-500/30 transition"
+                  >
                     @{n}
                   </button>
                 ))}
@@ -365,7 +376,7 @@ export function CodernetHomeClient() {
                   {linkResults.map((hit) => (
                     <Link
                       key={hit.githubUsername}
-                      href={`/codernet/github/${encodeURIComponent(hit.githubUsername)}`}
+                      href={withReturnTo(`/codernet/github/${encodeURIComponent(hit.githubUsername)}`, here)}
                       className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 transition hover:border-violet-500/30 hover:bg-white/[0.05]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}

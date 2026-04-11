@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { BRAND_ZH } from '@/lib/brand';
 
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.clawlab.live').replace(/\/$/, '');
@@ -37,5 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default function CodernetGithubUsernameLayout({ children }: Props) {
-  return children;
+  return (
+    <Suspense fallback={<div className="min-h-[40vh] bg-[#06080f]" aria-hidden />}>{children}</Suspense>
+  );
 }

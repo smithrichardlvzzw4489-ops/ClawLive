@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/api';
+import { withReturnTo } from '@/hooks/useHistoryBack';
 
 type SimilarRow = { githubUsername: string; avatarUrl: string; similarityPercent: number; summary?: string };
 type RelationRow = { githubUsername: string; avatarUrl: string; connectionDensity: number; summary?: string };
@@ -59,6 +61,13 @@ export function CodernetProfileSideColumns({
   const [relErr, setRelErr] = useState<string | null>(null);
   const [similar, setSimilar] = useState<SimilarRow[] | null>(null);
   const [relations, setRelations] = useState<RelationRow[] | null>(null);
+
+  const pathname = usePathname() || '';
+  const searchParams = useSearchParams();
+  const here = useMemo(
+    () => `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
+    [pathname, searchParams],
+  );
 
   const base = API_BASE_URL || '';
 
@@ -159,7 +168,7 @@ export function CodernetProfileSideColumns({
             {(similar ?? []).map((p) => (
               <li key={p.githubUsername}>
                 <Link
-                  href={`/codernet/github/${encodeURIComponent(p.githubUsername)}`}
+                  href={withReturnTo(`/codernet/github/${encodeURIComponent(p.githubUsername)}`, here)}
                   className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.06] transition group"
                 >
                   <span className="text-[10px] font-mono text-violet-400 w-10 shrink-0 text-right leading-7">
@@ -202,7 +211,7 @@ export function CodernetProfileSideColumns({
             {(relations ?? []).map((p) => (
               <li key={p.githubUsername}>
                 <Link
-                  href={`/codernet/github/${encodeURIComponent(p.githubUsername)}`}
+                  href={withReturnTo(`/codernet/github/${encodeURIComponent(p.githubUsername)}`, here)}
                   className="flex items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-white/[0.06] transition group"
                 >
                   <span

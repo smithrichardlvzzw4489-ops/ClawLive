@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/api';
-import { useHistoryBack } from '@/hooks/useHistoryBack';
+import { useHistoryBack, withReturnTo } from '@/hooks/useHistoryBack';
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -78,7 +79,13 @@ const TIER_LABELS: Record<number, { label: string; color: string }> = {
 /* ── Main Page ──────────────────────────────────────────── */
 
 export default function OutreachPage() {
-  const goBack = useHistoryBack('/codernet');
+  const pathname = usePathname() || '';
+  const searchParams = useSearchParams();
+  const here = useMemo(
+    () => `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
+    [pathname, searchParams],
+  );
+  const goBack = useHistoryBack('/codernet', { returnTo: searchParams.get('returnTo') });
   const [step, setStep] = useState<'form' | 'running' | 'dashboard'>('form');
   const [campaign, setCampaign] = useState<Campaign | null>(null);
 
@@ -519,7 +526,12 @@ export default function OutreachPage() {
               <h3 className="text-sm font-bold mb-3">Recipients ({campaign.recipients.length})</h3>
               <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                 {campaign.recipients.map((r) => (
-                  <RecipientRow key={r.githubUsername} recipient={r} onPreview={() => handlePreview(r.githubUsername)} />
+                  <RecipientRow
+                    key={r.githubUsername}
+                    recipient={r}
+                    here={here}
+                    onPreview={() => handlePreview(r.githubUsername)}
+                  />
                 ))}
               </div>
             </div>
@@ -545,7 +557,7 @@ function Stat({ label, value, color }: { label: string; value: number; color?: s
   );
 }
 
-function RecipientRow({ recipient: r, onPreview }: { recipient: Recipient; onPreview: () => void }) {
+function RecipientRow({ recipient: r, here, onPreview }: { recipient: Recipient; here: string; onPreview: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const tier = TIER_LABELS[r.tier] || TIER_LABELS[4];
 
@@ -610,7 +622,7 @@ function RecipientRow({ recipient: r, onPreview }: { recipient: Recipient; onPre
           )}
           <div className="flex gap-2">
             <Link
-              href={`/codernet/github/${r.githubUsername}`}
+              href={withReturnTo(`/codernet/github/${encodeURIComponent(r.githubUsername)}`, here)}
               className="text-[10px] px-2 py-1 rounded border border-white/[0.08] text-slate-400 hover:text-white transition"
             >
               View Profile

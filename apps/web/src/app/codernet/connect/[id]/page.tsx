@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useHistoryBack } from '@/hooks/useHistoryBack';
+import { useHistoryBack, withReturnTo } from '@/hooks/useHistoryBack';
 import { API_BASE_URL } from '@/lib/api';
 
 interface AgentMessage {
@@ -55,6 +55,9 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 export default function ConnectChatPage() {
   const params = useParams<{ id: string }>();
+  const pathname = usePathname() || '';
+  const searchParams = useSearchParams();
+  const here = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
   const sessionId = params.id;
   const [session, setSession] = useState<ConnectSession | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +69,7 @@ export default function ConnectChatPage() {
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const base = API_BASE_URL || '';
-  const goBack = useHistoryBack('/codernet');
+  const goBack = useHistoryBack('/codernet', { returnTo: searchParams.get('returnTo') });
 
   const fetchSession = useCallback(async () => {
     const res = await fetch(`${base}/api/codernet/connect/${sessionId}`);
@@ -182,14 +185,14 @@ export default function ConnectChatPage() {
         {/* Participants */}
         <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 mb-4">
           <div className="flex items-center justify-between gap-4">
-            <ProfileBadge profile={session.initiatorProfile} label="发起方" />
+            <ProfileBadge profile={session.initiatorProfile} label="发起方" here={here} />
             <div className="flex flex-col items-center gap-1 shrink-0">
               <div className="text-xs font-mono px-3 py-1 rounded-full border border-white/[0.08] bg-white/[0.03]">
                 {session.intentCategory}
               </div>
               <span className={`text-[10px] font-mono ${statusInfo.color}`}>{statusInfo.label}</span>
             </div>
-            <ProfileBadge profile={session.targetProfile} label="目标方" align="right" />
+            <ProfileBadge profile={session.targetProfile} label="目标方" align="right" here={here} />
           </div>
 
           {/* Intent */}
@@ -341,7 +344,8 @@ export default function ConnectChatPage() {
   );
 }
 
-function ProfileBadge({ profile, label, align }: { profile: ConnectProfile; label: string; align?: 'right' }) {
+function ProfileBadge({ profile, label, align, here }: { profile: ConnectProfile; label: string; align?: 'right'; here: string }) {
+  const portraitHref = withReturnTo(`/codernet/github/${encodeURIComponent(profile.githubUsername)}`, here);
   return (
     <div className={`flex items-center gap-2 min-w-0 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
       {profile.avatarUrl ? (
@@ -354,7 +358,7 @@ function ProfileBadge({ profile, label, align }: { profile: ConnectProfile; labe
       )}
       <div className="min-w-0">
         <p className="text-[10px] text-slate-600 font-mono">{label}</p>
-        <Link href={`/codernet/github/${profile.githubUsername}`} className="text-sm font-medium text-white hover:text-violet-300 transition truncate block">
+        <Link href={portraitHref} className="text-sm font-medium text-white hover:text-violet-300 transition truncate block">
           @{profile.githubUsername}
         </Link>
       </div>

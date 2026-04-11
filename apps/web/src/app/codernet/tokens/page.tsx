@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useHistoryBack } from '@/hooks/useHistoryBack';
 import { API_BASE_URL } from '@/lib/api';
 
@@ -145,10 +146,11 @@ function HourlyChart({ data }: { data: HourlyStats[] }) {
 }
 
 export default function TokenUsagePage() {
+  const searchParams = useSearchParams();
   const [summary, setSummary] = useState<TokenUsageSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | 'all'>('24h');
-  const goBack = useHistoryBack('/codernet');
+  const goBack = useHistoryBack('/codernet', { returnTo: searchParams.get('returnTo') });
 
   const base = API_BASE_URL || '';
 

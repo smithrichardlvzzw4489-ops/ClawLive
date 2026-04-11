@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useHistoryBack } from '@/hooks/useHistoryBack';
 import { API_BASE_URL } from '@/lib/api';
@@ -703,6 +703,7 @@ function HuggingFaceCard({ data }: { data: HuggingFaceProfileData }) {
 
 export default function GitHubLookupCardPage() {
   const params = useParams<{ username: string }>();
+  const searchParams = useSearchParams();
   const ghUsername = params.username;
   const [result, setResult] = useState<LookupResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -711,7 +712,7 @@ export default function GitHubLookupCardPage() {
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const base = API_BASE_URL || '';
-  const goBack = useHistoryBack('/codernet');
+  const goBack = useHistoryBack('/codernet', { returnTo: searchParams.get('returnTo') });
 
   const fetchStatus = useCallback(async (): Promise<LookupResult | null> => {
     const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}`);
