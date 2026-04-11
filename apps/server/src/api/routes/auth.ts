@@ -163,6 +163,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
         createdAt: true,
         updatedAt: true,
         githubUsername: true,
+        personalResume: true,
       },
     });
     if (!user) {
@@ -177,11 +178,13 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
 
 const USERNAME_RE = /^[\w\u4e00-\u9fff]+$/;
 
+const PERSONAL_RESUME_MAX = 50_000;
+
 router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const body = req.body as { username?: unknown; bio?: unknown };
-    const data: { username?: string; bio?: string | null } = {};
+    const body = req.body as { username?: unknown; bio?: unknown; personalResume?: unknown };
+    const data: { username?: string; bio?: string | null; personalResume?: string | null } = {};
 
     if (body.username !== undefined) {
       const u = String(body.username).trim();
@@ -203,6 +206,19 @@ router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) =
           return res.status(400).json({ error: 'BIO_TOO_LONG' });
         }
         data.bio = b || null;
+      }
+    }
+
+    if (body.personalResume !== undefined) {
+      if (body.personalResume === null || body.personalResume === '') {
+        data.personalResume = null;
+      } else {
+        const pr = String(body.personalResume);
+        if (pr.length > PERSONAL_RESUME_MAX) {
+          return res.status(400).json({ error: 'PERSONAL_RESUME_TOO_LONG' });
+        }
+        const t = pr.trim();
+        data.personalResume = t.length === 0 ? null : pr;
       }
     }
 
@@ -232,6 +248,9 @@ router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) =
         clawPoints: true,
         createdAt: true,
         updatedAt: true,
+        githubUsername: true,
+        isAdmin: true,
+        personalResume: true,
       },
     });
 

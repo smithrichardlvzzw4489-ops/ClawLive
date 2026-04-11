@@ -24,6 +24,8 @@ model User {
   codernetMultiPlatform Json?
   /// LLM-generated Codernet analysis (tags, commentary, quadrant)
   codernetAnalysis  Json?
+  /// 用户自行填写的「个人简历」正文；与 codernetAnalysis 技术画像独立，合成为对外完整叙事
+  personalResume    String?  @db.Text
   /// Last time GitHub profile was crawled
   codernetCrawledAt DateTime?
   /// GITLINK 三入口：POST /api/codernet/crawl（我的画像）

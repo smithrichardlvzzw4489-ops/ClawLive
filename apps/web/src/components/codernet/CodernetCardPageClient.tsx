@@ -199,12 +199,15 @@ function JobSeekerAssistCard({
   profileShareUrl,
   githubUsername,
   analysis,
+  personalResumeAppend,
   onRecrawl,
   recrawlBusy,
 }: {
   profileShareUrl: string;
   githubUsername: string | null | undefined;
   analysis: CodernetProfile['analysis'];
+  /** 用户在「个人简历」中填写的内容，与画像独立；复制投递简介时附在末尾 */
+  personalResumeAppend?: string | null;
   onRecrawl: () => void;
   recrawlBusy: boolean;
 }) {
@@ -217,8 +220,14 @@ function JobSeekerAssistCard({
     if (analysis?.oneLiner) lines.push(`一句话：${analysis.oneLiner}`);
     if (analysis?.sharpCommentary) lines.push(`AI 评价：${analysis.sharpCommentary}`);
     if (analysis?.techTags?.length) lines.push(`技术标签：${analysis.techTags.join('、')}`);
+    const pr = personalResumeAppend?.trim();
+    if (pr) {
+      lines.push('');
+      lines.push('【个人简历】');
+      lines.push(pr);
+    }
     return lines.join('\n');
-  }, [profileShareUrl, githubUsername, analysis]);
+  }, [profileShareUrl, githubUsername, analysis, personalResumeAppend]);
 
   const flash = (msg: string) => {
     setHint(msg);
@@ -252,11 +261,13 @@ function JobSeekerAssistCard({
     <div className="rounded-xl border border-teal-500/30 bg-teal-950/25 p-4">
       <h3 className="text-sm font-semibold text-teal-200 mb-1">本页使用说明</h3>
       <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
-        这是你在 <strong className="text-slate-300">GITLINK</strong> 上的<strong className="text-slate-300">公开技术名片</strong>：招聘方会从这里看栈与项目时间线；你也可以把它当作投递时的统一「对外叙事」草稿。
+        这是你在 <strong className="text-slate-300">GITLINK</strong> 上的<strong className="text-slate-300">公开技术名片</strong>（画像）；页面顶部另有你自填的
+        <strong className="text-slate-300">个人简历</strong>，二者独立，复制本区「投递用简介」时会合并输出。
       </p>
       <ul className="text-[11px] text-slate-500 mb-3 list-disc pl-4 space-y-1 leading-relaxed">
         <li>在邮件/表单里附上画像链接，减少重复自我介绍。</li>
         <li>修改 GitHub 简介或仓库后，可用此处「刷新画像」同步最新公开信息。</li>
+        <li>教育/经历等叙事请在顶部「个人简历」编辑，不会覆盖 AI 画像数据。</li>
       </ul>
       <div className="flex flex-wrap gap-2">
         <button
@@ -403,9 +414,12 @@ function ProgressTimeline({ progress }: { progress: CrawlProgress | null }) {
 export function CodernetCardPageClient({
   username,
   variant = 'public',
+  personalResumeAppend,
 }: {
   username: string;
   variant?: CodernetCardVariant;
+  /** 仅「我的」页传入：与画像分栏维护的个人简历，用于合并复制投递简介 */
+  personalResumeAppend?: string | null;
 }) {
   const router = useRouter();
   const [profile, setProfile] = useState<CodernetProfile | null>(null);
@@ -862,6 +876,7 @@ export function CodernetCardPageClient({
               profileShareUrl={profileShareUrl}
               githubUsername={profile.user.githubUsername}
               analysis={analysis}
+              personalResumeAppend={personalResumeAppend}
               onRecrawl={handleRecrawlFromAssist}
               recrawlBusy={recrawlBusy}
             />

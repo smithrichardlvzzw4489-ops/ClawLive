@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { CodernetCardPageClient } from '@/components/codernet/CodernetCardPageClient';
+import { PersonalResumeSection } from '@/components/my/PersonalResumeSection';
 import { API_BASE_URL } from '@/lib/api';
 
 /**
- * 「我的」开发者画像：登录后首次进入会触发后台爬取/生成（与公开 /codernet/card/:user 同源数据）。
+ * 「我的」开发者名片：上方为自行维护的个人简历，下方为 GITLINK 技术画像（与公开 /codernet/card/:user 同源）。
  */
 export default function MyProfilePage() {
   const router = useRouter();
   const [username, setUsername] = useState<string | null>(null);
+  const [personalResume, setPersonalResume] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,13 +25,19 @@ export default function MyProfilePage() {
     const base = API_BASE_URL || '';
     fetch(`${base}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : null))
-      .then((u: { username?: string } | null) => {
-        if (u?.username) setUsername(u.username);
-        else router.replace('/login?redirect=/my/profile');
+      .then((u: { username?: string; personalResume?: string | null } | null) => {
+        if (u?.username) {
+          setUsername(u.username);
+          setPersonalResume(typeof u.personalResume === 'string' ? u.personalResume : null);
+        } else router.replace('/login?redirect=/my/profile');
       })
       .catch(() => router.replace('/login?redirect=/my/profile'))
       .finally(() => setLoading(false));
   }, [router]);
+
+  const handleResumeSaved = useCallback((text: string | null) => {
+    setPersonalResume(text);
+  }, []);
 
   if (loading || !username) {
     return (
@@ -43,7 +51,24 @@ export default function MyProfilePage() {
 
   return (
     <MainLayout flatBackground>
-      <CodernetCardPageClient username={username} variant="mine" />
+      <div className="bg-[#06080f] px-4 pt-6 pb-2">
+        <div className="mx-auto max-w-4xl">
+          <h1 className="text-lg font-bold text-white">My card · 完整简历</h1>
+          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed max-w-2xl">
+            上半部分由你手写<strong className="text-slate-400">个人简历</strong>；下半部分为系统根据公开数据生成的
+            <strong className="text-slate-400">技术画像</strong>。二者数据互不覆盖，合在一起即对外完整叙事。
+          </p>
+          <PersonalResumeSection
+            initialText={personalResume ?? ''}
+            onSaved={handleResumeSaved}
+          />
+        </div>
+      </div>
+      <CodernetCardPageClient
+        username={username}
+        variant="mine"
+        personalResumeAppend={personalResume}
+      />
     </MainLayout>
   );
 }
