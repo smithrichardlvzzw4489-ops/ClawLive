@@ -20,6 +20,8 @@ model User {
   githubAccessToken String?  @db.Text
   /// Raw crawled GitHub data (repos, languages, commits)
   githubProfileJson Json?
+  /// 多平台爬取快照（SO/npm/HF 等），供站内画像卡片与联系方式展示
+  codernetMultiPlatform Json?
   /// LLM-generated Codernet analysis (tags, commentary, quadrant)
   codernetAnalysis  Json?
   /// Last time GitHub profile was crawled

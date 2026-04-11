@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import type { IRouter } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { decrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
@@ -212,6 +213,7 @@ export function codernetRoutes(): IRouter {
           githubId: true,
           githubUsername: true,
           githubProfileJson: true,
+          codernetMultiPlatform: true,
           codernetAnalysis: true,
           codernetCrawledAt: true,
           createdAt: true,
@@ -239,6 +241,8 @@ export function codernetRoutes(): IRouter {
       const crawl = user.githubProfileJson as Record<string, unknown> | null;
       const analysis = analysisJsonForClient(user.codernetAnalysis);
 
+      const multiPlatform = user.codernetMultiPlatform as Record<string, unknown> | null;
+
       res.json({
         status: 'ready',
         user: {
@@ -248,6 +252,7 @@ export function codernetRoutes(): IRouter {
           githubUsername: user.githubUsername,
           memberSince: user.createdAt,
         },
+        multiPlatform: multiPlatform && Object.keys(multiPlatform).length > 0 ? multiPlatform : null,
         github: crawl
           ? {
               /** GitHub 登录名，与公开 lookup 页 crawl.username 一致 */
@@ -916,6 +921,9 @@ export async function runCrawlAndAnalysis(
       where: { id: userId },
       data: {
         codernetAnalysis: analysis as any,
+        codernetMultiPlatform: multiPlatform
+          ? (JSON.parse(JSON.stringify(multiPlatform)) as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       },
     });
 

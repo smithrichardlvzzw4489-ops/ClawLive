@@ -20,7 +20,11 @@ import {
   type InfluenceInsightsPayload,
 } from '@/components/codernet/CrossPlatformInfluencePanel';
 import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
-import { CodernetPortraitContactSection } from '@/components/codernet/CodernetPortraitContactSection';
+import {
+  CodernetPortraitContactSection,
+  type PortraitIdentityGraph,
+  type PortraitMultiPlatformContact,
+} from '@/components/codernet/CodernetPortraitContactSection';
 
 export type CodernetCardVariant = 'public' | 'home' | 'mine';
 
@@ -51,6 +55,8 @@ interface CodernetProfile {
   status: 'ready' | 'pending';
   message?: string;
   progress?: CrawlProgress | null;
+  /** 多平台爬取快照（含 identityGraph），与公开 lookup 页一致 */
+  multiPlatform?: (PortraitMultiPlatformContact & { identityGraph?: PortraitIdentityGraph }) | null;
   user: {
     username: string;
     avatarUrl: string | null;
@@ -716,6 +722,8 @@ export function CodernetCardPageClient({
                   email: github.email,
                   twitterUsername: github.twitterUsername,
                 }}
+                multiPlatform={profile.multiPlatform ?? undefined}
+                identityGraph={profile.multiPlatform?.identityGraph ?? null}
               />
             </div>
           ) : null}
