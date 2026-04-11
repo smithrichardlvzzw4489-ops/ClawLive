@@ -88,7 +88,6 @@ export function Header({}: HeaderProps) {
               icon="📋"
               active={pathname.startsWith('/job-plaza')}
             />
-            <NavItem href="/messages" label="站内信" icon="✉️" active={pathname.startsWith('/messages')} />
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
