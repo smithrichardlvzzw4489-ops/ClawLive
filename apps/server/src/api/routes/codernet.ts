@@ -104,8 +104,8 @@ const lookupCache = new Map<string, LookupCacheEntry>();
 const LOOKUP_CACHE_TTL = 30 * 60 * 1000; // 30 min
 
 const GRAPH_CACHE_TTL = 10 * 60 * 1000;
-/** 侧栏人物增加 summary 等字段时递增，避免命中旧结构内存缓存 */
-const GRAPH_PEOPLE_CACHE_VERSION = 2;
+/** 侧栏人物增加 summary / 超时策略变更时递增，避免命中旧结构内存缓存 */
+const GRAPH_PEOPLE_CACHE_VERSION = 3;
 const similarPeopleCache = new Map<string, { at: number; people: SimilarPersonRow[]; v: number }>();
 const relationsPeopleCache = new Map<string, { at: number; people: RelationPersonRow[]; v: number }>();
 

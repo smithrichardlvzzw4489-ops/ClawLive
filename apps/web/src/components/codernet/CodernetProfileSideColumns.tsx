@@ -7,6 +7,9 @@ import { API_BASE_URL } from '@/lib/api';
 type SimilarRow = { githubUsername: string; avatarUrl: string; similarityPercent: number; summary?: string };
 type RelationRow = { githubUsername: string; avatarUrl: string; connectionDensity: number; summary?: string };
 
+/** 侧栏接口含多路 GitHub + LLM，需长于默认无超时 fetch，避免一直转圈 */
+const SIDE_GRAPH_FETCH_MS = 95_000;
+
 function PanelShell({
   title,
   subtitle,
@@ -63,17 +66,26 @@ export function CodernetProfileSideColumns({
     if (similar !== null || simLoading) return;
     setSimLoading(true);
     setSimErr(null);
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), SIDE_GRAPH_FETCH_MS);
     try {
-      const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}/similar`);
+      const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}/similar`, {
+        signal: ac.signal,
+      });
       const data = (await res.json().catch(() => ({}))) as { people?: SimilarRow[]; error?: string; message?: string };
       if (!res.ok) {
         setSimErr(data.message || data.error || `加载失败 (${res.status})`);
         return;
       }
       setSimilar(data.people ?? []);
-    } catch {
-      setSimErr('网络错误');
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setSimErr('加载超时，请稍后重试或收起再展开。');
+      } else {
+        setSimErr('网络错误');
+      }
     } finally {
+      clearTimeout(tid);
       setSimLoading(false);
     }
   }, [base, ghUsername, similar, simLoading]);
@@ -82,17 +94,26 @@ export function CodernetProfileSideColumns({
     if (relations !== null || relLoading) return;
     setRelLoading(true);
     setRelErr(null);
+    const ac = new AbortController();
+    const tid = setTimeout(() => ac.abort(), SIDE_GRAPH_FETCH_MS);
     try {
-      const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}/relations`);
+      const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}/relations`, {
+        signal: ac.signal,
+      });
       const data = (await res.json().catch(() => ({}))) as { people?: RelationRow[]; error?: string; message?: string };
       if (!res.ok) {
         setRelErr(data.message || data.error || `加载失败 (${res.status})`);
         return;
       }
       setRelations(data.people ?? []);
-    } catch {
-      setRelErr('网络错误');
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        setRelErr('加载超时，请稍后重试或收起再展开。');
+      } else {
+        setRelErr('网络错误');
+      }
     } finally {
+      clearTimeout(tid);
       setRelLoading(false);
     }
   }, [base, ghUsername, relations, relLoading]);

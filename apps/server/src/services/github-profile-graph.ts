@@ -14,6 +14,13 @@ import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 
 const GH_API = 'https://api.github.com';
 
+/** 避免侧栏接口长时间无响应：仅对前 N 人拉 GitHub /users；其余用本地兜底 summary */
+const GRAPH_CARD_FETCH_CAP = 32;
+/** 仅对前 M 人跑 LLM 短评（单批），整体再套总超时 */
+const GRAPH_LLM_LOGIN_CAP = 22;
+const GRAPH_USER_FETCH_TIMEOUT_MS = 5500;
+const GRAPH_LLM_TOTAL_TIMEOUT_MS = 14_000;
+
 function ghHeaders(token?: string): Record<string, string> {
   const h: Record<string, string> = {
     Accept: 'application/vnd.github+json',
@@ -67,9 +74,32 @@ async function mapPool<T, R>(items: T[], concurrency: number, worker: (item: T, 
   return results;
 }
 
+function abortSignalTimeout(ms: number): AbortSignal {
+  return AbortSignal.timeout(ms);
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`timeout after ${ms}ms`)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
 async function fetchGitHubUserPublic(login: string, token: string | undefined): Promise<GHUserPublicBlurb | null> {
   try {
-    const res = await fetch(`${GH_API}/users/${encodeURIComponent(login)}`, { headers: ghHeaders(token) });
+    const res = await fetch(`${GH_API}/users/${encodeURIComponent(login)}`, {
+      headers: ghHeaders(token),
+      signal: abortSignalTimeout(GRAPH_USER_FETCH_TIMEOUT_MS),
+    });
     if (!res.ok) return null;
     const j = (await res.json()) as Record<string, unknown>;
     const lo = typeof j.login === 'string' ? j.login : login;
@@ -167,15 +197,23 @@ async function enrichPeopleWithSummaries<T extends { githubUsername: string }>(
 ): Promise<Array<T & { summary: string }>> {
   if (rows.length === 0) return [];
   const logins = [...new Set(rows.map((r) => r.githubUsername))];
-  const cards = await mapPool(logins, 8, (login) => fetchGitHubUserPublic(login, token));
+  const fetchLogins = logins.slice(0, GRAPH_CARD_FETCH_CAP);
+  const cards = await mapPool(fetchLogins, 12, (login) => fetchGitHubUserPublic(login, token));
   const cardByLogin = new Map<string, GHUserPublicBlurb | null>();
-  logins.forEach((login, idx) => cardByLogin.set(login.toLowerCase(), cards[idx]));
+  fetchLogins.forEach((login, idx) => cardByLogin.set(login.toLowerCase(), cards[idx]));
 
   let llmMap = new Map<string, string>();
+  const llmLogins = logins.slice(0, GRAPH_LLM_LOGIN_CAP);
   try {
-    llmMap = await synthesizeSummariesWithLlm(logins, (login) => cardByLogin.get(login.toLowerCase()) ?? null);
+    llmMap = await withTimeout(
+      synthesizeSummariesWithLlm(llmLogins, (login) => cardByLogin.get(login.toLowerCase()) ?? null),
+      GRAPH_LLM_TOTAL_TIMEOUT_MS,
+    );
   } catch (e) {
-    console.warn('[GitHubProfileGraph] LLM summaries skipped:', e instanceof Error ? e.message : e);
+    console.warn(
+      '[GitHubProfileGraph] LLM summaries skipped (timeout or error):',
+      e instanceof Error ? e.message : e,
+    );
   }
 
   return rows.map((r) => {
