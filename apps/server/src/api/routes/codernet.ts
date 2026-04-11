@@ -107,6 +107,35 @@ const GRAPH_CACHE_TTL = 10 * 60 * 1000;
 const similarPeopleCache = new Map<string, { at: number; people: SimilarPersonRow[] }>();
 const relationsPeopleCache = new Map<string, { at: number; people: RelationPersonRow[] }>();
 
+/**
+ * 相似的人 / 关系图谱 需要 crawl + analysis。
+ * 优先用公开 lookup 内存缓存；否则用站内已爬取用户的 DB 快照（服务器重启或从未打开过公开 lookup 时仍可用）。
+ */
+async function resolvePortraitCrawlForGraphs(
+  ghUserLower: string,
+): Promise<{ crawl: GitHubCrawlResult; analysis: CodernetAnalysis | undefined } | null> {
+  const mem = lookupCache.get(ghUserLower);
+  if (mem?.crawl) {
+    return { crawl: mem.crawl, analysis: mem.analysis };
+  }
+  const row = await prisma.user.findFirst({
+    where: {
+      githubUsername: { equals: ghUserLower, mode: 'insensitive' },
+      githubId: { not: null },
+    },
+    orderBy: { codernetCrawledAt: 'desc' },
+    select: { githubProfileJson: true, codernetAnalysis: true },
+  });
+  if (!row?.githubProfileJson || typeof row.githubProfileJson !== 'object') return null;
+  const crawl = row.githubProfileJson as unknown as GitHubCrawlResult;
+  if (!Array.isArray(crawl.repos)) return null;
+  const analysis =
+    row.codernetAnalysis && typeof row.codernetAnalysis === 'object'
+      ? (row.codernetAnalysis as unknown as CodernetAnalysis)
+      : undefined;
+  return { crawl, analysis };
+}
+
 /** GET /api/codernet/github/:ghUsername — 与 Open API 共用 */
 export async function handleCodernetGithubLookupGet(req: Request, res: Response): Promise<void> {
   try {
@@ -352,11 +381,12 @@ export function codernetRoutes(): IRouter {
   router.get('/github/:ghUsername/similar', async (req: Request, res: Response) => {
     try {
       const ghUser = req.params.ghUsername.toLowerCase();
-      const cached = lookupCache.get(ghUser);
-      if (!cached?.crawl) {
+      const bundle = await resolvePortraitCrawlForGraphs(ghUser);
+      if (!bundle?.crawl) {
         return res.status(404).json({
           error: 'NOT_READY',
-          message: 'Profile not in server cache yet. Wait for the portrait to finish loading.',
+          message:
+            'Profile not in server cache yet. Open this GitHub portrait once to load it, or wait if a crawl is running.',
         });
       }
       const hit = similarPeopleCache.get(ghUser);
@@ -364,7 +394,7 @@ export function codernetRoutes(): IRouter {
         return res.json({ people: hit.people });
       }
       const token = getServerGitHubToken();
-      const people = await fetchSimilarGitHubUsers(ghUser, cached.crawl, cached.analysis, token);
+      const people = await fetchSimilarGitHubUsers(ghUser, bundle.crawl, bundle.analysis, token);
       similarPeopleCache.set(ghUser, { at: Date.now(), people });
       res.json({ people });
     } catch (e) {
@@ -383,11 +413,12 @@ export function codernetRoutes(): IRouter {
   router.get('/github/:ghUsername/relations', async (req: Request, res: Response) => {
     try {
       const ghUser = req.params.ghUsername.toLowerCase();
-      const cached = lookupCache.get(ghUser);
-      if (!cached?.crawl?.repos?.length) {
+      const bundle = await resolvePortraitCrawlForGraphs(ghUser);
+      if (!bundle?.crawl?.repos?.length) {
         return res.status(404).json({
           error: 'NOT_READY',
-          message: 'No repository data in cache yet.',
+          message:
+            'No repository data in cache yet. Open this GitHub portrait once to load repos, or wait if a crawl is running.',
         });
       }
       const hit = relationsPeopleCache.get(ghUser);
@@ -395,7 +426,7 @@ export function codernetRoutes(): IRouter {
         return res.json({ people: hit.people });
       }
       const token = getServerGitHubToken();
-      const people = await fetchGitHubRelationPeople(ghUser, cached.crawl, token);
+      const people = await fetchGitHubRelationPeople(ghUser, bundle.crawl, token);
       relationsPeopleCache.set(ghUser, { at: Date.now(), people });
       res.json({ people });
     } catch (e) {
