@@ -17,6 +17,7 @@ import {
 import { CrossPlatformInfluencePanel } from '@/components/codernet/CrossPlatformInfluencePanel';
 import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
 import { CodernetPortraitShareStrip } from '@/components/codernet/CodernetPortraitShareStrip';
+import { CodernetPortraitContactSection } from '@/components/codernet/CodernetPortraitContactSection';
 import { CodernetProfileSideColumns } from '@/components/codernet/CodernetProfileSideColumns';
 
 interface CrawlProgress {
@@ -72,7 +73,15 @@ interface MultiPlatformInsights {
 }
 
 interface GitLabProject { name: string; description: string | null; stars: number; forks: number; url: string; lastActivity: string }
-interface GitLabData { username: string; name: string; publicRepos: number; followers: number; topProjects: GitLabProject[]; profileUrl: string }
+interface GitLabData {
+  username: string;
+  name: string;
+  publicRepos: number;
+  followers: number;
+  topProjects: GitLabProject[];
+  profileUrl: string;
+  websiteUrl?: string | null;
+}
 
 interface LeetCodeData { username: string; totalSolved: number; easySolved: number; mediumSolved: number; hardSolved: number; contestRating: number | null; contestGlobalRanking: number | null; contestAttended: number; badges: string[]; profileUrl: string }
 
@@ -87,7 +96,12 @@ interface CrateInfo { name: string; description: string | null; downloads: numbe
 interface CratesIoData { username: string; crates: CrateInfo[]; totalDownloads: number; totalCrates: number; profileUrl: string }
 
 interface IdentityGraphLink { source: { platform: string }; target: { platform: string; username: string; profileUrl: string }; method: string; confidence: number }
-interface IdentityGraph { platforms: string[]; links: IdentityGraphLink[]; overallConfidence: number }
+interface IdentityGraph {
+  platforms: string[];
+  links: IdentityGraphLink[];
+  overallConfidence: number;
+  identities?: Array<{ platform?: string; username?: string; profileUrl?: string; email?: string }>;
+}
 
 interface SOProfile {
   displayName: string;
@@ -194,6 +208,8 @@ interface LookupResult {
     location: string | null;
     company: string | null;
     blog: string | null;
+    email?: string | null;
+    twitterUsername?: string | null;
     repos: TopRepo[];
     languageStats: Record<string, number>;
     recentCommits?: Array<{ repo: string; message: string; date: string }>;
@@ -881,6 +897,24 @@ export default function GitHubLookupCardPage() {
               ))}
             </div>
           )}
+
+          {crawl ? (
+            <div className="mb-5">
+              <CodernetPortraitContactSection
+                githubLogin={ghUsername}
+                crawl={{
+                  blog: crawl.blog,
+                  location: crawl.location,
+                  company: crawl.company,
+                  bio: crawl.bio,
+                  email: crawl.email,
+                  twitterUsername: crawl.twitterUsername,
+                }}
+                multiPlatform={multiPlatform}
+                identityGraph={multiPlatform?.identityGraph ?? null}
+              />
+            </div>
+          ) : null}
 
           {analysis?.sharpCommentary && (
             <div className="rounded-lg bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-3 mb-5">

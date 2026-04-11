@@ -281,6 +281,8 @@ export function codernetRoutes(): IRouter {
               location: crawl.location,
               company: crawl.company,
               blog: crawl.blog,
+              email: (crawl.email as string | null | undefined) ?? null,
+              twitterUsername: (crawl.twitterUsername as string | null | undefined) ?? null,
             }
           : null,
         analysis,

@@ -60,6 +60,10 @@ export interface GitHubCrawlResult {
   location: string | null;
   company: string | null;
   blog: string | null;
+  /** GitHub 用户选择公开的邮箱（多数用户为空） */
+  email: string | null;
+  /** GitHub 关联的 X (Twitter) 用户名（若有） */
+  twitterUsername: string | null;
   /** 由 repos + recentCommits 派生的时间线与多视角列表 */
   portfolioDepth?: PortfolioDepth;
 }
@@ -89,6 +93,9 @@ interface GHUserProfile {
   location: string | null;
   company: string | null;
   blog: string | null;
+  /** 用户选择在 GitHub 公开的邮箱时才有值 */
+  email?: string | null;
+  twitter_username?: string | null;
 }
 
 /**
@@ -216,6 +223,8 @@ export async function crawlGitHubProfile(
   onProgress?: CrawlProgressCallback,
 ): Promise<GitHubCrawlResult> {
   const profile = await ghFetch<GHUserProfile>(`${GH_API}/users/${username}`, token);
+  const profileEmail = profile.email ?? null;
+  const profileTwitter = profile.twitter_username?.trim() || null;
 
   onProgress?.('fetching_repos', `Fetching repositories for @${username}...`);
   const repos = await fetchTopRepos(token, username);
@@ -259,6 +268,8 @@ export async function crawlGitHubProfile(
     location: profile.location,
     company: profile.company,
     blog: profile.blog,
+    email: profileEmail,
+    twitterUsername: profileTwitter,
   };
 
   return {

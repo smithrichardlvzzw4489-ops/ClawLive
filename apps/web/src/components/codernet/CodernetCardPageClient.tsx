@@ -20,6 +20,7 @@ import {
   type InfluenceInsightsPayload,
 } from '@/components/codernet/CrossPlatformInfluencePanel';
 import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadrantPanel';
+import { CodernetPortraitContactSection } from '@/components/codernet/CodernetPortraitContactSection';
 
 export type CodernetCardVariant = 'public' | 'home' | 'mine';
 
@@ -82,6 +83,8 @@ interface CodernetProfile {
     location: string | null;
     company: string | null;
     blog: string | null;
+    email?: string | null;
+    twitterUsername?: string | null;
   } | null;
   analysis?: {
     techTags: string[];
@@ -700,6 +703,22 @@ export function CodernetCardPageClient({
               ))}
             </div>
           )}
+
+          {github ? (
+            <div className="mb-5">
+              <CodernetPortraitContactSection
+                githubLogin={(github.username || profile.user.githubUsername || username || '').trim()}
+                crawl={{
+                  blog: github.blog,
+                  location: github.location,
+                  company: github.company,
+                  bio: github.bio ?? displayBio,
+                  email: github.email,
+                  twitterUsername: github.twitterUsername,
+                }}
+              />
+            </div>
+          ) : null}
 
           {analysis?.sharpCommentary && (
             <div className="rounded-lg bg-gradient-to-r from-violet-500/10 to-indigo-500/10 border border-violet-500/20 px-4 py-3 mb-5">
