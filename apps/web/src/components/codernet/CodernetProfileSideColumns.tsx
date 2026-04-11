@@ -111,7 +111,7 @@ export function CodernetProfileSideColumns({
 
   if (!enabled) {
     return (
-      <aside className="space-y-4 lg:sticky lg:top-6 text-sm text-slate-500">
+      <aside className="space-y-4 text-sm text-slate-500">
         <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
           画像加载完成后，可在此展开「相似的人」与「关系图谱」。
         </p>
@@ -120,7 +120,7 @@ export function CodernetProfileSideColumns({
   }
 
   return (
-    <aside className="space-y-4 lg:sticky lg:top-6">
+    <aside className="space-y-4 w-full">
       <PanelShell
         title="相似的人"
         subtitle="根据本画像综合信息由 AI 生成 GitHub 检索条件，最多 100 人；相似度为检索相关度估算。"

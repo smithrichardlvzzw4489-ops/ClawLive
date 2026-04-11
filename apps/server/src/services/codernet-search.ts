@@ -154,7 +154,9 @@ export async function runGitHubUserSearchFromParsed(
   const data = (await res.json()) as GHSearchResponse;
   console.log(`[CodernetSearch] GitHub returned ${data.total_count} total, ${data.items.length} items`);
 
-  const users = data.items.filter((u) => u.type === 'User').slice(0, perPage);
+  const users = data.items
+    .filter((u) => !u.type || String(u.type).toLowerCase() === 'user')
+    .slice(0, perPage);
   if (!enrich) return users;
 
   const enriched = await Promise.allSettled(

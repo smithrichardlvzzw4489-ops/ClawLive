@@ -1,5 +1,5 @@
 /**
- * GitHub 画像页侧边能力：相似用户（LLM→GitHub Search）、关系边（共同仓库贡献者聚合）。
+ * GitHub 画像页侧边能力：相似用户（LLM→GitHub Search + 多档兜底）、关系（贡献者 + 关注兜底）。
  */
 
 import type { GitHubCrawlResult, GHRepo } from './github-crawler';
@@ -35,6 +35,21 @@ export type RelationPersonRow = {
   connectionDensity: number;
   rawWeight: number;
 };
+
+function ghLangForSearch(display: string): string {
+  const k = display.trim();
+  const map: Record<string, string> = {
+    'C++': 'cpp',
+    'C#': 'csharp',
+    'F#': 'fsharp',
+    'Objective-C': 'objective-c',
+    'ASP.NET': 'asp.net',
+    'Vue.js': 'vue',
+    'Node.js': 'javascript',
+  };
+  if (map[k]) return map[k];
+  return k.replace(/\s+/g, '-').toLowerCase();
+}
 
 /** 将种子画像综合信息拼成自然语言，交给 parseQueryToGitHubSearch 生成 GitHub q */
 function buildSimilarProfileNarrative(
@@ -82,7 +97,10 @@ function buildSimilarProfileNarrative(
   if (uniqTopics.length) lines.push(`【高星仓库常见 topics】${uniqTopics.join('，')}`);
 
   lines.push(
-    '请综合以上信息构造一条 GitHub Search Users 的 q：兼顾主要语言、合理粉丝/仓库量级、与领域相关的英文关键词；避免只用一个 language。',
+    '请综合以上信息构造一条 GitHub Search Users 的 q：兼顾主要语言、合理粉丝/仓库量级、与领域相关的英文关键词。',
+  );
+  lines.push(
+    '【硬性规则】若 githubQuery 中出现多个 language: 条件，必须用括号 + OR 写成 (language:rust OR language:c)，禁止写成空格分隔的多个 language:（GitHub 会当成 AND，结果常为空）。',
   );
   return lines.join('\n');
 }
@@ -96,46 +114,62 @@ function ensureQueryExcludesSeed(q: string, seed: string): string {
   return s;
 }
 
-/**
- * 用 LLM 根据画像综合叙述生成 GitHub Search，再拉最多 100 人；相似度来自搜索 score 或序位。
- */
-export async function fetchSimilarGitHubUsers(
-  seedLogin: string,
-  crawl: GitHubCrawlResult,
-  analysis: CodernetAnalysis | undefined,
-  token: string | undefined,
-): Promise<SimilarPersonRow[]> {
-  const seed = seedLogin.toLowerCase();
-  const narrative = buildSimilarProfileNarrative(seed, crawl, analysis);
-  const parsed = await parseQueryToGitHubSearch(narrative);
-  const merged: ParsedQuery = {
-    ...parsed,
-    githubQuery: ensureQueryExcludesSeed(parsed.githubQuery, seed),
-  };
-  console.log(
-    `[GitHubProfileGraph] similar LLM q="${merged.githubQuery}" (${parsed.explanation})`,
-  );
-
-  let items: GHSearchUserItem[];
-  try {
-    items = await runGitHubUserSearchFromParsed(merged, token, { perPage: 100, enrichProfiles: false });
-  } catch (e) {
-    console.warn('[GitHubProfileGraph] similar primary search failed, retrying looser query', e);
-    const fallback = await parseQueryToGitHubSearch(
-      `${narrative}\n\n【重试】上次生成的 q 可能过严。请生成更宽松但仍与领域相关的 GitHub users q，务必保留 type:user 与排除本人。`,
-    );
-    const merged2: ParsedQuery = {
-      ...fallback,
-      githubQuery: ensureQueryExcludesSeed(fallback.githubQuery, seed),
-    };
-    items = await runGitHubUserSearchFromParsed(merged2, token, { perPage: 100, enrichProfiles: false });
+/** LLM 结果为空或过严时的多档兜底（显式 OR 语言、粉丝带、宽 repos） */
+function buildSimilarFallbackQueries(seed: string, crawl: GitHubCrawlResult, analysis?: CodernetAnalysis): ParsedQuery[] {
+  const out: ParsedQuery[] = [];
+  const langs: string[] = [];
+  if (analysis?.languageDistribution?.length) {
+    for (const l of analysis.languageDistribution) {
+      if (l.percent >= 1.5 && l.language) langs.push(ghLangForSearch(l.language));
+    }
   }
+  if (langs.length === 0 && crawl.languageStats) {
+    for (const [name, bytes] of Object.entries(crawl.languageStats).sort((a, b) => b[1] - a[1]).slice(0, 5)) {
+      if (bytes > 0) langs.push(ghLangForSearch(name));
+    }
+  }
+  const uniq = [...new Set(langs)].filter(Boolean).slice(0, 4);
+  if (uniq.length >= 1) {
+    const orq = uniq.map((g) => `language:${g}`).join(' OR ');
+    out.push({ githubQuery: `(${orq}) type:user -user:${seed}`, explanation: 'fallback-lang-or' });
+  }
+  const f = crawl.followers || 0;
+  if (f > 200_000) {
+    out.push({
+      githubQuery: `followers:>8000 repos:>5 type:user -user:${seed}`,
+      sort: 'followers',
+      order: 'desc',
+      explanation: 'fallback-high-follow',
+    });
+  } else if (f > 20_000) {
+    out.push({
+      githubQuery: `followers:>2000 repos:>3 type:user -user:${seed}`,
+      sort: 'followers',
+      order: 'desc',
+      explanation: 'fallback-mid-follow',
+    });
+  } else if (f > 500) {
+    out.push({
+      githubQuery: `followers:>100 repos:>2 type:user -user:${seed}`,
+      sort: 'followers',
+      order: 'desc',
+      explanation: 'fallback-low-follow',
+    });
+  }
+  out.push({
+    githubQuery: `repos:>15 type:user -user:${seed}`,
+    sort: 'followers',
+    order: 'desc',
+    explanation: 'fallback-repos-wide',
+  });
+  return out;
+}
 
-  const filtered = items.filter((u) => u.login?.toLowerCase() !== seed);
-  const scores = filtered.map((u) => (typeof u.score === 'number' && u.score > 0 ? u.score : 0));
+function mapSearchItemsToSimilar(filtered: GHSearchUserItem[], seed: string): SimilarPersonRow[] {
+  const f = filtered.filter((u) => u.login?.toLowerCase() !== seed && (!u.type || String(u.type).toLowerCase() === 'user'));
+  const scores = f.map((u) => (typeof u.score === 'number' && u.score > 0 ? u.score : 0));
   const maxScore = Math.max(...scores, 0);
-
-  return filtered.slice(0, 100).map((u, idx) => {
+  return f.slice(0, 100).map((u, idx) => {
     let similarityPercent: number;
     if (maxScore > 0) {
       const base = typeof u.score === 'number' && u.score > 0 ? Math.min(100, (u.score / maxScore) * 100) : 0;
@@ -152,44 +186,150 @@ export async function fetchSimilarGitHubUsers(
   });
 }
 
+/**
+ * 用 LLM 根据画像综合叙述生成 GitHub Search；空结果时用 OR 语言 / 粉丝带等多档兜底。
+ */
+export async function fetchSimilarGitHubUsers(
+  seedLogin: string,
+  crawl: GitHubCrawlResult,
+  analysis: CodernetAnalysis | undefined,
+  token: string | undefined,
+): Promise<SimilarPersonRow[]> {
+  const seed = seedLogin.toLowerCase();
+  const narrative = buildSimilarProfileNarrative(seed, crawl, analysis);
+  const parsed = await parseQueryToGitHubSearch(narrative);
+  let merged: ParsedQuery = {
+    ...parsed,
+    githubQuery: ensureQueryExcludesSeed(parsed.githubQuery, seed),
+  };
+  console.log(`[GitHubProfileGraph] similar LLM q="${merged.githubQuery}" (${parsed.explanation})`);
+
+  let items: GHSearchUserItem[] = [];
+  try {
+    items = await runGitHubUserSearchFromParsed(merged, token, { perPage: 100, enrichProfiles: false });
+  } catch (e) {
+    console.warn('[GitHubProfileGraph] similar primary search failed', e);
+    try {
+      const fallback = await parseQueryToGitHubSearch(
+        `${narrative}\n\n【重试】上次 q 非法或过严。请输出更短、更宽的 githubQuery；多个 language 必须用 OR。`,
+      );
+      merged = { ...fallback, githubQuery: ensureQueryExcludesSeed(fallback.githubQuery, seed) };
+      items = await runGitHubUserSearchFromParsed(merged, token, { perPage: 100, enrichProfiles: false });
+    } catch (e2) {
+      console.warn('[GitHubProfileGraph] similar LLM retry failed', e2);
+    }
+  }
+
+  let rows = mapSearchItemsToSimilar(items, seed);
+  if (rows.length === 0) {
+    const fallbacks = buildSimilarFallbackQueries(seed, crawl, analysis);
+    for (const fb of fallbacks) {
+      const q = ensureQueryExcludesSeed(fb.githubQuery, seed);
+      try {
+        const next = await runGitHubUserSearchFromParsed(
+          { ...fb, githubQuery: q },
+          token,
+          { perPage: 100, enrichProfiles: false },
+        );
+        rows = mapSearchItemsToSimilar(next, seed);
+        if (rows.length > 0) {
+          console.log(`[GitHubProfileGraph] similar recovered via ${fb.explanation} (${rows.length})`);
+          break;
+        }
+      } catch (e) {
+        console.warn(`[GitHubProfileGraph] similar fallback ${fb.explanation} failed`, e);
+      }
+    }
+  }
+  return rows;
+}
+
 interface GHContributor {
   login: string;
   avatar_url: string;
   contributions: number;
 }
 
+interface GHSimpleUser {
+  login: string;
+  avatar_url: string;
+}
+
+function repoFullName(repo: GHRepo, crawlUsername: string): string | null {
+  if (repo.full_name?.includes('/')) return repo.full_name;
+  if (repo.name && crawlUsername) return `${crawlUsername}/${repo.name}`;
+  return null;
+}
+
+async function mergeFollowGraph(
+  seed: string,
+  token: string | undefined,
+  weight: Map<string, { avatar: string; w: number }>,
+  label: 'followers' | 'following',
+  baseWeight: number,
+): Promise<void> {
+  const url = `${GH_API}/users/${encodeURIComponent(seed)}/${label}?per_page=100`;
+  const res = await fetch(url, { headers: ghHeaders(token) });
+  if (!res.ok) {
+    console.warn(`[GitHubProfileGraph] ${label} ${res.status} for @${seed}`);
+    return;
+  }
+  const arr = (await res.json()) as GHSimpleUser[];
+  if (!Array.isArray(arr)) return;
+  for (const u of arr) {
+    if (!u.login || u.login.toLowerCase() === seed) continue;
+    const prev = weight.get(u.login) || { avatar: u.avatar_url || '', w: 0 };
+    prev.w += baseWeight;
+    if (u.avatar_url) prev.avatar = u.avatar_url;
+    weight.set(u.login, prev);
+  }
+}
+
 /**
- * 在用户高星仓库上聚合 contributors，作为「在 GitHub 上共同工程语境下出现过」的连接度。
+ * 高星仓库 contributors；若全失败或为空，用 followers / following 兜底（保证有名用户也有结果）。
  */
 export async function fetchGitHubRelationPeople(
   seedLogin: string,
-  repos: GHRepo[],
+  crawl: GitHubCrawlResult,
   token: string | undefined,
 ): Promise<RelationPersonRow[]> {
   const seed = seedLogin.toLowerCase();
-  const top = [...repos]
-    .filter((r) => !r.fork && r.full_name?.includes('/'))
+  const owner = (crawl.username || seedLogin).replace(/^@/, '');
+  const top = [...(crawl.repos || [])]
+    .filter((r) => !r.fork && (r.full_name?.includes('/') || r.name))
     .sort((a, b) => b.stargazers_count - a.stargazers_count)
-    .slice(0, 10);
+    .slice(0, 20);
 
   const weight = new Map<string, { avatar: string; w: number }>();
 
   for (const repo of top) {
+    const fn = repoFullName(repo, owner);
+    if (!fn) continue;
     try {
-      const url = `${GH_API}/repos/${encodeURIComponent(repo.full_name)}/contributors?per_page=100`;
+      const url = `${GH_API}/repos/${encodeURIComponent(fn)}/contributors?per_page=100`;
       const res = await fetch(url, { headers: ghHeaders(token) });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.warn(`[GitHubProfileGraph] contributors ${fn} → ${res.status}`);
+        continue;
+      }
       const list = (await res.json()) as GHContributor[];
+      if (!Array.isArray(list)) continue;
       for (const c of list) {
         if (!c.login || c.login.toLowerCase() === seed) continue;
-        const prev = weight.get(c.login) || { avatar: c.avatar_url, w: 0 };
+        const prev = weight.get(c.login) || { avatar: c.avatar_url || '', w: 0 };
         prev.w += Math.min(c.contributions || 0, 500);
         if (c.avatar_url) prev.avatar = c.avatar_url;
         weight.set(c.login, prev);
       }
-    } catch {
-      /* skip repo */
+    } catch (e) {
+      console.warn(`[GitHubProfileGraph] contributors ${fn} error`, e);
     }
+  }
+
+  if (weight.size === 0) {
+    console.warn(`[GitHubProfileGraph] no contributors aggregated for @${seed}, using followers/following`);
+    await mergeFollowGraph(seed, token, weight, 'followers', 25);
+    await mergeFollowGraph(seed, token, weight, 'following', 12);
   }
 
   const rows = [...weight.entries()]
@@ -200,7 +340,7 @@ export async function fetchGitHubRelationPeople(
   const maxW = Math.max(...rows.map((r) => r.w), 1);
   return rows.map((r) => ({
     githubUsername: r.login,
-    avatarUrl: r.avatar,
+    avatarUrl: r.avatar || `https://github.com/${encodeURIComponent(r.login)}.png`,
     rawWeight: r.w,
     connectionDensity: Math.min(100, Math.max(5, Math.round((r.w / maxW) * 100))),
   }));

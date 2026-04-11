@@ -822,9 +822,9 @@ export default function GitHubLookupCardPage() {
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/15 blur-[160px]" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(rgba(255,255,255,.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.02)_1px,transparent_1px)] bg-[size:48px_48px]" />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-10">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,42rem)_minmax(0,18rem)] xl:grid-cols-[minmax(0,42rem)_20rem] items-start">
-        <div className="min-w-0 w-full max-w-2xl lg:max-w-none">
+      <div className="relative z-10 w-full px-4 py-10">
+        <div className="mx-auto flex w-full max-w-[1220px] flex-col lg:flex-row lg:justify-center gap-8 lg:gap-10 items-start">
+        <div className="min-w-0 w-full max-w-2xl shrink-0">
         <Link
           href="/codernet"
           className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition mb-4"
@@ -999,7 +999,9 @@ export default function GitHubLookupCardPage() {
           <span className="text-xs text-slate-600 font-mono">GITLINK</span>
         </div>
         </div>
-        <CodernetProfileSideColumns ghUsername={ghUsername} enabled />
+        <div className="w-full max-w-md mx-auto lg:mx-0 lg:w-80 shrink-0 lg:sticky lg:top-6 self-start">
+          <CodernetProfileSideColumns ghUsername={ghUsername} enabled />
+        </div>
         </div>
       </div>
     </div>

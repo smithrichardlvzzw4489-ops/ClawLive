@@ -388,7 +388,7 @@ export function codernetRoutes(): IRouter {
         return res.json({ people: hit.people });
       }
       const token = getServerToken();
-      const people = await fetchGitHubRelationPeople(ghUser, cached.crawl.repos, token);
+      const people = await fetchGitHubRelationPeople(ghUser, cached.crawl, token);
       relationsPeopleCache.set(ghUser, { at: Date.now(), people });
       res.json({ people });
     } catch (e) {
