@@ -180,7 +180,7 @@ export async function handleCodernetGithubLookupPost(
         return;
       }
       consumeQuota(quotaUserId, 'profile_lookup');
-      recordCodernetInterfaceUsage(quotaUserId, 'githubPortrait');
+      void recordCodernetInterfaceUsage(quotaUserId, 'githubPortrait');
     }
 
     res.json({ status: 'started', message: 'Crawl started.' });
@@ -325,7 +325,7 @@ export function codernetRoutes(): IRouter {
         });
       }
 
-      recordCodernetInterfaceUsage(userId, 'minePortrait');
+      void recordCodernetInterfaceUsage(userId, 'minePortrait');
 
       res.json({ status: 'crawling', message: 'GitHub profile crawl started.' });
 
@@ -439,7 +439,7 @@ export function codernetRoutes(): IRouter {
           });
         }
         consumeQuota(callerId, 'search');
-        recordCodernetInterfaceUsage(callerId, 'linkSearch');
+        void recordCodernetInterfaceUsage(callerId, 'linkSearch');
       }
 
       const token = getServerToken();

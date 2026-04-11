@@ -24,6 +24,12 @@ model User {
   codernetAnalysis  Json?
   /// Last time GitHub profile was crawled
   codernetCrawledAt DateTime?
+  /// GITLINK 三入口：POST /api/codernet/crawl（我的画像）
+  codernetMinePortraitCalls   Int @default(0)
+  /// POST /api/codernet/github/:user 已登录扣 profile_lookup（GitHub 画像）
+  codernetGithubPortraitCalls Int @default(0)
+  /// POST /api/codernet/search 已登录扣 search（LINK）
+  codernetLinkSearchCalls     Int @default(0)
   /// 微信小程序 openid，与站内账号绑定后用于 wx.login 换票
   wechatMpOpenid    String?  @unique
   username          String   @unique

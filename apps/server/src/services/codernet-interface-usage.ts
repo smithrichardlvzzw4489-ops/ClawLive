@@ -1,84 +1,70 @@
 /**
- * GITLINK 首页三个 Tab 对应的接口调用次数（累计，按月不重置）。
+ * GITLINK 首页三个 Tab 对应的接口调用次数（累计，存 PostgreSQL users 表）。
  * - minePortrait: POST /api/codernet/crawl（我的画像）
- * - githubPortrait: POST /api/codernet/github/:user 且已登录扣 profile_lookup 时（GitHub 画像）
- * - linkSearch: POST /api/codernet/search 且已登录扣 search 时（LINK）
+ * - githubPortrait: POST /api/codernet/github/:user 且已登录 / Agent Key 扣 profile_lookup（GitHub 画像）
+ * - linkSearch: POST /api/codernet/search 且已登录扣 search（LINK）
+ *
+ * 历史：曾写入 `.data/codernet-interface-usage.json`；启动时 `migrateLegacyCodernetInterfaceUsageFromDisk` 会合并进库并重命名源文件。
  */
 
 import fs from 'fs';
 import path from 'path';
+import { prisma } from '../lib/prisma';
 
 export type CodernetInterfaceSource = 'minePortrait' | 'githubPortrait' | 'linkSearch';
 
-export interface CodernetInterfaceCounts {
-  minePortrait: number;
-  githubPortrait: number;
-  linkSearch: number;
-}
-
-const EMPTY: CodernetInterfaceCounts = { minePortrait: 0, githubPortrait: 0, linkSearch: 0 };
-
 const DATA_DIR = path.join(process.cwd(), '.data');
-const DATA_FILE = path.join(DATA_DIR, 'codernet-interface-usage.json');
+const LEGACY_FILE = path.join(DATA_DIR, 'codernet-interface-usage.json');
 
-const usageMap = new Map<string, CodernetInterfaceCounts>();
-let saveTimer: ReturnType<typeof setTimeout> | null = null;
-
-function loadFromDisk(): void {
-  try {
-    if (!fs.existsSync(DATA_FILE)) return;
-    const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8')) as {
-      users?: Record<string, Partial<CodernetInterfaceCounts>>;
-    };
-    if (!raw.users || typeof raw.users !== 'object') return;
-    for (const [userId, row] of Object.entries(raw.users)) {
-      if (!userId) continue;
-      usageMap.set(userId, {
-        minePortrait: Math.max(0, Number(row.minePortrait) || 0),
-        githubPortrait: Math.max(0, Number(row.githubPortrait) || 0),
-        linkSearch: Math.max(0, Number(row.linkSearch) || 0),
-      });
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
-function scheduleSave(): void {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    saveTimer = null;
-    try {
-      if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-      const users: Record<string, CodernetInterfaceCounts> = {};
-      for (const [k, v] of usageMap) users[k] = { ...v };
-      fs.writeFileSync(DATA_FILE, JSON.stringify({ users }, null, 2), 'utf-8');
-    } catch {
-      /* non-critical */
-    }
-  }, 800);
-}
-
-loadFromDisk();
-setInterval(() => {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    const users: Record<string, CodernetInterfaceCounts> = {};
-    for (const [k, v] of usageMap) users[k] = { ...v };
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ users }, null, 2), 'utf-8');
-  } catch {
-    /* ignore */
-  }
-}, 30_000);
-
-export function recordCodernetInterfaceUsage(userId: string | null | undefined, source: CodernetInterfaceSource): void {
+export async function recordCodernetInterfaceUsage(
+  userId: string | null | undefined,
+  source: CodernetInterfaceSource,
+): Promise<void> {
   if (!userId || typeof userId !== 'string') return;
-  const prev = usageMap.get(userId) || { ...EMPTY };
-  const next = { ...prev, [source]: prev[source] + 1 };
-  usageMap.set(userId, next);
-  scheduleSave();
+  const data =
+    source === 'minePortrait'
+      ? { codernetMinePortraitCalls: { increment: 1 } }
+      : source === 'githubPortrait'
+        ? { codernetGithubPortraitCalls: { increment: 1 } }
+        : { codernetLinkSearchCalls: { increment: 1 } };
+  try {
+    await prisma.user.update({ where: { id: userId }, data });
+  } catch (e) {
+    console.warn('[GITLINK] codernet interface usage increment failed:', userId, source, e);
+  }
 }
 
-export function getCodernetInterfaceUsageForUser(userId: string): CodernetInterfaceCounts {
-  return usageMap.get(userId) ? { ...usageMap.get(userId)! } : { ...EMPTY };
+/** 将单机 JSON 中的累计次数合并进 users（成功后重命名源文件，避免重复合并） */
+export async function migrateLegacyCodernetInterfaceUsageFromDisk(): Promise<void> {
+  if (!fs.existsSync(LEGACY_FILE)) return;
+  try {
+    const raw = JSON.parse(fs.readFileSync(LEGACY_FILE, 'utf-8')) as {
+      users?: Record<string, { minePortrait?: number; githubPortrait?: number; linkSearch?: number }>;
+    };
+    const users = raw.users && typeof raw.users === 'object' ? raw.users : {};
+    for (const [userId, row] of Object.entries(users)) {
+      if (!userId) continue;
+      const mine = Math.max(0, Number(row.minePortrait) || 0);
+      const gh = Math.max(0, Number(row.githubPortrait) || 0);
+      const link = Math.max(0, Number(row.linkSearch) || 0);
+      if (mine + gh + link === 0) continue;
+      try {
+        await prisma.user.update({
+          where: { id: userId },
+          data: {
+            codernetMinePortraitCalls: { increment: mine },
+            codernetGithubPortraitCalls: { increment: gh },
+            codernetLinkSearchCalls: { increment: link },
+          },
+        });
+      } catch {
+        /* 用户已删除等 */
+      }
+    }
+    const bak = `${LEGACY_FILE}.migrated.${Date.now()}.bak`;
+    fs.renameSync(LEGACY_FILE, bak);
+    console.log(`[GITLINK] Merged legacy codernet interface counts into DB; archived ${bak}`);
+  } catch (e) {
+    console.warn('[GITLINK] Legacy codernet-interface-usage migrate failed:', e);
+  }
 }

@@ -19,7 +19,6 @@ import {
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/requireAdmin';
 import { getAgentBehaviorStatsForUser, getHumanBehaviorStatsForUser } from '../../services/user-behavior';
-import { getCodernetInterfaceUsageForUser } from '../../services/codernet-interface-usage';
 
 export function adminRoutes(): Router {
   const router = Router();
@@ -59,6 +58,9 @@ export function adminRoutes(): Router {
           githubId: true,
           githubUsername: true,
           codernetCrawledAt: true,
+          codernetMinePortraitCalls: true,
+          codernetGithubPortraitCalls: true,
+          codernetLinkSearchCalls: true,
           _count: {
             select: {
               rooms: true,
@@ -81,8 +83,7 @@ export function adminRoutes(): Router {
         const humanBehaviors = getHumanBehaviorStatsForUser(row.id);
         const agentBehaviors = getAgentBehaviorStatsForUser(row.id);
         const li = row.lobsterInstance;
-        const ci = getCodernetInterfaceUsageForUser(row.id);
-        const portraitGenerations = ci.minePortrait + ci.githubPortrait;
+        const portraitGenerations = row.codernetMinePortraitCalls + row.codernetGithubPortraitCalls;
         return {
           id: row.id,
           username: row.username,
@@ -111,9 +112,9 @@ export function adminRoutes(): Router {
             humanBehaviors,
             agentBehaviors,
             codernetInterfaces: {
-              minePortrait: ci.minePortrait,
-              githubPortrait: ci.githubPortrait,
-              linkSearch: ci.linkSearch,
+              minePortrait: row.codernetMinePortraitCalls,
+              githubPortrait: row.codernetGithubPortraitCalls,
+              linkSearch: row.codernetLinkSearchCalls,
               portraitGenerations,
             },
           },
