@@ -407,6 +407,20 @@ export function CodernetHomeClient() {
         </div>
       </div>
       </div>
+
+      <footer className="relative z-10 border-t border-white/[0.06] px-4 py-8 text-center">
+        <a
+          href="https://t.me/+BFwEnVC6HdE1NDJl"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block text-sm font-medium text-violet-300 hover:text-violet-200 transition"
+        >
+          欢迎进入社区交流
+        </a>
+        <p className="mt-2 max-w-lg mx-auto break-all text-[11px] font-mono text-slate-500">
+          https://t.me/+BFwEnVC6HdE1NDJl
+        </p>
+      </footer>
     </div>
     </MainLayout>
   );
