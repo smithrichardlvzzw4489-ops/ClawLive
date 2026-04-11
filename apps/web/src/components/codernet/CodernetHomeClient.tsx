@@ -49,6 +49,14 @@ export function CodernetHomeClient() {
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [linkResults, setLinkResults] = useState<SemanticSearchHit[] | null>(null);
+  const [linkSelected, setLinkSelected] = useState<Record<string, boolean>>({});
+  const [linkContactSubject, setLinkContactSubject] = useState('');
+  const [linkContactBody, setLinkContactBody] = useState('');
+  const [linkSendEmail, setLinkSendEmail] = useState(false);
+  const [linkFromEmail, setLinkFromEmail] = useState('');
+  const [linkContactBusy, setLinkContactBusy] = useState(false);
+  const [linkContactErr, setLinkContactErr] = useState<string | null>(null);
+  const [linkContactOk, setLinkContactOk] = useState<string | null>(null);
 
   useEffect(() => {
     if (tab !== 'mine') return;
@@ -84,6 +92,12 @@ export function CodernetHomeClient() {
       })
       .finally(() => setMeLoading(false));
   }, [tab]);
+
+  useEffect(() => {
+    setLinkSelected({});
+    setLinkContactOk(null);
+    setLinkContactErr(null);
+  }, [linkResults]);
 
   const handleGenerateMinePortrait = async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -150,6 +164,62 @@ export function CodernetHomeClient() {
       }
     } finally {
       setLinkLoading(false);
+    }
+  };
+
+  const selectedGithubList = useMemo(() => {
+    if (!linkResults) return [];
+    return linkResults.map((h) => h.githubUsername).filter((u) => linkSelected[u]);
+  }, [linkResults, linkSelected]);
+
+  const handleLinkContactSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      router.push(`/login?redirect=${encodeURIComponent(here || '/codernet')}`);
+      return;
+    }
+    if (selectedGithubList.length === 0) return;
+    const sub = linkContactSubject.trim();
+    const msg = linkContactBody.trim();
+    if (!sub || !msg) {
+      setLinkContactErr('请填写主题与正文');
+      return;
+    }
+    if (linkSendEmail && !linkFromEmail.trim()) {
+      setLinkContactErr('群发邮件需填写发件人邮箱');
+      return;
+    }
+    setLinkContactBusy(true);
+    setLinkContactErr(null);
+    setLinkContactOk(null);
+    try {
+      const data = (await api.messages.linkContact({
+        githubUsernames: selectedGithubList,
+        subject: sub,
+        message: msg,
+        sendEmail: linkSendEmail,
+        fromEmail: linkSendEmail ? linkFromEmail.trim() : undefined,
+      })) as { ok?: boolean; results?: Array<{ githubUsername: string; site: string; email?: string; detail?: string }> };
+      if (!data?.ok) {
+        setLinkContactErr('发送失败');
+        return;
+      }
+      const lines = (data.results || [])
+        .map((r) => `@${r.githubUsername}: 站内${r.site}${r.email ? ` · 邮件 ${r.email}` : ''}${r.detail ? ` (${r.detail})` : ''}`)
+        .join('\n');
+      setLinkContactOk(lines || '已发送');
+      setLinkSelected({});
+      setLinkContactSubject('');
+      setLinkContactBody('');
+    } catch (err) {
+      if (err instanceof APIError) {
+        setLinkContactErr(err.message || '发送失败');
+      } else {
+        setLinkContactErr('网络异常');
+      }
+    } finally {
+      setLinkContactBusy(false);
     }
   };
 
@@ -372,45 +442,144 @@ export function CodernetHomeClient() {
 
               {linkResults && linkResults.length > 0 && (
                 <div className="space-y-3 mb-8">
-                  <p className="text-xs text-slate-500 font-mono text-center mb-2">共 {linkResults.length} 人 · 按匹配度排序</p>
-                  {linkResults.map((hit) => (
-                    <Link
-                      key={hit.githubUsername}
-                      href={withReturnTo(`/codernet/github/${encodeURIComponent(hit.githubUsername)}`, here)}
-                      className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 transition hover:border-violet-500/30 hover:bg-white/[0.05]"
+                  <div className="flex flex-wrap items-center justify-center gap-3 mb-2">
+                    <p className="text-xs text-slate-500 font-mono text-center">共 {linkResults.length} 人 · 按匹配度排序</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const all: Record<string, boolean> = {};
+                        for (const h of linkResults) all[h.githubUsername] = true;
+                        setLinkSelected(all);
+                      }}
+                      className="text-[10px] font-mono text-violet-400 hover:text-violet-300"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={hit.avatarUrl}
-                        alt=""
-                        className="h-14 w-14 shrink-0 rounded-lg border border-white/10"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline gap-2">
-                          <span className="font-mono font-semibold text-white">@{hit.githubUsername}</span>
-                          <span className="text-[10px] text-violet-400 font-mono">
-                            匹配 {(hit.score * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        {hit.oneLiner ? (
-                          <p className="text-xs text-violet-200/90 mt-1 line-clamp-2">{hit.oneLiner}</p>
-                        ) : null}
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{hit.reason}</p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {hit.techTags.slice(0, 6).map((t) => (
-                            <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-slate-600 mt-2 font-mono">
-                          {hit.stats.followers.toLocaleString()} followers · {hit.stats.totalPublicRepos} repos
-                          {hit.location ? ` · ${hit.location}` : ''}
-                        </p>
-                      </div>
-                      <span className="self-center text-violet-400 text-sm shrink-0">→</span>
+                      全选
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLinkSelected({})}
+                      className="text-[10px] font-mono text-slate-500 hover:text-slate-400"
+                    >
+                      清空选择
+                    </button>
+                    <Link href="/messages" className="text-[10px] font-mono text-slate-500 hover:text-violet-300">
+                      站内信收件箱 →
                     </Link>
+                  </div>
+                  {linkResults.map((hit) => (
+                    <div
+                      key={hit.githubUsername}
+                      className="flex gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 sm:p-4 transition hover:border-violet-500/20"
+                    >
+                      <label className="flex shrink-0 cursor-pointer items-start pt-1">
+                        <input
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 rounded border-white/20 bg-white/5 text-violet-600"
+                          checked={!!linkSelected[hit.githubUsername]}
+                          onChange={() =>
+                            setLinkSelected((s) => ({ ...s, [hit.githubUsername]: !s[hit.githubUsername] }))
+                          }
+                        />
+                      </label>
+                      <Link
+                        href={withReturnTo(`/codernet/github/${encodeURIComponent(hit.githubUsername)}`, here)}
+                        className="flex min-w-0 flex-1 gap-3 rounded-lg transition hover:bg-white/[0.04]"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={hit.avatarUrl}
+                          alt=""
+                          className="h-14 w-14 shrink-0 rounded-lg border border-white/10"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span className="font-mono font-semibold text-white">@{hit.githubUsername}</span>
+                            <span className="text-[10px] text-violet-400 font-mono">
+                              匹配 {(hit.score * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          {hit.oneLiner ? (
+                            <p className="text-xs text-violet-200/90 mt-1 line-clamp-2">{hit.oneLiner}</p>
+                          ) : null}
+                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{hit.reason}</p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {hit.techTags.slice(0, 6).map((t) => (
+                              <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-slate-600 mt-2 font-mono">
+                            {hit.stats.followers.toLocaleString()} followers · {hit.stats.totalPublicRepos} repos
+                            {hit.location ? ` · ${hit.location}` : ''}
+                          </p>
+                        </div>
+                        <span className="self-center text-violet-400 text-sm shrink-0">→</span>
+                      </Link>
+                    </div>
                   ))}
+
+                  {selectedGithubList.length > 0 && (
+                    <form
+                      onSubmit={(e) => void handleLinkContactSubmit(e)}
+                      className="mt-6 rounded-2xl border border-cyan-500/25 bg-cyan-500/5 p-5 space-y-3"
+                    >
+                      <p className="text-sm font-semibold text-cyan-200/90">
+                        联系已选 {selectedGithubList.length} 人
+                      </p>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        已绑定本站账号的开发者会立即收到站内信；其余会暂存，待对方用相同 GitHub 登录注册后自动投递。勾选邮件时需平台已配置
+                        Resend/SMTP，并按外联额度计费。
+                      </p>
+                      {linkContactErr && (
+                        <p className="text-xs text-red-300 rounded border border-red-500/20 bg-red-500/10 px-2 py-1">{linkContactErr}</p>
+                      )}
+                      {linkContactOk && (
+                        <p className="text-xs text-emerald-300/90 whitespace-pre-wrap rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-2">
+                          {linkContactOk}
+                        </p>
+                      )}
+                      <input
+                        type="text"
+                        value={linkContactSubject}
+                        onChange={(e) => setLinkContactSubject(e.target.value)}
+                        placeholder="主题"
+                        className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none focus:border-cyan-500/40"
+                      />
+                      <textarea
+                        value={linkContactBody}
+                        onChange={(e) => setLinkContactBody(e.target.value)}
+                        placeholder="正文：合作说明、职位链接等"
+                        rows={5}
+                        className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none focus:border-cyan-500/40 resize-y min-h-[6rem]"
+                      />
+                      <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={linkSendEmail}
+                          onChange={(e) => setLinkSendEmail(e.target.checked)}
+                          className="rounded border-white/20"
+                        />
+                        同时向公开邮箱群发（与 Outreach 共用外联额度）
+                      </label>
+                      {linkSendEmail && (
+                        <input
+                          type="email"
+                          value={linkFromEmail}
+                          onChange={(e) => setLinkFromEmail(e.target.value)}
+                          placeholder="发件人邮箱（需与 Resend 等验证域名一致）"
+                          className="w-full rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-white placeholder:text-slate-600 outline-none focus:border-cyan-500/40"
+                        />
+                      )}
+                      <button
+                        type="submit"
+                        disabled={linkContactBusy}
+                        className="w-full rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 py-2.5 text-sm font-semibold transition"
+                      >
+                        {linkContactBusy ? '发送中…' : '发送站内信 / 联系'}
+                      </button>
+                    </form>
+                  )}
                 </div>
               )}
             </div>

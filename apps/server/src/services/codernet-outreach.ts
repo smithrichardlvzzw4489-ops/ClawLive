@@ -193,7 +193,7 @@ function isNoReply(email: string): boolean {
   return NOREPLY_PATTERNS.some((p) => lower.includes(p));
 }
 
-async function extractContactInfo(
+export async function extractContactInfo(
   username: string,
   token?: string,
 ): Promise<{ user: GHUserFull; contact: ContactInfo }> {
@@ -744,4 +744,17 @@ function assignTier(index: number, config: OutreachCampaign['tierConfig']): 1 | 
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** 供 LINK 联系等场景复用：HTML 邮件正文 + 发送（Resend/SMTP） */
+export async function sendOutreachHtmlToDeveloper(
+  to: string,
+  subject: string,
+  plainBody: string,
+  profileUrl: string,
+  fromEmail: string,
+  fromName: string,
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  const html = messageToHtml(plainBody, profileUrl);
+  return sendEmail(to, subject, html, fromEmail, fromName);
 }

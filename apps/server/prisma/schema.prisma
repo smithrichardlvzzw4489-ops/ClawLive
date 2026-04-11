@@ -85,6 +85,11 @@ model User {
   jobMatchesAsEmployer  JobA2AMatch[]         @relation("JobMatchEmployer")
   vibekidsWorks         VibekidsWork[]
 
+  /// GITLINK 站内信（用户 ↔ 用户）
+  siteMessagesSent             SiteMessage[]         @relation("SiteMessageSender")
+  siteMessagesReceived         SiteMessage[]         @relation("SiteMessageRecipient")
+  linkContactPendingsFromSender LinkContactPending[] @relation("LinkContactPendingSender")
+
   @@index([username])
   @@index([telegramId])
   @@map("users")
@@ -545,4 +550,39 @@ model VibekidsWorkFavoriteDedupe {
   @@unique([clientId, workId])
   @@index([workId])
   @@map("vibekids_work_favorite_dedupe")
+}
+
+/// 站内用户间消息（已送达收件箱）
+model SiteMessage {
+  id          String    @id @default(uuid())
+  senderId    String
+  recipientId String
+  subject     String
+  body        String    @db.Text
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  /// link | manual 等
+  source      String    @default("link")
+
+  sender    User @relation("SiteMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("SiteMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, createdAt(sort: Desc)])
+  @@index([senderId])
+  @@map("site_messages")
+}
+
+/// LINK 联系：目标尚未注册时暂存，待其 GitHub 登录名与站内账号绑定后投递为 SiteMessage
+model LinkContactPending {
+  id                   String   @id @default(uuid())
+  senderId             String
+  targetGithubUsername String
+  subject              String
+  body                 String   @db.Text
+  createdAt            DateTime @default(now())
+
+  sender User @relation("LinkContactPendingSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([targetGithubUsername])
+  @@map("link_contact_pending")
 }

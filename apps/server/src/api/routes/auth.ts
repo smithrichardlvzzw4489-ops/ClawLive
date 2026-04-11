@@ -357,6 +357,11 @@ router.post('/github', async (req: Request, res: Response) => {
 
     const { passwordHash: _, litellmVirtualKey: __vk, githubAccessToken: __gat, ...userWithoutSensitive } = user;
 
+    const { deliverLinkContactPendingForUser } = await import('../../services/link-contact-delivery');
+    void deliverLinkContactPendingForUser(user.id, ghUser.login).catch((err) =>
+      console.warn('[auth/github] deliverLinkContactPending:', err),
+    );
+
     res.json({ user: userWithoutSensitive, token, refreshToken });
   } catch (error) {
     console.error('GitHub OAuth error:', error);

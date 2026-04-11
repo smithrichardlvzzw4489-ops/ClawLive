@@ -82,6 +82,7 @@ export function Header({}: HeaderProps) {
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}
+            <NavItem href="/messages" label="站内信" icon="✉️" active={pathname.startsWith('/messages')} />
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
