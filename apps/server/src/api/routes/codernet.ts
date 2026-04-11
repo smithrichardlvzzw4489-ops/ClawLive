@@ -388,7 +388,7 @@ export function codernetRoutes(): IRouter {
         return res.status(404).json({
           error: 'NOT_READY',
           message:
-            'Profile not in server cache yet. Open this GitHub portrait once to load it, or wait if a crawl is running.',
+            '服务端尚未缓存该画像。请先完整打开本页 GitHub 画像以触发加载；若正在抓取，请稍候再展开。',
         });
       }
       const hit = similarPeopleCache.get(ghUser);
@@ -420,7 +420,7 @@ export function codernetRoutes(): IRouter {
         return res.status(404).json({
           error: 'NOT_READY',
           message:
-            'No repository data in cache yet. Open this GitHub portrait once to load repos, or wait if a crawl is running.',
+            '服务端尚未缓存仓库数据。请先完整打开本页 GitHub 画像；若正在抓取，请稍候再展开「关系图谱」。',
         });
       }
       const hit = relationsPeopleCache.get(ghUser);
