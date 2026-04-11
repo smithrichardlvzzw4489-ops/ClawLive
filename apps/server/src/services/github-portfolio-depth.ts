@@ -27,11 +27,11 @@ export interface YearActivityBucket {
   year: number;
   /** 该自然年「首次创建」的仓库（created_at） */
   reposCreated: PortfolioRepoSnapshot[];
-  /** 样本中该年发生的提交（按日期新→旧，最多 MAX_COMMITS_PER_YEAR） */
+  /** 该年发生的 commit（按日期新→旧，与 crawl.recentCommits 中年份一致的全量） */
   commitSamples: PortfolioCommitSample[];
-  /** 样本中该年的提交条数（去重后计入 commitSamples 的数量） */
+  /** 该年的 commit 条数 */
   commitTotalInSample: number;
-  /** 样本内该年各仓库提交数 */
+  /** 该年各仓库 commit 数 */
   commitsByRepo: Record<string, number>;
 }
 
@@ -39,7 +39,7 @@ export interface PortfolioDepth {
   generatedAt: string;
   /** 参与统计的仓库数（与 crawl.repos 一致） */
   repoCount: number;
-  /** 提交样本总数 */
+  /** commit 总数（与 crawl.recentCommits 长度一致） */
   commitSampleTotal: number;
   /** 按年聚合，新年份在前 */
   byYear: YearActivityBucket[];
@@ -48,8 +48,6 @@ export interface PortfolioDepth {
   /** 按最近推送排序（新→旧） */
   reposByRecentPush: PortfolioRepoSnapshot[];
 }
-
-const MAX_COMMITS_PER_YEAR = 60;
 
 function toSnapshot(r: GHRepo): PortfolioRepoSnapshot {
   return {
@@ -101,7 +99,6 @@ export function buildPortfolioDepth(crawl: GitHubCrawlResult): PortfolioDepth {
   for (const c of crawl.recentCommits) {
     const y = yearFromIso(c.date);
     const bucket = ensureYear(y);
-    if (bucket.commits.length >= MAX_COMMITS_PER_YEAR) continue;
     bucket.commits.push({
       repo: c.repo,
       message: c.message,
@@ -138,16 +135,16 @@ export function buildPortfolioDepth(crawl: GitHubCrawlResult): PortfolioDepth {
 /** 给 LLM 的压缩文本（控制长度） */
 export function formatPortfolioDepthForPrompt(depth: PortfolioDepth, maxYears = 10): string {
   const lines: string[] = [];
-  lines.push(`样本仓库数=${depth.repoCount}，提交样本数=${depth.commitSampleTotal}`);
+  lines.push(`repos=${depth.repoCount}，commits=${depth.commitSampleTotal}`);
   const years = depth.byYear.slice(0, maxYears);
   for (const y of years) {
     const rc = y.reposCreated
       .slice(0, 8)
       .map((r) => `${r.name}(★${r.stars},${r.language || '?'})`)
       .join('; ');
-    const topCommits = y.commitSamples.slice(0, 6).map((c) => `[${c.repo}] ${c.message.slice(0, 72)}`);
+    const topCommits = y.commitSamples.slice(0, 12).map((c) => `[${c.repo}] ${c.message.slice(0, 72)}`);
     lines.push(
-      `--- ${y.year}年：新建仓库 ${y.reposCreated.length} 个（展示前8：${rc || '无'}）；提交样本 ${y.commitTotalInSample} 条 ---`,
+      `--- ${y.year}: new repos ${y.reposCreated.length} (top 8: ${rc || 'none'}); commits this year ${y.commitTotalInSample} ---`,
     );
     if (topCommits.length) lines.push(topCommits.join('\n'));
   }

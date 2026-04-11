@@ -69,8 +69,7 @@ function yearBucketsFromCommits(repos: PortfolioRepoRow[], commits: PortfolioCom
     const y = new Date(c.date).getUTCFullYear();
     if (!Number.isFinite(y)) continue;
     if (!map.has(y)) map.set(y, { repos: [], commits: [] });
-    const b = map.get(y)!;
-    if (b.commits.length < 40) b.commits.push(c);
+    map.get(y)!.commits.push(c);
   }
   return [...map.entries()]
     .map(([year, v]) => ({
@@ -135,7 +134,7 @@ export function PortfolioDrillDown({
     return m;
   }, [activityDeepDive]);
 
-  const commitSampleCountByRepo = useMemo(() => {
+  const commitCountByRepo = useMemo(() => {
     const m: Record<string, number> = {};
     for (const c of recentCommits) {
       m[c.repo] = (m[c.repo] || 0) + 1;
@@ -151,24 +150,24 @@ export function PortfolioDrillDown({
   return (
     <div className="space-y-6 mb-6">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h3 className="text-[10px] font-mono uppercase tracking-wider text-slate-500">GitHub 深度 · 仓库与提交时间线</h3>
+        <h3 className="text-[10px] font-mono uppercase tracking-wider text-slate-500">GitHub 深度 · 仓库与 commit 时间线</h3>
         {portfolioDepth != null && (
           <span className="text-[10px] text-slate-600 font-mono">
-            样本 {portfolioDepth.repoCount} 仓 / {portfolioDepth.commitSampleTotal} 条提交
+            {portfolioDepth.repoCount} repos / {portfolioDepth.commitSampleTotal} commits
           </span>
         )}
       </div>
 
       {activityDeepDive?.commitPatterns ? (
         <div className="rounded-xl border border-cyan-500/25 bg-cyan-500/[0.05] p-4">
-          <p className="text-[10px] font-mono uppercase text-cyan-400/90 mb-1">提交消息 · AI 归纳</p>
+          <p className="text-[10px] font-mono uppercase text-cyan-400/90 mb-1">commit messages · AI 归纳</p>
           <p className="text-sm text-slate-300 leading-relaxed">{activityDeepDive.commitPatterns}</p>
         </div>
       ) : null}
 
       {byYear.length > 0 && (
         <div className="rounded-xl border border-white/[0.08] bg-black/20 overflow-hidden">
-          <p className="text-[10px] font-mono text-slate-500 px-4 pt-3 pb-1">按年拆解（可展开原始仓库与提交样本）</p>
+          <p className="text-[10px] font-mono text-slate-500 px-4 pt-3 pb-1">按年拆解（可展开仓库与 commits）</p>
           <ul className="divide-y divide-white/[0.06]">
             {byYear.map((bucket) => {
               const ai = aiByYear.get(bucket.year);
@@ -182,7 +181,7 @@ export function PortfolioDrillDown({
                   >
                     <span className="text-sm font-semibold text-white tabular-nums">{bucket.year}</span>
                     <span className="text-[11px] text-slate-500 font-mono">
-                      新建仓库 {bucket.reposCreated.length} · 提交样本 {bucket.commitTotalInSample}
+                      新建仓库 {bucket.reposCreated.length} · commits {bucket.commitTotalInSample}
                     </span>
                     <span className="text-slate-600 text-xs ml-auto">{open ? '▼' : '▶'}</span>
                   </button>
@@ -225,10 +224,10 @@ export function PortfolioDrillDown({
                       )}
                       {bucket.commitSamples.length > 0 && (
                         <div>
-                          <p className="text-[10px] text-slate-500 font-mono mb-2">该年提交样本（节选）</p>
-                          <ul className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                          <p className="text-[10px] text-slate-500 font-mono mb-2">该年 commits（{bucket.commitSamples.length}）</p>
+                          <ul className="space-y-1.5 max-h-[min(70vh,36rem)] overflow-y-auto pr-1">
                             {bucket.commitSamples.map((c, i) => (
-                              <li key={`${c.date}-${i}`} className="text-[11px] text-slate-400 font-mono leading-snug">
+                              <li key={`${c.repo}|${c.date}|${i}`} className="text-[11px] text-slate-400 font-mono leading-snug">
                                 <span className="text-slate-600">{c.date.slice(0, 10)}</span>{' '}
                                 <span className="text-amber-400/90">{c.repo}</span> {c.message}
                               </li>
@@ -322,8 +321,8 @@ export function PortfolioDrillDown({
                         {recentCommits.length > 0 ? (
                           <>
                             {' '}
-                            在近期抓取到的提交样本中，此仓库出现{' '}
-                            <span className="text-slate-200 tabular-nums">{commitSampleCountByRepo[r.name] ?? 0}</span> 条（全样本共{' '}
+                            本次抓取到的 commits 中，此仓库{' '}
+                            <span className="text-slate-200 tabular-nums">{commitCountByRepo[r.name] ?? 0}</span> 条（共{' '}
                             {recentCommits.length} 条）。
                           </>
                         ) : null}
@@ -370,11 +369,11 @@ export function PortfolioDrillDown({
         <details className="rounded-xl border border-white/[0.08] bg-black/20 p-4 group">
           <summary className="text-xs text-slate-400 cursor-pointer font-mono list-none flex items-center gap-2">
             <span className="text-slate-600 group-open:rotate-90 transition">▶</span>
-            完整提交样本列表（{recentCommits.length}）
+            All commits ({recentCommits.length})
           </summary>
-          <ul className="mt-3 space-y-1.5 max-h-72 overflow-y-auto">
+          <ul className="mt-3 space-y-1.5 max-h-[min(80vh,48rem)] overflow-y-auto">
             {recentCommits.map((c, i) => (
-              <li key={`${c.date}-${i}`} className="text-[11px] text-slate-500 font-mono leading-snug">
+              <li key={`${c.repo}|${c.date}|${i}`} className="text-[11px] text-slate-500 font-mono leading-snug">
                 <span className="text-slate-600">{c.date.slice(0, 10)}</span>{' '}
                 <span className="text-amber-400/80">{c.repo}</span> {c.message}
               </li>

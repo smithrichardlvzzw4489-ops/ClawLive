@@ -228,7 +228,7 @@ const STAGE_LABELS: Record<string, string> = {
   fetching_profile: 'Loading GitHub profile...',
   fetching_repos: 'Scanning repositories...',
   fetching_languages: 'Analyzing language stats...',
-  fetching_commits: 'Reading commit history...',
+  fetching_commits: 'Fetching commits from GitHub...',
   crawling_platforms: 'Scanning Stack Overflow, npm, PyPI, DEV.to...',
   analyzing_with_ai: 'AI is generating unified profile...',
   saving_results: 'Finalizing...',

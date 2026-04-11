@@ -239,7 +239,7 @@ export function CapabilityQuadrantPanel({
               四个分数由 <strong className="text-slate-300">GITLINK AI</strong> 在生成画像时输出，保存在分析结果字段{' '}
               <code className="text-[10px] text-violet-400">capabilityQuadrant</code>（frontend / backend / infra /
               ai_ml）。模型会阅读本次拉取的{' '}
-              <strong className="text-slate-300">公开仓库列表、语言统计、README 与提交样本</strong>
+              <strong className="text-slate-300">公开仓库列表、语言统计、README 与 commits</strong>
               ；若开启多平台扫描，还会参考 Stack Overflow、npm、Hugging Face 等<strong className="text-slate-300">公开信号</strong>
               ，再对四个方向做综合推断。
             </p>

@@ -1,5 +1,5 @@
 /**
- * GitHub 数据爬取：仓库、语言分布、近期 commit 消息。
+ * GitHub 数据爬取：仓库、语言分布、该用户在各公开仓的 commit（按 REST 分页尽量拉全，受单仓页数上限约束）。
  * 支持 Bearer：GITHUB_SERVER_TOKEN（推荐）或 GITHUB_TOKEN / GH_TOKEN；未配置时走匿名（约 60 req/hr/IP，易被限流）。
  */
 
@@ -137,50 +137,59 @@ async function fetchLanguageStats(
   return stats;
 }
 
-/** 更多仓库与提交条数，便于时间线与 commit 风格归纳（受 GitHub API 频次限制） */
-const COMMIT_SAMPLE_REPO_COUNT = 18;
-const COMMITS_PER_REPO = 15;
-const COMMIT_SAMPLE_MAX = 220;
+/** 单仓库分页上限（每页 100，500 页 ≈ 5 万条/仓，防止极端仓库拖死请求） */
+const COMMIT_PAGES_PER_REPO_MAX = 500;
+const COMMITS_PER_PAGE = 100;
+const REPO_FETCH_CONCURRENCY = 5;
+
+type GHCommitApiRow = { commit: { message: string; author: { date: string } } };
+
+async function fetchCommitsForRepo(
+  token: string | undefined,
+  username: string,
+  r: GHRepo,
+): Promise<GHCommitSample[]> {
+  const out: GHCommitSample[] = [];
+  for (let page = 1; page <= COMMIT_PAGES_PER_REPO_MAX; page++) {
+    try {
+      const batch = await ghFetch<GHCommitApiRow[]>(
+        `${GH_API}/repos/${r.full_name}/commits?author=${encodeURIComponent(username)}&per_page=${COMMITS_PER_PAGE}&page=${page}`,
+        token,
+      );
+      if (!batch.length) break;
+      for (const c of batch) {
+        const line = c.commit.message.split('\n')[0].slice(0, 240);
+        out.push({ repo: r.name, message: line, date: c.commit.author.date });
+      }
+      if (batch.length < COMMITS_PER_PAGE) break;
+    } catch {
+      break;
+    }
+  }
+  return out;
+}
 
 /**
- * Fetch recent commits from many top repos (by stars order), dedupe by repo+date+message prefix.
+ * 在用户全部非 fork 公开仓中分页拉取该 author 的 commits，合并去重后按时间新→旧排序。
  */
 async function fetchRecentCommits(
   token: string | undefined,
   username: string,
   repos: GHRepo[],
 ): Promise<GHCommitSample[]> {
-  const slice = repos.slice(0, COMMIT_SAMPLE_REPO_COUNT);
-  const commits: GHCommitSample[] = [];
-  const results = await Promise.allSettled(
-    slice.map((r) =>
-      ghFetch<Array<{ commit: { message: string; author: { date: string } } }>>(
-        `${GH_API}/repos/${r.full_name}/commits?author=${encodeURIComponent(username)}&per_page=${COMMITS_PER_REPO}`,
-        token,
-      ),
-    ),
-  );
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    if (result.status === 'fulfilled') {
-      for (const c of result.value) {
-        const line = c.commit.message.split('\n')[0].slice(0, 240);
-        commits.push({
-          repo: slice[i].name,
-          message: line,
-          date: c.commit.author.date,
-        });
-      }
-    }
+  const merged: GHCommitSample[] = [];
+  for (let i = 0; i < repos.length; i += REPO_FETCH_CONCURRENCY) {
+    const slice = repos.slice(i, i + REPO_FETCH_CONCURRENCY);
+    const batches = await Promise.all(slice.map((r) => fetchCommitsForRepo(token, username, r)));
+    for (const arr of batches) merged.push(...arr);
   }
   const seen = new Set<string>();
   const deduped: GHCommitSample[] = [];
-  for (const c of commits.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())) {
-    const key = `${c.repo}|${c.date}|${c.message.slice(0, 48)}`;
+  for (const c of merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())) {
+    const key = `${c.repo}|${c.date}|${c.message.slice(0, 80)}`;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(c);
-    if (deduped.length >= COMMIT_SAMPLE_MAX) break;
   }
   return deduped;
 }
@@ -203,7 +212,7 @@ export async function crawlGitHubProfile(
   onProgress?.('fetching_languages', `Analyzing languages across ${Math.min(repos.length, 20)} repos...`);
   const langPromise = fetchLanguageStats(token, repos);
 
-  onProgress?.('fetching_commits', `Scanning recent commits...`);
+  onProgress?.('fetching_commits', `Fetching commits across ${repos.length} repositories...`);
   const commitPromise = fetchRecentCommits(token, username, repos);
 
   const [languageStats, recentCommits] = await Promise.all([langPromise, commitPromise]);
