@@ -90,6 +90,9 @@ model User {
   siteMessagesReceived         SiteMessage[]         @relation("SiteMessageRecipient")
   linkContactPendingsFromSender LinkContactPending[] @relation("LinkContactPendingSender")
 
+  jobPostingsAuthored           JobPosting[]               @relation("JobPostingAuthor")
+  jobPostingNotificationsRecv JobPostingNotification[]   @relation("JobPostingNotifyRecipient")
+
   @@index([username])
   @@index([telegramId])
   @@map("users")
@@ -585,4 +588,42 @@ model LinkContactPending {
 
   @@index([targetGithubUsername])
   @@map("link_contact_pending")
+}
+
+/// 招聘广场：HR 发布的 JD
+model JobPosting {
+  id          String    @id @default(uuid())
+  authorId    String
+  title       String
+  companyName String?
+  location    String?
+  body        String    @db.Text
+  /// 用于与候选人画像标签匹配的短语，如 ["Rust","后端","上海"]
+  matchTags   Json      @default("[]")
+  status      String    @default("draft")
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author         User                       @relation("JobPostingAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  notifyReceipts JobPostingNotification[]
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([authorId])
+  @@map("job_postings")
+}
+
+/// 某 JD 已向该用户推送过站内信（去重，避免重复编辑重复轰炸）
+model JobPostingNotification {
+  id           String   @id @default(uuid())
+  jobPostingId String
+  recipientId  String
+  createdAt    DateTime @default(now())
+
+  jobPosting JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  recipient  User       @relation("JobPostingNotifyRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@unique([jobPostingId, recipientId])
+  @@index([recipientId])
+  @@map("job_posting_notifications")
 }
