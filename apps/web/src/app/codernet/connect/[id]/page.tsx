@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useHistoryBack } from '@/hooks/useHistoryBack';
 import { API_BASE_URL } from '@/lib/api';
 
 interface AgentMessage {
@@ -65,6 +66,7 @@ export default function ConnectChatPage() {
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const base = API_BASE_URL || '';
+  const goBack = useHistoryBack('/codernet');
 
   const fetchSession = useCallback(async () => {
     const res = await fetch(`${base}/api/codernet/connect/${sessionId}`);
@@ -150,7 +152,9 @@ export default function ConnectChatPage() {
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center text-center p-4">
         <div>
           <p className="text-red-400 text-sm mb-4">{error}</p>
-          <Link href="/codernet" className="text-violet-400 text-sm hover:underline">Back to home</Link>
+          <button type="button" onClick={goBack} className="cursor-pointer text-violet-400 text-sm hover:underline">
+            Back to home
+          </button>
         </div>
       </div>
     );
@@ -328,7 +332,9 @@ export default function ConnectChatPage() {
         {error && <p className="text-xs text-red-400 text-center mb-4">{error}</p>}
 
         <div className="text-center">
-          <Link href="/codernet" className="text-xs text-slate-600 font-mono hover:text-violet-400 transition">← Back to home</Link>
+          <button type="button" onClick={goBack} className="cursor-pointer text-xs text-slate-600 font-mono hover:text-violet-400 transition">
+            ← Back to home
+          </button>
         </div>
       </div>
     </div>

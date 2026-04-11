@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useHistoryBack } from '@/hooks/useHistoryBack';
 import { API_BASE_URL } from '@/lib/api';
 import {
   PortfolioDrillDown,
@@ -710,6 +711,7 @@ export default function GitHubLookupCardPage() {
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const base = API_BASE_URL || '';
+  const goBack = useHistoryBack('/codernet');
 
   const fetchStatus = useCallback(async (): Promise<LookupResult | null> => {
     const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}`);
@@ -764,13 +766,14 @@ export default function GitHubLookupCardPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center relative">
-        <Link
-          href="/codernet"
-          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
+        <button
+          type="button"
+          onClick={goBack}
+          className="absolute top-4 left-4 z-20 inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
         >
           <span className="text-lg leading-none" aria-hidden>←</span>
           返回上一级
-        </Link>
+        </button>
         <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
       </div>
     );
@@ -780,13 +783,14 @@ export default function GitHubLookupCardPage() {
     const hasError = result?.progress?.stage === 'error';
     return (
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4 relative">
-        <Link
-          href="/codernet"
-          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
+        <button
+          type="button"
+          onClick={goBack}
+          className="absolute top-4 left-4 z-20 inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
         >
           <span className="text-lg leading-none" aria-hidden>←</span>
           返回上一级
-        </Link>
+        </button>
         <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/10 blur-[160px]" />
         <div className="relative z-10 text-center w-full max-w-lg">
           <ProgressTimeline progress={result?.progress || null} ghUsername={ghUsername} />
@@ -804,13 +808,14 @@ export default function GitHubLookupCardPage() {
   if (result.status === 'not_found') {
     return (
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4 relative">
-        <Link
-          href="/codernet"
-          className="absolute top-4 left-4 z-20 inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
+        <button
+          type="button"
+          onClick={goBack}
+          className="absolute top-4 left-4 z-20 inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
         >
           <span className="text-lg leading-none" aria-hidden>←</span>
           返回上一级
-        </Link>
+        </button>
         <div className="text-center">
           <h1 className="text-xl text-white/80 font-bold mb-2">User not found</h1>
           <p className="text-slate-400 text-sm mb-4">
@@ -841,13 +846,14 @@ export default function GitHubLookupCardPage() {
       <div className="relative z-10 w-full px-4 py-10">
         <div className="mx-auto flex w-full max-w-[1220px] flex-col lg:flex-row lg:justify-center gap-8 lg:gap-10 items-start">
         <div className="min-w-0 w-full max-w-2xl shrink-0">
-        <Link
-          href="/codernet"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition mb-4"
+        <button
+          type="button"
+          onClick={goBack}
+          className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition mb-4"
         >
           <span className="text-lg leading-none" aria-hidden>←</span>
           返回上一级
-        </Link>
+        </button>
         <div className="flex items-center gap-2 mb-8">
           <Link href="/codernet" className="text-xs font-mono text-violet-400 tracking-wider hover:text-violet-300 transition">GITLINK</Link>
           <span className="text-xs text-slate-600">/</span>

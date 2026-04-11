@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useHistoryBack } from '@/hooks/useHistoryBack';
 import { API_BASE_URL } from '@/lib/api';
 
 interface FeatureStats {
@@ -147,6 +148,7 @@ export default function TokenUsagePage() {
   const [summary, setSummary] = useState<TokenUsageSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | 'all'>('24h');
+  const goBack = useHistoryBack('/codernet');
 
   const base = API_BASE_URL || '';
 
@@ -307,7 +309,9 @@ export default function TokenUsagePage() {
         )}
 
         <div className="text-center py-6">
-          <Link href="/codernet" className="text-violet-500 hover:text-violet-400 text-xs font-mono transition">← Back to home</Link>
+          <button type="button" onClick={goBack} className="cursor-pointer text-violet-500 hover:text-violet-400 text-xs font-mono transition">
+            ← Back to home
+          </button>
         </div>
       </div>
     </div>
