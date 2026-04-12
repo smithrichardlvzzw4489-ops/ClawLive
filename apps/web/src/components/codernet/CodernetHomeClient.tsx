@@ -218,6 +218,12 @@ export function CodernetHomeClient() {
                   </button>
                 ))}
               </div>
+              <p className="text-center text-[11px] text-slate-500 mt-5 leading-relaxed px-1">
+                要查看我的画像请到
+                <Link href="/my/profile" className="text-violet-400/90 hover:text-violet-300 underline-offset-2 hover:underline mx-0.5">
+                  个人账号 → My card
+                </Link>
+              </p>
             </div>
           )}
 
