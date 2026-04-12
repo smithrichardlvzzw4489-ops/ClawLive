@@ -252,9 +252,15 @@ export const api = {
       }),
   },
   codernet: {
+    /** 登录：邮箱 → GitHub 登录名（站内绑定或 GitHub 公开 commit 搜索） */
+    resolveGithubFromEmail: (email: string) =>
+      fetchAPI('/api/codernet/github/resolve-email', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
     /**
      * Semantic developer search → ranked GitHub users (no email).
-     * Optional `files` → multipart `query` + `attachments[]`（与 Math 相同解析：txt/md/pdf/docx/图片等）。
+     * Optional `files` → multipart `query` + `attachments[]`（txt/md/pdf/docx/图片等）。
      */
     searchDevelopers: async (query: string, files?: File[]) => {
       if (files?.length) {

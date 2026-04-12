@@ -10,6 +10,7 @@ import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/code
 import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
 import { searchDevelopers } from '../../services/codernet-search';
 import { concatExtractedFiles } from '../../services/attachment-text-ingest';
+import { resolveGithubUsernameFromEmail } from '../../services/github-email-resolve';
 import {
   createConnectSession,
   getConnectSession,
@@ -626,6 +627,52 @@ export function codernetRoutes(): IRouter {
         error: 'RELATIONS_FAILED',
         message: e instanceof Error ? e.message : 'Failed to load relations',
       });
+    }
+  });
+
+  /**
+   * POST /api/codernet/github/resolve-email
+   * 已登录：根据邮箱解析 GitHub 登录名（站内用户优先，否则 GitHub commit 搜索）。消耗 search 额度 1 次。
+   */
+  router.post('/github/resolve-email', authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const raw = typeof (req.body as { email?: unknown })?.email === 'string' ? (req.body as { email: string }).email : '';
+      const email = raw.trim();
+      if (!email) {
+        return res.status(400).json({ error: '请提供邮箱地址', code: 'INVALID_INPUT' });
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: '邮箱格式无效', code: 'INVALID_INPUT' });
+      }
+
+      const callerId = req.user!.id;
+      const check = checkQuota(callerId, 'search');
+      if (!check.allowed) {
+        return res.status(429).json({
+          error: '本月搜索额度已用完',
+          code: 'QUOTA_EXCEEDED',
+          quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
+        });
+      }
+      consumeQuota(callerId, 'search');
+
+      const result = await resolveGithubUsernameFromEmail(prisma, email);
+      if (!result.githubUsername) {
+        return res.status(404).json({
+          error: '未找到与该邮箱对应的 GitHub 账号',
+          code: 'NOT_FOUND',
+          candidates: result.candidates,
+        });
+      }
+
+      res.json({
+        githubUsername: result.githubUsername,
+        candidates: result.candidates,
+        source: result.source,
+      });
+    } catch (e) {
+      console.error('[GITLINK] resolve-email', e);
+      res.status(500).json({ error: '邮箱解析失败', code: 'RESOLVE_FAILED' });
     }
   });
 

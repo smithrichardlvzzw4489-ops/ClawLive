@@ -22,6 +22,8 @@ interface SemanticSearchHit {
 
 type TabId = 'lookup' | 'outreach';
 
+const LOOKUP_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function CodernetHomeClient() {
   const router = useRouter();
   const pathname = usePathname() || '';
@@ -44,6 +46,8 @@ export function CodernetHomeClient() {
   };
 
   const [searchValue, setSearchValue] = useState('');
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupErr, setLookupErr] = useState<string | null>(null);
 
   const [linkQuery, setLinkQuery] = useState('');
   const [linkFiles, setLinkFiles] = useState<File[]>([]);
@@ -51,9 +55,46 @@ export function CodernetHomeClient() {
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [linkResults, setLinkResults] = useState<SemanticSearchHit[] | null>(null);
 
-  const handleLookup = (e: FormEvent) => {
+  const handleLookup = async (e: FormEvent) => {
     e.preventDefault();
-    const val = searchValue.trim().replace(/^@/, '');
+    const raw = searchValue.trim();
+    if (!raw) return;
+
+    if (LOOKUP_EMAIL_RE.test(raw)) {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        router.push(`/login?redirect=${encodeURIComponent(here || '/')}`);
+        return;
+      }
+      setLookupErr(null);
+      setLookupBusy(true);
+      try {
+        const data = (await api.codernet.resolveGithubFromEmail(raw)) as {
+          githubUsername?: string;
+        };
+        const gh = data.githubUsername?.trim().toLowerCase();
+        if (!gh) {
+          setLookupErr('未找到与该邮箱对应的 GitHub 账号');
+          return;
+        }
+        router.push(withReturnTo(`/codernet/github/${encodeURIComponent(gh)}`, here));
+      } catch (err) {
+        if (err instanceof APIError) {
+          if (err.status === 401) {
+            router.push(`/login?redirect=${encodeURIComponent(here || '/')}`);
+            return;
+          }
+          setLookupErr(err.message || '解析失败');
+        } else {
+          setLookupErr('网络异常，请稍后重试');
+        }
+      } finally {
+        setLookupBusy(false);
+      }
+      return;
+    }
+
+    const val = raw.replace(/^@/, '').trim();
     if (!val) return;
     router.push(withReturnTo(`/codernet/github/${encodeURIComponent(val)}`, here));
   };
@@ -102,7 +143,7 @@ export function CodernetHomeClient() {
           </h1>
 
           <p className="text-slate-400 text-sm leading-relaxed mb-8">
-            输入 GitHub 用户名，查看任意开发者的 AI 画像
+            输入 GitHub 用户名或邮箱，查看任意开发者的 AI 画像
           </p>
 
           {/* Tab Switcher：GitHub 画像 · LINK */}
@@ -130,22 +171,35 @@ export function CodernetHomeClient() {
           {/* Lookup Tab */}
           {tab === 'lookup' && (
             <div className="max-w-md mx-auto">
-              <form onSubmit={handleLookup} className="relative mb-4">
+              <form onSubmit={(e) => void handleLookup(e)} className="relative mb-4">
                 <div className="flex rounded-xl border border-white/[0.1] bg-white/[0.04] overflow-hidden focus-within:border-violet-500/40 transition">
-                  <span className="flex items-center pl-4 text-slate-500 font-mono text-sm select-none">@</span>
                   <input
                     type="text"
                     value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    placeholder="github-username"
-                    className="flex-1 bg-transparent px-2 py-3 text-sm font-mono text-white placeholder:text-slate-600 outline-none"
+                    onChange={(e) => {
+                      setSearchValue(e.target.value);
+                      setLookupErr(null);
+                    }}
+                    placeholder="GitHub 用户名或邮箱"
+                    className="flex-1 bg-transparent pl-4 pr-2 py-3 text-sm font-mono text-white placeholder:text-slate-600 outline-none"
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  <button type="submit" disabled={!searchValue.trim()} className="px-5 py-3 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/30 disabled:cursor-not-allowed text-sm font-semibold transition">
-                    Generate
+                  <button
+                    type="submit"
+                    disabled={!searchValue.trim() || lookupBusy}
+                    className="px-5 py-3 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/30 disabled:cursor-not-allowed text-sm font-semibold transition shrink-0"
+                  >
+                    {lookupBusy ? '解析中…' : 'Generate'}
                   </button>
                 </div>
+                {lookupErr ? (
+                  <p className="text-left text-xs text-red-300 mt-2 px-1">{lookupErr}</p>
+                ) : (
+                  <p className="text-left text-[10px] text-slate-600 mt-2 px-1 leading-relaxed">
+                    邮箱解析需登录，并消耗与 LINK 相同的搜索额度；依据站内绑定或 GitHub 公开提交中的邮箱，无法保证所有人都能匹配。
+                  </p>
+                )}
               </form>
               <div className="flex flex-wrap justify-center gap-2">
                 <span className="text-[10px] text-slate-600 self-center mr-1">Try:</span>
