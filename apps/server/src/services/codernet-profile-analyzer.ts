@@ -315,6 +315,55 @@ ${timelineBlock}${multiPlatformSection}
 
 const HEX = /^[0-9a-fA-F]$/;
 
+/** 去掉 BOM、可选 markdown 围栏，避免 JSON.parse 与截取错位。 */
+function normalizeLlmJsonEnvelope(raw: string): string {
+  let s = raw.replace(/^\uFEFF/, '').trim();
+  if (s.startsWith('```')) {
+    const firstNl = s.indexOf('\n');
+    if (firstNl !== -1) s = s.slice(firstNl + 1);
+    if (s.endsWith('```')) s = s.slice(0, -3).trimEnd();
+  }
+  return s.trim();
+}
+
+/**
+ * 从首个 `{` 起按括号平衡截取顶层对象。贪婪正则 `/\{[\s\S]*\}/` 会吃到正文里未转义的 `}` 或尾部说明，导致解析失败或错位。
+ */
+function extractFirstBalancedJsonObject(raw: string): string | null {
+  const start = raw.indexOf('{');
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < raw.length; i++) {
+    const c = raw[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === '\\') {
+        escape = true;
+        continue;
+      }
+      if (c === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === '{') depth += 1;
+    else if (c === '}') {
+      depth -= 1;
+      if (depth === 0) return raw.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 /** LLM 常在 JSON 字符串值内输出真实换行，违反 JSON 规范（Bad control character in string literal）。仅在引号对内修复。 */
 function repairUnescapedControlCharsInJsonStrings(raw: string): string {
   let out = '';
@@ -402,12 +451,14 @@ export async function analyzeGitHubProfile(
   }
 
   const raw = response.choices[0]?.message?.content?.trim() || '';
-  const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
+  const normalized = normalizeLlmJsonEnvelope(raw);
+  const jsonBlob =
+    extractFirstBalancedJsonObject(normalized) ?? normalized.match(/\{[\s\S]*\}/)?.[0];
+  if (!jsonBlob) {
     throw new Error(`LLM returned no JSON: ${raw.slice(0, 300)}`);
   }
 
-  const parsed = parseLlmJsonObject(jsonMatch[0]) as {
+  const parsed = parseLlmJsonObject(jsonBlob) as {
     techTags?: string[];
     capabilityQuadrant?: Record<string, number>;
     sharpCommentary?: string;
