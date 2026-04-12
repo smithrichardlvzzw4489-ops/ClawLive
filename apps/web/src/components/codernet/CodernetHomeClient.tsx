@@ -420,20 +420,22 @@ export function CodernetHomeClient() {
                   <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="text-xs text-slate-400 font-mono">JD / 其他材料（可选，最多 8 个）</span>
-                      <label className="text-xs font-mono text-violet-400 hover:text-violet-300 cursor-pointer">
+                      {/* 勿用 display:none 隐藏 file input：部分浏览器选文件后 change 中 files 仍为空 */}
+                      <label className="relative inline-flex min-h-[1.75rem] cursor-pointer items-center rounded-md px-1 text-xs font-mono text-violet-400 hover:text-violet-300">
                         <input
                           type="file"
                           multiple
-                          accept=".txt,.md,.pdf,.docx,image/*"
-                          className="hidden"
+                          accept=".txt,.md,.markdown,.pdf,.docx,text/plain,text/markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+                          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                           onChange={(e) => {
                             const picked = e.target.files;
-                            if (!picked?.length) return;
-                            setLinkFiles((prev) => [...prev, ...Array.from(picked)].slice(0, 8));
+                            const list = picked?.length ? Array.from(picked) : [];
                             e.target.value = '';
+                            if (!list.length) return;
+                            setLinkFiles((prev) => [...prev, ...list].slice(0, 8));
                           }}
                         />
-                        选择文件
+                        <span className="pointer-events-none select-none">选择文件</span>
                       </label>
                     </div>
                     {linkFiles.length > 0 ? (
