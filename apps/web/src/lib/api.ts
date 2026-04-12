@@ -1,6 +1,10 @@
 import type { DarwinOnboardingAnswers } from '@clawlive/shared-types';
 
-const _BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const _BACKEND_URL = (
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:3001'
+).replace(/\/$/, '');
 const _PUBLIC_API_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
 
 /**
@@ -41,11 +45,14 @@ export function resolveMediaUrl(path: string | null | undefined): string {
   return `${base}${normalized}`;
 }
 
-const NETWORK_ERROR_MSG =
-  '无法连接服务器。本地请确认后端已启动（默认端口 3001）；线上请稍后重试或检查网络。';
-
 function getNetworkErrorMsg(): string {
-  return NETWORK_ERROR_MSG;
+  if (typeof window !== 'undefined') {
+    const h = window.location.hostname;
+    if (h === 'localhost' || h === '127.0.0.1') {
+      return '无法连接服务器。请确认本地后端已启动（本仓库默认 http://localhost:3001）。';
+    }
+  }
+  return '无法连接服务器。若前端在 Vercel、后端在 Railway，请在 Vercel 环境变量中设置 BACKEND_URL 或 NEXT_PUBLIC_API_URL（Railway 公网 https 根地址，无尾斜杠），保存后重新部署；并确认 Railway 服务在线。';
 }
 
 export class APIError extends Error {

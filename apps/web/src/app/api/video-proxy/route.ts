@@ -4,7 +4,11 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3001';
+const API_URL =
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.API_URL ||
+  'http://localhost:3001';
 
 export async function GET(request: NextRequest) {
   const path = request.nextUrl.searchParams.get('path');
@@ -14,10 +18,13 @@ export async function GET(request: NextRequest) {
 
   // 生产环境必须配置正确的后端地址（Vercel 部署时 NEXT_PUBLIC_API_URL 需指向 Railway）
   if (process.env.VERCEL && (!API_URL || API_URL.includes('localhost'))) {
-    console.error('[video-proxy] NEXT_PUBLIC_API_URL not configured for production');
+    console.error('[video-proxy] BACKEND_URL / NEXT_PUBLIC_API_URL not configured for production');
     return NextResponse.json(
-      { error: 'Video proxy misconfigured: set NEXT_PUBLIC_API_URL in Vercel to your Railway backend URL' },
-      { status: 503 }
+      {
+        error:
+          'Video proxy misconfigured: set BACKEND_URL or NEXT_PUBLIC_API_URL in Vercel to your Railway backend root URL',
+      },
+      { status: 503 },
     );
   }
 
