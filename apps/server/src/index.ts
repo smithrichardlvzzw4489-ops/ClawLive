@@ -28,12 +28,45 @@ import { bootstrapPersistentStateFromPostgres } from './services/persistent-boot
 import { syncAdminBootstrapFromEnv } from './services/admin-bootstrap';
 import { migrateLegacyCodernetInterfaceUsageFromDisk } from './services/codernet-interface-usage';
 
+/**
+ * GramJS（telegram 包）在 MTProto 重连时会在内部 recv 循环里抛出
+ * "Error: Not connected" 等，若未绑定到业务 await，会变成 unhandledRejection。
+ * 全局 handler 若一律 process.exit(1)，会把整个 API 打死并表现为网关 502。
+ */
+function isGramJsTransientTransportRejection(reason: unknown): boolean {
+  if (!reason) return false;
+  const msg =
+    reason instanceof Error
+      ? reason.message
+      : typeof reason === 'string'
+        ? reason
+        : '';
+  const stack = reason instanceof Error ? reason.stack || '' : '';
+  const fromGram =
+    stack.includes('MTProtoSender') ||
+    stack.includes('telegram/network') ||
+    stack.includes('node_modules/telegram/') ||
+    (stack.includes('.pnpm') && stack.includes('telegram@'));
+  if (!fromGram) return false;
+  if (msg === 'Not connected') return true;
+  if (msg.includes('Connection closed while receiving')) return true;
+  if (msg.includes('TIMEOUT') && stack.includes('MTProtoSender')) return true;
+  return false;
+}
+
 // 捕获未处理异常，便于 Railway 等平台排查部署崩溃
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] uncaughtException:', err);
   process.exit(1);
 });
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
+  if (isGramJsTransientTransportRejection(reason)) {
+    console.warn(
+      '[WARN] unhandledRejection (ignored, GramJS transport):',
+      reason instanceof Error ? reason.message : reason
+    );
+    return;
+  }
   console.error('[FATAL] unhandledRejection:', reason);
   process.exit(1);
 });
