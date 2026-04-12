@@ -27,7 +27,6 @@ import { adminRoutes } from './admin';
 import { jobA2ARoutes } from './job-a2a';
 import { mpRoutes } from './mp';
 import { codernetRoutes } from './codernet';
-import { siteMessagesRoutes } from './site-messages';
 import { jobPlazaRoutes } from './job-plaza';
 import { mathRoutes } from './math';
 
@@ -42,7 +41,6 @@ export function setupRoutes(app: Express, io: Server): void {
   app.use('/api/agent-viewers', agentViewerRoutes(io));
   app.use('/api/user-agent-connections', userAgentConnectionsRoutes());
   app.use('/api/inbox', inboxRoutes(io));
-  app.use('/api/messages', siteMessagesRoutes());
   app.use('/api/job-plaza', jobPlazaRoutes());
   app.use('/api/math', mathRoutes());
   app.use('/api/user-follows', userFollowsRoutes()); // Before works to avoid :id param conflicts

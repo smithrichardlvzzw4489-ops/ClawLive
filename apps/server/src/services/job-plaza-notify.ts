@@ -39,7 +39,8 @@ function scoreMatch(jobTags: string[], userTags: string[], titleBody: string): n
 }
 
 /**
- * 向尚未收到过该 JD 通知的用户发送站内信（按画像标签与 matchTags 重叠打分，取前 N）。
+ * 向尚未记过该 JD 推送的用户写入去重记录（按画像标签与 matchTags 重叠打分，取前 N）。
+ * 站内信已下线，不再写入收件箱。
  */
 export async function notifyMatchedUsersForJobPosting(
   prisma: PrismaClient,
@@ -92,41 +93,15 @@ export async function notifyMatchedUsersForJobPosting(
   scored.sort((a, b) => b.score - a.score || (b.open ? 1 : 0) - (a.open ? 1 : 0));
   const picks = scored.slice(0, MAX_NOTIFY_PER_POST);
 
-  const company = opts.companyName?.trim() || "未填写";
-  const loc = opts.location?.trim() || "未填写";
-  const preview = opts.body.replace(/\s+/g, " ").slice(0, 180);
-
-  const subject = `招聘广场：${opts.title}`;
-  const body =
-    `公司：${company}\n地点：${loc}\n\n` +
-    `${preview}${opts.body.length > preview.length ? "…" : ""}\n\n` +
-    `（招聘广场入口已下线；完整 JD 请直接回复发件人或通过对方留下的联系方式沟通。）`;
-
   let sent = 0;
   for (const p of picks) {
     try {
       await prisma.jobPostingNotification.create({
         data: { jobPostingId, recipientId: p.id },
       });
+      sent += 1;
     } catch {
       continue;
-    }
-    try {
-      await prisma.siteMessage.create({
-        data: {
-          recipientId: p.id,
-          senderId: authorId,
-          source: "job_plaza",
-          subject,
-          body,
-        },
-      });
-      sent += 1;
-    } catch (e) {
-      await prisma.jobPostingNotification
-        .delete({ where: { jobPostingId_recipientId: { jobPostingId, recipientId: p.id } } })
-        .catch(() => {});
-      console.warn("[job-plaza] site message create failed", p.id, e);
     }
   }
 

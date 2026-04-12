@@ -287,23 +287,6 @@ export const api = {
       });
     },
   },
-  messages: {
-    list: () => fetchAPI('/api/messages'),
-    unreadCount: () => fetchAPI('/api/messages/unread-count'),
-    markRead: (id: string) =>
-      fetchAPI(`/api/messages/${encodeURIComponent(id)}/read`, { method: 'PATCH' }),
-    linkContact: (body: {
-      githubUsernames: string[];
-      subject: string;
-      message: string;
-      sendEmail?: boolean;
-      fromEmail?: string;
-    }) =>
-      fetchAPI('/api/messages/link-contact', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-  },
   math: {
     /** SSE: same FormData as match(); onEvent receives JSON payloads { phase, ... } */
     matchStream: async (formData: FormData, onEvent: (payload: Record<string, unknown>) => void) => {
