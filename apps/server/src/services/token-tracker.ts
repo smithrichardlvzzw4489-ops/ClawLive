@@ -25,6 +25,7 @@ export type TokenFeature =
   | 'evolution_acceptance'
   | 'github_graph_blurb'
   | 'attachment_image_ocr'
+  | 'jd_resume_match'
   | 'llm_test'
   | 'other';
 

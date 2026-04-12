@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { api, APIError } from '@/lib/api';
 import { withReturnTo } from '@/hooks/useHistoryBack';
 import { MainLayout } from '@/components/MainLayout';
+import { MathMatchPanel } from '@/components/math/MathMatchPanel';
 
 interface SemanticSearchHit {
   githubUsername: string;
@@ -20,7 +21,7 @@ interface SemanticSearchHit {
   location: string | null;
 }
 
-type TabId = 'lookup' | 'outreach';
+type TabId = 'lookup' | 'outreach' | 'math';
 
 const LOOKUP_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,14 +36,16 @@ export function CodernetHomeClient() {
   const [tab, setTab] = useState<TabId>('lookup');
 
   useEffect(() => {
-    if (searchParams.get('tab') === 'math') {
-      router.replace('/', { scroll: false });
-    }
-  }, [searchParams, router]);
+    if (searchParams.get('tab') === 'math') setTab('math');
+  }, [searchParams]);
 
   const selectTab = (next: TabId) => {
     setTab(next);
-    router.replace('/', { scroll: false });
+    if (next === 'math') {
+      router.replace('/?tab=math', { scroll: false });
+    } else {
+      router.replace('/', { scroll: false });
+    }
   };
 
   const [searchValue, setSearchValue] = useState('');
@@ -129,7 +132,11 @@ export function CodernetHomeClient() {
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/10 blur-[160px]" />
 
       <div className="relative z-10 min-h-[calc(100dvh-4rem)]">
-        <div className="flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center px-4 py-10 sm:py-16">
+        <div
+          className={`flex min-h-[calc(100dvh-4rem)] flex-col items-center px-4 py-10 sm:py-16 ${
+            tab === 'math' ? 'justify-start' : 'justify-center'
+          }`}
+        >
         <div className="text-center max-w-2xl w-full mx-auto">
           <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-1.5 mb-6">
             <span className="text-xs font-mono text-violet-400 tracking-wider">GITLINK</span>
@@ -146,8 +153,8 @@ export function CodernetHomeClient() {
             输入 GitHub 用户名或邮箱，查看任意开发者的 AI 画像
           </p>
 
-          {/* Tab Switcher：GitHub 画像 · LINK */}
-          <div className="grid grid-cols-2 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-xl mx-auto w-full">
+          {/* Tab Switcher：GitHub 画像 · LINK · MATH */}
+          <div className="grid grid-cols-3 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-xl mx-auto w-full">
             <button
               type="button"
               onClick={() => selectTab('lookup')}
@@ -165,6 +172,15 @@ export function CodernetHomeClient() {
               }`}
             >
               LINK
+            </button>
+            <button
+              type="button"
+              onClick={() => selectTab('math')}
+              className={`py-2 px-1.5 sm:px-2 rounded-lg text-xs sm:text-sm font-medium transition ${
+                tab === 'math' ? 'bg-violet-600 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              MATH
             </button>
           </div>
 
@@ -370,7 +386,13 @@ export function CodernetHomeClient() {
             </div>
           )}
         </div>
-      </div>
+        </div>
+
+        {tab === 'math' && (
+          <div className="w-full max-w-6xl mx-auto mt-2 px-0 sm:px-2">
+            <MathMatchPanel />
+          </div>
+        )}
       </div>
 
       <footer className="relative z-10 border-t border-white/[0.06] px-4 py-8 text-center">

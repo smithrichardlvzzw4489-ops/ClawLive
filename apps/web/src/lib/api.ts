@@ -293,6 +293,90 @@ export const api = {
       });
     },
   },
+  math: {
+    /** SSE: same FormData as match(); onEvent receives JSON payloads { phase, ... } */
+    matchStream: async (formData: FormData, onEvent: (payload: Record<string, unknown>) => void) => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const url = `${API_BASE_URL}/api/math/match-stream`;
+      const headers: Record<string, string> = { Accept: 'text/event-stream' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      let response: Response;
+      try {
+        response = await fetch(url, { method: 'POST', headers, body: formData });
+      } catch (err: unknown) {
+        const raw = err instanceof Error ? err.message : String(err);
+        throw new APIError(0, `${getNetworkErrorMsg()}\n([${url}] ${raw})`);
+      }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const msg =
+          error?.error ||
+          (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
+        throw new APIError(response.status, msg);
+      }
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new APIError(0, '无法读取响应流');
+      }
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let sep: number;
+        while ((sep = buffer.indexOf('\n\n')) >= 0) {
+          const chunk = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          for (const line of chunk.split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const payload = JSON.parse(line.slice(6)) as Record<string, unknown>;
+              onEvent(payload);
+            } catch {
+              /* ignore malformed chunk */
+            }
+          }
+        }
+      }
+    },
+    /** Multipart: jdText, resumeText, githubUsername, jdFiles[], resumeFiles[] */
+    match: async (formData: FormData) => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const url = `${API_BASE_URL}/api/math/match`;
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      let response: Response;
+      try {
+        response = await fetch(url, { method: 'POST', headers, body: formData });
+      } catch (err: unknown) {
+        const raw = err instanceof Error ? err.message : String(err);
+        throw new APIError(0, `${getNetworkErrorMsg()}\n([${url}] ${raw})`);
+      }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const msg =
+          error?.error ||
+          (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
+        throw new APIError(response.status, msg);
+      }
+      return response.json() as Promise<{
+        result: {
+          jdItemMatches: Array<{
+            id: string;
+            title: string;
+            matchScore: number;
+            rationale: string;
+            gap?: string;
+          }>;
+          overallMatch: number;
+          executiveSummary: string;
+          notes?: string;
+        };
+        meta: { jdChars: number; resumeChars: number; githubUsed: boolean };
+      }>;
+    },
+  },
   admin: {
     usersOverview: () => fetchAPI('/api/admin/users-overview'),
   },

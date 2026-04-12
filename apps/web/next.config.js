@@ -29,8 +29,6 @@ const nextConfig = {
       { source: '/plaza', destination: '/', permanent: true },
       { source: '/messages', destination: '/', permanent: false },
       { source: '/messages/:path*', destination: '/', permanent: false },
-      { source: '/math', destination: '/', permanent: false },
-      { source: '/math/:path*', destination: '/', permanent: false },
       { source: '/job-plaza', destination: '/', permanent: false },
       { source: '/job-plaza/:path*', destination: '/', permanent: false },
     ];
