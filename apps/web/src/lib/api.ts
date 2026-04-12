@@ -293,6 +293,65 @@ export const api = {
       });
     },
   },
+  recruitment: {
+    pipelineStages: () => fetchAPI('/api/recruitment/pipeline-stages'),
+    listJds: () => fetchAPI('/api/recruitment/jds'),
+    createJd: (body: {
+      title: string;
+      body: string;
+      companyName?: string | null;
+      location?: string | null;
+      matchTags?: string[];
+    }) =>
+      fetchAPI('/api/recruitment/jds', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    getJd: (id: string) => fetchAPI(`/api/recruitment/jds/${encodeURIComponent(id)}`),
+    updateJd: (
+      id: string,
+      body: { title?: string; body?: string; companyName?: string | null; location?: string | null; matchTags?: string[] },
+    ) =>
+      fetchAPI(`/api/recruitment/jds/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    deleteJd: (id: string) =>
+      fetchAPI(`/api/recruitment/jds/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    addCandidate: (
+      jdId: string,
+      body: {
+        githubUsername: string;
+        displayName?: string | null;
+        email?: string | null;
+        notes?: string | null;
+        pipelineStage?: string;
+      },
+    ) =>
+      fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    updateCandidate: (
+      jdId: string,
+      candidateId: string,
+      body: { displayName?: string | null; email?: string | null; notes?: string | null; pipelineStage?: string },
+    ) =>
+      fetchAPI(
+        `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}`,
+        { method: 'PATCH', body: JSON.stringify(body) },
+      ),
+    deleteCandidate: (jdId: string, candidateId: string) =>
+      fetchAPI(
+        `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}`,
+        { method: 'DELETE' },
+      ),
+    recommend: (jdId: string, body?: { limit?: number }) =>
+      fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/recommend`, {
+        method: 'POST',
+        body: JSON.stringify(body ?? {}),
+      }),
+  },
   math: {
     /** SSE: same FormData as match(); onEvent receives JSON payloads { phase, ... } */
     matchStream: async (formData: FormData, onEvent: (payload: Record<string, unknown>) => void) => {

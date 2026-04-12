@@ -569,6 +569,7 @@ model JobPosting {
 
   author         User                       @relation("JobPostingAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   notifyReceipts JobPostingNotification[]
+  candidates     JobPostingCandidate[]
 
   @@index([status, publishedAt(sort: Desc)])
   @@index([authorId])
@@ -588,4 +589,24 @@ model JobPostingNotification {
   @@unique([jobPostingId, recipientId])
   @@index([recipientId])
   @@map("job_posting_notifications")
+}
+
+/// 招聘管理：某 JD 下的候选人及流程状态
+model JobPostingCandidate {
+  id             String   @id @default(uuid())
+  jobPostingId   String
+  githubUsername String
+  displayName    String?
+  email          String?
+  notes          String?  @db.Text
+  /// 新建 | 沟通中 | 面试中 | 已发Offer | 已入职 | 已拒绝 | 暂不联系
+  pipelineStage  String   @default("新建")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  jobPosting JobPosting @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+
+  @@unique([jobPostingId, githubUsername])
+  @@index([jobPostingId])
+  @@map("job_posting_candidates")
 }

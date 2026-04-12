@@ -79,6 +79,12 @@ export function Header({}: HeaderProps) {
               icon="👤"
               active={gitlinkSectionActive}
             />
+            <NavItem
+              href="/recruitment"
+              label="招聘管理"
+              icon="📋"
+              active={pathname.startsWith('/recruitment')}
+            />
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}
