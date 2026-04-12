@@ -1,5 +1,5 @@
 /**
- * Math 匹配页：从上传文件提取纯文本（TXT/Markdown/PDF/DOCX/图片 OCR）。
+ * 从上传文件提取纯文本（TXT/Markdown/PDF/DOCX/图片 OCR），供 Codernet 等 multipart 接口复用。
  */
 
 import type { Express } from 'express';
@@ -44,7 +44,7 @@ async function extractFromImage(buffer: Buffer, mime: string): Promise<string> {
         },
       ],
     },
-    'jd_resume_match',
+    'attachment_image_ocr',
     { kind: 'image_ocr' },
     client,
   );
@@ -65,7 +65,7 @@ export async function extractTextFromUpload(file: Express.Multer.File): Promise<
       const data = await pdfParse(file.buffer);
       return (data.text || '').trim();
     } catch (e) {
-      console.warn('[math-ingest] pdf-parse failed', name, e);
+      console.warn('[attachment-ingest] pdf-parse failed', name, e);
       return '';
     }
   }
@@ -78,7 +78,7 @@ export async function extractTextFromUpload(file: Express.Multer.File): Promise<
       const { value } = await mammoth.extractRawText({ buffer: file.buffer });
       return (value || '').trim();
     } catch (e) {
-      console.warn('[math-ingest] mammoth failed', name, e);
+      console.warn('[attachment-ingest] mammoth failed', name, e);
       return '';
     }
   }
@@ -87,7 +87,7 @@ export async function extractTextFromUpload(file: Express.Multer.File): Promise<
     try {
       return await extractFromImage(file.buffer, mime);
     } catch (e) {
-      console.warn('[math-ingest] vision ocr failed', name, e);
+      console.warn('[attachment-ingest] vision ocr failed', name, e);
       return '（图片识别失败：请粘贴文字，或确认当前部署的 LLM 支持多模态）';
     }
   }

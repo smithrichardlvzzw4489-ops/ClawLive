@@ -5,7 +5,6 @@
  *   - profile_lookup : 画像生成（最核心、成本最高）
  *   - search         : 语义搜索
  *   - outreach       : 批量触达邮件
- *   - jd_resume_match: Math 页 JD×简历匹配（LLM）
  *
  * 数据持久化到 .data/quota-usage.json，启动时加载。
  */
@@ -17,7 +16,7 @@ import path from 'path';
    Types
    ══════════════════════════════════════════════════════════════ */
 
-export type QuotaDimension = 'profile_lookup' | 'search' | 'outreach' | 'jd_resume_match';
+export type QuotaDimension = 'profile_lookup' | 'search' | 'outreach';
 
 export interface QuotaTier {
   name: string;
@@ -64,7 +63,6 @@ const TIERS: Record<string, QuotaTier> = {
       profile_lookup: 20,
       search: 30,
       outreach: 10,
-      jd_resume_match: 15,
     },
   },
   pro: {
@@ -73,7 +71,6 @@ const TIERS: Record<string, QuotaTier> = {
       profile_lookup: 200,
       search: 500,
       outreach: 100,
-      jd_resume_match: 150,
     },
   },
   team: {
@@ -82,12 +79,11 @@ const TIERS: Record<string, QuotaTier> = {
       profile_lookup: 1000,
       search: 9999,
       outreach: 500,
-      jd_resume_match: 2000,
     },
   },
 };
 
-const ALL_DIMENSIONS: QuotaDimension[] = ['profile_lookup', 'search', 'outreach', 'jd_resume_match'];
+const ALL_DIMENSIONS: QuotaDimension[] = ['profile_lookup', 'search', 'outreach'];
 
 /* ══════════════════════════════════════════════════════════════
    Persistence
@@ -161,7 +157,7 @@ function getOrCreateUsage(userId: string): UserQuotaUsage {
   const fresh: UserQuotaUsage = {
     userId,
     month,
-    usage: { profile_lookup: 0, search: 0, outreach: 0, jd_resume_match: 0 },
+    usage: { profile_lookup: 0, search: 0, outreach: 0 },
   };
   usageMap.set(userId, fresh);
   return fresh;

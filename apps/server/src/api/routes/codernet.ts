@@ -9,7 +9,7 @@ import { crawlGitHubProfile, getServerGitHubToken, type GitHubCrawlResult } from
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
 import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
 import { searchDevelopers } from '../../services/codernet-search';
-import { concatExtractedFiles } from '../../services/math-ingest';
+import { concatExtractedFiles } from '../../services/attachment-text-ingest';
 import {
   createConnectSession,
   getConnectSession,
