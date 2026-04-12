@@ -5,6 +5,7 @@
  *   - profile_lookup : 画像生成（最核心、成本最高）
  *   - search         : 语义搜索
  *   - outreach       : 批量触达邮件
+ *   - jd_resume_match: Math 页 JD×简历匹配（LLM）
  *
  * 数据持久化到 .data/quota-usage.json，启动时加载。
  */
@@ -16,7 +17,7 @@ import path from 'path';
    Types
    ══════════════════════════════════════════════════════════════ */
 
-export type QuotaDimension = 'profile_lookup' | 'search' | 'outreach';
+export type QuotaDimension = 'profile_lookup' | 'search' | 'outreach' | 'jd_resume_match';
 
 export interface QuotaTier {
   name: string;
@@ -63,6 +64,7 @@ const TIERS: Record<string, QuotaTier> = {
       profile_lookup: 20,
       search: 30,
       outreach: 10,
+      jd_resume_match: 15,
     },
   },
   pro: {
@@ -71,6 +73,7 @@ const TIERS: Record<string, QuotaTier> = {
       profile_lookup: 200,
       search: 500,
       outreach: 100,
+      jd_resume_match: 150,
     },
   },
   team: {
@@ -79,11 +82,12 @@ const TIERS: Record<string, QuotaTier> = {
       profile_lookup: 1000,
       search: 9999,
       outreach: 500,
+      jd_resume_match: 2000,
     },
   },
 };
 
-const ALL_DIMENSIONS: QuotaDimension[] = ['profile_lookup', 'search', 'outreach'];
+const ALL_DIMENSIONS: QuotaDimension[] = ['profile_lookup', 'search', 'outreach', 'jd_resume_match'];
 
 /* ══════════════════════════════════════════════════════════════
    Persistence
@@ -144,12 +148,20 @@ function getOrCreateUsage(userId: string): UserQuotaUsage {
   const month = currentMonth();
   const existing = usageMap.get(userId);
 
-  if (existing && existing.month === month) return existing;
+  if (existing && existing.month === month) {
+    for (const d of ALL_DIMENSIONS) {
+      const v = existing.usage[d];
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        existing.usage[d] = 0;
+      }
+    }
+    return existing;
+  }
 
   const fresh: UserQuotaUsage = {
     userId,
     month,
-    usage: { profile_lookup: 0, search: 0, outreach: 0 },
+    usage: { profile_lookup: 0, search: 0, outreach: 0, jd_resume_match: 0 },
   };
   usageMap.set(userId, fresh);
   return fresh;
@@ -170,7 +182,7 @@ function getTier(userId: string): QuotaTier {
 export function checkQuota(userId: string, dimension: QuotaDimension): QuotaCheckResult {
   const record = getOrCreateUsage(userId);
   const tier = getTier(userId);
-  const used = record.usage[dimension];
+  const used = record.usage[dimension] ?? 0;
   const limit = tier.limits[dimension];
   const remaining = Math.max(0, limit - used);
   const ratio = limit > 0 ? used / limit : 1;
@@ -192,7 +204,8 @@ export function checkQuota(userId: string, dimension: QuotaDimension): QuotaChec
  */
 export function consumeQuota(userId: string, dimension: QuotaDimension, count = 1): QuotaCheckResult {
   const record = getOrCreateUsage(userId);
-  record.usage[dimension] += count;
+  const cur = record.usage[dimension] ?? 0;
+  record.usage[dimension] = cur + count;
   return checkQuota(userId, dimension);
 }
 
@@ -205,7 +218,7 @@ export function getQuotaStatus(userId: string): QuotaStatus {
 
   const dimensions = {} as QuotaStatus['dimensions'];
   for (const dim of ALL_DIMENSIONS) {
-    const used = record.usage[dim];
+    const used = record.usage[dim] ?? 0;
     const limit = tier.limits[dim];
     dimensions[dim] = {
       used,

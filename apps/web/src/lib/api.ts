@@ -317,6 +317,44 @@ export const api = {
     close: (id: string) =>
       fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}/close`, { method: 'POST' }),
   },
+  math: {
+    /** Multipart: jdText, resumeText, githubUsername, jdFiles[], resumeFiles[] */
+    match: async (formData: FormData) => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const url = `${API_BASE_URL}/api/math/match`;
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      let response: Response;
+      try {
+        response = await fetch(url, { method: 'POST', headers, body: formData });
+      } catch (err: unknown) {
+        const raw = err instanceof Error ? err.message : String(err);
+        throw new APIError(0, `${getNetworkErrorMsg()}\n([${url}] ${raw})`);
+      }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const msg =
+          error?.error ||
+          (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
+        throw new APIError(response.status, msg);
+      }
+      return response.json() as Promise<{
+        result: {
+          jdItemMatches: Array<{
+            id: string;
+            title: string;
+            matchScore: number;
+            rationale: string;
+            gap?: string;
+          }>;
+          overallMatch: number;
+          executiveSummary: string;
+          notes?: string;
+        };
+        meta: { jdChars: number; resumeChars: number; githubUsed: boolean };
+      }>;
+    },
+  },
   admin: {
     usersOverview: () => fetchAPI('/api/admin/users-overview'),
   },

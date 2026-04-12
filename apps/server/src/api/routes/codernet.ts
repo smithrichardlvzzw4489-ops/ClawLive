@@ -177,6 +177,101 @@ export async function handleCodernetGithubLookupGet(req: Request, res: Response)
   }
 }
 
+function formatPortraitForMatch(crawl: GitHubCrawlResult, analysis: CodernetAnalysis): string {
+  const lines: string[] = [];
+  lines.push(`GitHub 登录: @${crawl.username}`);
+  if (crawl.bio) lines.push(`GitHub 简介: ${crawl.bio}`);
+  if (crawl.location) lines.push(`地区: ${crawl.location}`);
+  if (crawl.company) lines.push(`公司/组织: ${crawl.company}`);
+  if (analysis.oneLiner) lines.push(`技术一句话: ${analysis.oneLiner}`);
+  if (analysis.sharpCommentary) lines.push(`画像评价: ${analysis.sharpCommentary}`);
+  if (analysis.techTags?.length) lines.push(`技术标签: ${analysis.techTags.join('、')}`);
+  const langs = (analysis.languageDistribution || []).slice(0, 12).map((l) => `${l.language} ${l.percent}%`);
+  if (langs.length) lines.push(`语言分布: ${langs.join('； ')}`);
+
+  const q = analysis.capabilityQuadrant;
+  if (q) {
+    lines.push(`能力象限(0-100): 前端 ${q.frontend} 后端 ${q.backend} 基础设施 ${q.infra} AI/ML ${q.ai_ml}`);
+  }
+
+  const repos = (crawl.repos || []).slice(0, 18);
+  if (repos.length) {
+    lines.push('公开仓库样本:');
+    for (const r of repos) {
+      lines.push(
+        `- ${r.name} [${r.language || '—'}] ★${r.stargazers_count} ${(r.description || '').slice(0, 120)}`,
+      );
+    }
+  }
+
+  const commits = (crawl.recentCommits || []).slice(0, 12);
+  if (commits.length) {
+    lines.push('近期 commit 样本:');
+    for (const c of commits) {
+      lines.push(`- [${c.repo}] ${c.message.slice(0, 100)} (${c.date})`);
+    }
+  }
+
+  const mpg = analysis.multiPlatformInsights;
+  if (mpg) {
+    const bits: string[] = [];
+    if (mpg.stackOverflowReputation) bits.push(`SO 声望 ${mpg.stackOverflowReputation}`);
+    if (mpg.hfModelCount) bits.push(`HF 模型 ${mpg.hfModelCount}`);
+    if (mpg.npmPackageCount) bits.push(`npm 包 ${mpg.npmPackageCount}`);
+    if (bits.length) lines.push(`多平台信号: ${bits.join('； ')}`);
+  }
+
+  return lines.join('\n').slice(0, 24_000);
+}
+
+/**
+ * Math 匹配页：从缓存或 DB 取 GitHub 用户画像摘要（不含 token）。
+ */
+export async function getGithubPortraitBundleForMatch(ghUsernameRaw: string): Promise<
+  | { ok: true; githubLogin: string; portraitSummary: string }
+  | { ok: false; code: 'PENDING' | 'NOT_FOUND'; message: string }
+> {
+  const ghUser = ghUsernameRaw.trim().toLowerCase().replace(/^@/, '');
+  if (!ghUser) {
+    return { ok: false, code: 'NOT_FOUND', message: '请填写 GitHub 登录名（可带或不带 @）' };
+  }
+
+  const cached = lookupCache.get(ghUser);
+  if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL && cached.analysis) {
+    return {
+      ok: true,
+      githubLogin: ghUser,
+      portraitSummary: formatPortraitForMatch(cached.crawl, cached.analysis),
+    };
+  }
+
+  const resolved = await resolvePortraitCrawlForGraphs(ghUser);
+  if (resolved?.crawl && resolved.analysis) {
+    return {
+      ok: true,
+      githubLogin: ghUser,
+      portraitSummary: formatPortraitForMatch(resolved.crawl, resolved.analysis),
+    };
+  }
+
+  const progress = crawlProgressMap.get(`gh:${ghUser}`);
+  if (progress && progress.stage !== 'error' && progress.stage !== 'complete') {
+    return {
+      ok: false,
+      code: 'PENDING',
+      message:
+        '该 GitHub 用户画像正在生成中。请稍后在 GITLINK 公开画像页等待完成后，再回到本页重试。',
+    };
+  }
+
+  return {
+    ok: false,
+    code: 'NOT_FOUND',
+    message:
+      '未找到该用户的已缓存画像。请先在 GITLINK 打开其 GitHub 公开画像并成功完成一次爬取，再回此处匹配。',
+  };
+}
+
 /**
  * POST 触发公开 GitHub 画像爬取。
  * @param quotaUserId 非空时按该用户扣 profile_lookup 额度（JWT 或 Agent Key 所属用户）

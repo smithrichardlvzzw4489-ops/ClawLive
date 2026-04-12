@@ -24,6 +24,7 @@ export type TokenFeature =
   | 'evolver_assessment'
   | 'evolution_acceptance'
   | 'github_graph_blurb'
+  | 'jd_resume_match'
   | 'llm_test'
   | 'other';
 
