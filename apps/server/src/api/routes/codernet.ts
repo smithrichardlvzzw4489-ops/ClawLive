@@ -68,6 +68,13 @@ export interface CrawlProgress {
 
 const crawlProgressMap = new Map<string, CrawlProgress>();
 
+/** Math 等：读取公开 GitHub 爬取进度（键为 gh:login 小写） */
+export function getPublicGithubCrawlProgress(githubLoginRaw: string): CrawlProgress | null {
+  const gh = githubLoginRaw.trim().toLowerCase().replace(/^@/, '');
+  if (!gh) return null;
+  return crawlProgressMap.get(`gh:${gh}`) ?? null;
+}
+
 function setProgress(username: string, stage: CrawlStage, percent: number, detail: string, error?: string) {
   const existing = crawlProgressMap.get(username);
   crawlProgressMap.set(username, {
