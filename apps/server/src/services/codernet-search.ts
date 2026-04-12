@@ -1,7 +1,7 @@
 /**
  * Codernet 全网开发者搜索：
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
- * 2. GitHub Search API 实时搜人（/search/users；无 followers 限定时多粉丝分片 + 合并，缓解单次约 1000 条上限）
+ * 2. GitHub Search API 实时搜人（/search/users；自动 followers/repos 分桶 + 大国地区分片 + 合并，缓解单次约 1000 条上限）
  * 3. 批量爬取 top 候选人画像
  * 4. LLM 精排 → 返回最匹配的开发者
  */
@@ -43,23 +43,155 @@ export interface ParsedQuery {
   shardQueries?: string[];
 }
 
-/** 主查询里是否已包含 followers 相关限定（再分桶易冲突，故不再自动分片）。 */
+/** 自动分片生成的 q 条数上限（避免 Search API 请求过多）。 */
+export const GITHUB_SEARCH_AUTO_QUERY_CAP = 12;
+
+/** 主查询里是否已包含 followers 相关限定。 */
 export function githubUserQueryHasFollowersQualifier(q: string): boolean {
   return /\bfollowers:/i.test(q);
 }
 
-/** 无 followers 限定时，按粉丝区间拆成多条 q，扩大可触及用户池（GitHub 单次结果最多 1000）。 */
+/** 主查询里是否已包含 repos 相关限定。 */
+export function githubUserQueryHasReposQualifier(q: string): boolean {
+  return /\brepos:/i.test(q);
+}
+
+function appendQualifierSuffix(baseGithubQuery: string, suffix: string): string {
+  return `${baseGithubQuery.trim()} ${suffix}`.replace(/\s+/g, ' ').trim();
+}
+
+/** 按粉丝区间拆成多条 q（与 repos 分桶正交，可并行使用）。 */
 export function buildFollowerBucketGithubQueries(baseGithubQuery: string): string[] {
   const b = baseGithubQuery.trim();
   const buckets = ['followers:1..500', 'followers:501..5000', 'followers:5001..50000', 'followers:50001..2000000'];
-  return buckets.map((s) => `${b} ${s}`.replace(/\s+/g, ' ').trim());
+  return buckets.map((s) => appendQualifierSuffix(b, s));
+}
+
+/** 按公开仓库数区间拆成多条 q（与 followers 分桶正交）。 */
+export function buildReposBucketGithubQueries(baseGithubQuery: string): string[] {
+  const b = baseGithubQuery.trim();
+  const buckets = ['repos:1..25', 'repos:26..150', 'repos:151..800', 'repos:801..50000'];
+  return buckets.map((s) => appendQualifierSuffix(b, s));
+}
+
+const LOCATION_BROAD_ALIASES: Record<string, string> = {
+  us: 'usa',
+  'u.s.': 'usa',
+  'u.s': 'usa',
+  usa: 'usa',
+  america: 'usa',
+  'united states': 'usa',
+  'united states of america': 'usa',
+  uk: 'united kingdom',
+  'u.k.': 'united kingdom',
+  'u.k': 'united kingdom',
+  england: 'united kingdom',
+  britain: 'united kingdom',
+  prc: 'china',
+  mainland: 'china',
+  eu: 'europe',
+};
+
+/** 国家/大区级 location → 若干代表性城市分片（英文地名与 GitHub 常见 profile 一致）。 */
+const BROAD_LOCATION_CITIES: Record<string, string[]> = {
+  china: ['Beijing', 'Shanghai', 'Shenzhen', 'Hangzhou'],
+  usa: ['San Francisco', 'New York', 'Seattle', 'Austin'],
+  india: ['Bangalore', 'Mumbai', 'Delhi', 'Hyderabad'],
+  'united kingdom': ['London', 'Manchester', 'Edinburgh', 'Bristol'],
+  canada: ['Toronto', 'Vancouver', 'Montreal', 'Calgary'],
+  australia: ['Sydney', 'Melbourne', 'Brisbane', 'Perth'],
+  japan: ['Tokyo', 'Osaka', 'Kyoto', 'Yokohama'],
+  germany: ['Berlin', 'Munich', 'Hamburg', 'Frankfurt'],
+  france: ['Paris', 'Lyon', 'Toulouse', 'Nice'],
+  brazil: ['Sao Paulo', 'Rio de Janeiro', 'Belo Horizonte', 'Brasilia'],
+  europe: ['London', 'Berlin', 'Paris', 'Amsterdam'],
+};
+
+function extractFirstLocationFromQuery(q: string): { raw: string; value: string } | null {
+  const quoted = q.match(/\blocation:\s*"([^"]+)"/i);
+  if (quoted) return { raw: quoted[0], value: quoted[1].trim() };
+  const plain = q.match(/\blocation:\s*([^\s]+)/i);
+  if (plain) return { raw: plain[0], value: plain[1].trim() };
+  return null;
+}
+
+/** 去掉首个 location: 限定，便于替换为城市分片。 */
+export function stripLocationFromQuery(q: string): string {
+  return q
+    .replace(/\blocation:\s*"[^"]*"\s*/i, ' ')
+    .replace(/\blocation:\s*[^\s]+\s*/i, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeBroadLocationKey(raw: string): string | null {
+  const s = raw.replace(/^["']|["']$/g, '').trim().toLowerCase();
+  if (!s) return null;
+  const aliased = LOCATION_BROAD_ALIASES[s] || s;
+  if (BROAD_LOCATION_CITIES[aliased]) return aliased;
+  if (BROAD_LOCATION_CITIES[s]) return s;
+  return null;
+}
+
+function appendLocationCityToQuery(baseWithoutLocation: string, city: string): string {
+  const loc = city.includes(' ') ? `location:"${city}"` : `location:${city}`;
+  return appendQualifierSuffix(baseWithoutLocation, loc);
+}
+
+/**
+ * 若 location 为国家/大区等宽泛词，则展开为多个城市 query；否则返回单元素 [primary]。
+ */
+export function expandBroadLocationVariants(primary: string): string[] {
+  const hit = extractFirstLocationFromQuery(primary);
+  if (!hit) return [primary];
+  const key = normalizeBroadLocationKey(hit.value);
+  if (!key) return [primary];
+  const cities = BROAD_LOCATION_CITIES[key];
+  if (!cities?.length) return [primary];
+  const base = stripLocationFromQuery(primary);
+  if (!base) return [primary];
+  return cities.map((city) => appendLocationCityToQuery(base, city));
+}
+
+/**
+ * 对单条「已含 location 等」的 q 做 followers / repos 维度的自动分桶（互斥区间）。
+ * - 无 followers 且无 repos：followers 四档 + repos 四档（共 8 条，扩大池子）。
+ * - 仅有 followers：追加 repos 四档。
+ * - 仅有 repos：追加 followers 四档。
+ * - 两者皆有：不再自动分桶。
+ */
+export function expandDimensionBucketsForQuery(pv: string): string[] {
+  const hasF = githubUserQueryHasFollowersQualifier(pv);
+  const hasR = githubUserQueryHasReposQualifier(pv);
+  if (!hasF && !hasR) {
+    return [...buildFollowerBucketGithubQueries(pv), ...buildReposBucketGithubQueries(pv)];
+  }
+  if (hasF && !hasR) {
+    return buildReposBucketGithubQueries(pv);
+  }
+  if (!hasF && hasR) {
+    return buildFollowerBucketGithubQueries(pv);
+  }
+  return [pv];
+}
+
+function uniqGithubQueries(arr: string[]): string[] {
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of arr) {
+    const k = norm(x);
+    if (!k || seen.has(k.toLowerCase())) continue;
+    seen.add(k.toLowerCase());
+    out.push(k);
+  }
+  return out;
 }
 
 /**
  * 展开为多条实际搜索用 `githubQuery`（去重、限条数）。
- * - LLM 返回 ≥2 条 shardQueries 时：主查询 + shardQueries（最多 6 条）。
- * - 否则若主查询无 followers：4 档粉丝分桶。
- * - 否则：仅主查询。
+ * - LLM 返回去重后 ≥2 条（主 + shardQueries）时：优先采用，最多 6 条。
+ * - 否则：大国/大区 location → 多城市；再叠 followers/repos 分桶（总条数 capped）。
  */
 export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
   const primary = parsed.githubQuery.trim();
@@ -68,27 +200,38 @@ export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
     ? raw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim()).slice(0, 5)
     : [];
 
-  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
-  const uniq = (arr: string[]) => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const x of arr) {
-      const k = norm(x);
-      if (!k || seen.has(k.toLowerCase())) continue;
-      seen.add(k.toLowerCase());
-      out.push(k);
-    }
-    return out;
-  };
-
-  const combined = uniq([primary, ...llmShards]);
+  const combined = uniqGithubQueries([primary, ...llmShards]);
   if (combined.length >= 2) {
     return combined.slice(0, 6);
   }
-  if (githubUserQueryHasFollowersQualifier(primary)) {
-    return [primary];
+
+  const locVariants = expandBroadLocationVariants(primary);
+
+  if (locVariants.length > 1) {
+    const flat: string[] = [];
+    for (const pv of locVariants) {
+      const hasF = githubUserQueryHasFollowersQualifier(pv);
+      const hasR = githubUserQueryHasReposQualifier(pv);
+      if (!hasF && !hasR) {
+        flat.push(
+          appendQualifierSuffix(pv, 'followers:1..500'),
+          appendQualifierSuffix(pv, 'followers:501..5000'),
+          appendQualifierSuffix(pv, 'repos:1..25'),
+          appendQualifierSuffix(pv, 'repos:26..150'),
+        );
+      } else if (hasF && !hasR) {
+        flat.push(...buildReposBucketGithubQueries(pv).slice(0, 3));
+      } else if (!hasF && hasR) {
+        flat.push(...buildFollowerBucketGithubQueries(pv).slice(0, 3));
+      } else {
+        flat.push(pv);
+      }
+    }
+    return uniqGithubQueries(flat).slice(0, GITHUB_SEARCH_AUTO_QUERY_CAP);
   }
-  return buildFollowerBucketGithubQueries(primary);
+
+  const pv = locVariants[0] ?? primary;
+  return uniqGithubQueries(expandDimensionBucketsForQuery(pv)).slice(0, GITHUB_SEARCH_AUTO_QUERY_CAP);
 }
 
 export async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
@@ -125,6 +268,7 @@ GitHub Search Users 支持的 qualifier：
 - 如果用户强调经验丰富/资深，加 followers:>100 或 repos:>30
 - 关键词尽量用英文（GitHub 数据以英文为主）
 - **shardQueries（可选）**：GitHub Search Users 单次最多返回约 1000 条。若主查询较宽、可能命中大量用户，请额外输出 1–4 条**完整**的 alternate githubQuery，与主查询用**互斥的** followers:N..M 或 repos:N..M 分档，便于系统合并去重后覆盖更广。每条须含 type:user 且与主查询意图一致。若已在 githubQuery 中写了 followers: 限定，可省略 shardQueries。
+- 服务端还会对**无 LLM 分片**时的查询自动做 **followers/repos 分桶**；对 **location:china、USA、India** 等国家/大区词自动拆成多城市分片。若你已在 githubQuery 中精确到城市，无需再写 shardQueries。
 - 不要在 githubQuery 与 shardQueries 里重复完全相同的字符串。`;
 
   const response = await trackedChatCompletion(
