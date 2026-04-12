@@ -77,7 +77,7 @@ export default function MessagesPage() {
             </Link>
           </div>
           <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-            来自 LINK 搜索、招聘广场匹配推送或其他联系的消息会出现在此。未注册 GitHub
+            来自 LINK 搜索、站内联系或其他消息会出现在此。未注册 GitHub
             账号绑定前发送给你的联系，会在你使用相同 GitHub 登录后自动投递。
           </p>
           {err && (

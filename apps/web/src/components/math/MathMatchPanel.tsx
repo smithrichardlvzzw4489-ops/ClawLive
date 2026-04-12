@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
 
@@ -151,22 +150,15 @@ export function MathMatchPanel() {
 
   return (
     <div className="w-full text-left pb-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.06] pb-4">
-        <div>
-          <h2 className="text-lg font-bold tracking-tight text-white">Math</h2>
-          <p className="text-xs text-slate-500 mt-2 max-w-xl leading-relaxed">
-            左侧粘贴或导入<strong className="text-slate-400">职位 JD</strong>，右侧粘贴或导入
-            <strong className="text-slate-400">简历</strong>并可选填 <strong className="text-slate-400">GitHub</strong>
-            登录名以自动拉取<strong className="text-slate-400">公开 GitHub 画像</strong>（无需事先在站内打开过该用户）。首次拉取可能需 1～3
-            分钟。LLM 将按 JD 条目给出匹配度与
-            <strong className="text-slate-400">综合匹配度</strong>（需登录，消耗每月 Math 配额）。
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs font-mono">
-          <Link href="/job-plaza" className="text-violet-400 hover:text-violet-300">
-            招聘广场
-          </Link>
-        </div>
+      <div className="mb-6 border-b border-white/[0.06] pb-4">
+        <h2 className="text-lg font-bold tracking-tight text-white">Math</h2>
+        <p className="text-xs text-slate-500 mt-2 max-w-xl leading-relaxed">
+          左侧粘贴或导入<strong className="text-slate-400">职位 JD</strong>，右侧粘贴或导入
+          <strong className="text-slate-400">简历</strong>并可选填 <strong className="text-slate-400">GitHub</strong>
+          登录名以自动拉取<strong className="text-slate-400">公开 GitHub 画像</strong>（无需事先在站内打开过该用户）。首次拉取可能需 1～3
+          分钟。LLM 将按 JD 条目给出匹配度与
+          <strong className="text-slate-400">综合匹配度</strong>（需登录，消耗每月 Math 配额）。
+        </p>
       </div>
 
       {ghHint && (

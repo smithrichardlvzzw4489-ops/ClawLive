@@ -90,12 +90,6 @@ export function Header({}: HeaderProps) {
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}
-            <NavItem
-              href="/job-plaza"
-              label="招聘广场"
-              icon="📋"
-              active={pathname.startsWith('/job-plaza')}
-            />
             <Suspense fallback={<NavItem href="/?tab=math" label="Math" icon="📐" active={false} />}>
               <MathNavItem />
             </Suspense>

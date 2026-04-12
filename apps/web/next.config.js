@@ -27,6 +27,8 @@ const nextConfig = {
   async redirects() {
     return [
       { source: '/plaza', destination: '/', permanent: true },
+      { source: '/job-plaza', destination: '/', permanent: false },
+      { source: '/job-plaza/:path*', destination: '/', permanent: false },
     ];
   },
   async rewrites() {

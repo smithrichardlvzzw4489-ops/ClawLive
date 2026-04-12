@@ -100,8 +100,7 @@ export async function notifyMatchedUsersForJobPosting(
   const body =
     `公司：${company}\n地点：${loc}\n\n` +
     `${preview}${opts.body.length > preview.length ? "…" : ""}\n\n` +
-    `查看完整 JD：/job-plaza/${jobPostingId}\n` +
-    `（站内链接，登录后从招聘广场打开）`;
+    `（招聘广场入口已下线；完整 JD 请直接回复发件人或通过对方留下的联系方式沟通。）`;
 
   let sent = 0;
   for (const p of picks) {

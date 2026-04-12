@@ -304,47 +304,6 @@ export const api = {
         body: JSON.stringify(body),
       }),
   },
-  jobPlaza: {
-    list: (params?: { page?: number; limit?: number }) => {
-      const q = new URLSearchParams();
-      if (params?.page) q.set('page', String(params.page));
-      if (params?.limit) q.set('limit', String(params.limit));
-      const s = q.toString();
-      return fetchAPI(`/api/job-plaza${s ? `?${s}` : ''}`);
-    },
-    mine: () => fetchAPI('/api/job-plaza/mine'),
-    get: (id: string) => fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}`),
-    create: (body: {
-      title: string;
-      companyName?: string;
-      location?: string;
-      body: string;
-      matchTags: string[] | string;
-      publish?: boolean;
-    }) =>
-      fetchAPI('/api/job-plaza', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
-    update: (
-      id: string,
-      body: Partial<{
-        title: string;
-        companyName: string | null;
-        location: string | null;
-        body: string;
-        matchTags: string[] | string;
-      }>,
-    ) =>
-      fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      }),
-    publish: (id: string) =>
-      fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}/publish`, { method: 'POST' }),
-    close: (id: string) =>
-      fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}/close`, { method: 'POST' }),
-  },
   math: {
     /** SSE: same FormData as match(); onEvent receives JSON payloads { phase, ... } */
     matchStream: async (formData: FormData, onEvent: (payload: Record<string, unknown>) => void) => {
