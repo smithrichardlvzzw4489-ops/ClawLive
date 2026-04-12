@@ -1,7 +1,7 @@
 /**
  * Codernet 全网开发者搜索：
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
- * 2. GitHub Search API 实时搜人（/search/users）
+ * 2. GitHub Search API 实时搜人（/search/users；无 followers 限定时多粉丝分片 + 合并，缓解单次约 1000 条上限）
  * 3. 批量爬取 top 候选人画像
  * 4. LLM 精排 → 返回最匹配的开发者
  */
@@ -36,6 +36,59 @@ export interface ParsedQuery {
   sort?: 'followers' | 'repositories' | 'joined';
   order?: 'desc' | 'asc';
   explanation: string;
+  /**
+   * 可选：多条完整 GitHub `q`（每条均须合法），用互斥的 followers:/repos: 等区间绕过单次搜索 1000 条上限。
+   * 若与主查询合计 ≥2 条则优先采用；否则服务端按粉丝区间自动分桶。
+   */
+  shardQueries?: string[];
+}
+
+/** 主查询里是否已包含 followers 相关限定（再分桶易冲突，故不再自动分片）。 */
+export function githubUserQueryHasFollowersQualifier(q: string): boolean {
+  return /\bfollowers:/i.test(q);
+}
+
+/** 无 followers 限定时，按粉丝区间拆成多条 q，扩大可触及用户池（GitHub 单次结果最多 1000）。 */
+export function buildFollowerBucketGithubQueries(baseGithubQuery: string): string[] {
+  const b = baseGithubQuery.trim();
+  const buckets = ['followers:1..500', 'followers:501..5000', 'followers:5001..50000', 'followers:50001..2000000'];
+  return buckets.map((s) => `${b} ${s}`.replace(/\s+/g, ' ').trim());
+}
+
+/**
+ * 展开为多条实际搜索用 `githubQuery`（去重、限条数）。
+ * - LLM 返回 ≥2 条 shardQueries 时：主查询 + shardQueries（最多 6 条）。
+ * - 否则若主查询无 followers：4 档粉丝分桶。
+ * - 否则：仅主查询。
+ */
+export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
+  const primary = parsed.githubQuery.trim();
+  const raw = parsed.shardQueries;
+  const llmShards = Array.isArray(raw)
+    ? raw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim()).slice(0, 5)
+    : [];
+
+  const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const uniq = (arr: string[]) => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const x of arr) {
+      const k = norm(x);
+      if (!k || seen.has(k.toLowerCase())) continue;
+      seen.add(k.toLowerCase());
+      out.push(k);
+    }
+    return out;
+  };
+
+  const combined = uniq([primary, ...llmShards]);
+  if (combined.length >= 2) {
+    return combined.slice(0, 6);
+  }
+  if (githubUserQueryHasFollowersQualifier(primary)) {
+    return [primary];
+  }
+  return buildFollowerBucketGithubQueries(primary);
 }
 
 export async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
@@ -56,10 +109,11 @@ GitHub Search Users 支持的 qualifier：
 
 输出**仅一个 JSON 对象**：
 {
-  "githubQuery": "language:rust location:china followers:>50 type:user",
+  "githubQuery": "language:rust location:china type:user",
   "sort": "followers",
   "order": "desc",
-  "explanation": "搜索在中国的 Rust 开发者，按粉丝数排序"
+  "explanation": "搜索在中国的 Rust 开发者，按粉丝数排序",
+  "shardQueries": ["language:rust location:china type:user followers:1..800", "language:rust location:china type:user followers:801..20000"]
 }
 
 规则：
@@ -69,10 +123,12 @@ GitHub Search Users 支持的 qualifier：
 - 如果用户提到了具体技术栈，用 language: qualifier
 - 如果用户提到了地区，用 location: qualifier
 - 如果用户强调经验丰富/资深，加 followers:>100 或 repos:>30
-- 关键词尽量用英文（GitHub 数据以英文为主）`;
+- 关键词尽量用英文（GitHub 数据以英文为主）
+- **shardQueries（可选）**：GitHub Search Users 单次最多返回约 1000 条。若主查询较宽、可能命中大量用户，请额外输出 1–4 条**完整**的 alternate githubQuery，与主查询用**互斥的** followers:N..M 或 repos:N..M 分档，便于系统合并去重后覆盖更广。每条须含 type:user 且与主查询意图一致。若已在 githubQuery 中写了 followers: 限定，可省略 shardQueries。
+- 不要在 githubQuery 与 shardQueries 里重复完全相同的字符串。`;
 
   const response = await trackedChatCompletion(
-    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, temperature: 0.2 },
+    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 520, temperature: 0.2 },
     'developer_search',
   );
 
@@ -83,8 +139,21 @@ GitHub Search Users 支持的 qualifier：
   }
 
   try {
-    const parsed = JSON.parse(jsonMatch[0]) as ParsedQuery;
-    if (!parsed.githubQuery) throw new Error('missing githubQuery');
+    const rawObj = JSON.parse(jsonMatch[0]) as ParsedQuery & { shardQueries?: unknown };
+    if (!rawObj.githubQuery) throw new Error('missing githubQuery');
+    const parsed: ParsedQuery = {
+      githubQuery: String(rawObj.githubQuery).trim(),
+      sort: rawObj.sort,
+      order: rawObj.order,
+      explanation: String(rawObj.explanation || '').trim() || 'Parsed search',
+    };
+    if (Array.isArray(rawObj.shardQueries)) {
+      const shards = rawObj.shardQueries
+        .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+        .map((x) => x.trim())
+        .slice(0, 5);
+      if (shards.length) parsed.shardQueries = shards;
+    }
     return parsed;
   } catch {
     return { githubQuery: `${query} type:user`, explanation: 'Fallback keyword search' };
@@ -108,6 +177,26 @@ export interface GHSearchUserItem {
   company?: string | null;
   blog?: string | null;
   name?: string | null;
+}
+
+/** 合并多路 Search users 结果，同一 login 保留 followers 更高的一条（若无则后者覆盖）。 */
+export function mergeGitHubUserSearchItems<T extends { login: string; followers?: number }>(batches: T[][]): T[] {
+  const m = new Map<string, T>();
+  for (const batch of batches) {
+    for (const u of batch) {
+      if (!u?.login) continue;
+      const k = u.login.toLowerCase();
+      const prev = m.get(k);
+      if (!prev || (Number(u.followers) || 0) > (Number(prev.followers) || 0)) {
+        m.set(k, u);
+      }
+    }
+  }
+  return [...m.values()];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 interface GHSearchResponse {
@@ -183,12 +272,53 @@ async function searchGitHubUsers(
   token?: string,
   maxResults: number = 10,
 ): Promise<GHSearchUserItem[]> {
-  const n = Math.min(maxResults, 30);
-  const rows = await runGitHubUserSearchFromParsed(parsedQuery, token, {
-    perPage: n,
-    enrichProfiles: true,
-  });
-  return rows.slice(0, maxResults);
+  const queries = expandGithubSearchQueries(parsedQuery);
+  const perShard = Math.min(100, Math.max(12, Math.ceil((maxResults * 3) / Math.max(1, queries.length))));
+  const batches: GHSearchUserItem[][] = [];
+
+  for (let i = 0; i < queries.length; i++) {
+    const q = queries[i];
+    const sliceParsed: ParsedQuery = { ...parsedQuery, githubQuery: q };
+    try {
+      const rows = await runGitHubUserSearchFromParsed(sliceParsed, token, {
+        perPage: perShard,
+        enrichProfiles: false,
+      });
+      batches.push(rows);
+    } catch (e) {
+      console.warn(`[CodernetSearch] shard ${i + 1}/${queries.length} failed q=${q.slice(0, 100)}`, e);
+    }
+    if (i < queries.length - 1) await sleep(120);
+  }
+
+  const merged = mergeGitHubUserSearchItems(batches);
+  merged.sort((a, b) => (Number(b.followers) || 0) - (Number(a.followers) || 0));
+  const top = merged.slice(0, Math.min(maxResults, 100));
+
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'ClawLab-Codernet/1.0',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const enriched = await Promise.allSettled(
+    top.map(async (u) => {
+      try {
+        const profileRes = await fetch(`https://api.github.com/users/${u.login}`, { headers });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          return { ...u, ...profile } as GHSearchUserItem;
+        }
+      } catch {}
+      return u;
+    }),
+  );
+
+  return enriched
+    .filter((r): r is PromiseFulfilledResult<GHSearchUserItem> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .slice(0, maxResults);
 }
 
 /* ── Phase 3: 批量爬取 + AI 分析（lightweight，只对 top 5）── */
@@ -335,9 +465,13 @@ export async function searchDevelopers(
   const parsed = await parseQueryToGitHubSearch(query);
   console.log(`[CodernetSearch] parsed: "${parsed.githubQuery}" (${parsed.explanation})`);
 
+  const shardQs = expandGithubSearchQueries(parsed);
   onProgress?.({
     phase: 'searching',
-    detail: `Searching GitHub: ${parsed.githubQuery}`,
+    detail:
+      shardQs.length > 1
+        ? `Searching GitHub (${shardQs.length} queries, bypass 1000-result cap)`
+        : `Searching GitHub: ${parsed.githubQuery}`,
     githubQuery: parsed.githubQuery,
   });
 

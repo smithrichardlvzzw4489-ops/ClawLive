@@ -7,7 +7,12 @@
  */
 
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';
-import { parseQueryToGitHubSearch } from './codernet-search';
+import {
+  parseQueryToGitHubSearch,
+  expandGithubSearchQueries,
+  mergeGitHubUserSearchItems,
+  type ParsedQuery,
+} from './codernet-search';
 import type { CodernetAnalysis } from './codernet-profile-analyzer';
 
 const GH_API = 'https://api.github.com';
@@ -176,6 +181,32 @@ async function fetchAllSearchPages(
   }
 
   return allUsers.slice(0, maxUsers);
+}
+
+/** 多路 q 分页拉取后合并去重，缓解 GitHub Search Users 单次最多约 1000 条的限制。 */
+async function fetchAllSearchPagesMultiShard(
+  parsed: ParsedQuery,
+  token: string | undefined,
+  maxUsers: number,
+  onProgress?: (fetched: number, total: number) => void,
+): Promise<GHSearchUserItem[]> {
+  const queries = expandGithubSearchQueries(parsed);
+  const perShardCap = Math.min(1000, Math.max(30, Math.ceil(maxUsers / Math.max(1, queries.length)) + 40));
+  const batches: GHSearchUserItem[][] = [];
+  let cumulative = 0;
+
+  for (let i = 0; i < queries.length; i++) {
+    const q = queries[i];
+    const slice = await fetchAllSearchPages(q, token, perShardCap, (fetched, total) => {
+      onProgress?.(cumulative + fetched, Math.min(maxUsers, total));
+    });
+    batches.push(slice);
+    cumulative += slice.length;
+    if (i < queries.length - 1) await sleep(2200);
+  }
+
+  const merged = mergeGitHubUserSearchItems(batches);
+  return merged.slice(0, maxUsers);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -505,21 +536,20 @@ export async function runCampaignPipeline(
     campaign.githubQuery = parsed.githubQuery;
     console.log(`[Outreach] parsed query: "${parsed.githubQuery}" (${parsed.explanation})`);
 
-    /* ── Step 1: 分页获取候选人 ── */
-    campaign.progress.detail = `Searching GitHub: ${parsed.githubQuery}`;
+    /* ── Step 1: 分页获取候选人（多分片合并，突破单次搜索 1000 上限）── */
+    const shardCount = expandGithubSearchQueries(parsed).length;
+    campaign.progress.detail =
+      shardCount > 1
+        ? `Searching GitHub (${shardCount} shards, merged pool)...`
+        : `Searching GitHub: ${parsed.githubQuery}`;
     campaign.updatedAt = Date.now();
 
     const maxUsers = campaign.tierConfig.tier4;
-    const searchUsers = await fetchAllSearchPages(
-      parsed.githubQuery,
-      token,
-      maxUsers,
-      (fetched, total) => {
-        campaign.totalFound = total;
-        campaign.progress.detail = `Fetched ${fetched} / ${Math.min(total, maxUsers)} candidates...`;
-        campaign.updatedAt = Date.now();
-      },
-    );
+    const searchUsers = await fetchAllSearchPagesMultiShard(parsed, token, maxUsers, (fetched, total) => {
+      campaign.totalFound = total;
+      campaign.progress.detail = `Fetched ${fetched} / ${Math.min(total, maxUsers)} candidates...`;
+      campaign.updatedAt = Date.now();
+    });
 
     console.log(`[Outreach] search returned ${searchUsers.length} users`);
 

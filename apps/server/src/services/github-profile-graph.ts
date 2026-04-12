@@ -7,6 +7,8 @@ import type { CodernetAnalysis } from './codernet-profile-analyzer';
 import {
   parseQueryToGitHubSearch,
   runGitHubUserSearchFromParsed,
+  expandGithubSearchQueries,
+  mergeGitHubUserSearchItems,
   type ParsedQuery,
   type GHSearchUserItem,
 } from './codernet-search';
@@ -395,9 +397,32 @@ export async function fetchSimilarGitHubUsers(
   };
   console.log(`[GitHubProfileGraph] similar LLM q="${merged.githubQuery}" (${parsed.explanation})`);
 
+  const searchSimilarSharded = async (pq: ParsedQuery): Promise<GHSearchUserItem[]> => {
+    const rawQs = expandGithubSearchQueries(pq);
+    const queries = rawQs.map((q) => ensureQueryExcludesSeed(q, seed));
+    const perPage = Math.min(100, Math.max(20, Math.ceil(100 / Math.max(1, queries.length))));
+    const batches: GHSearchUserItem[][] = [];
+    for (let i = 0; i < queries.length; i++) {
+      try {
+        const rows = await runGitHubUserSearchFromParsed(
+          { ...pq, githubQuery: queries[i] },
+          token,
+          { perPage, enrichProfiles: false },
+        );
+        batches.push(rows);
+      } catch (err) {
+        console.warn(`[GitHubProfileGraph] similar shard ${i + 1}/${queries.length} failed`, err);
+      }
+      if (i < queries.length - 1) await new Promise((r) => setTimeout(r, 120));
+    }
+    const combined = mergeGitHubUserSearchItems(batches);
+    combined.sort((a, b) => (Number(b.followers) || 0) - (Number(a.followers) || 0));
+    return combined.slice(0, 100);
+  };
+
   let items: GHSearchUserItem[] = [];
   try {
-    items = await runGitHubUserSearchFromParsed(merged, token, { perPage: 100, enrichProfiles: false });
+    items = await searchSimilarSharded(merged);
   } catch (e) {
     console.warn('[GitHubProfileGraph] similar primary search failed', e);
     try {
@@ -405,7 +430,7 @@ export async function fetchSimilarGitHubUsers(
         `${narrative}\n\n【重试】上次 q 非法或过严。请输出更短、更宽的 githubQuery；多个 language 必须用 OR。`,
       );
       merged = { ...fallback, githubQuery: ensureQueryExcludesSeed(fallback.githubQuery, seed) };
-      items = await runGitHubUserSearchFromParsed(merged, token, { perPage: 100, enrichProfiles: false });
+      items = await searchSimilarSharded(merged);
     } catch (e2) {
       console.warn('[GitHubProfileGraph] similar LLM retry failed', e2);
     }
@@ -417,11 +442,7 @@ export async function fetchSimilarGitHubUsers(
     for (const fb of fallbacks) {
       const q = ensureQueryExcludesSeed(fb.githubQuery, seed);
       try {
-        const next = await runGitHubUserSearchFromParsed(
-          { ...fb, githubQuery: q },
-          token,
-          { perPage: 100, enrichProfiles: false },
-        );
+        const next = await searchSimilarSharded({ ...fb, githubQuery: q });
         rows = mapSearchItemsToSimilar(next, seed);
         if (rows.length > 0) {
           console.log(`[GitHubProfileGraph] similar recovered via ${fb.explanation} (${rows.length})`);
