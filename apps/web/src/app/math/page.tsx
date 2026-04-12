@@ -65,11 +65,8 @@ export default function MathPage() {
     } catch (e) {
       const msg = e instanceof APIError ? e.message : '匹配失败';
       setErr(msg);
-      if (e instanceof APIError && e.status === 409) {
-        setGhHint('若画像正在生成，请稍后重试；若尚未爬取，可先打开下方链接触发一次。');
-      }
-      if (e instanceof APIError && e.status === 400 && /画像|GitHub|爬取/.test(msg)) {
-        setGhHint('请先打开 GITLINK 上该用户的 GitHub 公开画像页，完成爬取后再匹配。');
+      if (e instanceof APIError && e.status === 502) {
+        setGhHint('拉取 GitHub 公开数据失败：请检查登录名、仓库是否公开，或配置 GITHUB_TOKEN 后重试。');
       }
     } finally {
       setLoading(false);
@@ -86,7 +83,8 @@ export default function MathPage() {
               <p className="text-xs text-slate-500 mt-2 max-w-xl leading-relaxed">
                 左侧粘贴或导入<strong className="text-slate-400">职位 JD</strong>，右侧粘贴或导入
                 <strong className="text-slate-400">简历</strong>并可选填 <strong className="text-slate-400">GitHub</strong>
-                登录名以合并 GITLINK 技术画像。LLM 将按 JD 条目给出匹配度与
+                登录名以自动拉取<strong className="text-slate-400">公开 GitHub 画像</strong>（无需事先在站内打开过该用户）。首次拉取可能需 1～3
+                分钟。LLM 将按 JD 条目给出匹配度与
                 <strong className="text-slate-400">综合匹配度</strong>（需登录，消耗每月 Math 配额）。
               </p>
             </div>
@@ -104,16 +102,6 @@ export default function MathPage() {
           {ghHint && (
             <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-200/95">
               {ghHint}
-              {githubUsername.trim() ? (
-                <div className="mt-2">
-                  <Link
-                    href={`/codernet/github/${encodeURIComponent(githubUsername.trim().replace(/^@/, ''))}`}
-                    className="text-violet-300 hover:text-violet-200 underline"
-                  >
-                    打开 @{githubUsername.trim().replace(/^@/, '')} 的公开画像 →
-                  </Link>
-                </div>
-              ) : null}
             </div>
           )}
 
@@ -170,7 +158,7 @@ export default function MathPage() {
                   value={githubUsername}
                   onChange={(e) => setGithubUsername(e.target.value)}
                   className="w-full rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-sm font-mono outline-none focus:ring-1 focus:ring-cyan-500/30"
-                  placeholder="例如 octocat（须已在 GITLINK 成功爬取过该用户画像）"
+                  placeholder="例如 octocat（任意公开 GitHub 用户，服务端将自动拉取画像）"
                 />
               </div>
             </section>
@@ -186,7 +174,7 @@ export default function MathPage() {
               {loading ? '分析中…' : '开始全方位匹配'}
             </button>
             <p className="text-[10px] text-slate-600 max-w-md leading-relaxed">
-              结果由大模型生成，仅供参考；涉密 JD/简历请勿上传至不可信环境。
+              结果由大模型生成，仅供参考；涉密 JD/简历请勿上传至不可信环境。首次填写某 GitHub 时拉取公开数据可能较慢，请耐心等待。
             </p>
           </div>
 

@@ -267,8 +267,7 @@ export async function getGithubPortraitBundleForMatch(ghUsernameRaw: string): Pr
   return {
     ok: false,
     code: 'NOT_FOUND',
-    message:
-      '未找到该用户的已缓存画像。请先在 GITLINK 打开其 GitHub 公开画像并成功完成一次爬取，再回此处匹配。',
+    message: '暂无该用户的可用画像数据（可能爬取失败或未开始）。',
   };
 }
 
@@ -1069,7 +1068,8 @@ export async function runCrawlAndAnalysis(
  * Public lookup: crawl any GitHub user without needing a platform account.
  * Uses GITHUB_SERVER_TOKEN / GITHUB_TOKEN / GH_TOKEN if set, otherwise unauthenticated (~60 req/hr per IP).
  */
-async function runPublicLookup(ghUsername: string): Promise<void> {
+/** 公开爬取任意 GitHub 用户并写入 lookupCache（Math 页可 await 以按需生成画像）。 */
+export async function runPublicLookup(ghUsername: string): Promise<void> {
   const trackKey = `gh:${ghUsername}`;
   console.log(`[GITLINK] public lookup for @${ghUsername}`);
 
