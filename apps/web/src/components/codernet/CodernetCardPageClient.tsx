@@ -224,12 +224,14 @@ function JobSeekerAssistCard({
     if (analysis?.oneLiner) lines.push(`一句话：${analysis.oneLiner}`);
     if (analysis?.sharpCommentary) lines.push(`AI 评价：${analysis.sharpCommentary}`);
     if (analysis?.techTags?.length) lines.push(`技术标签：${analysis.techTags.join('、')}`);
-    if (jobSeeking?.active && jobSeeking.signals?.length) {
-      lines.push('');
-      lines.push('【求职意向（公开网络 / 站内）】');
+    lines.push('');
+    lines.push('【求职意向（公开网络 / 站内）】');
+    if (jobSeeking?.signals?.length) {
       for (const s of jobSeeking.signals) {
         lines.push(`- ${s.title}：${s.detail}`);
       }
+    } else {
+      lines.push('- 当前未检测到明确求职依据（公开文案 / 站内声明）。');
     }
     const pr = personalResumeAppend?.trim();
     if (pr) {
