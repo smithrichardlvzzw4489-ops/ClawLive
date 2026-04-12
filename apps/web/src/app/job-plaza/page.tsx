@@ -46,19 +46,22 @@ export default function JobPlazaPage() {
   const load = useCallback(async () => {
     setErr(null);
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      setErr('请先登录后查看招聘广场');
+      setItems([]);
+      setMine([]);
+      setLoading(false);
+      return;
+    }
     try {
       const list = (await api.jobPlaza.list({ limit: 50 })) as {
         items?: PostingCard[];
       };
       setItems(list.items ?? []);
-      if (token) {
-        try {
-          const m = (await api.jobPlaza.mine()) as { items?: PostingCard[] };
-          setMine(m.items ?? []);
-        } catch {
-          setMine([]);
-        }
-      } else {
+      try {
+        const m = (await api.jobPlaza.mine()) as { items?: PostingCard[] };
+        setMine(m.items ?? []);
+      } catch {
         setMine([]);
       }
     } catch (e) {

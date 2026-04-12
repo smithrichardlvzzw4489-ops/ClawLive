@@ -62,8 +62,14 @@ export function HomeFeedSections() {
     setHasMore(false);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const headers: HeadersInit = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (!token) {
+        setRecommendedWorks([]);
+        setFeedPosts([]);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+      const headers: HeadersInit = { Authorization: `Bearer ${token}` };
 
       const res = await fetch(`${API_BASE_URL}/api/recommendations/home`, { headers });
       if (res.ok) {
@@ -94,14 +100,19 @@ export function HomeFeedSections() {
 
   const loadMore = useCallback(async () => {
     if (loadingMore) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
     setLoadingMore(true);
     try {
       const worksOffset = worksApiOffsetRef.current;
       const feedOffset = feedPostsApiOffsetRef.current;
+      const authH = { Authorization: `Bearer ${token}` };
 
       const [worksRes, feedRes] = await Promise.all([
         fetch(`${API_BASE_URL}/api/works?offset=${worksOffset}&limit=${LOAD_MORE_SIZE}`),
-        fetch(`${API_BASE_URL}/api/feed-posts?offset=${feedOffset}&limit=${LOAD_MORE_SIZE}`),
+        fetch(`${API_BASE_URL}/api/feed-posts?offset=${feedOffset}&limit=${LOAD_MORE_SIZE}`, {
+          headers: authH,
+        }),
       ]);
 
       let moreWorks = false;

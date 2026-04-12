@@ -3,7 +3,7 @@ import { mkdirSync, existsSync } from 'fs';
 import { writeFile as writeFileAsync } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { authenticateToken, AuthRequest, getUserIdFromBearer } from '../middleware/auth';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { getHostInfo, getHostInfoBatch } from './rooms-simple';
 import { addFeedPostComment, getFeedPostComments } from '../../services/feed-post-comments-store';
 import { UPLOADS_DIR } from '../../lib/data-path';
@@ -48,7 +48,7 @@ export function feedPostsRoutes(): Router {
   const router = Router();
   const feedPostsMap = getFeedPostsMap();
 
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       await mergeFeedPostsFromDatabase();
       const { offset, limit, evolutionPointId } = req.query;
@@ -142,7 +142,7 @@ export function feedPostsRoutes(): Router {
     }
   });
 
-  router.get('/:id/comments', async (req: Request, res: Response) => {
+  router.get('/:id/comments', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const postId = req.params.id;
       const p = feedPostsMap.get(postId);
@@ -304,7 +304,7 @@ export function feedPostsRoutes(): Router {
   router.delete('/:id', authenticateToken, handleDeleteFeedPost);
   router.post('/:id/delete', authenticateToken, handleDeleteFeedPost);
 
-  router.get('/:id', async (req: Request, res: Response) => {
+  router.get('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const p = feedPostsMap.get(req.params.id);
       if (!p) return res.status(404).json({ error: 'Not found' });
@@ -312,16 +312,15 @@ export function feedPostsRoutes(): Router {
       feedPostsMap.set(p.id, p);
       saveFeedPosts();
 
-      // 记录浏览行为，用于个性化推荐
-      const viewerId = getUserIdFromBearer(req);
-      if (viewerId && viewerId !== p.authorId) {
+      const viewerId = req.user!.id;
+      if (viewerId !== p.authorId) {
         recordBehavior({ userId: viewerId, type: 'feed_post_view', targetId: p.id, authorId: p.authorId });
       }
 
-      const uid = getUserIdFromBearer(req);
+      const uid = req.user!.id;
       const reactions = getReactions(p.id);
-      const likedByMe = uid ? reactions.likes.includes(uid) : false;
-      const favoritedByMe = uid ? reactions.favorites.includes(uid) : false;
+      const likedByMe = reactions.likes.includes(uid);
+      const favoritedByMe = reactions.favorites.includes(uid);
 
       const authorMap = await getHostInfoBatch([p.authorId]);
       const author = authorMap.get(p.authorId);

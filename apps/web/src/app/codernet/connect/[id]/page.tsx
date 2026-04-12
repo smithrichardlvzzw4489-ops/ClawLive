@@ -71,6 +71,14 @@ export default function ConnectChatPage() {
   const base = API_BASE_URL || '';
   const goBack = useHistoryBack('/codernet', { returnTo: searchParams.get('returnTo') });
 
+  const postAuthHeaders = (jsonBody?: boolean): HeadersInit => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const h: Record<string, string> = {};
+    if (jsonBody) h['Content-Type'] = 'application/json';
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  };
+
   const fetchSession = useCallback(async () => {
     const res = await fetch(`${base}/api/codernet/connect/${sessionId}`);
     if (!res.ok) throw new Error('Session not found');
@@ -103,7 +111,10 @@ export default function ConnectChatPage() {
     if (stepping) return;
     setStepping(true);
     try {
-      const res = await fetch(`${base}/api/codernet/connect/${sessionId}/agent-step`, { method: 'POST' });
+      const res = await fetch(`${base}/api/codernet/connect/${sessionId}/agent-step`, {
+        method: 'POST',
+        headers: postAuthHeaders(false),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
@@ -116,7 +127,10 @@ export default function ConnectChatPage() {
 
   const handleUnlock = async () => {
     try {
-      const res = await fetch(`${base}/api/codernet/connect/${sessionId}/unlock`, { method: 'POST' });
+      const res = await fetch(`${base}/api/codernet/connect/${sessionId}/unlock`, {
+        method: 'POST',
+        headers: postAuthHeaders(false),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSession(data.session);
@@ -130,7 +144,7 @@ export default function ConnectChatPage() {
     try {
       const res = await fetch(`${base}/api/codernet/connect/${sessionId}/human-message`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: postAuthHeaders(true),
         body: JSON.stringify({ body: humanInput.trim(), side: sendingSide }),
       });
       const data = await res.json();

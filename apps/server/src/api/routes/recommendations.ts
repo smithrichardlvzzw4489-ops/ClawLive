@@ -1,5 +1,5 @@
-import { Router, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import { Router, Response } from 'express';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { getRecommendedLiveRooms, getRecommendedWorks, getRecommendedSkills } from '../../services/recommendation';
 import { CommunityPersistence } from '../../services/community-persistence';
 import { getHostInfoBatch } from './rooms-simple';
@@ -9,25 +9,16 @@ import { works } from './rooms-simple';
 import { getFeedPostsScoredByCES, getFeedPostsMap } from '../../services/feed-posts-store';
 import { getUserInterestProfile, getFeedPostPersonalizationBoost } from '../../services/user-behavior';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-
 export function recommendationRoutes(): Router {
   const router = Router();
 
   /**
    * GET /api/recommendations/home
-   * 首页推荐：直播、作品、能力流、最新问题、资讯、热门创作者、热门讨论
+   * 首页推荐：直播、作品、能力流、最新问题、资讯、热门创作者、热门讨论（需登录）
    */
-  router.get('/home', async (req: Request, res: Response) => {
+  router.get('/home', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
-      let userId: string | undefined;
-      const token = req.headers.authorization?.replace('Bearer ', '');
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-          userId = decoded.userId;
-        } catch (_) {}
-      }
+      const userId = req.user!.id;
 
       const posts = CommunityPersistence.loadPosts();
       const allPosts = Array.from(posts.values());

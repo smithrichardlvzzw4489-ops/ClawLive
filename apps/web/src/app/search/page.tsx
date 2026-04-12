@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { API_BASE_URL } from '@/lib/api';
@@ -54,6 +54,7 @@ type TabType = 'live' | 'works' | 'hosts' | 'skills';
 
 function SearchContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const q = searchParams.get('q') ?? '';
   const { t } = useLocale();
   const [result, setResult] = useState<SearchResult | null>(null);
@@ -65,8 +66,16 @@ function SearchContent() {
       setResult(null);
       return;
     }
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      router.push(`/login?redirect=${encodeURIComponent(`/search?q=${encodeURIComponent(q)}`)}`);
+      setResult(null);
+      return;
+    }
     setLoading(true);
-    fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(q)}`)
+    fetch(`${API_BASE_URL}/api/search?q=${encodeURIComponent(q)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then((res) => res.json())
       .then((data) => {
         setResult({
@@ -78,7 +87,7 @@ function SearchContent() {
       })
       .catch(() => setResult({ rooms: [], works: [], hosts: [], skills: [] }))
       .finally(() => setLoading(false));
-  }, [q]);
+  }, [q, router]);
 
   useEffect(() => {
     if (!SHOW_LIVE_FEATURES && activeTab === 'live') {

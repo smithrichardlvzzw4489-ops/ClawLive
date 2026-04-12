@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { MainLayout } from '@/components/MainLayout';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/lib/api';
@@ -33,7 +34,7 @@ const STATUS_LABEL: Record<string, { text: string; color: string }> = {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SkillsPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   const [tab, setTab] = useState<Tab>('market');
 
@@ -76,7 +77,7 @@ export default function SkillsPage() {
         </div>
 
         {/* Panels */}
-        {tab === 'market' && <MarketPanel />}
+        {tab === 'market' && <MarketPanel canQuery={isAuthenticated} authLoading={authLoading} />}
         {tab === 'my' && <MySkillsPanel token={token} />}
         {tab === 'publish' && <PublishPanel token={token} onSuccess={() => setTab('my')} />}
       </div>
@@ -86,7 +87,7 @@ export default function SkillsPage() {
 
 // ─── Market Panel ─────────────────────────────────────────────────────────────
 
-function MarketPanel() {
+function MarketPanel({ canQuery, authLoading }: { canQuery: boolean; authLoading: boolean }) {
   const [skills, setSkills] = useState<PublishedSkill[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -107,7 +108,32 @@ function MarketPanel() {
     }
   }, []);
 
-  useEffect(() => { load(search); }, [search, load]);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!canQuery) {
+      setSkills([]);
+      setTotal(0);
+      setLoading(false);
+      return;
+    }
+    void load(search);
+  }, [search, load, canQuery, authLoading]);
+
+  if (authLoading) {
+    return <div className="py-16 text-center text-gray-400">加载中…</div>;
+  }
+
+  if (!canQuery) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        浏览技能市场请先{' '}
+        <Link className="font-medium underline" href={`/login?redirect=${encodeURIComponent('/skills')}`}>
+          登录
+        </Link>
+        。
+      </div>
+    );
+  }
 
   return (
     <div>

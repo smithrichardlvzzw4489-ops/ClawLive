@@ -53,9 +53,18 @@ export function AgentChatWidget() {
   };
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/recommendations/home`)
-      .then((r) => r.json())
-      .then((d) => setRecommendedSkills((d.recommendedSkills || []).slice(0, 3).map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))))
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setRecommendedSkills([]);
+      return;
+    }
+    fetch(`${API_BASE_URL}/api/recommendations/home`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : Promise.resolve({})))
+      .then((d) =>
+        setRecommendedSkills((d.recommendedSkills || []).slice(0, 3).map((s: { id: string; title: string }) => ({ id: s.id, title: s.title }))),
+      )
       .catch(() => setRecommendedSkills([]));
   }, []);
 

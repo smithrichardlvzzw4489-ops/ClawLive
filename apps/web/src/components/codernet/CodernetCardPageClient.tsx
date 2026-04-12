@@ -434,13 +434,24 @@ export function CodernetCardPageClient({
   const fetchProfile = useCallback(async () => {
     if (!username) return null;
     const base = API_BASE_URL || '';
-    const res = await fetch(`${base}/api/codernet/profile/${encodeURIComponent(username)}`);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${base}/api/codernet/profile/${encodeURIComponent(username)}`, { headers });
+    if (res.status === 401) {
+      const ret =
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}` || '/'
+          : '/';
+      router.push(`/login?redirect=${encodeURIComponent(ret)}`);
+      throw new Error('请先登录');
+    }
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `HTTP ${res.status}`);
     }
     return res.json() as Promise<CodernetProfile>;
-  }, [username]);
+  }, [username, router]);
 
   useEffect(() => {
     if (!username) return;

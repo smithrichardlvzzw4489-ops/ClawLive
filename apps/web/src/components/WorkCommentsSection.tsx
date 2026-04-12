@@ -75,7 +75,10 @@ export function WorkCommentsSection(props: CommentsProps) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(commentsEndpoint);
+      const tkn = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = {};
+      if (tkn) headers['Authorization'] = `Bearer ${tkn}`;
+      const res = await fetch(commentsEndpoint, { headers });
       if (res.ok) {
         const data = await res.json();
         const rawList = data.comments || [];

@@ -67,8 +67,12 @@ export default function FeedPostDetailPage() {
     setLoadFailed(false);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        router.replace(`/login?redirect=${encodeURIComponent(`/posts/${encodeURIComponent(postId)}`)}`);
+        return;
+      }
       const res = await fetch(`${API_BASE_URL}/api/feed-posts/${postId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 404) {
         setNotFound(true);
@@ -92,7 +96,7 @@ export default function FeedPostDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [postId]);
+  }, [postId, router]);
 
   useEffect(() => {
     void loadPost();

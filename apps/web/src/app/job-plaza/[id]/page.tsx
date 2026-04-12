@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { api, APIError } from '@/lib/api';
 
@@ -20,6 +20,7 @@ type Posting = {
 
 export default function JobPlazaDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = typeof params?.id === 'string' ? params.id : '';
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState<Posting | null>(null);
@@ -28,6 +29,12 @@ export default function JobPlazaDetailPage() {
   const load = useCallback(async () => {
     if (!id) return;
     setErr(null);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      router.push(`/login?redirect=${encodeURIComponent(`/job-plaza/${encodeURIComponent(id)}`)}`);
+      setLoading(false);
+      return;
+    }
     try {
       const data = (await api.jobPlaza.get(id)) as { posting?: Posting };
       setPosting(data.posting ?? null);
@@ -41,7 +48,7 @@ export default function JobPlazaDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, router]);
 
   useEffect(() => {
     void load();

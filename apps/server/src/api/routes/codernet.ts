@@ -38,7 +38,6 @@ import {
   type SimilarPersonRow,
   type RelationPersonRow,
 } from '../../services/github-profile-graph';
-import { getUserIdFromBearer } from '../middleware/auth';
 import {
   resolveLinkedInProfileUrl,
   probeWebsiteForDeveloperIdentities,
@@ -330,9 +329,9 @@ export function codernetRoutes(): IRouter {
 
   /**
    * GET /api/codernet/profile/:username
-   * Public endpoint — returns GITLINK profile card data.
+   * 需登录：站内用户 GITLINK 画像卡片（非「任务进度」类公开轮询）。
    */
-  router.get('/profile/:username', async (req: Request, res: Response) => {
+  router.get('/profile/:username', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { username } = req.params;
       const user = await prisma.user.findUnique({
@@ -479,9 +478,9 @@ export function codernetRoutes(): IRouter {
 
   /**
    * GET /api/codernet/github/:ghUsername/similar
-   * 基于当前缓存画像的语言栈在 GitHub 搜相似用户（最多 100），需先有 lookup 缓存。
+   * 基于当前缓存画像的语言栈在 GitHub 搜相似用户（最多 100），需先有 lookup 缓存；需登录。
    */
-  router.get('/github/:ghUsername/similar', async (req: Request, res: Response) => {
+  router.get('/github/:ghUsername/similar', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const ghUser = req.params.ghUsername.toLowerCase();
       const bundle = await resolvePortraitCrawlForGraphs(ghUser);
@@ -511,9 +510,9 @@ export function codernetRoutes(): IRouter {
 
   /**
    * GET /api/codernet/github/:ghUsername/relations
-   * 聚合高星仓库 contributors 作为 GitHub 工程语境下的「关系」与连接度。
+   * 聚合高星仓库 contributors 作为 GitHub 工程语境下的「关系」与连接度；需登录。
    */
-  router.get('/github/:ghUsername/relations', async (req: Request, res: Response) => {
+  router.get('/github/:ghUsername/relations', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const ghUser = req.params.ghUsername.toLowerCase();
       const bundle = await resolvePortraitCrawlForGraphs(ghUser);
@@ -543,16 +542,16 @@ export function codernetRoutes(): IRouter {
 
   /**
    * GET /api/codernet/github/:ghUsername
-   * Public — returns cached lookup result for any GitHub user.
+   * 例外：可不登录 — 公开画像缓存 / 异步爬取进度轮询（与「查看任务」一致）。
    */
   router.get('/github/:ghUsername', handleCodernetGithubLookupGet);
 
   /**
    * POST /api/codernet/github/:ghUsername
-   * Public — triggers crawl + analysis for any GitHub user (rate limited + quota).
+   * 需登录 — 触发爬取并按用户扣 profile_lookup 额度（Open API 仍用 agent key 用户 id）。
    */
-  router.post('/github/:ghUsername', (req: Request, res: Response) =>
-    handleCodernetGithubLookupPost(req, res, getUserIdFromBearer(req)),
+  router.post('/github/:ghUsername', authenticateToken, (req: AuthRequest, res: Response) =>
+    handleCodernetGithubLookupPost(req, res, req.user!.id),
   );
 
   /**
@@ -588,29 +587,26 @@ export function codernetRoutes(): IRouter {
 
   /**
    * POST /api/codernet/search
-   * Semantic search for developers by natural language description (quota-gated).
+   * 需登录：语义搜人（额度与用量绑定当前用户）。
    */
-  router.post('/search', async (req: Request, res: Response) => {
+  router.post('/search', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { query } = req.body as { query?: string };
       if (!query?.trim()) {
         return res.status(400).json({ error: 'query is required' });
       }
 
-      // Quota check + consume
-      const callerId = getUserIdFromBearer(req);
-      if (callerId) {
-        const check = checkQuota(callerId, 'search');
-        if (!check.allowed) {
-          return res.status(429).json({
-            error: '本月搜索额度已用完',
-            code: 'QUOTA_EXCEEDED',
-            quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
-          });
-        }
-        consumeQuota(callerId, 'search');
-        void recordCodernetInterfaceUsage(callerId, 'linkSearch');
+      const callerId = req.user!.id;
+      const check = checkQuota(callerId, 'search');
+      if (!check.allowed) {
+        return res.status(429).json({
+          error: '本月搜索额度已用完',
+          code: 'QUOTA_EXCEEDED',
+          quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
+        });
       }
+      consumeQuota(callerId, 'search');
+      void recordCodernetInterfaceUsage(callerId, 'linkSearch');
 
       const token = getServerGitHubToken();
       const results = await searchDevelopers(query.trim(), lookupCache, token);
@@ -625,7 +621,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/linkedin/resolve
    * HR：粘贴 LinkedIn 个人主页 URL，尝试从公开 HTML 提取 GitHub / GitLab / 外链（无额度消耗）。
    */
-  router.post('/linkedin/resolve', async (req: Request, res: Response) => {
+  router.post('/linkedin/resolve', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { url } = req.body as { url?: string };
       if (!url || typeof url !== 'string' || !url.trim()) {
@@ -643,7 +639,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/linkedin/probe-website
    * 对个人网站再探测页内 GitHub 等链接（无额度消耗）。
    */
-  router.post('/linkedin/probe-website', async (req: Request, res: Response) => {
+  router.post('/linkedin/probe-website', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { url } = req.body as { url?: string };
       if (!url || typeof url !== 'string' || !url.trim()) {
@@ -663,7 +659,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/connect
    * Creates a connect session between two developers. Agent chat starts immediately.
    */
-  router.post('/connect', async (req: Request, res: Response) => {
+  router.post('/connect', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { initiatorGhUsername, targetGhUsername, intent, intentCategory } = req.body as {
         initiatorGhUsername?: string;
@@ -702,7 +698,7 @@ export function codernetRoutes(): IRouter {
 
   /**
    * GET /api/codernet/connect/:id
-   * Returns connect session details including agent messages.
+   * 例外：可不登录 — 轮询 Connect 会话进度（与「查看任务」一致）。
    */
   router.get('/connect/:id', async (req: Request, res: Response) => {
     try {
@@ -719,7 +715,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/connect/:id/agent-step
    * Advances agent conversation by one round.
    */
-  router.post('/connect/:id/agent-step', async (req: Request, res: Response) => {
+  router.post('/connect/:id/agent-step', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const session = await runConnectAgentRound(req.params.id);
       res.json({ session: sanitizeSession(session) });
@@ -734,7 +730,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/connect/:id/unlock
    * Unlocks human chat after enough agent rounds.
    */
-  router.post('/connect/:id/unlock', async (req: Request, res: Response) => {
+  router.post('/connect/:id/unlock', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const session = unlockConnectHuman(req.params.id);
       res.json({ session: sanitizeSession(session) });
@@ -748,7 +744,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/connect/:id/human-message
    * Posts a human message to the connect session.
    */
-  router.post('/connect/:id/human-message', async (req: Request, res: Response) => {
+  router.post('/connect/:id/human-message', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { body: msgBody, side } = req.body as { body?: string; side?: string };
       if (!msgBody?.trim()) return res.status(400).json({ error: 'body is required' });
@@ -768,7 +764,7 @@ export function codernetRoutes(): IRouter {
    * Generates a preview message for one recipient (without creating a campaign).
    * MUST be registered before /outreach/:id routes to avoid `:id` matching "preview".
    */
-  router.post('/outreach/preview', async (req: Request, res: Response) => {
+  router.post('/outreach/preview', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { intent, senderName, senderInfo, recipientUsername, recipientProfile } = req.body as {
         intent?: string;
@@ -798,7 +794,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/outreach
    * Creates a new outreach campaign and starts the pipeline (quota-gated).
    */
-  router.post('/outreach', async (req: Request, res: Response) => {
+  router.post('/outreach', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { searchQuery, githubQuery, intent, senderName, senderInfo, tierConfig } = req.body as {
         searchQuery?: string;
@@ -812,19 +808,16 @@ export function codernetRoutes(): IRouter {
         return res.status(400).json({ error: 'githubQuery, intent, and senderName are required' });
       }
 
-      // Quota check for outreach
-      const callerId = getUserIdFromBearer(req);
-      if (callerId) {
-        const check = checkQuota(callerId, 'outreach');
-        if (!check.allowed) {
-          return res.status(429).json({
-            error: '本月触达额度已用完',
-            code: 'QUOTA_EXCEEDED',
-            quota: { dimension: 'outreach', used: check.used, limit: check.limit, tier: check.tier },
-          });
-        }
-        consumeQuota(callerId, 'outreach');
+      const callerId = req.user!.id;
+      const check = checkQuota(callerId, 'outreach');
+      if (!check.allowed) {
+        return res.status(429).json({
+          error: '本月触达额度已用完',
+          code: 'QUOTA_EXCEEDED',
+          quota: { dimension: 'outreach', used: check.used, limit: check.limit, tier: check.tier },
+        });
       }
+      consumeQuota(callerId, 'outreach');
 
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'clawlab.live';
@@ -856,7 +849,7 @@ export function codernetRoutes(): IRouter {
    * GET /api/codernet/outreach
    * Lists all outreach campaigns.
    */
-  router.get('/outreach', async (_req: Request, res: Response) => {
+  router.get('/outreach', authenticateToken, async (_req: AuthRequest, res: Response) => {
     try {
       const all = listCampaigns().map(sanitizeCampaign);
       res.json({ campaigns: all });
@@ -870,7 +863,7 @@ export function codernetRoutes(): IRouter {
    * GET /api/codernet/outreach/:id
    * Returns a single campaign with all recipients.
    */
-  router.get('/outreach/:id', async (req: Request, res: Response) => {
+  router.get('/outreach/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const campaign = getCampaign(req.params.id);
       if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
@@ -885,7 +878,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/outreach/:id/send
    * Starts sending emails for a ready campaign.
    */
-  router.post('/outreach/:id/send', async (req: Request, res: Response) => {
+  router.post('/outreach/:id/send', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const { fromEmail } = req.body as { fromEmail?: string };
       if (!fromEmail) {
@@ -909,7 +902,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/outreach/:id/pause
    * Pauses an active sending campaign.
    */
-  router.post('/outreach/:id/pause', async (req: Request, res: Response) => {
+  router.post('/outreach/:id/pause', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       pauseCampaign(req.params.id);
       const campaign = getCampaign(req.params.id);

@@ -78,10 +78,18 @@ export function CodernetProfileSideColumns({
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), SIDE_GRAPH_FETCH_MS);
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}/similar`, {
         signal: ac.signal,
+        headers,
       });
       const data = (await res.json().catch(() => ({}))) as { people?: SimilarRow[]; error?: string; message?: string };
+      if (res.status === 401) {
+        setSimErr('请先登录后再查看相似开发者。');
+        return;
+      }
       if (!res.ok) {
         setSimErr(data.message || data.error || `加载失败 (${res.status})`);
         return;
@@ -106,10 +114,18 @@ export function CodernetProfileSideColumns({
     const ac = new AbortController();
     const tid = setTimeout(() => ac.abort(), SIDE_GRAPH_FETCH_MS);
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}/relations`, {
         signal: ac.signal,
+        headers,
       });
       const data = (await res.json().catch(() => ({}))) as { people?: RelationRow[]; error?: string; message?: string };
+      if (res.status === 401) {
+        setRelErr('请先登录后再查看关系图谱。');
+        return;
+      }
       if (!res.ok) {
         setRelErr(data.message || data.error || `加载失败 (${res.status})`);
         return;

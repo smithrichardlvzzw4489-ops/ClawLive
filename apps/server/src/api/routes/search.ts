@@ -1,4 +1,5 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
+import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { getAllRooms } from '../../lib/rooms-store';
 import { works, workMessages, getHostInfoBatch } from './rooms-simple';
 import { prisma } from '../../lib/prisma';
@@ -14,7 +15,7 @@ const DEFAULT_PARTITION = 'general';
 export function searchRoutes(): Router {
   const router = Router();
 
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const q = (req.query.q as string)?.trim();
       if (!q) {

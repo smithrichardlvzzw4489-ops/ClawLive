@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useHistoryBack } from '@/hooks/useHistoryBack';
 import { API_BASE_URL } from '@/lib/api';
@@ -703,6 +703,7 @@ function HuggingFaceCard({ data }: { data: HuggingFaceProfileData }) {
 
 export default function GitHubLookupCardPage() {
   const params = useParams<{ username: string }>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const ghUsername = params.username;
   const [result, setResult] = useState<LookupResult | null>(null);
@@ -721,9 +722,18 @@ export default function GitHubLookupCardPage() {
 
   const triggerCrawl = useCallback(async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (!token) {
+      const ret = `${typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/codernet/github/${encodeURIComponent(ghUsername)}`}`;
+      router.push(`/login?redirect=${encodeURIComponent(ret)}`);
+      return;
+    }
+    const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
     const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}`, { method: 'POST', headers });
+    if (res.status === 401) {
+      const ret = `${typeof window !== 'undefined' ? window.location.pathname + window.location.search : ''}`;
+      router.push(`/login?redirect=${encodeURIComponent(ret || `/codernet/github/${encodeURIComponent(ghUsername)}`)}`);
+      return;
+    }
     if (res.status === 429) {
       const data = await res.json().catch(() => ({}));
       alert(data.error || '本月画像生成额度已用完，下月自动重置');
@@ -731,7 +741,7 @@ export default function GitHubLookupCardPage() {
     }
     setTriggered(true);
     setResult({ status: 'pending', progress: { stage: 'queued', percent: 0, detail: 'Starting...', startedAt: Date.now(), updatedAt: Date.now() } });
-  }, [base, ghUsername]);
+  }, [base, ghUsername, router]);
 
   useEffect(() => {
     if (!ghUsername) return;

@@ -5,9 +5,9 @@
  * 其他用户用积分调用，平台抽成后剩余积分结算给作者。
  *
  * Endpoints:
- *   GET  /api/published-skills              列出已审核通过的社区技能
+ *   GET  /api/published-skills              列出已审核通过的社区技能（需登录）
  *   GET  /api/published-skills/my           当前用户发布的技能（含审核状态）
- *   GET  /api/published-skills/credit-table 各工具积分收费表（公开）
+ *   GET  /api/published-skills/credit-table 各工具积分收费表（需登录）
  *   GET  /api/published-skills/:id          技能详情
  *   POST /api/published-skills              发布新技能（提交审核）
  *   PATCH /api/published-skills/:id         更新（重置为 pending）
@@ -69,15 +69,15 @@ function sanitize(s: SkillRow, includeMarkdown = false) {
 export function publishedSkillsRoutes(): IRouter {
   const router = Router();
 
-  // ── 公开接口 ─────────────────────────────────────────────────────────────────
+  // ── 需登录的查询接口 ─────────────────────────────────────────────────────────
 
-  /** 工具积分收费表（不需要登录） */
-  router.get('/credit-table', (_req: Request, res: Response) => {
+  /** 工具积分收费表 */
+  router.get('/credit-table', authenticateToken, (_req: AuthRequest, res: Response) => {
     res.json({ tools: getToolCreditTable() });
   });
 
   /** 已审核通过的社区技能列表 */
-  router.get('/', async (req: Request, res: Response) => {
+  router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     const keyword = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const tag = typeof req.query.tag === 'string' ? req.query.tag.trim() : '';
     const page = Math.max(1, parseInt(String(req.query.page ?? '1'), 10));

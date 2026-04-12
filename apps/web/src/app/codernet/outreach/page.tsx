@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { API_BASE_URL } from '@/lib/api';
 import { useHistoryBack, withReturnTo } from '@/hooks/useHistoryBack';
 
@@ -80,12 +80,27 @@ const TIER_LABELS: Record<number, { label: string; color: string }> = {
 
 export default function OutreachPage() {
   const pathname = usePathname() || '';
+  const router = useRouter();
   const searchParams = useSearchParams();
   const here = useMemo(
     () => `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ''}`,
     [pathname, searchParams],
   );
   const goBack = useHistoryBack('/codernet', { returnTo: searchParams.get('returnTo') });
+
+  function jsonAuthHeaders(): HeadersInit {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!localStorage.getItem('token')) {
+      router.replace(`/login?redirect=${encodeURIComponent(here || '/codernet/outreach')}`);
+    }
+  }, [here, router]);
   const [step, setStep] = useState<'form' | 'running' | 'dashboard'>('form');
   const [campaign, setCampaign] = useState<Campaign | null>(null);
 
@@ -125,7 +140,9 @@ export default function OutreachPage() {
     pollRef.current = setInterval(async () => {
       try {
         const base = API_BASE_URL || '';
-        const res = await fetch(`${base}/api/codernet/outreach/${campaignId}`);
+        const res = await fetch(`${base}/api/codernet/outreach/${campaignId}`, {
+          headers: jsonAuthHeaders(),
+        });
         if (!res.ok) return;
         const data = await res.json();
         setCampaign(data.campaign);
@@ -150,7 +167,7 @@ export default function OutreachPage() {
       const base = API_BASE_URL || '';
       const res = await fetch(`${base}/api/codernet/outreach`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({
           searchQuery: searchQuery.trim(),
           githubQuery: searchQuery.trim(),
@@ -183,7 +200,7 @@ export default function OutreachPage() {
       const base = API_BASE_URL || '';
       const res = await fetch(`${base}/api/codernet/outreach/${campaign.id}/send`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({ fromEmail: fromEmail.trim() }),
       });
       if (!res.ok) {
@@ -211,7 +228,7 @@ export default function OutreachPage() {
       const base = API_BASE_URL || '';
       const res = await fetch(`${base}/api/codernet/outreach/preview`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: jsonAuthHeaders(),
         body: JSON.stringify({
           intent: intent.trim(),
           senderName: senderName.trim(),

@@ -1,5 +1,5 @@
-import { Router, Response, Request } from "express";
-import { authenticateToken, AuthRequest, getUserIdFromBearer } from "../middleware/auth";
+import { Router, Response } from "express";
+import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { notifyMatchedUsersForJobPosting } from "../../services/job-plaza-notify";
 
@@ -67,7 +67,7 @@ function serializePosting(
 export function jobPlazaRoutes(): Router {
   const router = Router();
 
-  router.get("/", async (req: Request, res: Response) => {
+  router.get("/", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
       const limit = Math.min(50, Math.max(1, parseInt(String(req.query.limit || "20"), 10) || 20));
@@ -114,7 +114,7 @@ export function jobPlazaRoutes(): Router {
     }
   });
 
-  router.get("/:id", async (req: Request, res: Response) => {
+  router.get("/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const row = await prisma.jobPosting.findUnique({
         where: { id: req.params.id },
@@ -126,9 +126,9 @@ export function jobPlazaRoutes(): Router {
         res.status(404).json({ error: "未找到" });
         return;
       }
-      const viewer = getUserIdFromBearer(req);
+      const viewer = req.user!.id;
       if (row.status !== "published") {
-        if (!viewer || viewer !== row.authorId) {
+        if (viewer !== row.authorId) {
           res.status(404).json({ error: "未找到" });
           return;
         }
