@@ -25,6 +25,7 @@ import {
   type PortraitIdentityGraph,
   type PortraitMultiPlatformContact,
 } from '@/components/codernet/CodernetPortraitContactSection';
+import { JobSeekingPanel, type JobSeekingPayload } from '@/components/codernet/JobSeekingPanel';
 
 export type CodernetCardVariant = 'public' | 'home' | 'mine';
 
@@ -110,6 +111,7 @@ interface CodernetProfile {
     aiEngagement?: AIEngagement;
   };
   crawledAt?: string;
+  jobSeeking?: JobSeekingPayload;
 }
 
 const LANG_COLORS: Record<string, string> = {
@@ -199,6 +201,7 @@ function JobSeekerAssistCard({
   profileShareUrl,
   githubUsername,
   analysis,
+  jobSeeking,
   personalResumeAppend,
   onRecrawl,
   recrawlBusy,
@@ -206,6 +209,7 @@ function JobSeekerAssistCard({
   profileShareUrl: string;
   githubUsername: string | null | undefined;
   analysis: CodernetProfile['analysis'];
+  jobSeeking?: JobSeekingPayload | null;
   /** 用户在「个人简历」中填写的内容，与画像独立；复制投递简介时附在末尾 */
   personalResumeAppend?: string | null;
   onRecrawl: () => void;
@@ -220,6 +224,13 @@ function JobSeekerAssistCard({
     if (analysis?.oneLiner) lines.push(`一句话：${analysis.oneLiner}`);
     if (analysis?.sharpCommentary) lines.push(`AI 评价：${analysis.sharpCommentary}`);
     if (analysis?.techTags?.length) lines.push(`技术标签：${analysis.techTags.join('、')}`);
+    if (jobSeeking?.active && jobSeeking.signals?.length) {
+      lines.push('');
+      lines.push('【求职意向（公开网络 / 站内）】');
+      for (const s of jobSeeking.signals) {
+        lines.push(`- ${s.title}：${s.detail}`);
+      }
+    }
     const pr = personalResumeAppend?.trim();
     if (pr) {
       lines.push('');
@@ -227,7 +238,7 @@ function JobSeekerAssistCard({
       lines.push(pr);
     }
     return lines.join('\n');
-  }, [profileShareUrl, githubUsername, analysis, personalResumeAppend]);
+  }, [profileShareUrl, githubUsername, analysis, jobSeeking, personalResumeAppend]);
 
   const flash = (msg: string) => {
     setHint(msg);
@@ -717,6 +728,8 @@ export function CodernetCardPageClient({
             </div>
           )}
 
+          <JobSeekingPanel jobSeeking={profile.jobSeeking} />
+
           {github && (
             <div className="grid grid-cols-3 gap-3 mb-5">
               {[
@@ -887,6 +900,7 @@ export function CodernetCardPageClient({
               profileShareUrl={profileShareUrl}
               githubUsername={profile.user.githubUsername}
               analysis={analysis}
+              jobSeeking={profile.jobSeeking}
               personalResumeAppend={personalResumeAppend}
               onRecrawl={handleRecrawlFromAssist}
               recrawlBusy={recrawlBusy}

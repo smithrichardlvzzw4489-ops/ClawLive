@@ -44,6 +44,14 @@ import {
   resolveLinkedInProfileUrl,
   probeWebsiteForDeveloperIdentities,
 } from '../../services/linkedin-resolve';
+import {
+  collectJobSeekingSignals,
+  mergeJobSeekingSignalsForDisplay,
+  parseStoredJobSignals,
+  getPublicSiteBaseUrl,
+  type JobSeekingSignal,
+  type PlatformJobSeekingRow,
+} from '../../services/job-seeking-signals';
 /* ── In-memory crawl progress tracker ─────────────────────── */
 export type CrawlStage =
   | 'queued'
@@ -99,6 +107,57 @@ interface LookupCacheEntry {
   multiPlatform?: MultiPlatformProfile;
   cachedAt: number;
   avatarUrl?: string;
+  /** 公开网络自动检测的求职表述依据（与 DB jobSeekingDetectedSignals 同源逻辑） */
+  jobSeekingDetected?: JobSeekingSignal[];
+}
+
+async function loadPlatformUserForGitHub(ghLower: string): Promise<PlatformJobSeekingRow | null> {
+  const row = await prisma.user.findFirst({
+    where: {
+      githubUsername: { equals: ghLower, mode: 'insensitive' },
+      githubId: { not: null },
+    },
+    select: {
+      username: true,
+      openToOpportunities: true,
+      openToOpportunitiesUpdatedAt: true,
+      jobSeekingExternalProfiles: true,
+    },
+  });
+  if (!row) return null;
+  return {
+    username: row.username,
+    openToOpportunities: row.openToOpportunities,
+    openToOpportunitiesUpdatedAt: row.openToOpportunitiesUpdatedAt,
+    jobSeekingExternalProfiles: row.jobSeekingExternalProfiles,
+  };
+}
+
+/** 旧缓存无求职字段时补算一次并写回内存条目，避免重复打 GitHub README API。 */
+async function ensureJobSeekingDetectedInCache(
+  ghUser: string,
+  cached: LookupCacheEntry,
+  token: string | undefined,
+): Promise<JobSeekingSignal[]> {
+  if (cached.jobSeekingDetected !== undefined) {
+    return cached.jobSeekingDetected;
+  }
+  const detected = await collectJobSeekingSignals(cached.crawl, token);
+  cached.jobSeekingDetected = detected;
+  return detected;
+}
+
+async function buildJobSeekingApiPayload(
+  ghLower: string,
+  cached: LookupCacheEntry | null,
+  token: string | undefined,
+): Promise<{ active: boolean; signals: JobSeekingSignal[] }> {
+  if (!cached?.crawl) {
+    return { active: false, signals: [] };
+  }
+  const detected = await ensureJobSeekingDetectedInCache(ghLower, cached, token);
+  const platformUser = await loadPlatformUserForGitHub(ghLower);
+  return mergeJobSeekingSignalsForDisplay(detected, platformUser, getPublicSiteBaseUrl());
 }
 
 /** 历史库里的 codernetAnalysis 可能含已下线的 jobSeekingInProfile，API 不再返回。 */
@@ -161,6 +220,8 @@ export async function handleCodernetGithubLookupGet(req: Request, res: Response)
     const cached = lookupCache.get(ghUser);
     if (cached && Date.now() - cached.cachedAt < LOOKUP_CACHE_TTL) {
       logLookup('cache_hit');
+      const token = getServerGitHubToken();
+      const jobSeeking = await buildJobSeekingApiPayload(ghUser, cached, token);
       res.json({
         status: 'ready',
         crawl: cached.crawl,
@@ -168,6 +229,7 @@ export async function handleCodernetGithubLookupGet(req: Request, res: Response)
         multiPlatform: cached.multiPlatform || null,
         avatarUrl: cached.avatarUrl,
         cachedAt: cached.cachedAt,
+        jobSeeking,
       });
       return;
     }
@@ -357,6 +419,10 @@ export function codernetRoutes(): IRouter {
           codernetAnalysis: true,
           codernetCrawledAt: true,
           createdAt: true,
+          openToOpportunities: true,
+          openToOpportunitiesUpdatedAt: true,
+          jobSeekingExternalProfiles: true,
+          jobSeekingDetectedSignals: true,
         },
       });
 
@@ -382,6 +448,19 @@ export function codernetRoutes(): IRouter {
       const analysis = analysisJsonForClient(user.codernetAnalysis);
 
       const multiPlatform = user.codernetMultiPlatform as Record<string, unknown> | null;
+
+      const detectedStored = parseStoredJobSignals(user.jobSeekingDetectedSignals);
+      const platformRow: PlatformJobSeekingRow = {
+        username: user.username,
+        openToOpportunities: user.openToOpportunities,
+        openToOpportunitiesUpdatedAt: user.openToOpportunitiesUpdatedAt,
+        jobSeekingExternalProfiles: user.jobSeekingExternalProfiles,
+      };
+      const jobSeeking = mergeJobSeekingSignalsForDisplay(
+        detectedStored,
+        platformRow,
+        getPublicSiteBaseUrl(),
+      );
 
       res.json({
         status: 'ready',
@@ -432,6 +511,7 @@ export function codernetRoutes(): IRouter {
           : null,
         analysis,
         crawledAt: user.codernetCrawledAt,
+        jobSeeking,
       });
     } catch (error) {
       console.error('[GITLINK] profile fetch error:', error);
@@ -1074,6 +1154,7 @@ export async function runCrawlAndAnalysis(
     console.log(`[GITLINK] analysis complete for @${githubUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
     setProgress(trackKey, 'saving_results', 95, 'Saving analysis results...');
+    const jobSeekingDetected = await collectJobSeekingSignals(crawlData, token);
     await prisma.user.update({
       where: { id: userId },
       data: {
@@ -1081,6 +1162,7 @@ export async function runCrawlAndAnalysis(
         codernetMultiPlatform: multiPlatform
           ? (JSON.parse(JSON.stringify(multiPlatform)) as Prisma.InputJsonValue)
           : Prisma.JsonNull,
+        jobSeekingDetectedSignals: jobSeekingDetected as unknown as Prisma.InputJsonValue,
       },
     });
 
@@ -1156,6 +1238,28 @@ export async function runPublicLookup(ghUsername: string): Promise<void> {
     const analysis = await analyzeGitHubProfile(crawlData, multiPlatform);
     console.log(`[GITLINK] public lookup analysis complete for @${ghUsername}: "${analysis.oneLiner}" (platforms: ${analysis.platformsUsed.join(', ')})`);
 
+    const jobSeekingDetected = await collectJobSeekingSignals(crawlData, token);
+
+    const linkedUser = await prisma.user.findFirst({
+      where: {
+        githubUsername: { equals: ghUsername, mode: 'insensitive' },
+        githubId: { not: null },
+      },
+      select: { id: true },
+    });
+    if (linkedUser) {
+      try {
+        await prisma.user.update({
+          where: { id: linkedUser.id },
+          data: {
+            jobSeekingDetectedSignals: jobSeekingDetected as unknown as Prisma.InputJsonValue,
+          },
+        });
+      } catch (e) {
+        console.warn(`[GITLINK] jobSeekingDetectedSignals persist failed for @${ghUsername}:`, e);
+      }
+    }
+
     const avatarUrl = `https://github.com/${ghUsername}.png`;
 
     lookupCache.set(ghUsername, {
@@ -1164,6 +1268,7 @@ export async function runPublicLookup(ghUsername: string): Promise<void> {
       multiPlatform: multiPlatform || undefined,
       cachedAt: Date.now(),
       avatarUrl,
+      jobSeekingDetected,
     });
 
     setProgress(trackKey, 'complete', 100, 'Profile ready!');

@@ -173,6 +173,38 @@ export interface PlatformJobSeekingRow {
   username: string;
 }
 
+/** 从 DB JSON 恢复结构化信号（忽略无效项）。 */
+export function parseStoredJobSignals(raw: unknown): JobSeekingSignal[] {
+  if (!Array.isArray(raw)) return [];
+  const out: JobSeekingSignal[] = [];
+  for (const x of raw) {
+    if (!x || typeof x !== 'object') continue;
+    const o = x as Record<string, unknown>;
+    if (
+      typeof o.kind !== 'string' ||
+      typeof o.title !== 'string' ||
+      typeof o.detail !== 'string' ||
+      typeof o.url !== 'string'
+    ) {
+      continue;
+    }
+    out.push({
+      kind: o.kind as JobSeekingSignalKind,
+      title: o.title,
+      detail: o.detail,
+      url: o.url,
+      recordedAt: typeof o.recordedAt === 'string' ? o.recordedAt : nowIso(),
+    });
+  }
+  return out;
+}
+
+/** 站内「开放机会」链接、邮件等用的公网 origin（无配置时回退生产域名）。 */
+export function getPublicSiteBaseUrl(): string {
+  const u = (process.env.SERVER_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/$/, '');
+  return u || 'https://clawlab.live';
+}
+
 /**
  * 合并：自动检测依据 + 站内「开放机会」+ 用户登记的求职平台链接。
  */
@@ -184,11 +216,11 @@ export function mergeJobSeekingSignalsForDisplay(
   const signals: JobSeekingSignal[] = [];
 
   if (platformUser?.openToOpportunities) {
-    const base = siteBaseUrl.replace(/\/$/, '');
+    const base = (siteBaseUrl || getPublicSiteBaseUrl()).replace(/\/$/, '');
     signals.push({
       kind: 'platform_toggle',
       title: '本站已开启「开放机会」',
-      detail: '候选人已在 ClawLive / Codernet 声明愿意接收合适机会（站内开关）。',
+      detail: '候选人已在 GITLINK 声明愿意接收合适机会（站内「开放机会」开关）。',
       url: `${base}/codernet/card/${encodeURIComponent(platformUser.username)}`,
       recordedAt: platformUser.openToOpportunitiesUpdatedAt?.toISOString() || nowIso(),
     });

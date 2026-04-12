@@ -20,6 +20,7 @@ import { CapabilityQuadrantPanel } from '@/components/codernet/CapabilityQuadran
 import { CodernetPortraitShareStrip } from '@/components/codernet/CodernetPortraitShareStrip';
 import { CodernetPortraitContactSection } from '@/components/codernet/CodernetPortraitContactSection';
 import { CodernetProfileSideColumns } from '@/components/codernet/CodernetProfileSideColumns';
+import { JobSeekingPanel, type JobSeekingPayload } from '@/components/codernet/JobSeekingPanel';
 
 interface CrawlProgress {
   stage: string;
@@ -231,6 +232,7 @@ interface LookupResult {
   multiPlatform?: MultiPlatformData | null;
   avatarUrl?: string;
   cachedAt?: number;
+  jobSeeking?: JobSeekingPayload;
 }
 
 const LANG_COLORS: Record<string, string> = {
@@ -838,7 +840,7 @@ export default function GitHubLookupCardPage() {
     );
   }
 
-  const { crawl, analysis, multiPlatform, avatarUrl } = result;
+  const { crawl, analysis, multiPlatform, avatarUrl, jobSeeking } = result;
   const platforms = analysis?.platformsUsed || ['GitHub'];
   const insights = analysis?.multiPlatformInsights;
   const hasMultiPlatform = multiPlatform && (
@@ -914,6 +916,8 @@ export default function GitHubLookupCardPage() {
               ))}
             </div>
           )}
+
+          <JobSeekingPanel jobSeeking={jobSeeking} />
 
           {crawl ? (
             <div className="mb-5">
