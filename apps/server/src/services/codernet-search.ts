@@ -43,7 +43,8 @@ export async function parseQueryToGitHubSearch(query: string): Promise<ParsedQue
 
   const prompt = `你是 GitHub Search API 查询生成器。将用户的自然语言需求转换为 GitHub Search Users API 的 q 参数。
 
-用户需求：${query}
+用户需求（可能同时包含自然语言与 JD/附件正文，请综合提炼检索条件）：
+${query}
 
 GitHub Search Users 支持的 qualifier：
 - language:xxx（编程语言，如 language:rust）

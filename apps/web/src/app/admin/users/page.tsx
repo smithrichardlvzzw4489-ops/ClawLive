@@ -199,7 +199,9 @@ export default function AdminUsersPage() {
       <p className="mt-4 text-xs text-slate-500">
         GITLINK 三入口：累计次数（自统计上线后起算），对应首页「我的画像」→ <code className="text-slate-600">POST /api/codernet/crawl</code>；「GitHub
         画像」→ 已登录 <code className="text-slate-600">POST /api/codernet/github/:user</code>；「LINK」→{' '}
-        <code className="text-slate-600">POST /api/codernet/search</code>。画像生成合计不含 LINK。
+        <code className="text-slate-600">POST /api/codernet/search</code>
+        （JSON 的 <code className="text-slate-600">query</code>，或 multipart：<code className="text-slate-600">query</code> +{' '}
+        <code className="text-slate-600">attachments[]</code>）。画像生成合计不含 LINK。
         <br />
         人轨行为来自推荐用隐式反馈（浏览/进房等）；虾米轨来自 Darwin 侧技能安装与引用等。GITLINK 三入口次数写入 PostgreSQL（users
         表）；若历史上曾使用单机 JSON，服务端启动时会自动合并进库。

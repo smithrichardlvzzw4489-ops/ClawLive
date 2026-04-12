@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import type { IRouter } from 'express';
+import multer from 'multer';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { decrypt } from '../../lib/crypto';
@@ -8,6 +9,7 @@ import { crawlGitHubProfile, getServerGitHubToken, type GitHubCrawlResult } from
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
 import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
 import { searchDevelopers } from '../../services/codernet-search';
+import { concatExtractedFiles } from '../../services/math-ingest';
 import {
   createConnectSession,
   getConnectSession,
@@ -324,6 +326,13 @@ export async function handleCodernetGithubLookupPost(
   }
 }
 
+const LINK_SEARCH_MAX_ATTACHMENT_CHARS = 80_000;
+
+const linkSearchUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 12 * 1024 * 1024, files: 8 },
+});
+
 export function codernetRoutes(): IRouter {
   const router = Router();
 
@@ -588,34 +597,55 @@ export function codernetRoutes(): IRouter {
   /**
    * POST /api/codernet/search
    * 需登录：语义搜人（额度与用量绑定当前用户）。
+   * Body：JSON `{ "query": "..." }`，或 `multipart/form-data`：`query` + 可选多个 `attachments`（JD/说明等，解析方式与 Math 一致）。
    */
-  router.post('/search', authenticateToken, async (req: AuthRequest, res: Response) => {
-    try {
-      const { query } = req.body as { query?: string };
-      if (!query?.trim()) {
-        return res.status(400).json({ error: 'query is required' });
-      }
+  router.post(
+    '/search',
+    authenticateToken,
+    linkSearchUpload.array('attachments', 8),
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const body = req.body as { query?: string };
+        const queryRaw = typeof body.query === 'string' ? body.query.trim() : '';
+        const files = req.files as Express.Multer.File[] | undefined;
+        let attachmentBlock = await concatExtractedFiles(files, '附件材料');
+        if (attachmentBlock.length > LINK_SEARCH_MAX_ATTACHMENT_CHARS) {
+          attachmentBlock =
+            attachmentBlock.slice(0, LINK_SEARCH_MAX_ATTACHMENT_CHARS) + '\n…（附件正文已截断）';
+        }
 
-      const callerId = req.user!.id;
-      const check = checkQuota(callerId, 'search');
-      if (!check.allowed) {
-        return res.status(429).json({
-          error: '本月搜索额度已用完',
-          code: 'QUOTA_EXCEEDED',
-          quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
-        });
-      }
-      consumeQuota(callerId, 'search');
-      void recordCodernetInterfaceUsage(callerId, 'linkSearch');
+        const parts: string[] = [];
+        if (queryRaw) parts.push(`【自然语言描述】\n${queryRaw}`);
+        if (attachmentBlock) parts.push(`【职位描述 / 附件材料】\n${attachmentBlock}`);
+        const combinedQuery = parts.join('\n\n').trim();
 
-      const token = getServerGitHubToken();
-      const results = await searchDevelopers(query.trim(), lookupCache, token);
-      res.json({ results });
-    } catch (error) {
-      console.error('[GITLINK] search error:', error);
-      res.status(500).json({ error: 'Search failed' });
-    }
-  });
+        if (!combinedQuery) {
+          return res.status(400).json({
+            error: '请填写自然语言描述，或上传 JD / 附件（.txt / .md / .pdf / .docx / 常见图片）至少一项。',
+          });
+        }
+
+        const callerId = req.user!.id;
+        const check = checkQuota(callerId, 'search');
+        if (!check.allowed) {
+          return res.status(429).json({
+            error: '本月搜索额度已用完',
+            code: 'QUOTA_EXCEEDED',
+            quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
+          });
+        }
+        consumeQuota(callerId, 'search');
+        void recordCodernetInterfaceUsage(callerId, 'linkSearch');
+
+        const token = getServerGitHubToken();
+        const results = await searchDevelopers(combinedQuery, lookupCache, token);
+        res.json({ results });
+      } catch (error) {
+        console.error('[GITLINK] search error:', error);
+        res.status(500).json({ error: 'Search failed' });
+      }
+    },
+  );
 
   /**
    * POST /api/codernet/linkedin/resolve

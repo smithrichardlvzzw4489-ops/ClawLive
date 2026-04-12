@@ -252,12 +252,40 @@ export const api = {
       }),
   },
   codernet: {
-    /** Semantic developer search → ranked GitHub users (no email). */
-    searchDevelopers: (query: string) =>
-      fetchAPI('/api/codernet/search', {
+    /**
+     * Semantic developer search → ranked GitHub users (no email).
+     * Optional `files` → multipart `query` + `attachments[]`（与 Math 相同解析：txt/md/pdf/docx/图片等）。
+     */
+    searchDevelopers: async (query: string, files?: File[]) => {
+      if (files?.length) {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const url = `${API_BASE_URL}/api/codernet/search`;
+        const headers: Record<string, string> = {};
+        if (token) headers.Authorization = `Bearer ${token}`;
+        const fd = new FormData();
+        fd.set('query', query);
+        for (const f of files) fd.append('attachments', f);
+        let response: Response;
+        try {
+          response = await fetch(url, { method: 'POST', headers, body: fd });
+        } catch (err: unknown) {
+          const raw = err instanceof Error ? err.message : String(err);
+          throw new APIError(0, `${getNetworkErrorMsg()}\n([${url}] ${raw})`);
+        }
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          const msg =
+            error?.error ||
+            (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
+          throw new APIError(response.status, msg);
+        }
+        return response.json() as Promise<{ results?: unknown[] }>;
+      }
+      return fetchAPI('/api/codernet/search', {
         method: 'POST',
         body: JSON.stringify({ query }),
-      }),
+      });
+    },
   },
   messages: {
     list: () => fetchAPI('/api/messages'),

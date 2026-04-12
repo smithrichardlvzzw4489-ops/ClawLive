@@ -46,6 +46,7 @@ export function CodernetHomeClient() {
   const [meFetchError, setMeFetchError] = useState(false);
 
   const [linkQuery, setLinkQuery] = useState('');
+  const [linkFiles, setLinkFiles] = useState<File[]>([]);
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [linkResults, setLinkResults] = useState<SemanticSearchHit[] | null>(null);
@@ -149,12 +150,14 @@ export function CodernetHomeClient() {
   const handleSemanticSearch = async (e: FormEvent) => {
     e.preventDefault();
     const q = linkQuery.trim();
-    if (!q || linkLoading) return;
+    if ((!q && linkFiles.length === 0) || linkLoading) return;
     setLinkErr(null);
     setLinkLoading(true);
     setLinkResults(null);
     try {
-      const data = (await api.codernet.searchDevelopers(q)) as { results?: SemanticSearchHit[] };
+      const data = (await api.codernet.searchDevelopers(q, linkFiles.length ? linkFiles : undefined)) as {
+        results?: SemanticSearchHit[];
+      };
       setLinkResults(data.results ?? []);
     } catch (err) {
       if (err instanceof APIError) {
@@ -388,7 +391,8 @@ export function CodernetHomeClient() {
             <div className="max-w-xl mx-auto w-full text-left">
               <div className="rounded-2xl border border-violet-500/20 bg-gradient-to-br from-violet-500/10 to-indigo-500/5 p-6 sm:p-8 mb-6">
                 <p className="text-center text-sm text-slate-400 mb-5 leading-relaxed">
-                  用自然语言描述你要找的人（技术栈、地区、经验等）→ AI 解析并在 GitHub 上检索 → 精排后列出<strong className="text-slate-300">多位</strong>
+                  用自然语言描述，和/或上传 JD、职位说明等附件（与 Math 页相同：.txt / .md / .pdf / .docx / 常见图片）→ AI
+                  综合解析并在 GitHub 上检索 → 精排后列出<strong className="text-slate-300">多位</strong>
                   合适开发者。
                 </p>
                 <div className="grid grid-cols-3 gap-3 mb-5 text-center">
@@ -409,16 +413,56 @@ export function CodernetHomeClient() {
                   <textarea
                     value={linkQuery}
                     onChange={(e) => setLinkQuery(e.target.value)}
-                    placeholder="例如：在上海做 Rust 后端、有开源贡献的开发者"
+                    placeholder="例如：在上海做 Rust 后端、有开源贡献的开发者（可与下方附件同时使用）"
                     rows={3}
                     className="w-full rounded-xl border border-white/[0.1] bg-white/[0.05] px-4 py-3 text-sm text-white placeholder:text-slate-600 outline-none focus:border-violet-500/40 resize-y min-h-[5rem]"
                   />
+                  <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs text-slate-400 font-mono">JD / 其他材料（可选，最多 8 个）</span>
+                      <label className="text-xs font-mono text-violet-400 hover:text-violet-300 cursor-pointer">
+                        <input
+                          type="file"
+                          multiple
+                          accept=".txt,.md,.pdf,.docx,image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const picked = e.target.files;
+                            if (!picked?.length) return;
+                            setLinkFiles((prev) => [...prev, ...Array.from(picked)].slice(0, 8));
+                            e.target.value = '';
+                          }}
+                        />
+                        选择文件
+                      </label>
+                    </div>
+                    {linkFiles.length > 0 ? (
+                      <ul className="text-[11px] text-slate-500 font-mono space-y-1">
+                        {linkFiles.map((f, i) => (
+                          <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2">
+                            <span className="truncate">{f.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setLinkFiles((prev) => prev.filter((_, j) => j !== i))}
+                              className="shrink-0 text-slate-600 hover:text-red-300"
+                            >
+                              移除
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-[10px] text-slate-600 font-mono leading-relaxed">
+                        未选文件时仅按上方自然语言搜索；仅上传附件时也会按附件正文检索。
+                      </p>
+                    )}
+                  </div>
                   {linkErr && (
                     <p className="text-xs text-red-300 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">{linkErr}</p>
                   )}
                   <button
                     type="submit"
-                    disabled={linkLoading || !linkQuery.trim()}
+                    disabled={linkLoading || (!linkQuery.trim() && linkFiles.length === 0)}
                     className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed px-6 py-3 text-sm font-semibold transition"
                   >
                     {linkLoading ? (
