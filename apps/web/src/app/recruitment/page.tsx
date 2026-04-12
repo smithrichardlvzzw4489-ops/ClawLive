@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MainLayout } from '@/components/MainLayout';
@@ -43,8 +43,9 @@ type RecommendHit = {
   location: string | null;
 };
 
-export default function RecruitmentPage() {
+function RecruitmentPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
   const [stages, setStages] = useState<string[]>([]);
   const [items, setItems] = useState<JdRow[]>([]);
@@ -60,8 +61,6 @@ export default function RecruitmentPage() {
   const [newGh, setNewGh] = useState('');
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendHits, setRecommendHits] = useState<RecommendHit[] | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [showNewForm, setShowNewForm] = useState(false);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -88,6 +87,15 @@ export default function RecruitmentPage() {
       })
       .finally(() => setLoading(false));
   }, [authLoading, user, router, loadAll]);
+
+  useEffect(() => {
+    const id = searchParams.get('select');
+    if (!id || items.length === 0) return;
+    if (!items.some((x) => x.id === id)) return;
+    setSelectedId(id);
+    setRecommendHits(null);
+    router.replace('/recruitment', { scroll: false });
+  }, [searchParams, items, router]);
 
   useEffect(() => {
     if (!selected) return;
@@ -145,37 +153,6 @@ export default function RecruitmentPage() {
       setErr(e instanceof APIError ? e.message : '删除失败');
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleCreateJd = async () => {
-    if (!title.trim() || !body.trim()) {
-      setErr('请填写标题与职位描述');
-      return;
-    }
-    setCreating(true);
-    setErr(null);
-    try {
-      const matchTags = matchTagsStr
-        .split(/[,，、\n]/)
-        .map((t) => t.trim())
-        .filter(Boolean);
-      const data = (await api.recruitment.createJd({
-        title: title.trim(),
-        body: body.trim(),
-        companyName: companyName || null,
-        location: location || null,
-        matchTags: matchTags.length ? matchTags : undefined,
-      })) as { jd?: JdRow };
-      if (data.jd) {
-        setItems((prev) => [data.jd!, ...prev]);
-        setSelectedId(data.jd.id);
-        setShowNewForm(false);
-      }
-    } catch (e: unknown) {
-      setErr(e instanceof APIError ? e.message : '创建失败');
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -292,22 +269,12 @@ export default function RecruitmentPage() {
             <h1 className="text-2xl font-bold text-white">招聘管理</h1>
             <p className="text-sm text-slate-500 mt-1">管理 JD、候选人流程状态；智能推荐消耗与 LINK 相同的搜索额度。</p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setShowNewForm(true);
-              setSelectedId(null);
-              setTitle('');
-              setCompanyName('');
-              setLocation('');
-              setBody('');
-              setMatchTagsStr('');
-              setRecommendHits(null);
-            }}
-            className="rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white"
+          <Link
+            href="/recruitment/new"
+            className="inline-flex items-center rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white"
           >
             新建 JD
-          </button>
+          </Link>
         </div>
 
         {err && (
@@ -322,12 +289,9 @@ export default function RecruitmentPage() {
                 <li key={jd.id}>
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowNewForm(false);
-                      handleSelect(jd.id);
-                    }}
+                    onClick={() => handleSelect(jd.id)}
                     className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                      selectedId === jd.id && !showNewForm
+                      selectedId === jd.id
                         ? 'bg-violet-600/30 text-white ring-1 ring-violet-500/40'
                         : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
                     }`}
@@ -341,80 +305,19 @@ export default function RecruitmentPage() {
                 </li>
               ))}
             </ul>
-            {items.length === 0 && !showNewForm && (
-              <p className="text-xs text-slate-600 mt-4 px-1">暂无 JD，点击右上方新建。</p>
+            {items.length === 0 && (
+              <p className="text-xs text-slate-600 mt-4 px-1">
+                暂无 JD，点击右上方
+                <Link href="/recruitment/new" className="text-violet-400 hover:underline mx-0.5">
+                  新建
+                </Link>
+                。
+              </p>
             )}
           </aside>
 
           <main className="min-w-0 space-y-6">
-            {showNewForm || (!selectedId && items.length === 0) ? (
-              <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-                <h2 className="text-lg font-semibold text-white mb-4">新建职位 JD</h2>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm">
-                    <span className="text-slate-500 text-xs">标题</span>
-                    <input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-slate-500 text-xs">匹配标签（逗号分隔，可空则默认「招聘管理」）</span>
-                    <input
-                      value={matchTagsStr}
-                      onChange={(e) => setMatchTagsStr(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
-                      placeholder="Rust, 后端, 上海"
-                    />
-                  </label>
-                  <label className="block text-sm sm:col-span-2">
-                    <span className="text-slate-500 text-xs">公司</span>
-                    <input
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm sm:col-span-2">
-                    <span className="text-slate-500 text-xs">地点</span>
-                    <input
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm"
-                    />
-                  </label>
-                </div>
-                <label className="block text-sm mt-4">
-                  <span className="text-slate-500 text-xs">职位描述</span>
-                  <textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    rows={12}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm resize-y min-h-[200px]"
-                  />
-                </label>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    disabled={creating}
-                    onClick={() => void handleCreateJd()}
-                    className="rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 px-5 py-2 text-sm font-semibold"
-                  >
-                    {creating ? '创建中…' : '创建'}
-                  </button>
-                  {items.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowNewForm(false)}
-                      className="rounded-xl border border-white/15 px-5 py-2 text-sm text-slate-400 hover:bg-white/[0.06]"
-                    >
-                      取消
-                    </button>
-                  )}
-                </div>
-              </section>
-            ) : selected ? (
+            {selected ? (
               <>
                 <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -622,12 +525,36 @@ export default function RecruitmentPage() {
                   )}
                 </section>
               </>
+            ) : items.length === 0 ? (
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center text-slate-400">
+                <p className="mb-4">还没有职位 JD。</p>
+                <Link
+                  href="/recruitment/new"
+                  className="inline-flex rounded-xl bg-violet-600 hover:bg-violet-500 px-5 py-2 text-sm font-semibold text-white"
+                >
+                  新建职位 JD
+                </Link>
+              </div>
             ) : (
-              <p className="text-slate-500">请从左侧选择一个 JD，或新建。</p>
+              <p className="text-slate-500">请从左侧选择一个 JD，或点击右上方「新建 JD」。</p>
             )}
           </main>
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+export default function RecruitmentPage() {
+  return (
+    <Suspense
+      fallback={
+        <MainLayout flatBackground>
+          <div className="mx-auto max-w-6xl px-4 py-16 text-center text-slate-400">加载中…</div>
+        </MainLayout>
+      }
+    >
+      <RecruitmentPageContent />
+    </Suspense>
   );
 }
