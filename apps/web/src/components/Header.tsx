@@ -1,8 +1,9 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { LanguageToggle } from '@/components/LanguageToggle';
@@ -37,6 +38,13 @@ function NavItem({
       <span className="whitespace-nowrap">{label}</span>
     </Link>
   );
+}
+
+function MathNavItem() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const active = pathname === '/' && searchParams.get('tab') === 'math';
+  return <NavItem href="/?tab=math" label="Math" icon="📐" active={active} />;
 }
 
 type HeaderProps = {
@@ -88,7 +96,9 @@ export function Header({}: HeaderProps) {
               icon="📋"
               active={pathname.startsWith('/job-plaza')}
             />
-            <NavItem href="/math" label="Math" icon="📐" active={pathname.startsWith('/math')} />
+            <Suspense fallback={<NavItem href="/?tab=math" label="Math" icon="📐" active={false} />}>
+              <MathNavItem />
+            </Suspense>
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
