@@ -150,17 +150,6 @@ export function MathMatchPanel() {
 
   return (
     <div className="w-full text-left pb-8">
-      <div className="mb-6 border-b border-white/[0.06] pb-4">
-        <h2 className="text-lg font-bold tracking-tight text-white">Math</h2>
-        <p className="text-xs text-slate-500 mt-2 max-w-xl leading-relaxed">
-          左侧粘贴或导入<strong className="text-slate-400">职位 JD</strong>，右侧粘贴或导入
-          <strong className="text-slate-400">简历</strong>并可选填 <strong className="text-slate-400">GitHub</strong>
-          登录名以自动拉取<strong className="text-slate-400">公开 GitHub 画像</strong>（无需事先在站内打开过该用户）。首次拉取可能需 1～3
-          分钟。LLM 将按 JD 条目给出匹配度与
-          <strong className="text-slate-400">综合匹配度</strong>（需登录，消耗每月 Math 配额）。
-        </p>
-      </div>
-
       {ghHint && (
         <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-200/95">
           {ghHint}
