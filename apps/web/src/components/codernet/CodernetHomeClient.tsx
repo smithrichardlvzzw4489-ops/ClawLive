@@ -131,10 +131,18 @@ export function CodernetHomeClient() {
       <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/15 blur-[160px]" />
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/10 blur-[160px]" />
 
-      <div className="relative z-10 min-h-[calc(100dvh-4rem)]">
+      <div
+        className={
+          tab === 'math'
+            ? 'relative z-10'
+            : 'relative z-10 min-h-[calc(100dvh-4rem)]'
+        }
+      >
         <div
-          className={`flex min-h-[calc(100dvh-4rem)] flex-col items-center px-4 py-10 sm:py-16 ${
-            tab === 'math' ? 'justify-start' : 'justify-center'
+          className={`flex flex-col items-center px-4 ${
+            tab === 'math'
+              ? 'min-h-0 justify-start py-6 sm:py-8'
+              : 'min-h-[calc(100dvh-4rem)] justify-center py-10 sm:py-16'
           }`}
         >
         <div className="text-center max-w-2xl w-full mx-auto">
@@ -389,7 +397,7 @@ export function CodernetHomeClient() {
         </div>
 
         {tab === 'math' && (
-          <div className="w-full max-w-6xl mx-auto mt-2 px-0 sm:px-2">
+          <div className="w-full max-w-6xl mx-auto px-0 sm:px-2">
             <MathMatchPanel />
           </div>
         )}
