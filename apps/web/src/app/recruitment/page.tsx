@@ -525,18 +525,12 @@ function RecruitmentPageContent() {
                   )}
                 </section>
               </>
-            ) : items.length === 0 ? (
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-8 text-center text-slate-400">
-                <p className="mb-4">还没有职位 JD。</p>
-                <Link
-                  href="/recruitment/new"
-                  className="inline-flex rounded-xl bg-violet-600 hover:bg-violet-500 px-5 py-2 text-sm font-semibold text-white"
-                >
-                  新建职位 JD
-                </Link>
-              </div>
             ) : (
-              <p className="text-slate-500">请从左侧选择一个 JD，或点击右上方「新建 JD」。</p>
+              <p className="text-slate-500">
+                {items.length === 0
+                  ? '暂无 JD，请点击右上方「新建 JD」。'
+                  : '请从左侧选择一个 JD，或点击右上方「新建 JD」。'}
+              </p>
             )}
           </main>
         </div>
