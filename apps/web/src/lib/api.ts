@@ -88,6 +88,13 @@ function stripUtf8Bom(text: string): string {
   return text.replace(/^\uFEFF/, '');
 }
 
+/** LINK 搜索流异常时附带 `X-Request-Id`，便于与后端 `[GITLINK] linkSearch` 日志逐条对齐。 */
+function withCodernetSearchTrace(message: string, traceId: string | null | undefined): string {
+  const id = typeof traceId === 'string' ? traceId.trim() : '';
+  if (!id) return message;
+  return `${message}\n（请求追踪 ID: ${id}；可与服务端日志 [GITLINK] linkSearch 对照）`;
+}
+
 function handleCodernetSearchNdjsonLine(
   trimmed: string,
   onProgress: ((p: CodernetSearchProgress) => void) | undefined,
@@ -96,6 +103,7 @@ function handleCodernetSearchNdjsonLine(
     buckets: CodernetLinkSearchBuckets | null;
     meta: CodernetLinkSearchResponse['meta'] | null;
   },
+  traceId?: string | null,
 ): void {
   let msg: Record<string, unknown>;
   try {
@@ -133,7 +141,10 @@ function handleCodernetSearchNdjsonLine(
         ? (m as { mergedGithubCount?: number; enrichedCount?: number })
         : null;
   } else if (typ === 'error') {
-    throw new APIError(500, typeof msg.message === 'string' ? msg.message : '搜索失败');
+    throw new APIError(
+      500,
+      withCodernetSearchTrace(typeof msg.message === 'string' ? msg.message : '搜索失败', traceId),
+    );
   }
 }
 
@@ -143,6 +154,7 @@ function handleCodernetSearchNdjsonLine(
 function parseCodernetSearchResponseBody(
   rawText: string,
   onProgress?: (p: CodernetSearchProgress) => void,
+  traceId?: string | null,
 ): CodernetLinkSearchResponse {
   const text = stripUtf8Bom(rawText);
   const state: {
@@ -155,7 +167,7 @@ function parseCodernetSearchResponseBody(
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (!trimmed) continue;
-    handleCodernetSearchNdjsonLine(trimmed, onProgress, state);
+    handleCodernetSearchNdjsonLine(trimmed, onProgress, state, traceId);
   }
 
   if (state.results !== null) {
@@ -196,46 +208,50 @@ function parseCodernetSearchResponseBody(
     /* fall through */
   }
 
-  throwCodernetSearchResponseUnusable(text);
+  throwCodernetSearchResponseUnusable(text, traceId);
 }
 
 /** 无法得到带 `results` 的 `complete` 行或等价 JSON 时的兜底说明（区分空/HTML/JSON 错误体）。 */
-function throwCodernetSearchResponseUnusable(rawText: string): never {
+function throwCodernetSearchResponseUnusable(rawText: string, traceId?: string | null): never {
   const text = stripUtf8Bom(rawText);
   const t = text.trim();
   if (!t) {
-    throw new APIError(0, '搜索响应为空，可能是连接中断或网关超时，请重试。');
+    throw new APIError(0, withCodernetSearchTrace('搜索响应为空，可能是连接中断或网关超时，请重试。', traceId));
   }
   if (/<\s*!DOCTYPE|<\s*html[\s>]/i.test(t)) {
-    throw new APIError(0, '搜索返回了网页而非数据（常见于网关超时或反代错误），请重试。');
+    throw new APIError(0, withCodernetSearchTrace('搜索返回了网页而非数据（常见于网关超时或反代错误），请重试。', traceId));
   }
   if (t.length < 8192 && /\b(502|503|504)\b/i.test(t) && !t.trimStart().startsWith('{')) {
-    throw new APIError(0, '上游返回了错误页文本（如 502/503/504），请稍后重试。');
+    throw new APIError(0, withCodernetSearchTrace('上游返回了错误页文本（如 502/503/504），请稍后重试。', traceId));
   }
   try {
     const msg = JSON.parse(text) as Record<string, unknown>;
     if (msg && typeof msg === 'object') {
       if (typeof msg.error === 'string' && msg.error.trim()) {
-        throw new APIError(500, msg.error);
+        throw new APIError(500, withCodernetSearchTrace(msg.error, traceId));
       }
       const typ = typeof msg.type === 'string' ? msg.type.toLowerCase() : '';
       if (typ === 'error' && typeof msg.message === 'string' && msg.message.trim()) {
-        throw new APIError(500, msg.message);
+        throw new APIError(500, withCodernetSearchTrace(msg.message, traceId));
       }
     }
   } catch (e) {
     if (e instanceof APIError) throw e;
   }
-  throw new APIError(0, '搜索响应不完整或未识别。请重试；若持续出现多为网络或服务负载导致。');
+  throw new APIError(
+    0,
+    withCodernetSearchTrace('搜索响应不完整或未识别。请重试；若持续出现多为网络或服务负载导致。', traceId),
+  );
 }
 
 async function consumeCodernetSearchNdjsonStream(
   response: Response,
   onProgress?: (p: CodernetSearchProgress) => void,
+  traceId?: string | null,
 ): Promise<CodernetLinkSearchResponse> {
   const body = response.body;
   if (!body) {
-    throw new APIError(0, '无法读取搜索响应流');
+    throw new APIError(0, withCodernetSearchTrace('无法读取搜索响应流', traceId));
   }
 
   let secondary: ReadableStream<Uint8Array> | null = null;
@@ -262,7 +278,7 @@ async function consumeCodernetSearchNdjsonStream(
       chunk = await reader.read();
     } catch (e) {
       const raw = e instanceof Error ? e.message : String(e);
-      throw new APIError(0, `读取搜索流失败，连接可能已断开：${raw}`);
+      throw new APIError(0, withCodernetSearchTrace(`读取搜索流失败，连接可能已断开：${raw}`, traceId));
     }
     const { done, value } = chunk;
     buffer += decoder.decode(value ?? new Uint8Array(0), { stream: !done });
@@ -271,13 +287,13 @@ async function consumeCodernetSearchNdjsonStream(
     for (const raw of lines) {
       const trimmed = raw.trim();
       if (!trimmed) continue;
-      handleCodernetSearchNdjsonLine(trimmed, onProgress, state);
+      handleCodernetSearchNdjsonLine(trimmed, onProgress, state, traceId);
     }
     if (done) break;
   }
 
   if (buffer.trim()) {
-    handleCodernetSearchNdjsonLine(buffer.trim(), onProgress, state);
+    handleCodernetSearchNdjsonLine(buffer.trim(), onProgress, state, traceId);
   }
 
   if (state.results !== null) {
@@ -294,12 +310,12 @@ async function consumeCodernetSearchNdjsonStream(
       full = await new Response(secondary).text();
     } catch (e) {
       const raw = e instanceof Error ? e.message : String(e);
-      throw new APIError(0, `合并搜索响应失败：${raw}`);
+      throw new APIError(0, withCodernetSearchTrace(`合并搜索响应失败：${raw}`, traceId));
     }
-    return parseCodernetSearchResponseBody(full, undefined);
+    return parseCodernetSearchResponseBody(full, undefined, traceId);
   }
 
-  throw new APIError(0, '搜索流未正常结束（未收到完成行）。请重试。');
+  throw new APIError(0, withCodernetSearchTrace('搜索流未正常结束（未收到完成行）。请重试。', traceId));
 }
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
@@ -522,6 +538,11 @@ export const api = {
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
+      const requestTraceId =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `ts-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      headers['X-Request-Id'] = requestTraceId;
 
       let body: BodyInit;
       if (files?.length) {
@@ -541,23 +562,31 @@ export const api = {
         response = await fetch(url, { method: 'POST', headers, body });
       } catch (err: unknown) {
         const raw = err instanceof Error ? err.message : String(err);
-        throw new APIError(0, `${getNetworkErrorMsg()}\n([${url}] ${raw})`);
+        throw new APIError(
+          0,
+          withCodernetSearchTrace(`${getNetworkErrorMsg()}\n([${url}] ${raw})`, requestTraceId),
+        );
       }
+
+      const traceForLogs =
+        response.headers.get('x-request-id')?.trim() ||
+        response.headers.get('X-Request-Id')?.trim() ||
+        requestTraceId;
 
       if (!response.ok) {
         const error = (await response.json().catch(() => ({}))) as { error?: string };
         const msg =
           error?.error ||
           (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
-        throw new APIError(response.status, msg);
+        throw new APIError(response.status, withCodernetSearchTrace(msg, traceForLogs));
       }
 
       const ct = (response.headers.get('content-type') || '').toLowerCase();
       if (ct.includes('ndjson')) {
-        return consumeCodernetSearchNdjsonStream(response, onProgress);
+        return consumeCodernetSearchNdjsonStream(response, onProgress, traceForLogs);
       }
       const text = await response.text();
-      return parseCodernetSearchResponseBody(text, onProgress);
+      return parseCodernetSearchResponseBody(text, onProgress, traceForLogs);
     },
   },
   recruitment: {

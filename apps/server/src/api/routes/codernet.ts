@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import type { IRouter } from 'express';
 import multer from 'multer';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { decrypt } from '../../lib/crypto';
@@ -402,6 +403,15 @@ export async function handleCodernetGithubLookupPost(
 
 const LINK_SEARCH_MAX_ATTACHMENT_CHARS = 80_000;
 
+/** LINK 搜索 NDJSON 流：与客户端 `X-Request-Id` 对齐，便于对照 access 与业务日志。 */
+function takeLinkSearchRequestId(req: Request): string {
+  const raw = req.get('x-request-id')?.trim();
+  if (raw && raw.length >= 4 && raw.length <= 128 && !/[\r\n]/.test(raw)) {
+    return raw.slice(0, 128);
+  }
+  return randomUUID();
+}
+
 const linkSearchUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 12 * 1024 * 1024, files: 8 },
@@ -743,6 +753,7 @@ export function codernetRoutes(): IRouter {
     authenticateToken,
     linkSearchUpload.array('attachments', 8),
     async (req: AuthRequest, res: Response) => {
+      const requestId = takeLinkSearchRequestId(req);
       try {
         const body = req.body as { query?: string };
         const queryRaw = typeof body.query === 'string' ? body.query.trim() : '';
@@ -777,12 +788,59 @@ export function codernetRoutes(): IRouter {
         void recordCodernetInterfaceUsage(callerId, 'linkSearch');
 
         res.status(200);
+        res.setHeader('X-Request-Id', requestId);
         res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('X-Accel-Buffering', 'no');
 
+        const t0 = Date.now();
+        let ndjsonLines = 0;
+        let ndjsonBytes = 0;
+        let lastStreamType = 'none';
+
+        const logLinkSearch = (phase: string, extra?: Record<string, unknown>) => {
+          console.log(
+            '[GITLINK] linkSearch',
+            JSON.stringify({
+              phase,
+              requestId,
+              userId: callerId,
+              elapsedMs: Date.now() - t0,
+              ndjsonLines,
+              ndjsonBytes,
+              lastStreamType,
+              queryChars: combinedQuery.length,
+              attachmentFiles: files?.length ?? 0,
+              ...extra,
+            }),
+          );
+        };
+
+        logLinkSearch('stream_start');
+
+        req.on('close', () => {
+          if (!res.writableEnded) {
+            logLinkSearch('req_close_before_res_end', { clientDisconnected: true });
+          }
+        });
+
+        res.on('finish', () => {
+          logLinkSearch('res_finish', { writableEnded: res.writableEnded });
+        });
+
+        res.on('error', (err: unknown) => {
+          console.error('[GITLINK] linkSearch res_error', requestId, err);
+        });
+
         const writeLine = (obj: unknown) => {
-          res.write(`${JSON.stringify(obj)}\n`);
+          const line = `${JSON.stringify(obj)}\n`;
+          ndjsonBytes += Buffer.byteLength(line, 'utf8');
+          ndjsonLines += 1;
+          const typ = (obj as { type?: unknown })?.type;
+          if (typ === 'complete' || typ === 'error' || typ === 'progress') {
+            lastStreamType = String(typ);
+          }
+          res.write(line);
         };
 
         const token = getServerGitHubToken();
@@ -797,15 +855,16 @@ export function codernetRoutes(): IRouter {
             meta: pack.meta,
           });
         } catch (searchErr) {
-          console.error('[GITLINK] search pipeline error:', searchErr);
+          console.error('[GITLINK] search pipeline error', { requestId, userId: callerId }, searchErr);
           writeLine({
             type: 'error',
             message: searchErr instanceof Error ? searchErr.message : 'Search failed',
           });
         }
+        logLinkSearch('before_res_end');
         res.end();
       } catch (error) {
-        console.error('[GITLINK] search error:', error);
+        console.error('[GITLINK] search error', { requestId }, error);
         if (!res.headersSent) {
           res.status(500).json({ error: 'Search failed' });
         } else {
