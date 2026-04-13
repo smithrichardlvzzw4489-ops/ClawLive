@@ -725,6 +725,7 @@ export function codernetRoutes(): IRouter {
    * POST /api/codernet/search
    * 需登录：语义搜人（额度与用量绑定当前用户）。
    * Body：JSON `{ "query": "..." }`，或 `multipart/form-data`：`query` + 可选多个 `attachments`（JD/说明等，解析方式与 Math 一致）。
+   * 成功时响应为 **NDJSON**（`application/x-ndjson`）：多行 `{"type":"progress","progress":{...}}`，最后一行 `{"type":"complete","results":[...]}`。
    */
   router.post(
     '/search',
@@ -764,12 +765,46 @@ export function codernetRoutes(): IRouter {
         consumeQuota(callerId, 'search');
         void recordCodernetInterfaceUsage(callerId, 'linkSearch');
 
+        res.status(200);
+        res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache, no-transform');
+        res.setHeader('X-Accel-Buffering', 'no');
+
+        const writeLine = (obj: unknown) => {
+          res.write(`${JSON.stringify(obj)}\n`);
+        };
+
         const token = getServerGitHubToken();
-        const results = await searchDevelopers(combinedQuery, lookupCache, token);
-        res.json({ results });
+        try {
+          const results = await searchDevelopers(combinedQuery, lookupCache, token, (progress) =>
+            writeLine({ type: 'progress', progress }),
+          );
+          writeLine({ type: 'complete', results });
+        } catch (searchErr) {
+          console.error('[GITLINK] search pipeline error:', searchErr);
+          writeLine({
+            type: 'error',
+            message: searchErr instanceof Error ? searchErr.message : 'Search failed',
+          });
+        }
+        res.end();
       } catch (error) {
         console.error('[GITLINK] search error:', error);
-        res.status(500).json({ error: 'Search failed' });
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Search failed' });
+        } else {
+          try {
+            res.write(
+              `${JSON.stringify({
+                type: 'error',
+                message: error instanceof Error ? error.message : 'Search failed',
+              })}\n`,
+            );
+          } catch {
+            /* ignore */
+          }
+          res.end();
+        }
       }
     },
   );

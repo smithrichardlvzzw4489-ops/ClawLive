@@ -604,7 +604,7 @@ export async function searchDevelopers(
   token?: string,
   onProgress?: (p: SearchProgress) => void,
 ): Promise<DeveloperSearchResult[]> {
-  onProgress?.({ phase: 'parsing', detail: 'AI is understanding your query...' });
+  onProgress?.({ phase: 'parsing', detail: '正在理解您的检索需求并生成 GitHub 检索策略…' });
 
   const parsed = await parseQueryToGitHubSearch(query);
   console.log(`[CodernetSearch] parsed: "${parsed.githubQuery}" (${parsed.explanation})`);
@@ -614,26 +614,26 @@ export async function searchDevelopers(
     phase: 'searching',
     detail:
       shardQs.length > 1
-        ? `Searching GitHub (${shardQs.length} queries, bypass 1000-result cap)`
-        : `Searching GitHub: ${parsed.githubQuery}`,
+        ? `正在检索 GitHub（${shardQs.length} 条查询，突破单次结果上限）…`
+        : `正在检索 GitHub：${parsed.githubQuery}`,
     githubQuery: parsed.githubQuery,
   });
 
   const ghUsers = await searchGitHubUsers(parsed, token, 24);
   if (ghUsers.length === 0) {
-    onProgress?.({ phase: 'done', detail: 'No GitHub users found', totalFound: 0 });
+    onProgress?.({ phase: 'done', detail: '未在 GitHub 上找到符合条件的用户', totalFound: 0 });
     return [];
   }
 
   onProgress?.({
     phase: 'enriching',
-    detail: `Analyzing top ${Math.min(ghUsers.length, 10)} developers...`,
+    detail: `正在分析前 ${Math.min(ghUsers.length, 10)} 位候选人的公开资料…`,
     totalFound: ghUsers.length,
   });
 
   const enriched = await enrichCandidates(ghUsers, token, lookupCache);
 
-  onProgress?.({ phase: 'ranking', detail: 'AI is ranking the best matches...' });
+  onProgress?.({ phase: 'ranking', detail: '正在用 AI 精排匹配度…' });
 
   const ranked = await rerankCandidates(query, enriched);
 
@@ -663,7 +663,7 @@ export async function searchDevelopers(
       };
     });
 
-  onProgress?.({ phase: 'done', detail: `Found ${results.length} matches`, totalFound: results.length });
+  onProgress?.({ phase: 'done', detail: `完成，共 ${results.length} 位高匹配开发者`, totalFound: results.length });
 
   return results;
 }

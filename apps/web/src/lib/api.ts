@@ -62,6 +62,65 @@ export class APIError extends Error {
   }
 }
 
+/** LINK `POST /api/codernet/search` 流式进度（与后端 `SearchProgress` 对齐） */
+export type CodernetSearchProgress = {
+  phase: 'parsing' | 'searching' | 'enriching' | 'ranking' | 'done' | 'error';
+  detail: string;
+  githubQuery?: string;
+  totalFound?: number;
+};
+
+async function consumeCodernetSearchNdjsonStream(
+  response: Response,
+  onProgress?: (p: CodernetSearchProgress) => void,
+): Promise<{ results: unknown[] }> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new APIError(0, '无法读取搜索响应流');
+  }
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let results: unknown[] | null = null;
+
+  const handleLine = (line: string) => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let msg: Record<string, unknown>;
+    try {
+      msg = JSON.parse(trimmed) as Record<string, unknown>;
+    } catch {
+      return;
+    }
+    if (msg.type === 'progress' && msg.progress && typeof msg.progress === 'object' && onProgress) {
+      onProgress(msg.progress as CodernetSearchProgress);
+    } else if (msg.type === 'complete' && Array.isArray(msg.results)) {
+      results = msg.results;
+    } else if (msg.type === 'error') {
+      throw new APIError(500, typeof msg.message === 'string' ? msg.message : '搜索失败');
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(0), { stream: !done });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const raw of lines) {
+      handleLine(raw);
+    }
+    if (done) break;
+  }
+
+  if (buffer.trim()) {
+    handleLine(buffer);
+  }
+
+  if (!results) {
+    throw new APIError(0, '搜索响应格式异常');
+  }
+  return { results };
+}
+
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
@@ -269,35 +328,54 @@ export const api = {
      * Semantic developer search → ranked GitHub users (no email).
      * Optional `files` → multipart `query` + `attachments[]`（txt/md/pdf/docx/图片等）。
      */
-    searchDevelopers: async (query: string, files?: File[]) => {
+    searchDevelopers: async (
+      query: string,
+      files?: File[],
+      onProgress?: (p: CodernetSearchProgress) => void,
+    ) => {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const url = `${API_BASE_URL}/api/codernet/search`;
+      const headers: Record<string, string> = {
+        Accept: 'application/x-ndjson, application/json',
+      };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      let body: BodyInit;
       if (files?.length) {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-        const url = `${API_BASE_URL}/api/codernet/search`;
-        const headers: Record<string, string> = {};
-        if (token) headers.Authorization = `Bearer ${token}`;
         const fd = new FormData();
         fd.set('query', query);
-        for (const f of files) fd.append('attachments', f);
-        let response: Response;
-        try {
-          response = await fetch(url, { method: 'POST', headers, body: fd });
-        } catch (err: unknown) {
-          const raw = err instanceof Error ? err.message : String(err);
-          throw new APIError(0, `${getNetworkErrorMsg()}\n([${url}] ${raw})`);
+        for (const f of files) {
+          fd.append('attachments', f);
         }
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          const msg =
-            error?.error ||
-            (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
-          throw new APIError(response.status, msg);
-        }
-        return response.json() as Promise<{ results?: unknown[] }>;
+        body = fd;
+      } else {
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify({ query });
       }
-      return fetchAPI('/api/codernet/search', {
-        method: 'POST',
-        body: JSON.stringify({ query }),
-      });
+
+      let response: Response;
+      try {
+        response = await fetch(url, { method: 'POST', headers, body });
+      } catch (err: unknown) {
+        const raw = err instanceof Error ? err.message : String(err);
+        throw new APIError(0, `${getNetworkErrorMsg()}\n([${url}] ${raw})`);
+      }
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => ({}))) as { error?: string };
+        const msg =
+          error?.error ||
+          (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
+        throw new APIError(response.status, msg);
+      }
+
+      const ct = response.headers.get('content-type') || '';
+      if (ct.includes('ndjson')) {
+        return consumeCodernetSearchNdjsonStream(response, onProgress);
+      }
+      return response.json() as Promise<{ results?: unknown[] }>;
     },
   },
   recruitment: {

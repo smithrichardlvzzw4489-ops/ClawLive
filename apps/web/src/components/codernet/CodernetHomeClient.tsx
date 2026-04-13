@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { api, APIError } from '@/lib/api';
+import { api, APIError, type CodernetSearchProgress } from '@/lib/api';
+
+const LINK_PHASE_STEPS = ['parsing', 'searching', 'enriching', 'ranking'] as const;
+
+function linkPhaseStepIndex(phase: CodernetSearchProgress['phase']): number {
+  if (phase === 'done') return LINK_PHASE_STEPS.length;
+  if (phase === 'error') return 0;
+  const i = LINK_PHASE_STEPS.indexOf(phase as (typeof LINK_PHASE_STEPS)[number]);
+  return i >= 0 ? i : 0;
+}
 import { withReturnTo } from '@/hooks/useHistoryBack';
 import { MainLayout } from '@/components/MainLayout';
 import { MathMatchPanel } from '@/components/math/MathMatchPanel';
@@ -57,6 +66,7 @@ export function CodernetHomeClient() {
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [linkResults, setLinkResults] = useState<SemanticSearchHit[] | null>(null);
+  const [linkProgress, setLinkProgress] = useState<CodernetSearchProgress | null>(null);
 
   const handleLookup = async (e: FormEvent) => {
     e.preventDefault();
@@ -107,10 +117,15 @@ export function CodernetHomeClient() {
     const q = linkQuery.trim();
     if ((!q && linkFiles.length === 0) || linkLoading) return;
     setLinkErr(null);
+    setLinkProgress(null);
     setLinkLoading(true);
     setLinkResults(null);
     try {
-      const data = (await api.codernet.searchDevelopers(q, linkFiles.length ? linkFiles : undefined)) as {
+      const data = (await api.codernet.searchDevelopers(
+        q,
+        linkFiles.length ? linkFiles : undefined,
+        (p) => setLinkProgress(p),
+      )) as {
         results?: SemanticSearchHit[];
       };
       setLinkResults(data.results ?? []);
@@ -122,6 +137,7 @@ export function CodernetHomeClient() {
       }
     } finally {
       setLinkLoading(false);
+      setLinkProgress(null);
     }
   };
 
@@ -321,6 +337,86 @@ export function CodernetHomeClient() {
                   </div>
                   {linkErr && (
                     <p className="text-xs text-red-300 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">{linkErr}</p>
+                  )}
+                  {linkLoading && (
+                    <div className="rounded-xl border border-violet-500/25 bg-black/25 px-4 py-3 space-y-2">
+                      {linkProgress ? (
+                        <>
+                          <div className="flex items-start gap-2.5">
+                            <span
+                              className="mt-0.5 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-violet-400 border-t-transparent"
+                              aria-hidden
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-violet-100 leading-snug">{linkProgress.detail}</p>
+                              {linkProgress.githubQuery ? (
+                                <p
+                                  className="text-[10px] font-mono text-slate-500 mt-1.5 truncate"
+                                  title={linkProgress.githubQuery}
+                                >
+                                  检索式：{linkProgress.githubQuery}
+                                </p>
+                              ) : null}
+                              {typeof linkProgress.totalFound === 'number' &&
+                              (linkProgress.phase === 'searching' || linkProgress.phase === 'enriching') ? (
+                                <p className="text-[10px] text-slate-500 mt-1">
+                                  本轮 GitHub 候选：{linkProgress.totalFound} 人
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500 transition-[width] duration-500 ease-out"
+                              style={{
+                                width: `${Math.min(
+                                  100,
+                                  Math.round(
+                                    ((linkPhaseStepIndex(linkProgress.phase) + 1) / (LINK_PHASE_STEPS.length + 1)) *
+                                      100,
+                                  ),
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <ul className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[10px] font-mono text-slate-500">
+                            {(
+                              [
+                                ['parsing', '解析需求'],
+                                ['searching', 'GitHub 检索'],
+                                ['enriching', '资料分析'],
+                                ['ranking', 'AI 精排'],
+                              ] as const
+                            ).map(([key, label]) => {
+                              const stepIdx = LINK_PHASE_STEPS.indexOf(key);
+                              const cur = linkPhaseStepIndex(linkProgress.phase);
+                              const done = cur > stepIdx;
+                              const active = cur === stepIdx && linkProgress.phase !== 'done';
+                              return (
+                                <li
+                                  key={key}
+                                  className={`rounded-md px-2 py-1.5 text-center border ${
+                                    active
+                                      ? 'border-violet-500/40 bg-violet-500/15 text-violet-200'
+                                      : done
+                                        ? 'border-white/[0.06] text-slate-500'
+                                        : 'border-white/[0.04] text-slate-600'
+                                  }`}
+                                >
+                                  <span className="mr-0.5">{done ? '✓' : active ? '›' : '○'}</span>
+                                  {label}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-500 border-t-transparent" />
+                          正在上传请求并连接服务器…
+                        </div>
+                      )}
+                    </div>
                   )}
                   <button
                     type="submit"
