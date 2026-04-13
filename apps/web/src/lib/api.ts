@@ -70,35 +70,86 @@ export type CodernetSearchProgress = {
   totalFound?: number;
 };
 
+function stripUtf8Bom(text: string): string {
+  return text.replace(/^\uFEFF/, '');
+}
+
+function handleCodernetSearchNdjsonLine(
+  trimmed: string,
+  onProgress: ((p: CodernetSearchProgress) => void) | undefined,
+  state: { results: unknown[] | null },
+): void {
+  let msg: Record<string, unknown>;
+  try {
+    msg = JSON.parse(trimmed) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  const typ = typeof msg.type === 'string' ? msg.type.toLowerCase() : '';
+  if (typ === 'progress' && msg.progress && typeof msg.progress === 'object' && onProgress) {
+    onProgress(msg.progress as CodernetSearchProgress);
+  } else if (typ === 'complete') {
+    state.results = Array.isArray(msg.results) ? msg.results : [];
+  } else if (typ === 'error') {
+    throw new APIError(500, typeof msg.message === 'string' ? msg.message : '搜索失败');
+  }
+}
+
+/**
+ * 解析整段响应：NDJSON 行 + 最后一行可能无换行；若无 `complete` 行则尝试整包 JSON `{ results }`。
+ */
+function parseCodernetSearchResponseBody(
+  rawText: string,
+  onProgress?: (p: CodernetSearchProgress) => void,
+): { results: unknown[] } {
+  const text = stripUtf8Bom(rawText);
+  const state = { results: null as unknown[] | null };
+
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue;
+    handleCodernetSearchNdjsonLine(trimmed, onProgress, state);
+  }
+
+  if (state.results !== null) {
+    return { results: state.results };
+  }
+
+  try {
+    const msg = JSON.parse(text) as { results?: unknown };
+    if (msg && typeof msg === 'object' && Array.isArray(msg.results)) {
+      return { results: msg.results };
+    }
+  } catch {
+    /* fall through */
+  }
+
+  throw new APIError(0, '搜索响应格式异常');
+}
+
 async function consumeCodernetSearchNdjsonStream(
   response: Response,
   onProgress?: (p: CodernetSearchProgress) => void,
 ): Promise<{ results: unknown[] }> {
-  const reader = response.body?.getReader();
-  if (!reader) {
+  const body = response.body;
+  if (!body) {
     throw new APIError(0, '无法读取搜索响应流');
   }
+
+  let secondary: ReadableStream<Uint8Array> | null = null;
+  let reader: ReadableStreamDefaultReader<Uint8Array>;
+  try {
+    const tee = body.tee();
+    reader = tee[0].getReader();
+    secondary = tee[1];
+  } catch {
+    reader = body.getReader();
+  }
+
   const decoder = new TextDecoder();
   let buffer = '';
-  let results: unknown[] | null = null;
-
-  const handleLine = (line: string) => {
-    const trimmed = line.trim();
-    if (!trimmed) return;
-    let msg: Record<string, unknown>;
-    try {
-      msg = JSON.parse(trimmed) as Record<string, unknown>;
-    } catch {
-      return;
-    }
-    if (msg.type === 'progress' && msg.progress && typeof msg.progress === 'object' && onProgress) {
-      onProgress(msg.progress as CodernetSearchProgress);
-    } else if (msg.type === 'complete' && Array.isArray(msg.results)) {
-      results = msg.results;
-    } else if (msg.type === 'error') {
-      throw new APIError(500, typeof msg.message === 'string' ? msg.message : '搜索失败');
-    }
-  };
+  const state = { results: null as unknown[] | null };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -106,19 +157,27 @@ async function consumeCodernetSearchNdjsonStream(
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
     for (const raw of lines) {
-      handleLine(raw);
+      const trimmed = raw.trim();
+      if (!trimmed) continue;
+      handleCodernetSearchNdjsonLine(trimmed, onProgress, state);
     }
     if (done) break;
   }
 
   if (buffer.trim()) {
-    handleLine(buffer);
+    handleCodernetSearchNdjsonLine(buffer.trim(), onProgress, state);
   }
 
-  if (!results) {
-    throw new APIError(0, '搜索响应格式异常');
+  if (state.results !== null) {
+    return { results: state.results };
   }
-  return { results };
+
+  if (secondary) {
+    const full = await new Response(secondary).text();
+    return parseCodernetSearchResponseBody(full, undefined);
+  }
+
+  throw new APIError(0, '搜索响应格式异常');
 }
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
@@ -371,11 +430,12 @@ export const api = {
         throw new APIError(response.status, msg);
       }
 
-      const ct = response.headers.get('content-type') || '';
+      const ct = (response.headers.get('content-type') || '').toLowerCase();
       if (ct.includes('ndjson')) {
         return consumeCodernetSearchNdjsonStream(response, onProgress);
       }
-      return response.json() as Promise<{ results?: unknown[] }>;
+      const text = await response.text();
+      return parseCodernetSearchResponseBody(text, onProgress);
     },
   },
   recruitment: {

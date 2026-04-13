@@ -779,7 +779,8 @@ export function codernetRoutes(): IRouter {
           const results = await searchDevelopers(combinedQuery, lookupCache, token, (progress) =>
             writeLine({ type: 'progress', progress }),
           );
-          writeLine({ type: 'complete', results });
+          const safeResults = Array.isArray(results) ? results : [];
+          writeLine({ type: 'complete', results: safeResults });
         } catch (searchErr) {
           console.error('[GITLINK] search pipeline error:', searchErr);
           writeLine({
