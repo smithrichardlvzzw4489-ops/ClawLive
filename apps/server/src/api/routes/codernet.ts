@@ -787,11 +787,15 @@ export function codernetRoutes(): IRouter {
 
         const token = getServerGitHubToken();
         try {
-          const results = await searchDevelopers(combinedQuery, lookupCache, token, (progress) =>
+          const pack = await searchDevelopers(combinedQuery, lookupCache, token, (progress) =>
             writeLine({ type: 'progress', progress }),
           );
-          const safeResults = Array.isArray(results) ? results : [];
-          writeLine({ type: 'complete', results: safeResults });
+          writeLine({
+            type: 'complete',
+            results: pack.results,
+            buckets: pack.buckets,
+            meta: pack.meta,
+          });
         } catch (searchErr) {
           console.error('[GITLINK] search pipeline error:', searchErr);
           writeLine({

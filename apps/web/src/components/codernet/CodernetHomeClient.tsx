@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState, FormEvent } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { api, APIError, type CodernetSearchProgress } from '@/lib/api';
+import {
+  api,
+  APIError,
+  type CodernetLinkSearchBuckets,
+  type CodernetSearchProgress,
+} from '@/lib/api';
 
 const LINK_PHASE_STEPS = ['parsing', 'searching', 'enriching', 'ranking'] as const;
 
@@ -28,7 +33,33 @@ interface SemanticSearchHit {
   stats: { totalPublicRepos: number; totalStars: number; followers: number };
   bio: string | null;
   location: string | null;
+  hasJobSeekingIntent?: boolean;
+  hasContact?: boolean;
+  linkBucket?: string;
 }
+
+const LINK_BUCKET_SECTIONS: { key: keyof CodernetLinkSearchBuckets; title: string; hint: string }[] = [
+  {
+    key: 'jobSeekingAndContact',
+    title: '① 有求职意向且有联系方式',
+    hint: '公开文案中含求职表述，且资料中有邮箱 / 主页 / X 等可触达线索',
+  },
+  {
+    key: 'jobSeekingOnly',
+    title: '② 仅有求职意向',
+    hint: '有求职相关表述，但未发现明显公开联系方式',
+  },
+  {
+    key: 'contactOnly',
+    title: '③ 仅有联系方式',
+    hint: '有邮箱或主页等，但未检测到典型求职表述',
+  },
+  {
+    key: 'neither',
+    title: '④ 无求职意向且无联系方式',
+    hint: '其余候选人（仍可按匹配度排序）',
+  },
+];
 
 type TabId = 'lookup' | 'outreach' | 'math';
 
@@ -66,6 +97,8 @@ export function CodernetHomeClient() {
   const [linkLoading, setLinkLoading] = useState(false);
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [linkResults, setLinkResults] = useState<SemanticSearchHit[] | null>(null);
+  const [linkBuckets, setLinkBuckets] = useState<CodernetLinkSearchBuckets | null>(null);
+  const [linkMeta, setLinkMeta] = useState<{ mergedGithubCount?: number; enrichedCount?: number } | null>(null);
   const [linkProgress, setLinkProgress] = useState<CodernetSearchProgress | null>(null);
 
   const handleLookup = async (e: FormEvent) => {
@@ -120,15 +153,17 @@ export function CodernetHomeClient() {
     setLinkProgress(null);
     setLinkLoading(true);
     setLinkResults(null);
+    setLinkBuckets(null);
+    setLinkMeta(null);
     try {
-      const data = (await api.codernet.searchDevelopers(
+      const data = await api.codernet.searchDevelopers(
         q,
         linkFiles.length ? linkFiles : undefined,
         (p) => setLinkProgress(p),
-      )) as {
-        results?: SemanticSearchHit[];
-      };
-      setLinkResults(data.results ?? []);
+      );
+      setLinkResults((data.results ?? []) as SemanticSearchHit[]);
+      setLinkBuckets(data.buckets ?? null);
+      setLinkMeta(data.meta ?? null);
     } catch (err) {
       if (err instanceof APIError) {
         setLinkErr(err.message || '搜索失败');
@@ -443,48 +478,128 @@ export function CodernetHomeClient() {
               )}
 
               {linkResults && linkResults.length > 0 && (
-                <div className="space-y-3 mb-8">
-                  <p className="text-xs text-slate-500 font-mono text-center mb-2">
-                    共 {linkResults.length} 人 · 按匹配度排序 · 点击卡片查看画像
+                <div className="space-y-8 mb-8">
+                  <p className="text-xs text-slate-500 font-mono text-center mb-1">
+                    共 {linkResults.length} 人
+                    {linkMeta?.mergedGithubCount != null && linkMeta?.enrichedCount != null
+                      ? ` · GitHub 合并 ${linkMeta.mergedGithubCount} → 全量分析 ${linkMeta.enrichedCount}`
+                      : ''}
+                    · 点击卡片查看画像
                   </p>
-                  {linkResults.map((hit) => (
-                    <Link
-                      key={hit.githubUsername}
-                      href={withReturnTo(`/codernet/github/${encodeURIComponent(hit.githubUsername)}`, here)}
-                      className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 sm:p-4 transition hover:border-violet-500/20 hover:bg-white/[0.04]"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={hit.avatarUrl}
-                        alt=""
-                        className="h-14 w-14 shrink-0 rounded-lg border border-white/10"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline gap-2">
-                          <span className="font-mono font-semibold text-white">@{hit.githubUsername}</span>
-                          <span className="text-[10px] text-violet-400 font-mono">
-                            匹配 {(hit.score * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                        {hit.oneLiner ? (
-                          <p className="text-xs text-violet-200/90 mt-1 line-clamp-2">{hit.oneLiner}</p>
-                        ) : null}
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{hit.reason}</p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {hit.techTags.slice(0, 6).map((t) => (
-                            <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400">
-                              {t}
+                  {linkBuckets
+                    ? LINK_BUCKET_SECTIONS.map(({ key, title, hint }) => {
+                        const list = (linkBuckets[key] ?? []) as SemanticSearchHit[];
+                        if (!list.length) return null;
+                        return (
+                          <div key={key} className="space-y-2">
+                            <div className="text-left border-b border-white/[0.08] pb-2">
+                              <h3 className="text-sm font-semibold text-white">{title}</h3>
+                              <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">{hint}</p>
+                              <p className="text-[10px] font-mono text-violet-400/80 mt-1">{list.length} 人</p>
+                            </div>
+                            <div className="space-y-3">
+                              {list.map((hit) => (
+                                <Link
+                                  key={`${key}-${hit.githubUsername}`}
+                                  href={withReturnTo(
+                                    `/codernet/github/${encodeURIComponent(hit.githubUsername)}`,
+                                    here,
+                                  )}
+                                  className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 sm:p-4 transition hover:border-violet-500/20 hover:bg-white/[0.04]"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={hit.avatarUrl}
+                                    alt=""
+                                    className="h-14 w-14 shrink-0 rounded-lg border border-white/10"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-baseline gap-2">
+                                      <span className="font-mono font-semibold text-white">@{hit.githubUsername}</span>
+                                      <span className="text-[10px] text-violet-400 font-mono">
+                                        匹配 {(hit.score * 100).toFixed(0)}%
+                                      </span>
+                                      {hit.hasJobSeekingIntent ? (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
+                                          求职
+                                        </span>
+                                      ) : null}
+                                      {hit.hasContact ? (
+                                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/25">
+                                          联系方式
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    {hit.oneLiner ? (
+                                      <p className="text-xs text-violet-200/90 mt-1 line-clamp-2">{hit.oneLiner}</p>
+                                    ) : null}
+                                    <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{hit.reason}</p>
+                                    <div className="flex flex-wrap gap-2 mt-2">
+                                      {hit.techTags.slice(0, 6).map((t) => (
+                                        <span
+                                          key={t}
+                                          className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400"
+                                        >
+                                          {t}
+                                        </span>
+                                      ))}
+                                    </div>
+                                    <p className="text-[10px] text-slate-600 mt-2 font-mono">
+                                      {hit.stats.followers.toLocaleString()} followers · {hit.stats.totalPublicRepos}{' '}
+                                      repos
+                                      {hit.location ? ` · ${hit.location}` : ''}
+                                    </p>
+                                  </div>
+                                  <span className="self-center text-violet-400 text-sm shrink-0">→</span>
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })
+                    : null}
+                  {!linkBuckets &&
+                    linkResults.map((hit) => (
+                      <Link
+                        key={hit.githubUsername}
+                        href={withReturnTo(`/codernet/github/${encodeURIComponent(hit.githubUsername)}`, here)}
+                        className="flex gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 sm:p-4 transition hover:border-violet-500/20 hover:bg-white/[0.04]"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={hit.avatarUrl}
+                          alt=""
+                          className="h-14 w-14 shrink-0 rounded-lg border border-white/10"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-baseline gap-2">
+                            <span className="font-mono font-semibold text-white">@{hit.githubUsername}</span>
+                            <span className="text-[10px] text-violet-400 font-mono">
+                              匹配 {(hit.score * 100).toFixed(0)}%
                             </span>
-                          ))}
+                          </div>
+                          {hit.oneLiner ? (
+                            <p className="text-xs text-violet-200/90 mt-1 line-clamp-2">{hit.oneLiner}</p>
+                          ) : null}
+                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{hit.reason}</p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {hit.techTags.slice(0, 6).map((t) => (
+                              <span
+                                key={t}
+                                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-400"
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-slate-600 mt-2 font-mono">
+                            {hit.stats.followers.toLocaleString()} followers · {hit.stats.totalPublicRepos} repos
+                            {hit.location ? ` · ${hit.location}` : ''}
+                          </p>
                         </div>
-                        <p className="text-[10px] text-slate-600 mt-2 font-mono">
-                          {hit.stats.followers.toLocaleString()} followers · {hit.stats.totalPublicRepos} repos
-                          {hit.location ? ` · ${hit.location}` : ''}
-                        </p>
-                      </div>
-                      <span className="self-center text-violet-400 text-sm shrink-0">→</span>
-                    </Link>
-                  ))}
+                        <span className="self-center text-violet-400 text-sm shrink-0">→</span>
+                      </Link>
+                    ))}
                 </div>
               )}
             </div>

@@ -431,7 +431,8 @@ export function recruitmentRoutes(): Router {
         .join("\n\n");
 
       const token = getServerGitHubToken();
-      const raw = await searchDevelopers(combinedQuery, new Map() as never, token);
+      const pack = await searchDevelopers(combinedQuery, new Map() as never, token);
+      const raw = pack.results;
       const limit = Math.min(20, Math.max(5, parseInt(String(req.body?.limit || "12"), 10) || 12));
       const results = raw.slice(0, limit).map((r) => ({
         githubUsername: r.githubUsername,

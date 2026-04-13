@@ -70,6 +70,20 @@ export type CodernetSearchProgress = {
   totalFound?: number;
 };
 
+export type CodernetLinkSearchBucketKey =
+  | 'jobSeekingAndContact'
+  | 'jobSeekingOnly'
+  | 'contactOnly'
+  | 'neither';
+
+export type CodernetLinkSearchBuckets = Record<CodernetLinkSearchBucketKey, unknown[]>;
+
+export type CodernetLinkSearchResponse = {
+  results: unknown[];
+  buckets?: CodernetLinkSearchBuckets;
+  meta?: { mergedGithubCount?: number; enrichedCount?: number };
+};
+
 function stripUtf8Bom(text: string): string {
   return text.replace(/^\uFEFF/, '');
 }
@@ -77,7 +91,11 @@ function stripUtf8Bom(text: string): string {
 function handleCodernetSearchNdjsonLine(
   trimmed: string,
   onProgress: ((p: CodernetSearchProgress) => void) | undefined,
-  state: { results: unknown[] | null },
+  state: {
+    results: unknown[] | null;
+    buckets: CodernetLinkSearchBuckets | null;
+    meta: CodernetLinkSearchResponse['meta'] | null;
+  },
 ): void {
   let msg: Record<string, unknown>;
   try {
@@ -90,6 +108,30 @@ function handleCodernetSearchNdjsonLine(
     onProgress(msg.progress as CodernetSearchProgress);
   } else if (typ === 'complete') {
     state.results = Array.isArray(msg.results) ? msg.results : [];
+    const b = msg.buckets;
+    if (b && typeof b === 'object') {
+      state.buckets = {
+        jobSeekingAndContact: Array.isArray((b as Record<string, unknown>).jobSeekingAndContact)
+          ? ((b as Record<string, unknown>).jobSeekingAndContact as unknown[])
+          : [],
+        jobSeekingOnly: Array.isArray((b as Record<string, unknown>).jobSeekingOnly)
+          ? ((b as Record<string, unknown>).jobSeekingOnly as unknown[])
+          : [],
+        contactOnly: Array.isArray((b as Record<string, unknown>).contactOnly)
+          ? ((b as Record<string, unknown>).contactOnly as unknown[])
+          : [],
+        neither: Array.isArray((b as Record<string, unknown>).neither)
+          ? ((b as Record<string, unknown>).neither as unknown[])
+          : [],
+      };
+    } else {
+      state.buckets = null;
+    }
+    const m = msg.meta;
+    state.meta =
+      m && typeof m === 'object'
+        ? (m as { mergedGithubCount?: number; enrichedCount?: number })
+        : null;
   } else if (typ === 'error') {
     throw new APIError(500, typeof msg.message === 'string' ? msg.message : '搜索失败');
   }
@@ -101,9 +143,13 @@ function handleCodernetSearchNdjsonLine(
 function parseCodernetSearchResponseBody(
   rawText: string,
   onProgress?: (p: CodernetSearchProgress) => void,
-): { results: unknown[] } {
+): CodernetLinkSearchResponse {
   const text = stripUtf8Bom(rawText);
-  const state = { results: null as unknown[] | null };
+  const state: {
+    results: unknown[] | null;
+    buckets: CodernetLinkSearchBuckets | null;
+    meta: CodernetLinkSearchResponse['meta'] | null;
+  } = { results: null, buckets: null, meta: null };
 
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
@@ -113,13 +159,38 @@ function parseCodernetSearchResponseBody(
   }
 
   if (state.results !== null) {
-    return { results: state.results };
+    return {
+      results: state.results,
+      buckets: state.buckets ?? undefined,
+      meta: state.meta ?? undefined,
+    };
   }
 
   try {
-    const msg = JSON.parse(text) as { results?: unknown };
+    const msg = JSON.parse(text) as Record<string, unknown>;
     if (msg && typeof msg === 'object' && Array.isArray(msg.results)) {
-      return { results: msg.results };
+      const out: CodernetLinkSearchResponse = { results: msg.results };
+      const b = msg.buckets;
+      if (b && typeof b === 'object') {
+        out.buckets = {
+          jobSeekingAndContact: Array.isArray((b as Record<string, unknown>).jobSeekingAndContact)
+            ? ((b as Record<string, unknown>).jobSeekingAndContact as unknown[])
+            : [],
+          jobSeekingOnly: Array.isArray((b as Record<string, unknown>).jobSeekingOnly)
+            ? ((b as Record<string, unknown>).jobSeekingOnly as unknown[])
+            : [],
+          contactOnly: Array.isArray((b as Record<string, unknown>).contactOnly)
+            ? ((b as Record<string, unknown>).contactOnly as unknown[])
+            : [],
+          neither: Array.isArray((b as Record<string, unknown>).neither)
+            ? ((b as Record<string, unknown>).neither as unknown[])
+            : [],
+        };
+      }
+      if (msg.meta && typeof msg.meta === 'object') {
+        out.meta = msg.meta as { mergedGithubCount?: number; enrichedCount?: number };
+      }
+      return out;
     }
   } catch {
     /* fall through */
@@ -131,7 +202,7 @@ function parseCodernetSearchResponseBody(
 async function consumeCodernetSearchNdjsonStream(
   response: Response,
   onProgress?: (p: CodernetSearchProgress) => void,
-): Promise<{ results: unknown[] }> {
+): Promise<CodernetLinkSearchResponse> {
   const body = response.body;
   if (!body) {
     throw new APIError(0, '无法读取搜索响应流');
@@ -149,7 +220,11 @@ async function consumeCodernetSearchNdjsonStream(
 
   const decoder = new TextDecoder();
   let buffer = '';
-  const state = { results: null as unknown[] | null };
+  const state: {
+    results: unknown[] | null;
+    buckets: CodernetLinkSearchBuckets | null;
+    meta: CodernetLinkSearchResponse['meta'] | null;
+  } = { results: null, buckets: null, meta: null };
 
   while (true) {
     const { done, value } = await reader.read();
@@ -169,7 +244,11 @@ async function consumeCodernetSearchNdjsonStream(
   }
 
   if (state.results !== null) {
-    return { results: state.results };
+    return {
+      results: state.results,
+      buckets: state.buckets ?? undefined,
+      meta: state.meta ?? undefined,
+    };
   }
 
   if (secondary) {

@@ -62,7 +62,8 @@ function findFirstMatchSnippet(text: string, maxLen = 160): string | null {
   return null;
 }
 
-function textLooksJobSeeking(text: string): boolean {
+/** 供 LINK 搜索等在无完整 crawl 时仅用 bio 等短文本做保守判断 */
+export function textLooksJobSeeking(text: string): boolean {
   if (!text || text.length < 8) return false;
   return JOB_SEEKING_PATTERNS.some((re) => re.test(text));
 }
