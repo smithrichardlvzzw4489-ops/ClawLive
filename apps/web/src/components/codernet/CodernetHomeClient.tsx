@@ -166,15 +166,15 @@ export function CodernetHomeClient() {
             <span className="text-xs font-mono text-violet-400 tracking-wider">GITLINK</span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
-            AI-Powered<br />
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-4 leading-snug text-balance">
+            <span className="text-white">30 秒 × 1.8 亿开发者画像 = </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
-              Developer Profile
+              招聘无忧
             </span>
           </h1>
 
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">
-            输入 GitHub 用户名或邮箱，查看任意开发者的 AI 画像
+          <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8">
+            360° 技术画像，让AI帮助高效决策
           </p>
 
           {/* Tab Switcher：GitHub 画像 · LINK · MATH */}
