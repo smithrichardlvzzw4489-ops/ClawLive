@@ -45,12 +45,14 @@ function isGramJsTransientTransportRejection(reason: unknown): boolean {
   const fromGram =
     stack.includes('MTProtoSender') ||
     stack.includes('telegram/network') ||
+    stack.includes('telegram/client/') ||
     stack.includes('node_modules/telegram/') ||
     (stack.includes('.pnpm') && stack.includes('telegram@'));
   if (!fromGram) return false;
   if (msg === 'Not connected') return true;
   if (msg.includes('Connection closed while receiving')) return true;
-  if (msg.includes('TIMEOUT') && stack.includes('MTProtoSender')) return true;
+  // updates.js 里抛出的 TIMEOUT 栈通常不含 MTProtoSender，但仍属 GramJS 瞬态
+  if (msg === 'TIMEOUT' || msg.includes('TIMEOUT')) return true;
   return false;
 }
 
