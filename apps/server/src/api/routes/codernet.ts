@@ -5,7 +5,12 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { decrypt } from '../../lib/crypto';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
-import { crawlGitHubProfile, getServerGitHubToken, type GitHubCrawlResult } from '../../services/github-crawler';
+import {
+  crawlGitHubProfile,
+  getServerGitHubToken,
+  githubLoginExists,
+  type GitHubCrawlResult,
+} from '../../services/github-crawler';
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
 import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
 import { searchDevelopers } from '../../services/codernet-search';
@@ -240,8 +245,14 @@ export async function handleCodernetGithubLookupGet(req: Request, res: Response)
       res.json({ status: 'pending', progress });
       return;
     }
-    logLookup('not_found');
-    res.status(404).json({ status: 'not_found' });
+    const exists = await githubLoginExists(ghUser, getServerGitHubToken());
+    if (exists === 'no') {
+      logLookup('github_not_found');
+      res.status(404).json({ status: 'github_not_found' });
+      return;
+    }
+    logLookup('no_cache');
+    res.json({ status: 'no_cache' });
   } catch (error) {
     console.error('[GITLINK] github lookup get error:', error);
     res.status(500).json({ error: 'Internal error' });

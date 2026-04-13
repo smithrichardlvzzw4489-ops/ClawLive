@@ -198,7 +198,8 @@ interface MultiPlatformData {
 }
 
 interface LookupResult {
-  status: 'ready' | 'pending' | 'not_found';
+  /** no_cache = 服务端尚无画像（≠ GitHub 无此人）；github_not_found = GitHub API 确认无此 login */
+  status: 'ready' | 'pending' | 'no_cache' | 'github_not_found' | 'not_found';
   progress?: CrawlProgress | null;
   crawl?: {
     username: string;
@@ -719,7 +720,11 @@ export default function GitHubLookupCardPage() {
 
   const fetchStatus = useCallback(async (): Promise<LookupResult | null> => {
     const res = await fetch(`${base}/api/codernet/github/${encodeURIComponent(ghUsername)}`);
-    return res.json() as Promise<LookupResult>;
+    const data = (await res.json().catch(() => null)) as LookupResult | null;
+    if (!data) return null;
+    if (data.status === 'github_not_found') return data;
+    if (!res.ok && data.status !== 'no_cache' && data.status !== 'not_found') return null;
+    return data;
   }, [base, ghUsername]);
 
   const triggerCrawl = useCallback(async () => {
@@ -749,7 +754,7 @@ export default function GitHubLookupCardPage() {
     if (!ghUsername) return;
     fetchStatus()
       .then((data) => {
-        if (data?.status === 'not_found') {
+        if (data?.status === 'no_cache' || data?.status === 'not_found') {
           triggerCrawl();
         } else {
           setResult(data);
@@ -760,8 +765,8 @@ export default function GitHubLookupCardPage() {
   }, [ghUsername, fetchStatus, triggerCrawl]);
 
   useEffect(() => {
-    if (!result || result.status === 'ready') return;
-    if (result.status === 'not_found' && !triggered) return;
+    if (!result || result.status === 'ready' || result.status === 'github_not_found') return;
+    if ((result.status === 'no_cache' || result.status === 'not_found') && !triggered) return;
 
     const interval = result.progress?.stage === 'error' ? 10_000 : 3_000;
     pollRef.current = setTimeout(async () => {
@@ -792,7 +797,11 @@ export default function GitHubLookupCardPage() {
     );
   }
 
-  if (!result || result.status === 'pending' || (result.status === 'not_found' && triggered)) {
+  if (
+    !result ||
+    result.status === 'pending' ||
+    ((result.status === 'no_cache' || result.status === 'not_found') && triggered)
+  ) {
     const hasError = result?.progress?.stage === 'error';
     return (
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4 relative">
@@ -818,7 +827,7 @@ export default function GitHubLookupCardPage() {
     );
   }
 
-  if (result.status === 'not_found') {
+  if (result.status === 'github_not_found') {
     return (
       <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4 relative">
         <button
@@ -829,12 +838,43 @@ export default function GitHubLookupCardPage() {
           <span className="text-lg leading-none" aria-hidden>←</span>
           返回上一级
         </button>
-        <div className="text-center">
-          <h1 className="text-xl text-white/80 font-bold mb-2">User not found</h1>
+        <div className="text-center max-w-md">
+          <h1 className="text-xl text-white/80 font-bold mb-2">GitHub 上无此用户</h1>
           <p className="text-slate-400 text-sm mb-4">
-            @{ghUsername} doesn&apos;t seem to exist on GitHub.
+            @{ghUsername} 在 GitHub 上不存在或已改名。请核对登录名（大小写不敏感）后重试。
           </p>
-          <Link href="/codernet" className="text-violet-400 text-sm hover:underline">Try another username</Link>
+          <Link href="/codernet" className="text-violet-400 text-sm hover:underline">返回首页</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if ((result.status === 'no_cache' || result.status === 'not_found') && !triggered) {
+    return (
+      <div className="min-h-screen bg-[#06080f] flex items-center justify-center p-4 relative">
+        <button
+          type="button"
+          onClick={goBack}
+          className="absolute top-4 left-4 z-20 inline-flex cursor-pointer items-center gap-1.5 text-sm text-slate-400 hover:text-violet-300 transition sm:top-6 sm:left-6"
+        >
+          <span className="text-lg leading-none" aria-hidden>←</span>
+          返回上一级
+        </button>
+        <div className="text-center max-w-md">
+          <h1 className="text-xl text-white/80 font-bold mb-2">画像尚未就绪</h1>
+          <p className="text-slate-400 text-sm mb-6">
+            服务端还没有 @{ghUsername} 的画像缓存（不代表 Ta 在 GitHub 上不存在）。登录后可消耗额度生成画像；若已在其他窗口生成中，也可稍后再打开本页。
+          </p>
+          <button
+            type="button"
+            onClick={() => void triggerCrawl()}
+            className="px-5 py-2.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium transition"
+          >
+            生成画像
+          </button>
+          <p className="mt-4">
+            <Link href="/codernet" className="text-violet-400 text-sm hover:underline">返回首页</Link>
+          </p>
         </div>
       </div>
     );

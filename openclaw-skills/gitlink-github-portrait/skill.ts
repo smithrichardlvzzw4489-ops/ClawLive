@@ -103,6 +103,15 @@ export async function pollGitHubPortrait(options: GitHubPortraitPollOptions): Pr
         return { status: 'error', message: 'Invalid or missing Agent API key', httpStatus: 401, body };
       }
       if (getRes.status === 404) {
+        const raw = await getRes.text().catch(() => '');
+        try {
+          const b = JSON.parse(raw) as { status?: string };
+          if (b?.status === 'github_not_found') {
+            return { status: 'error', message: 'GitHub user not found', httpStatus: 404, body: b };
+          }
+        } catch {
+          /* legacy 404: keep polling */
+        }
         await new Promise((r) => setTimeout(r, pollIntervalMs));
         continue;
       }

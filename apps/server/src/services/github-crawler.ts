@@ -17,6 +17,21 @@ function ghHeaders(token?: string): Record<string, string> {
   return h;
 }
 
+/**
+ * 轻量探测 GitHub 上是否存在该 login（不拉全量画像）。
+ * 限流等错误时返回 unknown，由调用方决定是否仍尝试完整爬取。
+ */
+export async function githubLoginExists(login: string, token?: string): Promise<'yes' | 'no' | 'unknown'> {
+  const sanitized = login.trim().replace(/^@/, '').toLowerCase();
+  if (!sanitized) return 'no';
+  const res = await fetch(`${GH_API}/users/${encodeURIComponent(sanitized)}`, { headers: ghHeaders(token) });
+  if (res.status === 404) return 'no';
+  if (res.ok) return 'yes';
+  const text = await res.text().catch(() => '');
+  if (res.status === 403 && /rate limit/i.test(text)) return 'unknown';
+  return 'unknown';
+}
+
 /** 服务端调用 GitHub REST API 时使用的 PAT（勿使用 OAuth client_secret 作为 Bearer）。 */
 export function getServerGitHubToken(): string | undefined {
   const a = process.env.GITHUB_SERVER_TOKEN?.trim();
