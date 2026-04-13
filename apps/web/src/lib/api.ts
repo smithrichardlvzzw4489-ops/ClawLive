@@ -196,7 +196,37 @@ function parseCodernetSearchResponseBody(
     /* fall through */
   }
 
-  throw new APIError(0, '搜索响应格式异常');
+  throwCodernetSearchResponseUnusable(text);
+}
+
+/** 无法得到带 `results` 的 `complete` 行或等价 JSON 时的兜底说明（区分空/HTML/JSON 错误体）。 */
+function throwCodernetSearchResponseUnusable(rawText: string): never {
+  const text = stripUtf8Bom(rawText);
+  const t = text.trim();
+  if (!t) {
+    throw new APIError(0, '搜索响应为空，可能是连接中断或网关超时，请重试。');
+  }
+  if (/<\s*!DOCTYPE|<\s*html[\s>]/i.test(t)) {
+    throw new APIError(0, '搜索返回了网页而非数据（常见于网关超时或反代错误），请重试。');
+  }
+  if (t.length < 8192 && /\b(502|503|504)\b/i.test(t) && !t.trimStart().startsWith('{')) {
+    throw new APIError(0, '上游返回了错误页文本（如 502/503/504），请稍后重试。');
+  }
+  try {
+    const msg = JSON.parse(text) as Record<string, unknown>;
+    if (msg && typeof msg === 'object') {
+      if (typeof msg.error === 'string' && msg.error.trim()) {
+        throw new APIError(500, msg.error);
+      }
+      const typ = typeof msg.type === 'string' ? msg.type.toLowerCase() : '';
+      if (typ === 'error' && typeof msg.message === 'string' && msg.message.trim()) {
+        throw new APIError(500, msg.message);
+      }
+    }
+  } catch (e) {
+    if (e instanceof APIError) throw e;
+  }
+  throw new APIError(0, '搜索响应不完整或未识别。请重试；若持续出现多为网络或服务负载导致。');
 }
 
 async function consumeCodernetSearchNdjsonStream(
@@ -227,7 +257,14 @@ async function consumeCodernetSearchNdjsonStream(
   } = { results: null, buckets: null, meta: null };
 
   while (true) {
-    const { done, value } = await reader.read();
+    let chunk: ReadableStreamReadResult<Uint8Array>;
+    try {
+      chunk = await reader.read();
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      throw new APIError(0, `读取搜索流失败，连接可能已断开：${raw}`);
+    }
+    const { done, value } = chunk;
     buffer += decoder.decode(value ?? new Uint8Array(0), { stream: !done });
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
@@ -252,11 +289,17 @@ async function consumeCodernetSearchNdjsonStream(
   }
 
   if (secondary) {
-    const full = await new Response(secondary).text();
+    let full: string;
+    try {
+      full = await new Response(secondary).text();
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
+      throw new APIError(0, `合并搜索响应失败：${raw}`);
+    }
     return parseCodernetSearchResponseBody(full, undefined);
   }
 
-  throw new APIError(0, '搜索响应格式异常');
+  throw new APIError(0, '搜索流未正常结束（未收到完成行）。请重试。');
 }
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
