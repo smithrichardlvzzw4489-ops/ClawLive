@@ -1,7 +1,7 @@
 /**
  * Codernet 全网开发者搜索：
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
- * 2. GitHub Search API 实时搜人（/search/users；分片合并；并对项目名补充 in:readme/in:name 与仓库/组织 public_members 发现，避免组织仓库主维护者被 type:user 主查询漏掉）
+ * 2. GitHub Search API 实时搜人（/search/users；分片合并；并对项目名补充 in:readme/in:name、top 仓库 contributors、组织 public_members 发现，避免组织主仓维护者被 type:user 主查询漏掉）
  * 3. 每条 /users/:login 公开摘要（bio / blog / 粉丝等），不做仓库级深度爬取与 AI 画像
  * 4. 核心：按求职文案 + 公开联系方式分为四类人输出（桶内按粉丝数排序）；返回分片合并去重后的全部候选人（四类桶含「仅求职」「均无」等）；GitHub 请求分轨节流并带退避；分路条数默认不截断（可选 LINK_SEARCH_MAX_QUERY_SHARDS）
  */
@@ -725,8 +725,17 @@ async function fetchGitHubSearchShardAllPages(
   return acc;
 }
 
+function isLikelyGithubBotLogin(login: string): boolean {
+  const k = login.toLowerCase();
+  if (k.endsWith('[bot]')) return true;
+  if (k.includes('dependabot')) return true;
+  if (k.includes('renovate')) return true;
+  if (k === 'web-flow' || k === 'ghost') return true;
+  return false;
+}
+
 /**
- * 仓库名命中 + 组织 public_members：补齐「主仓库在 org 下」的维护者（用户检索 type:user 天然搜不到 org 账号本体）。
+ * 仓库名命中 + top 仓库 contributors + 组织 public_members：补齐 org 主仓与深度贡献者。
  */
 async function fetchLinkSearchRepoDiscoveryBatch(
   tokens: string[],
@@ -745,14 +754,19 @@ async function fetchLinkSearchRepoDiscoveryBatch(
   const perPage = parsePositiveIntEnv('LINK_SEARCH_REPO_DISCOVERY_PER_PAGE', 20, 5, 100);
   const orgMemberCap = parsePositiveIntEnv('LINK_SEARCH_ORG_PUBLIC_MEMBERS_CAP', 40, 10, 100);
   const maxOrgs = parsePositiveIntEnv('LINK_SEARCH_REPO_DISCOVERY_MAX_ORGS', 3, 1, 10);
+  const maxContributorRepos = parsePositiveIntEnv('LINK_SEARCH_REPO_CONTRIBUTORS_MAX_REPOS', 5, 0, 20);
+  const contributorsPerPage = parsePositiveIntEnv('LINK_SEARCH_REPO_CONTRIBUTORS_PER_PAGE', 100, 10, 100);
 
   const stubs: GHSearchUserItem[] = [];
   const seenLogin = new Set<string>();
   const orgsOrdered: string[] = [];
   const seenOrg = new Set<string>();
+  const reposOrdered: string[] = [];
+  const seenRepo = new Set<string>();
 
   const addStub = (login: string | undefined) => {
     if (!login) return;
+    if (isLikelyGithubBotLogin(login)) return;
     const k = login.toLowerCase();
     if (seenLogin.has(k)) return;
     seenLogin.add(k);
@@ -779,9 +793,20 @@ async function fetchLinkSearchRepoDiscoveryBatch(
       const res = await githubApiGet(url, headers, 'search');
       if (!res.ok) continue;
       const data = (await res.json()) as {
-        items?: Array<{ owner?: { login?: string; type?: string } }>;
+        items?: Array<{
+          full_name?: string;
+          owner?: { login?: string; type?: string };
+        }>;
       };
       for (const item of data.items ?? []) {
+        const fn = (item.full_name ?? '').trim();
+        if (fn) {
+          const rnk = fn.toLowerCase();
+          if (!seenRepo.has(rnk)) {
+            seenRepo.add(rnk);
+            reposOrdered.push(fn);
+          }
+        }
         const owner = item.owner;
         if (!owner?.login) continue;
         const ot = String(owner.type || '').toLowerCase();
@@ -801,6 +826,38 @@ async function fetchLinkSearchRepoDiscoveryBatch(
         token: t,
         message: e instanceof Error ? e.message : String(e),
       });
+    }
+  }
+
+  if (maxContributorRepos > 0) {
+    for (const fullName of reposOrdered.slice(0, maxContributorRepos)) {
+      const parts = fullName.split('/');
+      const owner = parts[0]?.trim();
+      const repo = parts.slice(1).join('/').trim();
+      if (!owner || !repo) continue;
+      const cUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+        repo,
+      )}/contributors?per_page=${contributorsPerPage}&page=1`;
+      try {
+        const res = await githubApiGet(cUrl, headers, 'rest');
+        if (!res.ok) continue;
+        const contributors = (await res.json()) as Array<{ login?: string | null; type?: string }>;
+        for (const c of contributors) {
+          const login = c.login ?? undefined;
+          if (!login) continue;
+          if (String(c.type || '').toLowerCase() === 'bot') continue;
+          addStub(login);
+        }
+        pipeLog?.('github_repo_contributors_ok', {
+          fullName,
+          contributorRows: contributors.length,
+        });
+      } catch (e) {
+        pipeLog?.('github_repo_contributors_error', {
+          fullName,
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
     }
   }
 
