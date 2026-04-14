@@ -3,7 +3,7 @@
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
  * 2. GitHub Search API 实时搜人（/search/users；分片合并，缓解单次约 1000 条上限）
  * 3. 每条 /users/:login 公开摘要（bio / blog / 粉丝等），不做仓库级深度爬取与 AI 画像
- * 4. 核心：按求职文案 + 公开联系方式分为四类人输出（桶内按粉丝数排序）；仅返回含公开联系方式的用户；GitHub 请求分轨节流并带退避；分路条数默认不截断（可选 LINK_SEARCH_MAX_QUERY_SHARDS）
+ * 4. 核心：按求职文案 + 公开联系方式分为四类人输出（桶内按粉丝数排序）；返回分片合并去重后的全部候选人（四类桶含「仅求职」「均无」等）；GitHub 请求分轨节流并带退避；分路条数默认不截断（可选 LINK_SEARCH_MAX_QUERY_SHARDS）
  */
 
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';
@@ -53,7 +53,10 @@ export interface SearchDevelopersResponse {
   results: DeveloperSearchResult[];
   buckets: LinkSearchBuckets;
   meta: {
+    /** 分片合并去重后、进入分桶与返回的总人数 */
     mergedGithubCount: number;
+    /** 其中在公开资料中可判定为含邮箱 / 主页 / X 等线索的人数 */
+    withPublicContactCount: number;
     /** 参与分桶与返回的人数（当前均为公开元数据，无深度画像） */
     enrichedCount: number;
     /** 深度爬取 + AI 画像人数（当前流水线恒为 0） */
@@ -408,9 +411,12 @@ function hasPublicContactInfo(user: GHSearchUserItem, crawl?: GitHubCrawlResult)
   const email = (crawl?.email ?? (user as { email?: string | null }).email ?? '').trim();
   const blog = (crawl?.blog ?? user.blog ?? '').trim();
   const twitter = (crawl?.twitterUsername ?? (user as { twitter_username?: string | null }).twitter_username ?? '').trim();
+  const bio = (user.bio ?? '').trim();
   if (email && email.includes('@')) return true;
   if (blog && looksLikePublicContactBlogOrSocial(blog)) return true;
   if (twitter.length > 0) return true;
+  // bio 内常见「主页 / 即刻 / 领英」等 URL，GitHub 未写入 blog 字段时仍可判为可触达线索
+  if (bio && /https?:\/\/[^\s<>"')]+/i.test(bio)) return true;
   return false;
 }
 
@@ -789,33 +795,38 @@ export async function searchDevelopers(
     mergedGithubCount: ghUsersRaw.length,
   });
 
-  const ghUsers = ghUsersRaw.filter((u) => hasPublicContactInfo(u));
-  pipeLog('github_contact_filter', {
+  const withPublicContactCount = ghUsersRaw.reduce((n, u) => n + (hasPublicContactInfo(u) ? 1 : 0), 0);
+  pipeLog('github_contact_stats', {
     mergedBeforeContactFilter: ghUsersRaw.length,
-    mergedWithPublicContact: ghUsers.length,
+    mergedWithPublicContact: withPublicContactCount,
   });
 
-  if (ghUsers.length === 0) {
-    const detail =
-      ghUsersRaw.length === 0
-        ? '未在 GitHub 上找到符合条件的用户'
-        : `GitHub 合并 ${ghUsersRaw.length} 人，其中无人在公开资料中带邮箱/主页等可联系信息（已按产品要求不返回无联系方式用户）`;
+  if (ghUsersRaw.length === 0) {
+    const detail = '未在 GitHub 上找到符合条件的用户';
     onProgress?.({ phase: 'done', detail, totalFound: 0 });
     const buckets = emptyBuckets();
     pipeLog('pipeline_ok_empty_github', {
       totalElapsedMs: Date.now() - tPipe0,
-      mergedBeforeContactFilter: ghUsersRaw.length,
+      mergedBeforeContactFilter: 0,
     });
     return {
       results: [],
       buckets,
-      meta: { mergedGithubCount: 0, enrichedCount: 0, deepEnrichCount: 0, metadataOnlyCount: 0 },
+      meta: {
+        mergedGithubCount: 0,
+        withPublicContactCount: 0,
+        enrichedCount: 0,
+        deepEnrichCount: 0,
+        metadataOnlyCount: 0,
+      },
     };
   }
 
+  const ghUsers = ghUsersRaw;
+
   onProgress?.({
     phase: 'ranking',
-    detail: `合并 ${ghUsersRaw.length} 人 → 含公开联系方式 ${ghUsers.length} 人，按 bio 分为四类…`,
+    detail: `合并 ${ghUsersRaw.length} 人（其中约 ${withPublicContactCount} 人含公开可触达线索），按 bio 分为四类…`,
     totalFound: ghUsers.length,
   });
 
@@ -845,6 +856,9 @@ export async function searchDevelopers(
     const u = ghUsers[globalIdx]!;
     const meta = jobAndContactMeta[globalIdx]!;
     const followers = u.followers ?? 0;
+    const reason = meta.hasContact
+      ? 'GitHub 公开检索命中（资料中含邮箱/主页/bio 内链接等可触达线索；按四类分桶；未做深度画像与精排）'
+      : 'GitHub 公开检索命中（未发现明显公开联系方式；按四类分桶；未做深度画像与精排）';
     return {
       githubUsername: u.login,
       avatarUrl: u.avatar_url,
@@ -852,7 +866,7 @@ export async function searchDevelopers(
       techTags: [],
       sharpCommentary: '',
       score: fallbackScoreFromFollowers(followers),
-      reason: 'GitHub 公开检索命中（已筛选含邮箱/主页等联系方式；按四类分桶；未做深度画像与精排）',
+      reason,
       source: 'github_search' as const,
       stats: {
         totalPublicRepos: u.public_repos ?? 0,
@@ -879,7 +893,8 @@ export async function searchDevelopers(
 
   pipeLog('bucket_only_ok', {
     bucketElapsedMs: Date.now() - tBucket,
-    mergedGithubCount: ghUsers.length,
+    mergedGithubCount: ghUsersRaw.length,
+    withPublicContactCount,
     bucket1: buckets.jobSeekingAndContact.length,
     bucket2: buckets.jobSeekingOnly.length,
     bucket3: buckets.contactOnly.length,
@@ -888,14 +903,15 @@ export async function searchDevelopers(
 
   onProgress?.({
     phase: 'done',
-    detail: `完成：GitHub 合并 ${ghUsersRaw.length} 人 → 含联系方式 ${ghUsers.length} 人；按四类依次输出 ①求职+联系方式 ${buckets.jobSeekingAndContact.length} ②仅求职 ${buckets.jobSeekingOnly.length} ③仅联系方式 ${buckets.contactOnly.length} ④其他 ${buckets.neither.length}（桶内按粉丝数；无联系方式者已剔除）`,
+    detail: `完成：GitHub 合并 ${ghUsersRaw.length} 人（含公开可触达线索约 ${withPublicContactCount} 人）；按四类依次输出 ①求职+联系方式 ${buckets.jobSeekingAndContact.length} ②仅求职 ${buckets.jobSeekingOnly.length} ③仅联系方式 ${buckets.contactOnly.length} ④其他 ${buckets.neither.length}（桶内按粉丝数）`,
     totalFound: ghUsers.length,
   });
 
   pipeLog('pipeline_ok', {
     totalElapsedMs: Date.now() - tPipe0,
     resultCount: results.length,
-    mergedGithubCount: ghUsers.length,
+    mergedGithubCount: ghUsersRaw.length,
+    withPublicContactCount,
     enrichedCount: ghUsers.length,
   });
 
@@ -903,7 +919,8 @@ export async function searchDevelopers(
     results,
     buckets,
     meta: {
-      mergedGithubCount: ghUsers.length,
+      mergedGithubCount: ghUsersRaw.length,
+      withPublicContactCount,
       enrichedCount: ghUsers.length,
       deepEnrichCount: 0,
       metadataOnlyCount: ghUsers.length,

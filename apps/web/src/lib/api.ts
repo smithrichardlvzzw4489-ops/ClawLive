@@ -128,6 +128,7 @@ export type CodernetLinkSearchResponse = {
   buckets?: CodernetLinkSearchBuckets;
   meta?: {
     mergedGithubCount?: number;
+    withPublicContactCount?: number;
     enrichedCount?: number;
     deepEnrichCount?: number;
     metadataOnlyCount?: number;
@@ -273,6 +274,7 @@ function handleCodernetSearchNdjsonLine(
       m && typeof m === 'object'
         ? (m as {
             mergedGithubCount?: number;
+            withPublicContactCount?: number;
             enrichedCount?: number;
             deepEnrichCount?: number;
             metadataOnlyCount?: number;
@@ -354,6 +356,7 @@ function parseCodernetSearchResponseBody(
       if (msg.meta && typeof msg.meta === 'object') {
         out.meta = msg.meta as {
           mergedGithubCount?: number;
+          withPublicContactCount?: number;
           enrichedCount?: number;
           deepEnrichCount?: number;
           metadataOnlyCount?: number;

@@ -100,6 +100,7 @@ export function CodernetHomeClient() {
   const [linkBuckets, setLinkBuckets] = useState<CodernetLinkSearchBuckets | null>(null);
   const [linkMeta, setLinkMeta] = useState<{
     mergedGithubCount?: number;
+    withPublicContactCount?: number;
     enrichedCount?: number;
     deepEnrichCount?: number;
     metadataOnlyCount?: number;
@@ -490,7 +491,11 @@ export function CodernetHomeClient() {
                       ? (linkMeta.deepEnrichCount ?? 0) > 0 && (linkMeta.metadataOnlyCount ?? 0) > 0
                         ? ` · GitHub 合并 ${linkMeta.mergedGithubCount} → 深度 ${linkMeta.deepEnrichCount} · 仅摘要 ${linkMeta.metadataOnlyCount}`
                         : (linkMeta.deepEnrichCount ?? 0) === 0
-                          ? ` · GitHub 合并 ${linkMeta.mergedGithubCount} · 按四类公开分桶（无深度画像/精排）`
+                          ? ` · GitHub 合并 ${linkMeta.mergedGithubCount}${
+                              linkMeta.withPublicContactCount != null
+                                ? ` · 含可触达线索 ${linkMeta.withPublicContactCount}`
+                                : ''
+                            } · 按四类公开分桶（无深度画像/精排）`
                           : ` · GitHub 合并 ${linkMeta.mergedGithubCount} → 全量分析 ${linkMeta.enrichedCount}`
                       : ''}
                     · 点击卡片查看画像

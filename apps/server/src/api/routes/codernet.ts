@@ -1003,6 +1003,7 @@ export function codernetRoutes(): IRouter {
             searchElapsedMs: Date.now() - tSearch,
             resultCount: pack.results.length,
             mergedGithubCount: pack.meta.mergedGithubCount,
+            withPublicContactCount: pack.meta.withPublicContactCount,
             enrichedCount: pack.meta.enrichedCount,
             deepEnrichCount: pack.meta.deepEnrichCount,
             metadataOnlyCount: pack.meta.metadataOnlyCount,
