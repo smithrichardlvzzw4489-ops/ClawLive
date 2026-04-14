@@ -91,14 +91,14 @@ export interface ParsedQuery {
   order?: 'desc' | 'asc';
   explanation: string;
   /**
-   * 可选：多条完整 GitHub `q`（每条均须合法），用互斥的 followers:/repos: 等区间绕过单次搜索 1000 条上限。
-   * 若与主查询合计 ≥2 条则优先采用；否则服务端按粉丝区间自动分桶。
+   * 可选：多条完整 GitHub `q`（每条均须合法）。服务端**始终**再叠一层固定规则的自动分片；
+   * LLM 分片与主查询合并去重后截取前 `GITHUB_SEARCH_AUTO_QUERY_CAP` 条，保证覆盖面大且顺序稳定。
    */
   shardQueries?: string[];
 }
 
-/** 自动分片生成的 q 条数上限（避免 Search API 请求过多）。 */
-export const GITHUB_SEARCH_AUTO_QUERY_CAP = 12;
+/** 自动分片生成的 q 条数上限（Search API 调用条数；提高可扩大合并池，注意速率限制）。 */
+export const GITHUB_SEARCH_AUTO_QUERY_CAP = 18;
 
 /** 主查询里是否已包含 followers 相关限定。 */
 export function githubUserQueryHasFollowersQualifier(q: string): boolean {
@@ -243,21 +243,11 @@ function uniqGithubQueries(arr: string[]): string[] {
 }
 
 /**
- * 展开为多条实际搜索用 `githubQuery`（去重、限条数）。
- * - LLM 返回去重后 ≥2 条（主 + shardQueries）时：优先采用，最多 6 条。
- * - 否则：大国/大区 location → 多城市；再叠 followers/repos 分桶（总条数 capped）。
+ * 仅由主查询 `githubQuery` 按固定规则展开（大国拆市 + followers/repos 分桶）；不含 LLM shard，顺序稳定。
  */
-export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
-  const primary = parsed.githubQuery.trim();
-  const raw = parsed.shardQueries;
-  const llmShards = Array.isArray(raw)
-    ? raw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim()).slice(0, 5)
-    : [];
-
-  const combined = uniqGithubQueries([primary, ...llmShards]);
-  if (combined.length >= 2) {
-    return combined.slice(0, 6);
-  }
+export function expandGithubQueriesAutoFromPrimary(primaryGithubQuery: string): string[] {
+  const primary = primaryGithubQuery.trim();
+  if (!primary) return [];
 
   const locVariants = expandBroadLocationVariants(primary);
 
@@ -281,11 +271,26 @@ export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
         flat.push(pv);
       }
     }
-    return uniqGithubQueries(flat).slice(0, GITHUB_SEARCH_AUTO_QUERY_CAP);
+    return uniqGithubQueries(flat);
   }
 
   const pv = locVariants[0] ?? primary;
-  return uniqGithubQueries(expandDimensionBucketsForQuery(pv)).slice(0, GITHUB_SEARCH_AUTO_QUERY_CAP);
+  return uniqGithubQueries(expandDimensionBucketsForQuery(pv));
+}
+
+/**
+ * 展开为多条实际搜索用 `q`：先取**自动分片**（稳定、覆盖面大），再并入主查询与 LLM `shardQueries`，去重后截断。
+ * 不再因「LLM 给了 shard」而跳过自动分桶，避免同一句自然语言两次检索人数差一个数量级。
+ */
+export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
+  const primary = parsed.githubQuery.trim();
+  const raw = parsed.shardQueries;
+  const llmShards = Array.isArray(raw)
+    ? raw.filter((s): s is string => typeof s === 'string' && s.trim().length > 0).map((s) => s.trim()).slice(0, 5)
+    : [];
+
+  const autoExpanded = expandGithubQueriesAutoFromPrimary(primary);
+  return uniqGithubQueries([...autoExpanded, primary, ...llmShards]).slice(0, GITHUB_SEARCH_AUTO_QUERY_CAP);
 }
 
 export async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
@@ -321,12 +326,12 @@ GitHub Search Users 支持的 qualifier：
 - 如果用户提到了地区，用 location: qualifier
 - 如果用户强调经验丰富/资深，加 followers:>100 或 repos:>30
 - 关键词尽量用英文（GitHub 数据以英文为主）
-- **shardQueries（可选）**：GitHub Search Users 单次最多返回约 1000 条。若主查询较宽、可能命中大量用户，请额外输出 1–4 条**完整**的 alternate githubQuery，与主查询用**互斥的** followers:N..M 或 repos:N..M 分档，便于系统合并去重后覆盖更广。每条须含 type:user 且与主查询意图一致。若已在 githubQuery 中写了 followers: 限定，可省略 shardQueries。
-- 服务端还会对**无 LLM 分片**时的查询自动做 **followers/repos 分桶**；对 **location:china、USA、India** 等国家/大区词自动拆成多城市分片。若你已在 githubQuery 中精确到城市，无需再写 shardQueries。
+- **shardQueries（可选）**：服务端会**固定**对主查询做 followers/repos 分桶与国家/大区拆市；你可额外提供 1–4 条与主意图一致的 alternate 搜索串（互斥 followers/repos 档更佳），会与自动分片**合并去重**后选用，用于补洞或强调某一分档。若已在 githubQuery 中写了完整分档，可省略 shardQueries。
+- 对 **location:china、USA、India** 等国家/大区词可写大区或精确到城市；服务端仍会按规则展开。
 - 不要在 githubQuery 与 shardQueries 里重复完全相同的字符串。`;
 
   const response = await trackedChatCompletion(
-    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 520, temperature: 0.2 },
+    { model, messages: [{ role: 'user', content: prompt }], max_tokens: 520, temperature: 0 },
     'developer_search',
   );
 
