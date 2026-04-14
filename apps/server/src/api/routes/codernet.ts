@@ -14,7 +14,7 @@ import {
 } from '../../services/github-crawler';
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
 import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
-import { searchDevelopers } from '../../services/codernet-search';
+import { searchDevelopers, type SearchProgress } from '../../services/codernet-search';
 import { concatExtractedFiles } from '../../services/attachment-text-ingest';
 import { resolveGithubUsernameFromEmail } from '../../services/github-email-resolve';
 import {
@@ -792,6 +792,15 @@ export function codernetRoutes(): IRouter {
         res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
         res.setHeader('Cache-Control', 'no-cache, no-transform');
         res.setHeader('X-Accel-Buffering', 'no');
+        res.setHeader('X-Gitlink-Link-Search-Stream', 'ndjson-v1');
+        const deployCommit =
+          process.env.RAILWAY_GIT_COMMIT_SHA ||
+          process.env.VERCEL_GIT_COMMIT_SHA ||
+          process.env.GITHUB_SHA ||
+          '';
+        if (deployCommit) {
+          res.setHeader('X-Gitlink-Deploy-Commit', deployCommit.replace(/\s+/g, '').slice(0, 40));
+        }
 
         const t0 = Date.now();
         let ndjsonLines = 0;
@@ -819,12 +828,29 @@ export function codernetRoutes(): IRouter {
           );
         };
 
-        logLinkSearch('stream_start');
+        const xffRaw = (req.get('x-forwarded-for') || '').trim();
+        const xff = xffRaw ? xffRaw.split(',')[0]!.trim().slice(0, 96) : '';
+        const xRealIp = (req.get('x-real-ip') || '').trim().slice(0, 96) || undefined;
+        const ua = (req.get('user-agent') || '').trim().slice(0, 200) || undefined;
+        logLinkSearch('stream_start', {
+          clientIpHint: xff || xRealIp || undefined,
+          ua,
+        });
 
         req.on('close', () => {
           if (!res.writableEnded) {
             logLinkSearch('req_close_before_res_end', { clientDisconnected: true });
           }
+        });
+
+        res.on('close', () => {
+          logLinkSearch('res_close', {
+            writableEnded: res.writableEnded,
+            destroyed: res.destroyed,
+            hadCompleteLine: lastStreamType === 'complete',
+            ndjsonBytes,
+            ndjsonLines,
+          });
         });
 
         res.on('finish', () => {
@@ -837,6 +863,9 @@ export function codernetRoutes(): IRouter {
 
         res.on('error', (err: unknown) => {
           console.error('[GITLINK] linkSearch res_error', requestId, err);
+          logLinkSearch('res_error_event', {
+            message: err instanceof Error ? err.message : String(err),
+          });
         });
 
         const writeLine = (obj: unknown) => {
@@ -869,11 +898,26 @@ export function codernetRoutes(): IRouter {
         }
         logLinkSearch('first_chunk_sent');
 
+        let lastPipelinePhase: string | null = null;
+        const emitSearchProgress = (progress: SearchProgress) => {
+          if (progress.phase !== lastPipelinePhase) {
+            lastPipelinePhase = progress.phase;
+            logLinkSearch('pipeline_phase', { pipelinePhase: progress.phase });
+          }
+          writeLine({ type: 'progress', progress });
+        };
+
         const token = getServerGitHubToken();
+        const tSearch = Date.now();
+        logLinkSearch('search_developers_enter');
         try {
-          const pack = await searchDevelopers(combinedQuery, lookupCache, token, (progress) =>
-            writeLine({ type: 'progress', progress }),
-          );
+          const pack = await searchDevelopers(combinedQuery, lookupCache, token, emitSearchProgress);
+          logLinkSearch('search_developers_ok', {
+            searchElapsedMs: Date.now() - tSearch,
+            resultCount: pack.results.length,
+            mergedGithubCount: pack.meta.mergedGithubCount,
+            enrichedCount: pack.meta.enrichedCount,
+          });
           writeLine({
             type: 'complete',
             results: pack.results,
@@ -881,6 +925,10 @@ export function codernetRoutes(): IRouter {
             meta: pack.meta,
           });
         } catch (searchErr) {
+          logLinkSearch('search_developers_throw', {
+            searchElapsedMs: Date.now() - tSearch,
+            message: searchErr instanceof Error ? searchErr.message : String(searchErr),
+          });
           console.error('[GITLINK] search pipeline error', { requestId, userId: callerId }, searchErr);
           writeLine({
             type: 'error',

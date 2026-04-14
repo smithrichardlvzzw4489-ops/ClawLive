@@ -112,7 +112,14 @@ const io = new Server(httpServer, {
 });
 
 app.use(helmet());
-app.use(cors({ origin: corsOriginFn, credentials: true }));
+app.use(
+  cors({
+    origin: corsOriginFn,
+    credentials: true,
+    /** 便于浏览器跨域读取 LINK 搜索 `X-Request-Id` 等与日志对齐（否则 fetch 只能看到「简单响应头」）。 */
+    exposedHeaders: ['X-Request-Id', 'X-Gitlink-Deploy-Commit', 'X-Gitlink-Link-Search-Stream'],
+  }),
+);
 app.use(express.json({
   limit: '100mb',
   verify: (req, _res, buf) => {

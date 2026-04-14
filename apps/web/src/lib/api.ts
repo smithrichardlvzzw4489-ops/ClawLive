@@ -55,10 +55,33 @@ function getNetworkErrorMsg(): string {
   return '无法连接服务器。若前端在 Vercel、后端在 Railway，请在 Vercel 环境变量中设置 BACKEND_URL 或 NEXT_PUBLIC_API_URL（Railway 公网 https 根地址，无尾斜杠），保存后重新部署；并确认 Railway 服务在线。';
 }
 
+/** LINK 搜索流在浏览器侧的可量化诊断（与 `[GITLINK] linkSearch` 服务端日志对照）。 */
+export type CodernetLinkSearchClientDiag = {
+  httpStatus?: number;
+  contentType?: string | null;
+  /** 与响应头 `X-Gitlink-Deploy-Commit` 一致时，可确认浏览器命中的后端构建 */
+  deployCommit?: string | null;
+  chunkReads?: number;
+  /** 各二进制分片 byteLength 之和（与 UTF-8 字符数接近，便于与后端 ndjsonBytes 对照） */
+  rawChunkBytes?: number;
+  elapsedMs?: number;
+  firstChunkElapsedMs?: number | null;
+  parsePath?: 'ndjson_stream' | 'fulltext_fallback';
+  sawCompleteNdjsonLine?: boolean;
+  /** 截断后的响应前缀，仅用于控制台 JSON，避免刷屏 */
+  bodyPrefix?: string;
+};
+
 export class APIError extends Error {
-  constructor(public status: number, message: string) {
+  /** 与 `withCodernetSearchTrace` 中展示的一致，便于 UI 单独展示 */
+  codernetSearchTraceId?: string;
+  linkSearchClientDiag?: CodernetLinkSearchClientDiag;
+
+  constructor(public status: number, message: string, opts?: { codernetSearchTraceId?: string; linkSearchClientDiag?: CodernetLinkSearchClientDiag }) {
     super(message);
     this.name = 'APIError';
+    if (opts?.codernetSearchTraceId) this.codernetSearchTraceId = opts.codernetSearchTraceId;
+    if (opts?.linkSearchClientDiag) this.linkSearchClientDiag = opts.linkSearchClientDiag;
   }
 }
 
@@ -93,6 +116,54 @@ function withCodernetSearchTrace(message: string, traceId: string | null | undef
   const id = typeof traceId === 'string' ? traceId.trim() : '';
   if (!id) return message;
   return `${message}\n（请求追踪 ID: ${id}；可与服务端日志 [GITLINK] linkSearch 对照）`;
+}
+
+function formatCodernetLinkSearchDiagCn(d: CodernetLinkSearchClientDiag): string {
+  const parts: string[] = [];
+  if (d.httpStatus != null) parts.push(`HTTP ${d.httpStatus}`);
+  if (d.contentType) parts.push(`Content-Type: ${d.contentType}`);
+  if (d.deployCommit) parts.push(`部署提交 ${d.deployCommit}`);
+  if (d.chunkReads != null) parts.push(`read 次数 ${d.chunkReads}`);
+  if (d.rawChunkBytes != null) parts.push(`原始分片字节约 ${d.rawChunkBytes}`);
+  if (d.elapsedMs != null) parts.push(`耗时约 ${d.elapsedMs}ms`);
+  if (d.firstChunkElapsedMs != null) parts.push(`首包约 ${d.firstChunkElapsedMs}ms`);
+  if (d.parsePath) parts.push(`解析路径 ${d.parsePath}`);
+  if (d.sawCompleteNdjsonLine != null) parts.push(`已解析到 complete 行: ${d.sawCompleteNdjsonLine}`);
+  return parts.join('；');
+}
+
+function logCodernetLinkSearchClientFailure(
+  tag: string,
+  traceId: string | null | undefined,
+  diag: CodernetLinkSearchClientDiag,
+  rawText?: string,
+): void {
+  try {
+    const t = typeof rawText === 'string' ? stripUtf8Bom(rawText).trim() : '';
+    const bodyPrefix = t.slice(0, 400);
+    console.warn(
+      '[GITLINK] linkSearch client',
+      tag,
+      JSON.stringify({
+        traceId: typeof traceId === 'string' ? traceId.trim() : '',
+        ...diag,
+        bodyPrefix: bodyPrefix || undefined,
+      }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+function attachCodernetSearchOpts(
+  traceId: string | null | undefined,
+  diag?: CodernetLinkSearchClientDiag,
+): { codernetSearchTraceId?: string; linkSearchClientDiag?: CodernetLinkSearchClientDiag } {
+  const id = typeof traceId === 'string' ? traceId.trim() : '';
+  return {
+    ...(id ? { codernetSearchTraceId: id } : {}),
+    ...(diag ? { linkSearchClientDiag: diag } : {}),
+  };
 }
 
 function handleCodernetSearchNdjsonLine(
@@ -144,6 +215,7 @@ function handleCodernetSearchNdjsonLine(
     throw new APIError(
       500,
       withCodernetSearchTrace(typeof msg.message === 'string' ? msg.message : '搜索失败', traceId),
+      attachCodernetSearchOpts(traceId),
     );
   }
 }
@@ -155,6 +227,7 @@ function parseCodernetSearchResponseBody(
   rawText: string,
   onProgress?: (p: CodernetSearchProgress) => void,
   traceId?: string | null,
+  streamDiag?: CodernetLinkSearchClientDiag,
 ): CodernetLinkSearchResponse {
   const text = stripUtf8Bom(rawText);
   const state: {
@@ -208,31 +281,45 @@ function parseCodernetSearchResponseBody(
     /* fall through */
   }
 
-  throwCodernetSearchResponseUnusable(text, traceId);
+  throwCodernetSearchResponseUnusable(text, traceId, { ...streamDiag, parsePath: streamDiag?.parsePath ?? 'fulltext_fallback' });
 }
 
 /** 无法得到带 `results` 的 `complete` 行或等价 JSON 时的兜底说明（区分空/HTML/JSON 错误体）。 */
-function throwCodernetSearchResponseUnusable(rawText: string, traceId?: string | null): never {
+function throwCodernetSearchResponseUnusable(
+  rawText: string,
+  traceId?: string | null,
+  streamDiag?: CodernetLinkSearchClientDiag,
+): never {
+  const merged: CodernetLinkSearchClientDiag = { ...(streamDiag || {}) };
   const text = stripUtf8Bom(rawText);
   const t = text.trim();
+  const throwWith = (status: number, userMsg: string): never => {
+    const extra = Object.keys(merged).length ? `\n（${formatCodernetLinkSearchDiagCn(merged)}）` : '';
+    logCodernetLinkSearchClientFailure('response_unusable', traceId, merged, rawText);
+    throw new APIError(
+      status,
+      withCodernetSearchTrace(userMsg + extra, traceId),
+      attachCodernetSearchOpts(traceId, merged),
+    );
+  };
   if (!t) {
-    throw new APIError(0, withCodernetSearchTrace('搜索响应为空，可能是连接中断或网关超时，请重试。', traceId));
+    return throwWith(0, '搜索响应为空，可能是连接中断或网关超时，请重试。');
   }
   if (/<\s*!DOCTYPE|<\s*html[\s>]/i.test(t)) {
-    throw new APIError(0, withCodernetSearchTrace('搜索返回了网页而非数据（常见于网关超时或反代错误），请重试。', traceId));
+    return throwWith(0, '搜索返回了网页而非数据（常见于网关超时或反代错误），请重试。');
   }
   if (t.length < 8192 && /\b(502|503|504)\b/i.test(t) && !t.trimStart().startsWith('{')) {
-    throw new APIError(0, withCodernetSearchTrace('上游返回了错误页文本（如 502/503/504），请稍后重试。', traceId));
+    return throwWith(0, '上游返回了错误页文本（如 502/503/504），请稍后重试。');
   }
   try {
     const msg = JSON.parse(text) as Record<string, unknown>;
     if (msg && typeof msg === 'object') {
       if (typeof msg.error === 'string' && msg.error.trim()) {
-        throw new APIError(500, withCodernetSearchTrace(msg.error, traceId));
+        return throwWith(500, msg.error);
       }
       const typ = typeof msg.type === 'string' ? msg.type.toLowerCase() : '';
       if (typ === 'error' && typeof msg.message === 'string' && msg.message.trim()) {
-        throw new APIError(500, withCodernetSearchTrace(msg.message, traceId));
+        return throwWith(500, msg.message);
       }
     }
   } catch (e) {
@@ -252,19 +339,13 @@ function throwCodernetSearchResponseUnusable(rawText: string, traceId?: string |
     }
   }
   if (sawProgress && !sawComplete) {
-    throw new APIError(
+    return throwWith(
       0,
-      withCodernetSearchTrace(
-        '搜索流中途结束：已收到进度但未收到最终结果，常见于网关或代理中断长连接。请稍后重试；若反复出现请对照服务端 [GITLINK] linkSearch 日志中的 requestId 检查反代缓冲与超时。',
-        traceId,
-      ),
+      '搜索流中途结束：已收到进度但未收到最终结果，常见于网关或代理中断长连接。请稍后重试；若反复出现请对照服务端 [GITLINK] linkSearch 日志中的 requestId 检查反代缓冲与超时。',
     );
   }
 
-  throw new APIError(
-    0,
-    withCodernetSearchTrace('搜索响应不完整或未识别。请重试；若持续出现多为网络或服务负载导致。', traceId),
-  );
+  return throwWith(0, '搜索响应不完整或未识别。请重试；若持续出现多为网络或服务负载导致。');
 }
 
 /**
@@ -278,9 +359,35 @@ async function consumeCodernetSearchNdjsonStream(
   onProgress?: (p: CodernetSearchProgress) => void,
   traceId?: string | null,
 ): Promise<CodernetLinkSearchResponse> {
+  const t0 = Date.now();
+  const httpStatus = response.status;
+  const contentType = response.headers.get('Content-Type') || response.headers.get('content-type');
+  const deployCommit =
+    response.headers.get('X-Gitlink-Deploy-Commit') || response.headers.get('x-gitlink-deploy-commit');
+  let chunkReads = 0;
+  let rawChunkBytes = 0;
+  let firstChunkElapsedMs: number | null = null;
+
+  const streamBaseDiag = (): CodernetLinkSearchClientDiag => ({
+    httpStatus,
+    contentType,
+    deployCommit: deployCommit?.trim() || undefined,
+    chunkReads,
+    rawChunkBytes,
+    elapsedMs: Date.now() - t0,
+    firstChunkElapsedMs,
+    parsePath: 'ndjson_stream',
+  });
+
   const body = response.body;
   if (!body) {
-    throw new APIError(0, withCodernetSearchTrace('无法读取搜索响应流', traceId));
+    const d = { ...streamBaseDiag(), parsePath: 'ndjson_stream' as const };
+    logCodernetLinkSearchClientFailure('no_body', traceId, d);
+    throw new APIError(
+      0,
+      withCodernetSearchTrace('无法读取搜索响应流', traceId),
+      attachCodernetSearchOpts(traceId, d),
+    );
   }
 
   const reader = body.getReader();
@@ -299,9 +406,24 @@ async function consumeCodernetSearchNdjsonStream(
       chunk = await reader.read();
     } catch (e) {
       const raw = e instanceof Error ? e.message : String(e);
-      throw new APIError(0, withCodernetSearchTrace(`读取搜索流失败，连接可能已断开：${raw}`, traceId));
+      const d = streamBaseDiag();
+      logCodernetLinkSearchClientFailure('stream_read_error', traceId, d, full);
+      throw new APIError(
+        0,
+        withCodernetSearchTrace(
+          `读取搜索流失败，连接可能已断开：${raw}\n（${formatCodernetLinkSearchDiagCn(d)}）`,
+          traceId,
+        ),
+        attachCodernetSearchOpts(traceId, d),
+      );
     }
     const { done, value } = chunk;
+    chunkReads += 1;
+    const blen = value?.byteLength ?? 0;
+    rawChunkBytes += blen;
+    if (firstChunkElapsedMs === null && blen > 0) {
+      firstChunkElapsedMs = Date.now() - t0;
+    }
     const piece = decoder.decode(value ?? new Uint8Array(0), { stream: !done });
     full += piece;
     buffer += piece;
@@ -328,7 +450,12 @@ async function consumeCodernetSearchNdjsonStream(
   }
 
   // 未识别到 complete 行：用全文兜底（例如网关剥掉 ndjson Content-Type、或截断前行仍拼成可解析包）
-  return parseCodernetSearchResponseBody(full, undefined, traceId);
+  const fallbackDiag: CodernetLinkSearchClientDiag = {
+    ...streamBaseDiag(),
+    parsePath: 'fulltext_fallback',
+    sawCompleteNdjsonLine: false,
+  };
+  return parseCodernetSearchResponseBody(full, undefined, traceId, fallbackDiag);
 }
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
