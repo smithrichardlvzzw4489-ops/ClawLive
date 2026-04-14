@@ -1,7 +1,7 @@
 /**
  * Codernet 全网开发者搜索：
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
- * 2. GitHub Search API 实时搜人（/search/users；分片合并，缓解单次约 1000 条上限）
+ * 2. GitHub Search API 实时搜人（/search/users；分片合并；并对项目名补充 in:readme/in:name 与仓库/组织 public_members 发现，避免组织仓库主维护者被 type:user 主查询漏掉）
  * 3. 每条 /users/:login 公开摘要（bio / blog / 粉丝等），不做仓库级深度爬取与 AI 画像
  * 4. 核心：按求职文案 + 公开联系方式分为四类人输出（桶内按粉丝数排序）；返回分片合并去重后的全部候选人（四类桶含「仅求职」「均无」等）；GitHub 请求分轨节流并带退避；分路条数默认不截断（可选 LINK_SEARCH_MAX_QUERY_SHARDS）
  */
@@ -254,6 +254,94 @@ function uniqGithubQueries(arr: string[]): string[] {
   return out;
 }
 
+/** 从检索文案抽英文/数字标识，用于 readme/仓库发现分片（排除常见 qualifier 与大厂噪声词）。 */
+const LINK_SEARCH_TOKEN_STOPWORDS = new Set(
+  [
+    'type',
+    'user',
+    'org',
+    'language',
+    'location',
+    'followers',
+    'repos',
+    'repositories',
+    'joined',
+    'created',
+    'in',
+    'name',
+    'readme',
+    'email',
+    'bio',
+    'from',
+    'true',
+    'false',
+    'desc',
+    'asc',
+    'stars',
+    'forks',
+    'size',
+    'microsoft',
+    'google',
+    'amazon',
+    'facebook',
+    'meta',
+    'apple',
+    'netflix',
+    'ibm',
+    'oracle',
+    'github',
+    'gitlab',
+    'senior',
+    'junior',
+    'staff',
+    'lead',
+    'engineer',
+    'developer',
+    'manager',
+    'software',
+    'fullstack',
+    'backend',
+    'frontend',
+    'mobile',
+    'remote',
+    'full',
+    'stack',
+    'data',
+    'machine',
+    'learning',
+    'years',
+    'experience',
+    'work',
+  ].map((s) => s.toLowerCase()),
+);
+
+function extractLinkSearchProductTokens(
+  discoveryHead: string,
+  githubQueryPrimary: string,
+  maxTokens: number,
+): string[] {
+  const text = `${discoveryHead} ${githubQueryPrimary}`.slice(0, 2000);
+  const re = /\b[a-z][a-z0-9_-]{3,}\b/gi;
+  const hits = new Map<string, string>();
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[0];
+    const lower = raw.toLowerCase();
+    if (LINK_SEARCH_TOKEN_STOPWORDS.has(lower)) continue;
+    if (/^\d+$/.test(lower)) continue;
+    const prev = hits.get(lower);
+    if (!prev || raw.length >= prev.length) hits.set(lower, raw);
+  }
+  return [...hits.values()].sort((a, b) => b.length - a.length).slice(0, Math.max(0, maxTokens));
+}
+
+function linkSearchRepoDiscoveryEnabled(): boolean {
+  const raw = process.env.LINK_SEARCH_REPO_DISCOVERY;
+  if (raw === undefined || String(raw).trim() === '') return true;
+  const x = String(raw).trim().toLowerCase();
+  return !(x === '0' || x === 'false' || x === 'off');
+}
+
 /**
  * 仅由主查询 `githubQuery` 按固定规则展开（大国拆市 + followers/repos 分桶）；不含 LLM shard，顺序稳定。
  */
@@ -278,9 +366,10 @@ export function expandGithubQueriesAutoFromPrimary(primaryGithubQuery: string): 
 
 /**
  * 展开为多条实际搜索用 `q`：先取**自动分片**（稳定、覆盖面大），再并入主查询与 LLM `shardQueries`，去重；
+ * 可选 `discoveryHead`：用户检索框首段（不含长 JD）用于补充 `in:readme` / `in:name` 等产品名检索分片。
  * 仅当设置 `LINK_SEARCH_MAX_QUERY_SHARDS` 时才截断条数。
  */
-export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
+export function expandGithubSearchQueries(parsed: ParsedQuery, discoveryHead?: string): string[] {
   const primary = parsed.githubQuery.trim();
   const raw = parsed.shardQueries;
   const llmShards = Array.isArray(raw)
@@ -288,7 +377,15 @@ export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
     : [];
 
   const autoExpanded = expandGithubQueriesAutoFromPrimary(primary);
-  const merged = uniqGithubQueries([...autoExpanded, primary, ...llmShards]);
+  const head = (discoveryHead ?? '').trim();
+  const readmeShards: string[] = [];
+  if (head) {
+    const maxTok = parsePositiveIntEnv('LINK_SEARCH_DISCOVERY_MAX_TOKENS', 2, 1, 4);
+    for (const t of extractLinkSearchProductTokens(head, primary, maxTok)) {
+      readmeShards.push(`${t} in:readme type:user`, `${t} in:name type:user`);
+    }
+  }
+  const merged = uniqGithubQueries([...autoExpanded, primary, ...llmShards, ...readmeShards]);
   const cap = getLinkSearchMaxQueryShards();
   return cap == null ? merged : merged.slice(0, cap);
 }
@@ -307,7 +404,7 @@ GitHub Search Users 支持的 qualifier：
 - followers:>N 或 followers:N..M（粉丝数）
 - repos:>N（仓库数）
 - type:user（排除组织）
-- 自由文本关键词（如 fullstack、machine-learning）
+- 自由文本关键词（如 fullstack、machine-learning）；**产品/开源项目英文名**（如 openclaw）请保留在 githubQuery 中，服务端会自动补充 readme/仓库与组织成员发现，不必强行改成 language: 等无关限定。
 
 输出**仅一个 JSON 对象**：
 {
@@ -628,20 +725,121 @@ async function fetchGitHubSearchShardAllPages(
   return acc;
 }
 
+/**
+ * 仓库名命中 + 组织 public_members：补齐「主仓库在 org 下」的维护者（用户检索 type:user 天然搜不到 org 账号本体）。
+ */
+async function fetchLinkSearchRepoDiscoveryBatch(
+  tokens: string[],
+  token: string | undefined,
+  pipeLog?: PipelineDiagLog,
+): Promise<GHSearchUserItem[]> {
+  if (!tokens.length || !linkSearchRepoDiscoveryEnabled()) return [];
+
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'ClawLab-Codernet/1.0',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const perPage = parsePositiveIntEnv('LINK_SEARCH_REPO_DISCOVERY_PER_PAGE', 20, 5, 100);
+  const orgMemberCap = parsePositiveIntEnv('LINK_SEARCH_ORG_PUBLIC_MEMBERS_CAP', 40, 10, 100);
+  const maxOrgs = parsePositiveIntEnv('LINK_SEARCH_REPO_DISCOVERY_MAX_ORGS', 3, 1, 10);
+
+  const stubs: GHSearchUserItem[] = [];
+  const seenLogin = new Set<string>();
+  const orgsOrdered: string[] = [];
+  const seenOrg = new Set<string>();
+
+  const addStub = (login: string | undefined) => {
+    if (!login) return;
+    const k = login.toLowerCase();
+    if (seenLogin.has(k)) return;
+    seenLogin.add(k);
+    stubs.push({
+      login,
+      id: 0,
+      avatar_url: '',
+      html_url: `https://github.com/${login}`,
+      type: 'User',
+      score: 0,
+    });
+  };
+
+  for (const t of tokens) {
+    const params = new URLSearchParams({
+      q: `${t} in:name`,
+      sort: 'stars',
+      order: 'desc',
+      per_page: String(perPage),
+      page: '1',
+    });
+    const url = `https://api.github.com/search/repositories?${params.toString()}`;
+    try {
+      const res = await githubApiGet(url, headers, 'search');
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        items?: Array<{ owner?: { login?: string; type?: string } }>;
+      };
+      for (const item of data.items ?? []) {
+        const owner = item.owner;
+        if (!owner?.login) continue;
+        const ot = String(owner.type || '').toLowerCase();
+        if (ot === 'organization') {
+          const ol = owner.login;
+          const olk = ol.toLowerCase();
+          if (!seenOrg.has(olk)) {
+            seenOrg.add(olk);
+            orgsOrdered.push(ol);
+          }
+        } else if (ot === 'user') {
+          addStub(owner.login);
+        }
+      }
+    } catch (e) {
+      pipeLog?.('github_repo_discovery_error', {
+        token: t,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  for (const org of orgsOrdered.slice(0, maxOrgs)) {
+    try {
+      const url = `https://api.github.com/orgs/${encodeURIComponent(org)}/public_members?per_page=${orgMemberCap}`;
+      const res = await githubApiGet(url, headers, 'rest');
+      if (!res.ok) continue;
+      const members = (await res.json()) as Array<{ login?: string }>;
+      for (const u of members) addStub(u.login);
+      pipeLog?.('github_org_public_members_ok', { org, count: members.length });
+    } catch (e) {
+      pipeLog?.('github_org_public_members_error', {
+        org,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  return stubs;
+}
+
 type PipelineDiagLog = (phase: string, extra?: Record<string, unknown>) => void;
 
 async function searchGitHubUsers(
   parsedQuery: ParsedQuery,
   token?: string,
   pipeLog?: PipelineDiagLog,
+  rawQueryHint?: string,
 ): Promise<GHSearchUserItem[]> {
+  const discoveryHead = (rawQueryHint ?? '').split(/\n{2,}/)[0]?.trim().slice(0, 800) ?? '';
   const mergedCap = getLinkSearchMaxMergedCap();
-  const queries = expandGithubSearchQueries(parsedQuery);
+  const queries = expandGithubSearchQueries(parsedQuery, discoveryHead);
   const batches: GHSearchUserItem[][] = [];
 
   pipeLog?.('github_search_shards', {
     shardTotal: queries.length,
     mergedCap: mergedCap ?? 'none',
+    discoveryHeadChars: discoveryHead.length,
   });
 
   for (let i = 0; i < queries.length; i++) {
@@ -669,6 +867,21 @@ async function searchGitHubUsers(
         message: e instanceof Error ? e.message : String(e),
       });
     }
+  }
+
+  const maxTok = parsePositiveIntEnv('LINK_SEARCH_DISCOVERY_MAX_TOKENS', 2, 1, 4);
+  const discoveryTokens = extractLinkSearchProductTokens(
+    discoveryHead,
+    parsedQuery.githubQuery.trim(),
+    maxTok,
+  );
+  const repoDisc = await fetchLinkSearchRepoDiscoveryBatch(discoveryTokens, token, pipeLog);
+  if (repoDisc.length) {
+    batches.push(repoDisc);
+    pipeLog?.('github_repo_discovery_ok', {
+      stubCount: repoDisc.length,
+      discoveryTokens,
+    });
   }
 
   const merged = mergeGitHubUserSearchItems(batches);
@@ -773,10 +986,12 @@ export async function searchDevelopers(
   });
   console.log(`[CodernetSearch] parsed: "${parsed.githubQuery}" (${parsed.explanation})`);
 
-  const shardQs = expandGithubSearchQueries(parsed);
+  const discoveryHead = query.split(/\n{2,}/)[0]?.trim().slice(0, 800) ?? '';
+  const shardQs = expandGithubSearchQueries(parsed, discoveryHead);
   pipeLog('github_queries_expanded', {
     expandedShardCount: shardQs.length,
     primaryGithubQueryPreview: parsed.githubQuery.slice(0, 120),
+    discoveryHeadChars: discoveryHead.length,
   });
   onProgress?.({
     phase: 'searching',
@@ -789,7 +1004,7 @@ export async function searchDevelopers(
 
   const tGh = Date.now();
   pipeLog('github_search_enter');
-  const ghUsersRaw = await searchGitHubUsers(parsed, token, pipeLog);
+  const ghUsersRaw = await searchGitHubUsers(parsed, token, pipeLog, query);
   pipeLog('github_search_ok', {
     githubSearchElapsedMs: Date.now() - tGh,
     mergedGithubCount: ghUsersRaw.length,

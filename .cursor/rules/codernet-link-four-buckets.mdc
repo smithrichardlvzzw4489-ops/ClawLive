@@ -11,3 +11,4 @@ alwaysApply: false
 - **稳定 + 最大范围**：LINK 的 GitHub 多路 `q` 应**始终合并**「LLM 主查询 + 服务端固定自动分片 + 可选 LLM shard」，解析阶段应用 **temperature 0**；不得再出现「有 LLM shard 就跳过自动分桶」导致同一句检索人数剧烈波动。
 - **联系方式与召回**：合并去重后的候选人**全部进入四类分桶并返回**；`meta.withPublicContactCount` 标明其中可判为含邮箱 / blog / bio 内 URL / X 等线索的人数，便于运营与 UI 区分「可优先触达」子集。
 - **限流**：GitHub Search 与 REST 应**分轨节流**（默认可用 `LINK_SEARCH_GITHUB_SEARCH_GAP_MS`、`LINK_SEARCH_GITHUB_REST_GAP_MS` 调节），遇 429 / 配额型 403 应退避重试，避免打爆配额。
+- **项目名 / 组织仓库**：对检索框首段抽出的产品词，服务端会补充 `in:readme` / `in:name` 用户分片，以及 `search/repositories` + 组织 `public_members`（主仓库在 org 下时）；可用 `LINK_SEARCH_REPO_DISCOVERY=0` 关闭仓库发现，`LINK_SEARCH_REPO_DISCOVERY_PER_PAGE` / `LINK_SEARCH_REPO_DISCOVERY_MAX_ORGS` / `LINK_SEARCH_ORG_PUBLIC_MEMBERS_CAP` 调节体量。
