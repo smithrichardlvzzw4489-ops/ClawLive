@@ -66,27 +66,41 @@ export interface SearchDevelopersResponse {
   };
 }
 
+/** 未配置 `LINK_SEARCH_MAX_MERGED_CANDIDATES` 时：合并后最多拉 `/users/:login` 的人数，避免单次检索十几分钟。 */
+const LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT = 400;
+
 /**
- * 默认返回 null：合并去重后的候选人**全部**进入四类分桶与 `/users/:login` 补全（无站内人数上限）。
- * 若显式设置 `LINK_SEARCH_MAX_MERGED_CANDIDATES` 为正整数，则仅截取前 N 人（供运营/限流应急）。
+ * 合并去重后参与 `/users/:login` 补全的人数上限。
+ * - 未配置环境变量：默认 `LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT`。
+ * - `LINK_SEARCH_MAX_MERGED_CANDIDATES=0`：不限制（慎用，易触发流超时）。
  */
 function getLinkSearchMaxMergedCap(): number | null {
   const raw = process.env.LINK_SEARCH_MAX_MERGED_CANDIDATES;
-  if (raw === undefined || String(raw).trim() === '') return null;
-  const n = parseInt(String(raw), 10);
-  if (!Number.isFinite(n) || n <= 0) return null;
+  if (raw === undefined || String(raw).trim() === '') {
+    return LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT;
+  }
+  const n = parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n)) return LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT;
+  if (n <= 0) return null;
   return Math.min(2_000_000, Math.max(1, n));
 }
 
+/** 未配置 `LINK_SEARCH_MAX_QUERY_SHARDS` 时：GitHub Search 分路条数上限，控制分页请求总量。 */
+const LINK_SEARCH_MAX_QUERY_SHARDS_DEFAULT = 18;
+
 /**
- * 限制 GitHub Search 分路条数；默认 null 不截断（跑全部分片）。
- * 设置 `LINK_SEARCH_MAX_QUERY_SHARDS` 为正整数时可应急缩短。
+ * 限制 `expandGithubSearchQueries` 展开后的分路条数。
+ * - 未配置环境变量：默认 `LINK_SEARCH_MAX_QUERY_SHARDS_DEFAULT`。
+ * - `LINK_SEARCH_MAX_QUERY_SHARDS=0`：不限制。
  */
 function getLinkSearchMaxQueryShards(): number | null {
   const raw = process.env.LINK_SEARCH_MAX_QUERY_SHARDS;
-  if (raw === undefined || String(raw).trim() === '') return null;
-  const n = parseInt(String(raw), 10);
-  if (!Number.isFinite(n) || n <= 0) return null;
+  if (raw === undefined || String(raw).trim() === '') {
+    return LINK_SEARCH_MAX_QUERY_SHARDS_DEFAULT;
+  }
+  const n = parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n)) return LINK_SEARCH_MAX_QUERY_SHARDS_DEFAULT;
+  if (n <= 0) return null;
   return Math.min(10_000, Math.max(1, n));
 }
 
@@ -367,7 +381,7 @@ export function expandGithubQueriesAutoFromPrimary(primaryGithubQuery: string): 
 /**
  * 展开为多条实际搜索用 `q`：先取**自动分片**（稳定、覆盖面大），再并入主查询与 LLM `shardQueries`，去重；
  * 可选 `discoveryHead`：用户检索框首段（不含长 JD）用于补充 `in:readme` / `in:name` 等产品名检索分片。
- * 仅当设置 `LINK_SEARCH_MAX_QUERY_SHARDS` 时才截断条数。
+ * 条数受 `LINK_SEARCH_MAX_QUERY_SHARDS` 约束；未配置时使用内置默认上限（见 `getLinkSearchMaxQueryShards`）。
  */
 export function expandGithubSearchQueries(parsed: ParsedQuery, discoveryHead?: string): string[] {
   const primary = parsed.githubQuery.trim();
@@ -896,6 +910,8 @@ async function searchGitHubUsers(
   pipeLog?.('github_search_shards', {
     shardTotal: queries.length,
     mergedCap: mergedCap ?? 'none',
+    mergedCapDefault: LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT,
+    shardCapDefault: LINK_SEARCH_MAX_QUERY_SHARDS_DEFAULT,
     discoveryHeadChars: discoveryHead.length,
   });
 
@@ -943,7 +959,15 @@ async function searchGitHubUsers(
 
   const merged = mergeGitHubUserSearchItems(batches);
   merged.sort((a, b) => (Number(b.followers) || 0) - (Number(a.followers) || 0));
+  const mergedBeforeCap = merged.length;
   const top = mergedCap == null ? merged : merged.slice(0, mergedCap);
+  if (mergedCap != null && mergedBeforeCap > top.length) {
+    pipeLog?.('github_merged_cap_applied', {
+      mergedBeforeCap,
+      mergedAfterCap: top.length,
+      mergedCap,
+    });
+  }
 
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
