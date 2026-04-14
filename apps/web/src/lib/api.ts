@@ -91,6 +91,7 @@ export type CodernetSearchProgress = {
   detail: string;
   githubQuery?: string;
   totalFound?: number;
+  keepalive?: boolean;
 };
 
 export type CodernetLinkSearchBucketKey =

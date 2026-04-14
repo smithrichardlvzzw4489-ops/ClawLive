@@ -898,18 +898,57 @@ export function codernetRoutes(): IRouter {
         }
         logLinkSearch('first_chunk_sent');
 
+        let lastEmittedPhase: SearchProgress['phase'] = 'parsing';
         let lastPipelinePhase: string | null = null;
         const emitSearchProgress = (progress: SearchProgress) => {
-          if (progress.phase !== lastPipelinePhase) {
-            lastPipelinePhase = progress.phase;
-            logLinkSearch('pipeline_phase', { pipelinePhase: progress.phase });
+          if (!progress.keepalive) {
+            lastEmittedPhase = progress.phase;
+            if (progress.phase !== lastPipelinePhase) {
+              lastPipelinePhase = progress.phase;
+              logLinkSearch('pipeline_phase', { pipelinePhase: progress.phase });
+            }
           }
           writeLine({ type: 'progress', progress });
         };
 
+        const hbRaw = parseInt(process.env.LINK_SEARCH_STREAM_HEARTBEAT_MS || '15000', 10);
+        const heartbeatMs = Number.isFinite(hbRaw) ? Math.min(120_000, Math.max(5000, hbRaw)) : 15_000;
+
+        let heartbeatHandle: ReturnType<typeof setInterval> | null = null;
+        const clearLinkSearchHeartbeat = () => {
+          if (heartbeatHandle != null) {
+            clearInterval(heartbeatHandle);
+            heartbeatHandle = null;
+          }
+        };
+        const pulseLinkSearchHeartbeat = () => {
+          if (res.writableEnded || res.destroyed) {
+            clearLinkSearchHeartbeat();
+            return;
+          }
+          try {
+            emitSearchProgress({
+              phase: lastEmittedPhase,
+              detail: `仍在处理…（已约 ${Math.round((Date.now() - t0) / 1000)}s；保活心跳，避免长时间无数据被网关断开）`,
+              keepalive: true,
+            });
+            try {
+              (res as { flush?: () => void }).flush?.();
+            } catch {
+              /* ignore */
+            }
+          } catch (hbErr) {
+            logLinkSearch('heartbeat_write_throw', {
+              message: hbErr instanceof Error ? hbErr.message : String(hbErr),
+            });
+            clearLinkSearchHeartbeat();
+          }
+        };
+
         const token = getServerGitHubToken();
         const tSearch = Date.now();
-        logLinkSearch('search_developers_enter');
+        logLinkSearch('search_developers_enter', { heartbeatMs });
+        heartbeatHandle = setInterval(pulseLinkSearchHeartbeat, heartbeatMs);
         try {
           const pack = await searchDevelopers(combinedQuery, lookupCache, token, emitSearchProgress);
           logLinkSearch('search_developers_ok', {
@@ -934,6 +973,8 @@ export function codernetRoutes(): IRouter {
             type: 'error',
             message: searchErr instanceof Error ? searchErr.message : 'Search failed',
           });
+        } finally {
+          clearLinkSearchHeartbeat();
         }
         logLinkSearch('before_res_end', {
           hadCompleteLine: lastStreamType === 'complete',

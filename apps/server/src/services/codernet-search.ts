@@ -715,6 +715,8 @@ export interface SearchProgress {
   detail: string;
   githubQuery?: string;
   totalFound?: number;
+  /** 路由层定时保活：长时间无真实进度时写出，避免反代/浏览器空闲断流 */
+  keepalive?: boolean;
 }
 
 const RERANK_POOL = 24;
