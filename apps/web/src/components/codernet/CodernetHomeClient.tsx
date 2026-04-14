@@ -98,7 +98,12 @@ export function CodernetHomeClient() {
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [linkResults, setLinkResults] = useState<SemanticSearchHit[] | null>(null);
   const [linkBuckets, setLinkBuckets] = useState<CodernetLinkSearchBuckets | null>(null);
-  const [linkMeta, setLinkMeta] = useState<{ mergedGithubCount?: number; enrichedCount?: number } | null>(null);
+  const [linkMeta, setLinkMeta] = useState<{
+    mergedGithubCount?: number;
+    enrichedCount?: number;
+    deepEnrichCount?: number;
+    metadataOnlyCount?: number;
+  } | null>(null);
   const [linkProgress, setLinkProgress] = useState<CodernetSearchProgress | null>(null);
 
   const handleLookup = async (e: FormEvent) => {
@@ -482,7 +487,11 @@ export function CodernetHomeClient() {
                   <p className="text-xs text-slate-500 font-mono text-center mb-1">
                     共 {linkResults.length} 人
                     {linkMeta?.mergedGithubCount != null && linkMeta?.enrichedCount != null
-                      ? ` · GitHub 合并 ${linkMeta.mergedGithubCount} → 全量分析 ${linkMeta.enrichedCount}`
+                      ? (linkMeta.metadataOnlyCount ?? 0) > 0 &&
+                        linkMeta.deepEnrichCount != null &&
+                        linkMeta.metadataOnlyCount != null
+                        ? ` · GitHub 合并 ${linkMeta.mergedGithubCount} → 深度 ${linkMeta.deepEnrichCount} · 仅摘要 ${linkMeta.metadataOnlyCount}`
+                        : ` · GitHub 合并 ${linkMeta.mergedGithubCount} → 全量分析 ${linkMeta.enrichedCount}`
                       : ''}
                     · 点击卡片查看画像
                   </p>

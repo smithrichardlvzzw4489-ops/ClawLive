@@ -52,7 +52,14 @@ export interface LinkSearchBuckets {
 export interface SearchDevelopersResponse {
   results: DeveloperSearchResult[];
   buckets: LinkSearchBuckets;
-  meta: { mergedGithubCount: number; enrichedCount: number };
+  meta: {
+    mergedGithubCount: number;
+    enrichedCount: number;
+    /** 实际走深度爬取 + 画像的人数（受 LINK_SEARCH_ENRICH_MAX_CANDIDATES 限制） */
+    deepEnrichCount: number;
+    /** 仅保留 GitHub 公开摘要、未深度爬取的人数 */
+    metadataOnlyCount: number;
+  };
 }
 
 function getLinkSearchMaxMerged(): number {
@@ -63,6 +70,23 @@ function getLinkSearchMaxMerged(): number {
 function getEnrichConcurrency(): number {
   const n = parseInt(process.env.LINK_SEARCH_ENRICH_CONCURRENCY || '4', 10);
   return Number.isFinite(n) ? Math.min(12, Math.max(1, n)) : 4;
+}
+
+/**
+ * 深度爬取 + AI 画像的最大人数（合并去重后仍可能上千；全量爬取会导致单次检索十余分钟级耗时与流被网关掐断）。
+ * 其余候选人仅保留 GitHub Search / users 元数据，仍可参与求职信号（bio）与分桶。
+ */
+function getLinkSearchEnrichMaxCandidates(): number {
+  const maxMerged = getLinkSearchMaxMerged();
+  const n = parseInt(process.env.LINK_SEARCH_ENRICH_MAX_CANDIDATES || '200', 10);
+  const v = Number.isFinite(n) ? n : 200;
+  return Math.min(maxMerged, Math.max(24, Math.min(2000, v)));
+}
+
+/** 单用户 enrich（爬取+分析）墙钟上限，超时则降级为仅 user。 */
+function getLinkSearchEnrichPerUserBudgetMs(): number {
+  const n = parseInt(process.env.LINK_SEARCH_ENRICH_PER_USER_BUDGET_MS || '120000', 10);
+  return Number.isFinite(n) ? Math.min(600_000, Math.max(15_000, n)) : 120_000;
 }
 
 /* ── Phase 1: LLM 解析用户意图 → GitHub Search qualifiers ─── */
@@ -623,7 +647,9 @@ async function enrichOneCandidate(
     return { user, crawl: cached.crawl, analysis: cached.analysis };
   }
 
-  try {
+  const budgetMs = getLinkSearchEnrichPerUserBudgetMs();
+
+  const run = async (): Promise<EnrichedCandidate> => {
     const crawl = await crawlGitHubProfile(token, user.login);
 
     let analysis: CodernetAnalysis | undefined;
@@ -643,6 +669,20 @@ async function enrichOneCandidate(
     }
 
     return { user, crawl, analysis };
+  };
+
+  try {
+    return await Promise.race([
+      run(),
+      new Promise<EnrichedCandidate>((resolve) => {
+        setTimeout(() => {
+          console.warn(
+            `[CodernetSearch] enrich per-user budget (${budgetMs}ms) exceeded for @${user.login}, skipping deep crawl/analysis`,
+          );
+          resolve({ user });
+        }, budgetMs);
+      }),
+    ]);
   } catch (err) {
     console.warn(`[CodernetSearch] crawl failed for @${user.login}:`, err);
     return { user };
@@ -829,29 +869,54 @@ export async function searchDevelopers(
     onProgress?.({ phase: 'done', detail: '未在 GitHub 上找到符合条件的用户', totalFound: 0 });
     const buckets = emptyBuckets();
     pipeLog('pipeline_ok_empty_github', { totalElapsedMs: Date.now() - tPipe0 });
-    return { results: [], buckets, meta: { mergedGithubCount: 0, enrichedCount: 0 } };
+    return {
+      results: [],
+      buckets,
+      meta: { mergedGithubCount: 0, enrichedCount: 0, deepEnrichCount: 0, metadataOnlyCount: 0 },
+    };
   }
+
+  const enrichCap = getLinkSearchEnrichMaxCandidates();
+  const deepUsers = ghUsers.slice(0, enrichCap);
+  const tailCount = ghUsers.length - deepUsers.length;
 
   onProgress?.({
     phase: 'enriching',
-    detail: `正在爬取与分析 ${ghUsers.length} 位候选人的公开资料（并发 ${getEnrichConcurrency()}）…`,
+    detail:
+      tailCount > 0
+        ? `将对前 ${deepUsers.length} 位候选人做深度画像（合并 ${ghUsers.length} 人，其余 ${tailCount} 人仅保留公开摘要以控制耗时）；并发 ${getEnrichConcurrency()}…`
+        : `正在爬取与分析 ${ghUsers.length} 位候选人的公开资料（并发 ${getEnrichConcurrency()}）…`,
     totalFound: ghUsers.length,
   });
 
   const tEnrich = Date.now();
-  pipeLog('enrich_enter', { candidateCount: ghUsers.length });
-  const enriched = await enrichCandidates(ghUsers, token, lookupCache, (done, total) => {
+  pipeLog('enrich_enter', {
+    candidateCount: ghUsers.length,
+    deepEnrichCap: enrichCap,
+    deepEnrichSlice: deepUsers.length,
+    metadataOnlyTail: tailCount,
+  });
+  const deepEnriched = await enrichCandidates(deepUsers, token, lookupCache, (done, total) => {
     onProgress?.({
       phase: 'enriching',
-      detail: `画像进度 ${done}/${total}（并发 ${getEnrichConcurrency()}）…`,
+      detail:
+        tailCount > 0
+          ? `深度画像 ${done}/${total}（合并共 ${ghUsers.length} 人；并发 ${getEnrichConcurrency()}）…`
+          : `画像进度 ${done}/${total}（并发 ${getEnrichConcurrency()}）…`,
       totalFound: ghUsers.length,
     });
   });
+  const tailEnriched: EnrichedCandidate[] =
+    tailCount > 0 ? ghUsers.slice(enrichCap).map((u) => ({ user: u })) : [];
+  const enriched = [...deepEnriched, ...tailEnriched];
+
   const withCrawl = enriched.filter((c) => Boolean(c.crawl)).length;
   pipeLog('enrich_ok', {
     enrichElapsedMs: Date.now() - tEnrich,
     enrichedCount: enriched.length,
+    deepCrawlCount: deepEnriched.filter((c) => Boolean(c.crawl)).length,
     withCrawlCount: withCrawl,
+    metadataOnlyCount: tailCount,
   });
 
   const JOB_SIGNAL_BATCH = 6;
@@ -949,7 +1014,10 @@ export async function searchDevelopers(
 
   onProgress?.({
     phase: 'done',
-    detail: `完成：合并 ${ghUsers.length} 人 → 全量分析 ${enriched.length} 人；分桶 ①${buckets.jobSeekingAndContact.length} ②${buckets.jobSeekingOnly.length} ③${buckets.contactOnly.length} ④${buckets.neither.length}`,
+    detail:
+      tailCount > 0
+        ? `完成：合并 ${ghUsers.length} 人 → 深度画像 ${deepUsers.length} 人 + 摘要 ${tailCount} 人；分桶 ①${buckets.jobSeekingAndContact.length} ②${buckets.jobSeekingOnly.length} ③${buckets.contactOnly.length} ④${buckets.neither.length}`
+        : `完成：合并 ${ghUsers.length} 人 → 全量分析 ${enriched.length} 人；分桶 ①${buckets.jobSeekingAndContact.length} ②${buckets.jobSeekingOnly.length} ③${buckets.contactOnly.length} ④${buckets.neither.length}`,
     totalFound: enriched.length,
   });
 
@@ -963,7 +1031,12 @@ export async function searchDevelopers(
   return {
     results,
     buckets,
-    meta: { mergedGithubCount: ghUsers.length, enrichedCount: enriched.length },
+    meta: {
+      mergedGithubCount: ghUsers.length,
+      enrichedCount: enriched.length,
+      deepEnrichCount: deepUsers.length,
+      metadataOnlyCount: tailCount,
+    },
   };
   } catch (e) {
     pipeLog('pipeline_throw', {

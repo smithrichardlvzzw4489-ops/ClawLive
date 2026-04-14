@@ -126,7 +126,12 @@ export type CodernetLinkSearchBuckets = Record<CodernetLinkSearchBucketKey, unkn
 export type CodernetLinkSearchResponse = {
   results: unknown[];
   buckets?: CodernetLinkSearchBuckets;
-  meta?: { mergedGithubCount?: number; enrichedCount?: number };
+  meta?: {
+    mergedGithubCount?: number;
+    enrichedCount?: number;
+    deepEnrichCount?: number;
+    metadataOnlyCount?: number;
+  };
 };
 
 function stripUtf8Bom(text: string): string {
@@ -266,7 +271,12 @@ function handleCodernetSearchNdjsonLine(
     const m = msg.meta;
     state.meta =
       m && typeof m === 'object'
-        ? (m as { mergedGithubCount?: number; enrichedCount?: number })
+        ? (m as {
+            mergedGithubCount?: number;
+            enrichedCount?: number;
+            deepEnrichCount?: number;
+            metadataOnlyCount?: number;
+          })
         : null;
   } else if (typ === 'error') {
     throw new APIError(
@@ -342,7 +352,12 @@ function parseCodernetSearchResponseBody(
         };
       }
       if (msg.meta && typeof msg.meta === 'object') {
-        out.meta = msg.meta as { mergedGithubCount?: number; enrichedCount?: number };
+        out.meta = msg.meta as {
+          mergedGithubCount?: number;
+          enrichedCount?: number;
+          deepEnrichCount?: number;
+          metadataOnlyCount?: number;
+        };
       }
       return out;
     }

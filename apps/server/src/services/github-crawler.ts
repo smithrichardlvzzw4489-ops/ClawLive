@@ -83,8 +83,26 @@ export interface GitHubCrawlResult {
   portfolioDepth?: PortfolioDepth;
 }
 
+function getGithubFetchTimeoutMs(): number {
+  const n = parseInt(process.env.GITHUB_FETCH_TIMEOUT_MS || '60000', 10);
+  return Number.isFinite(n) ? Math.min(180_000, Math.max(3000, n)) : 60_000;
+}
+
 async function ghFetch<T>(url: string, token?: string): Promise<T> {
-  const res = await fetch(url, { headers: ghHeaders(token) });
+  const ms = getGithubFetchTimeoutMs();
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: ghHeaders(token), signal: ctrl.signal });
+  } catch (e) {
+    if (ctrl.signal.aborted) {
+      throw new Error(`GitHub API 请求超时（${ms}ms）：${url.slice(0, 140)}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(tid);
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     const snippet = text.slice(0, 280);

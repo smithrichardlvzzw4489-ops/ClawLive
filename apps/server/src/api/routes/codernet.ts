@@ -1004,6 +1004,8 @@ export function codernetRoutes(): IRouter {
             resultCount: pack.results.length,
             mergedGithubCount: pack.meta.mergedGithubCount,
             enrichedCount: pack.meta.enrichedCount,
+            deepEnrichCount: pack.meta.deepEnrichCount,
+            metadataOnlyCount: pack.meta.metadataOnlyCount,
           });
           writeLine({
             type: 'complete',
