@@ -404,6 +404,29 @@ export async function handleCodernetGithubLookupPost(
 
 const LINK_SEARCH_MAX_ATTACHMENT_CHARS = 80_000;
 
+/** 默认在常见 ~900s 网关断流前留出余量，便于写出终端 NDJSON，避免客户端只看到 progress。 */
+const LINK_SEARCH_STREAM_MAX_MS_DEFAULT = 840_000;
+const LINK_SEARCH_STREAM_MAX_MS_CAP = 890_000;
+const LINK_SEARCH_STREAM_MAX_MS_FLOOR = 120_000;
+
+function createLinkSearchStreamDeadlineError(limitMs: number): Error {
+  const e = new Error(
+    `搜索流处理达到上限（约 ${Math.round(limitMs / 1000)} 秒）。请缩小检索范围或减少附件后重试；也可调大环境变量 LINK_SEARCH_STREAM_MAX_MS（须低于网关流超时，常见约 900s）。`,
+  );
+  (e as { code?: string }).code = 'LINK_SEARCH_STREAM_DEADLINE';
+  return e;
+}
+
+function isLinkSearchStreamDeadlineError(err: unknown): err is Error {
+  return err instanceof Error && (err as { code?: string }).code === 'LINK_SEARCH_STREAM_DEADLINE';
+}
+
+function clampLinkSearchStreamMaxMsFromEnv(): number {
+  const raw = parseInt(process.env.LINK_SEARCH_STREAM_MAX_MS || String(LINK_SEARCH_STREAM_MAX_MS_DEFAULT), 10);
+  if (!Number.isFinite(raw)) return LINK_SEARCH_STREAM_MAX_MS_DEFAULT;
+  return Math.min(LINK_SEARCH_STREAM_MAX_MS_CAP, Math.max(LINK_SEARCH_STREAM_MAX_MS_FLOOR, raw));
+}
+
 /** LINK 搜索 NDJSON 流：与客户端 `X-Request-Id` 对齐，便于对照 access 与业务日志。 */
 function takeLinkSearchRequestId(req: Request): string {
   const raw = req.get('x-request-id')?.trim();
@@ -812,6 +835,21 @@ export function codernetRoutes(): IRouter {
         let lastStreamType = 'none';
         let firstWriteElapsedMs: number | null = null;
         let writeBackpressureCount = 0;
+        let heartbeatHandle: ReturnType<typeof setInterval> | null = null;
+        let streamDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const clearLinkSearchHeartbeat = () => {
+          if (heartbeatHandle != null) {
+            clearInterval(heartbeatHandle);
+            heartbeatHandle = null;
+          }
+        };
+        const clearStreamDeadlineTimer = () => {
+          if (streamDeadlineTimer != null) {
+            clearTimeout(streamDeadlineTimer);
+            streamDeadlineTimer = null;
+          }
+        };
 
         const logLinkSearch = (phase: string, extra?: Record<string, unknown>) => {
           console.log(
@@ -853,6 +891,8 @@ export function codernetRoutes(): IRouter {
         });
 
         req.on('close', () => {
+          clearLinkSearchHeartbeat();
+          clearStreamDeadlineTimer();
           if (!res.writableEnded) {
             logLinkSearch('req_close_before_res_end', {
               clientDisconnected: true,
@@ -948,15 +988,9 @@ export function codernetRoutes(): IRouter {
 
         const hbRaw = parseInt(process.env.LINK_SEARCH_STREAM_HEARTBEAT_MS || '15000', 10);
         const heartbeatMs = Number.isFinite(hbRaw) ? Math.min(120_000, Math.max(5000, hbRaw)) : 15_000;
+        const streamMaxMs = clampLinkSearchStreamMaxMsFromEnv();
 
-        let heartbeatHandle: ReturnType<typeof setInterval> | null = null;
         let heartbeatSeq = 0;
-        const clearLinkSearchHeartbeat = () => {
-          if (heartbeatHandle != null) {
-            clearInterval(heartbeatHandle);
-            heartbeatHandle = null;
-          }
-        };
         const pulseLinkSearchHeartbeat = () => {
           if (res.writableEnded || res.destroyed) {
             clearLinkSearchHeartbeat();
@@ -992,13 +1026,27 @@ export function codernetRoutes(): IRouter {
         const tSearch = Date.now();
         logLinkSearch('search_developers_enter', {
           heartbeatMs,
+          streamMaxMs,
           githubTokenPresent: Boolean(token && String(token).trim()),
         });
         heartbeatHandle = setInterval(pulseLinkSearchHeartbeat, heartbeatMs);
         try {
-          const pack = await searchDevelopers(combinedQuery, lookupCache, token, emitSearchProgress, {
-            requestId,
-          });
+          let pack: Awaited<ReturnType<typeof searchDevelopers>>;
+          try {
+            pack = await Promise.race([
+              searchDevelopers(combinedQuery, lookupCache, token, emitSearchProgress, {
+                requestId,
+              }),
+              new Promise<never>((_, reject) => {
+                streamDeadlineTimer = setTimeout(() => {
+                  streamDeadlineTimer = null;
+                  reject(createLinkSearchStreamDeadlineError(streamMaxMs));
+                }, streamMaxMs);
+              }),
+            ]);
+          } finally {
+            clearStreamDeadlineTimer();
+          }
           logLinkSearch('search_developers_ok', {
             searchElapsedMs: Date.now() - tSearch,
             resultCount: pack.results.length,
@@ -1015,17 +1063,31 @@ export function codernetRoutes(): IRouter {
             meta: pack.meta,
           });
         } catch (searchErr) {
-          logLinkSearch('search_developers_throw', {
-            searchElapsedMs: Date.now() - tSearch,
-            message: searchErr instanceof Error ? searchErr.message : String(searchErr),
-          });
-          console.error('[GITLINK] search pipeline error', { requestId, userId: callerId }, searchErr);
-          writeLine({
-            type: 'error',
-            message: searchErr instanceof Error ? searchErr.message : 'Search failed',
-          });
+          if (isLinkSearchStreamDeadlineError(searchErr)) {
+            logLinkSearch('search_stream_deadline', {
+              searchElapsedMs: Date.now() - tSearch,
+              streamMaxMs,
+              message: searchErr.message,
+            });
+            console.error('[GITLINK] search stream deadline', { requestId, userId: callerId, streamMaxMs });
+            writeLine({
+              type: 'error',
+              message: searchErr.message,
+            });
+          } else {
+            logLinkSearch('search_developers_throw', {
+              searchElapsedMs: Date.now() - tSearch,
+              message: searchErr instanceof Error ? searchErr.message : String(searchErr),
+            });
+            console.error('[GITLINK] search pipeline error', { requestId, userId: callerId }, searchErr);
+            writeLine({
+              type: 'error',
+              message: searchErr instanceof Error ? searchErr.message : 'Search failed',
+            });
+          }
         } finally {
           clearLinkSearchHeartbeat();
+          clearStreamDeadlineTimer();
         }
         logLinkSearch('before_res_end', {
           hadCompleteLine: lastStreamType === 'complete',
