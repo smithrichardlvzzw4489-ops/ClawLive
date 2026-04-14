@@ -3,7 +3,7 @@
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
  * 2. GitHub Search API 实时搜人（/search/users；分片合并，缓解单次约 1000 条上限）
  * 3. 每条 /users/:login 公开摘要（bio / blog / 粉丝等），不做仓库级深度爬取与 AI 画像
- * 4. 按求职文案 + 公开联系方式分为四类输出（桶内按粉丝数排序），不做 LLM 精排
+ * 4. 核心：按求职文案 + 公开联系方式分为四类人输出（桶内按粉丝数排序）；默认不对合并人数截断（可选环境变量上限），不做 LLM 精排
  */
 
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';
@@ -63,9 +63,16 @@ export interface SearchDevelopersResponse {
   };
 }
 
-function getLinkSearchMaxMerged(): number {
-  const n = parseInt(process.env.LINK_SEARCH_MAX_MERGED_CANDIDATES || '2000', 10);
-  return Number.isFinite(n) ? Math.min(8000, Math.max(50, n)) : 2000;
+/**
+ * 默认返回 null：合并去重后的候选人**全部**进入四类分桶与 `/users/:login` 补全（无站内人数上限）。
+ * 若显式设置 `LINK_SEARCH_MAX_MERGED_CANDIDATES` 为正整数，则仅截取前 N 人（供运营/限流应急）。
+ */
+function getLinkSearchMaxMergedCap(): number | null {
+  const raw = process.env.LINK_SEARCH_MAX_MERGED_CANDIDATES;
+  if (raw === undefined || String(raw).trim() === '') return null;
+  const n = parseInt(String(raw), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(2_000_000, Math.max(1, n));
 }
 
 /** LINK 结果列表顺序：四类人依次输出 */
@@ -546,11 +553,14 @@ async function searchGitHubUsers(
   token?: string,
   pipeLog?: PipelineDiagLog,
 ): Promise<GHSearchUserItem[]> {
-  const maxMerged = getLinkSearchMaxMerged();
+  const mergedCap = getLinkSearchMaxMergedCap();
   const queries = expandGithubSearchQueries(parsedQuery);
   const batches: GHSearchUserItem[][] = [];
 
-  pipeLog?.('github_search_shards', { shardTotal: queries.length, maxMerged });
+  pipeLog?.('github_search_shards', {
+    shardTotal: queries.length,
+    mergedCap: mergedCap ?? 'none',
+  });
 
   for (let i = 0; i < queries.length; i++) {
     const q = queries[i];
@@ -582,7 +592,7 @@ async function searchGitHubUsers(
 
   const merged = mergeGitHubUserSearchItems(batches);
   merged.sort((a, b) => (Number(b.followers) || 0) - (Number(a.followers) || 0));
-  const top = merged.slice(0, maxMerged);
+  const top = mergedCap == null ? merged : merged.slice(0, mergedCap);
 
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
