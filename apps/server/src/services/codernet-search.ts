@@ -3,7 +3,7 @@
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
  * 2. GitHub Search API 实时搜人（/search/users；分片合并，缓解单次约 1000 条上限）
  * 3. 每条 /users/:login 公开摘要（bio / blog / 粉丝等），不做仓库级深度爬取与 AI 画像
- * 4. 核心：按求职文案 + 公开联系方式分为四类人输出（桶内按粉丝数排序）；默认不对合并人数截断（可选环境变量上限），不做 LLM 精排
+ * 4. 核心：按求职文案 + 公开联系方式分为四类人输出（桶内按粉丝数排序）；仅返回含公开联系方式的用户；GitHub 请求分轨节流并带退避；分路条数默认不截断（可选 LINK_SEARCH_MAX_QUERY_SHARDS）
  */
 
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';
@@ -75,6 +75,18 @@ function getLinkSearchMaxMergedCap(): number | null {
   return Math.min(2_000_000, Math.max(1, n));
 }
 
+/**
+ * 限制 GitHub Search 分路条数；默认 null 不截断（跑全部分片）。
+ * 设置 `LINK_SEARCH_MAX_QUERY_SHARDS` 为正整数时可应急缩短。
+ */
+function getLinkSearchMaxQueryShards(): number | null {
+  const raw = process.env.LINK_SEARCH_MAX_QUERY_SHARDS;
+  if (raw === undefined || String(raw).trim() === '') return null;
+  const n = parseInt(String(raw), 10);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.min(10_000, Math.max(1, n));
+}
+
 /** LINK 结果列表顺序：四类人依次输出 */
 const LINK_BUCKET_OUTPUT_ORDER: LinkSearchBucketKey[] = [
   'jobSeekingAndContact',
@@ -92,13 +104,10 @@ export interface ParsedQuery {
   explanation: string;
   /**
    * 可选：多条完整 GitHub `q`（每条均须合法）。服务端**始终**再叠一层固定规则的自动分片；
-   * LLM 分片与主查询合并去重后截取前 `GITHUB_SEARCH_AUTO_QUERY_CAP` 条，保证覆盖面大且顺序稳定。
+   * 与主查询合并去重；默认不截断分路条数（见 `LINK_SEARCH_MAX_QUERY_SHARDS`）。
    */
   shardQueries?: string[];
 }
-
-/** 自动分片生成的 q 条数上限（Search API 调用条数；提高可扩大合并池，注意速率限制）。 */
-export const GITHUB_SEARCH_AUTO_QUERY_CAP = 18;
 
 /** 主查询里是否已包含 followers 相关限定。 */
 export function githubUserQueryHasFollowersQualifier(q: string): boolean {
@@ -279,8 +288,8 @@ export function expandGithubQueriesAutoFromPrimary(primaryGithubQuery: string): 
 }
 
 /**
- * 展开为多条实际搜索用 `q`：先取**自动分片**（稳定、覆盖面大），再并入主查询与 LLM `shardQueries`，去重后截断。
- * 不再因「LLM 给了 shard」而跳过自动分桶，避免同一句自然语言两次检索人数差一个数量级。
+ * 展开为多条实际搜索用 `q`：先取**自动分片**（稳定、覆盖面大），再并入主查询与 LLM `shardQueries`，去重；
+ * 仅当设置 `LINK_SEARCH_MAX_QUERY_SHARDS` 时才截断条数。
  */
 export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
   const primary = parsed.githubQuery.trim();
@@ -290,7 +299,9 @@ export function expandGithubSearchQueries(parsed: ParsedQuery): string[] {
     : [];
 
   const autoExpanded = expandGithubQueriesAutoFromPrimary(primary);
-  return uniqGithubQueries([...autoExpanded, primary, ...llmShards]).slice(0, GITHUB_SEARCH_AUTO_QUERY_CAP);
+  const merged = uniqGithubQueries([...autoExpanded, primary, ...llmShards]);
+  const cap = getLinkSearchMaxQueryShards();
+  return cap == null ? merged : merged.slice(0, cap);
 }
 
 export async function parseQueryToGitHubSearch(query: string): Promise<ParsedQuery> {
@@ -428,6 +439,81 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function parsePositiveIntEnv(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || String(raw).trim() === '') return fallback;
+  const n = parseInt(String(raw), 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+/** Search API 约 30 次/分钟；默认略低于该上限。 */
+let lastGithubSearchRequestAt = 0;
+async function throttleGithubSearch(): Promise<void> {
+  const gapMs = parsePositiveIntEnv('LINK_SEARCH_GITHUB_SEARCH_GAP_MS', 2100, 400, 120_000);
+  const now = Date.now();
+  const wait = lastGithubSearchRequestAt + gapMs - now;
+  if (wait > 0) await sleep(wait);
+  lastGithubSearchRequestAt = Date.now();
+}
+
+/** REST（如 /users/:login）与 Search 配额分离；默认按约 5000/小时均摊。 */
+let lastGithubRestRequestAt = 0;
+async function throttleGithubRest(): Promise<void> {
+  const gapMs = parsePositiveIntEnv('LINK_SEARCH_GITHUB_REST_GAP_MS', 750, 50, 30_000);
+  const now = Date.now();
+  const wait = lastGithubRestRequestAt + gapMs - now;
+  if (wait > 0) await sleep(wait);
+  lastGithubRestRequestAt = Date.now();
+}
+
+async function sleepForGithubRateLimit(res: Response, attempt: number): Promise<void> {
+  const retryAfter = parseInt(res.headers.get('retry-after') || '0', 10);
+  const reset = parseInt(res.headers.get('x-ratelimit-reset') || '0', 10);
+  let waitMs = retryAfter > 0 ? retryAfter * 1000 : Math.min(120_000, 2000 * (attempt + 1));
+  if (reset > 0) {
+    const untilReset = reset * 1000 - Date.now() + 2500;
+    if (untilReset > waitMs && untilReset < 180_000) waitMs = untilReset;
+  }
+  await sleep(Math.max(800, waitMs));
+}
+
+/**
+ * 带分轨节流与 429/配额型 403 退避的 GitHub GET（LINK 流水线内串行友好）。
+ */
+async function githubApiGet(
+  url: string,
+  headers: Record<string, string>,
+  kind: 'search' | 'rest',
+): Promise<Response> {
+  const maxAttempts = 14;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (kind === 'search') await throttleGithubSearch();
+    else await throttleGithubRest();
+
+    const res = await fetch(url, { headers });
+    if (res.status === 429) {
+      await sleepForGithubRateLimit(res, attempt);
+      continue;
+    }
+    if (res.status === 403) {
+      const rem = res.headers.get('x-ratelimit-remaining');
+      if (rem === '0') {
+        await sleepForGithubRateLimit(res, attempt);
+        continue;
+      }
+      const text = await res.clone().text().catch(() => '');
+      if (/rate limit|abuse/i.test(text)) {
+        await sleepForGithubRateLimit(res, attempt);
+        continue;
+      }
+      return new Response(text, { status: 403, headers: res.headers });
+    }
+    return res;
+  }
+  throw new Error('GitHub API: 多次退避后仍被限流');
+}
+
 interface GHSearchResponse {
   total_count: number;
   incomplete_results: boolean;
@@ -463,7 +549,7 @@ export async function runGitHubUserSearchFromParsed(
   const url = `https://api.github.com/search/users?${params.toString()}`;
   console.log(`[CodernetSearch] GitHub Search: ${url}`);
 
-  const res = await fetch(url, { headers });
+  const res = await githubApiGet(url, headers, 'search');
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     console.error(`[CodernetSearch] GitHub Search API ${res.status}: ${text.slice(0, 200)}`);
@@ -478,22 +564,21 @@ export async function runGitHubUserSearchFromParsed(
     .slice(0, perPage);
   if (!enrich) return users;
 
-  const enriched = await Promise.allSettled(
-    users.map(async (u) => {
-      try {
-        const profileRes = await fetch(`https://api.github.com/users/${u.login}`, { headers });
-        if (profileRes.ok) {
-          const profile = await profileRes.json();
-          return { ...u, ...profile } as GHSearchUserItem;
-        }
-      } catch {}
-      return u;
-    }),
-  );
-
-  return enriched
-    .filter((r): r is PromiseFulfilledResult<GHSearchUserItem> => r.status === 'fulfilled')
-    .map((r) => r.value);
+  const out: GHSearchUserItem[] = [];
+  for (const u of users) {
+    try {
+      const profileRes = await githubApiGet(`https://api.github.com/users/${u.login}`, headers, 'rest');
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        out.push({ ...u, ...profile } as GHSearchUserItem);
+      } else {
+        out.push(u);
+      }
+    } catch {
+      out.push(u);
+    }
+  }
+  return out;
 }
 
 async function fetchGitHubSearchUsersSinglePage(
@@ -516,7 +601,7 @@ async function fetchGitHubSearchUsersSinglePage(
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   const url = `https://api.github.com/search/users?${params.toString()}`;
-  const res = await fetch(url, { headers });
+  const res = await githubApiGet(url, headers, 'search');
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`GitHub Search API ${res.status}: ${text.slice(0, 160)}`);
@@ -592,7 +677,6 @@ async function searchGitHubUsers(
         message: e instanceof Error ? e.message : String(e),
       });
     }
-    if (i < queries.length - 1) await sleep(120);
   }
 
   const merged = mergeGitHubUserSearchItems(batches);
@@ -607,27 +691,27 @@ async function searchGitHubUsers(
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const tProf = Date.now();
-  const profiled = await Promise.allSettled(
-    top.map(async (u) => {
-      try {
-        const profileRes = await fetch(`https://api.github.com/users/${u.login}`, { headers });
-        if (profileRes.ok) {
-          const profile = await profileRes.json();
-          return { ...u, ...profile } as GHSearchUserItem;
-        }
-      } catch {}
-      return u;
-    }),
-  );
+  const profiled: GHSearchUserItem[] = [];
+  for (const u of top) {
+    try {
+      const profileRes = await githubApiGet(`https://api.github.com/users/${u.login}`, headers, 'rest');
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        profiled.push({ ...u, ...profile } as GHSearchUserItem);
+      } else {
+        profiled.push(u);
+      }
+    } catch {
+      profiled.push(u);
+    }
+  }
 
   pipeLog?.('github_profile_enrich_ok', {
     profileFetchCount: top.length,
     profileEnrichElapsedMs: Date.now() - tProf,
   });
 
-  return profiled
-    .filter((r): r is PromiseFulfilledResult<GHSearchUserItem> => r.status === 'fulfilled')
-    .map((r) => r.value);
+  return profiled;
 }
 
 /* ── Main: 完整搜索流水线 ─────────────────────────────────── */
@@ -713,15 +797,29 @@ export async function searchDevelopers(
 
   const tGh = Date.now();
   pipeLog('github_search_enter');
-  const ghUsers = await searchGitHubUsers(parsed, token, pipeLog);
+  const ghUsersRaw = await searchGitHubUsers(parsed, token, pipeLog);
   pipeLog('github_search_ok', {
     githubSearchElapsedMs: Date.now() - tGh,
-    mergedGithubCount: ghUsers.length,
+    mergedGithubCount: ghUsersRaw.length,
   });
+
+  const ghUsers = ghUsersRaw.filter((u) => hasPublicContactInfo(u));
+  pipeLog('github_contact_filter', {
+    mergedBeforeContactFilter: ghUsersRaw.length,
+    mergedWithPublicContact: ghUsers.length,
+  });
+
   if (ghUsers.length === 0) {
-    onProgress?.({ phase: 'done', detail: '未在 GitHub 上找到符合条件的用户', totalFound: 0 });
+    const detail =
+      ghUsersRaw.length === 0
+        ? '未在 GitHub 上找到符合条件的用户'
+        : `GitHub 合并 ${ghUsersRaw.length} 人，其中无人在公开资料中带邮箱/主页等可联系信息（已按产品要求不返回无联系方式用户）`;
+    onProgress?.({ phase: 'done', detail, totalFound: 0 });
     const buckets = emptyBuckets();
-    pipeLog('pipeline_ok_empty_github', { totalElapsedMs: Date.now() - tPipe0 });
+    pipeLog('pipeline_ok_empty_github', {
+      totalElapsedMs: Date.now() - tPipe0,
+      mergedBeforeContactFilter: ghUsersRaw.length,
+    });
     return {
       results: [],
       buckets,
@@ -731,7 +829,7 @@ export async function searchDevelopers(
 
   onProgress?.({
     phase: 'ranking',
-    detail: `合并 ${ghUsers.length} 人，按公开 bio / 联系方式分为四类…`,
+    detail: `合并 ${ghUsersRaw.length} 人 → 含公开联系方式 ${ghUsers.length} 人，按 bio 分为四类…`,
     totalFound: ghUsers.length,
   });
 
@@ -768,7 +866,7 @@ export async function searchDevelopers(
       techTags: [],
       sharpCommentary: '',
       score: fallbackScoreFromFollowers(followers),
-      reason: 'GitHub 公开检索命中（按四类分桶；未做深度画像与精排）',
+      reason: 'GitHub 公开检索命中（已筛选含邮箱/主页等联系方式；按四类分桶；未做深度画像与精排）',
       source: 'github_search' as const,
       stats: {
         totalPublicRepos: u.public_repos ?? 0,
@@ -804,7 +902,7 @@ export async function searchDevelopers(
 
   onProgress?.({
     phase: 'done',
-    detail: `完成：合并 ${ghUsers.length} 人；按四类依次输出 ①求职+联系方式 ${buckets.jobSeekingAndContact.length} ②仅求职 ${buckets.jobSeekingOnly.length} ③仅联系方式 ${buckets.contactOnly.length} ④其他 ${buckets.neither.length}（桶内按粉丝数）`,
+    detail: `完成：GitHub 合并 ${ghUsersRaw.length} 人 → 含联系方式 ${ghUsers.length} 人；按四类依次输出 ①求职+联系方式 ${buckets.jobSeekingAndContact.length} ②仅求职 ${buckets.jobSeekingOnly.length} ③仅联系方式 ${buckets.contactOnly.length} ④其他 ${buckets.neither.length}（桶内按粉丝数；无联系方式者已剔除）`,
     totalFound: ghUsers.length,
   });
 
