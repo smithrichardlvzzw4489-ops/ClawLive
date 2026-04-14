@@ -219,6 +219,18 @@ function attachCodernetSearchOpts(
   };
 }
 
+/** 旧版服务端把运维环境变量写进 `message`；归一成用户向说明（与新版 `LINK_SEARCH_STREAM_DEADLINE` 语义一致）。 */
+function normalizeCodernetSearchStreamDeadlineMessage(message: string): string {
+  const m = message.trim();
+  const legacyOpsInMessage =
+    m.includes('LINK_SEARCH_STREAM_MAX_MS') || /\b搜索流处理达到上限\b/.test(m);
+  if (!legacyOpsInMessage) return message;
+  const sec = m.match(/约\s*(\d+)\s*秒/);
+  return sec
+    ? `本次搜索已处理约 ${sec[1]} 秒仍未完成，为防止连接中断已自动结束。请缩小职位描述或检索范围、减少附件后重试。`
+    : '本次搜索耗时过长，已自动结束以免连接中断。请缩小职位描述或检索范围、减少附件后重试。';
+}
+
 function handleCodernetSearchNdjsonLine(
   trimmed: string,
   onProgress: ((p: CodernetSearchProgress) => void) | undefined,
@@ -281,9 +293,11 @@ function handleCodernetSearchNdjsonLine(
           })
         : null;
   } else if (typ === 'error') {
+    const raw = typeof msg.message === 'string' ? msg.message : '搜索失败';
+    const userMsg = normalizeCodernetSearchStreamDeadlineMessage(raw);
     throw new APIError(
       500,
-      withCodernetSearchTrace(typeof msg.message === 'string' ? msg.message : '搜索失败', traceId),
+      withCodernetSearchTrace(userMsg, traceId),
       attachCodernetSearchOpts(
         traceId,
         lineStats ? mergeLineStatsIntoDiag({}, lineStats) : undefined,
@@ -416,7 +430,7 @@ function throwCodernetSearchResponseUnusable(
       }
       const typ = typeof msg.type === 'string' ? msg.type.toLowerCase() : '';
       if (typ === 'error' && typeof msg.message === 'string' && msg.message.trim()) {
-        return throwWith(500, msg.message);
+        return throwWith(500, normalizeCodernetSearchStreamDeadlineMessage(msg.message));
       }
     }
   } catch (e) {

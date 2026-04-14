@@ -404,21 +404,25 @@ export async function handleCodernetGithubLookupPost(
 
 const LINK_SEARCH_MAX_ATTACHMENT_CHARS = 80_000;
 
-/** 默认在常见 ~900s 网关断流前留出余量，便于写出终端 NDJSON，避免客户端只看到 progress。 */
-const LINK_SEARCH_STREAM_MAX_MS_DEFAULT = 840_000;
+/** 默认尽量贴近常见 ~900s 网关上限，仍留出约 20s 写出终端 NDJSON，避免客户端只看到 progress。 */
+const LINK_SEARCH_STREAM_MAX_MS_DEFAULT = 880_000;
 const LINK_SEARCH_STREAM_MAX_MS_CAP = 890_000;
 const LINK_SEARCH_STREAM_MAX_MS_FLOOR = 120_000;
 
+/** 与 NDJSON `type:error` 行的 `code` 一致；运维可调 `LINK_SEARCH_STREAM_MAX_MS`（见服务端日志）。 */
+const LINK_SEARCH_STREAM_DEADLINE_CODE = 'LINK_SEARCH_STREAM_DEADLINE' as const;
+
 function createLinkSearchStreamDeadlineError(limitMs: number): Error {
+  const seconds = Math.round(limitMs / 1000);
   const e = new Error(
-    `搜索流处理达到上限（约 ${Math.round(limitMs / 1000)} 秒）。请缩小检索范围或减少附件后重试；也可调大环境变量 LINK_SEARCH_STREAM_MAX_MS（须低于网关流超时，常见约 900s）。`,
+    `本次搜索已处理约 ${seconds} 秒仍未完成，为防止长时间连接被中断已自动结束。请缩小职位描述或检索范围、减少或去掉大附件后重试。`,
   );
-  (e as { code?: string }).code = 'LINK_SEARCH_STREAM_DEADLINE';
+  (e as { code?: string }).code = LINK_SEARCH_STREAM_DEADLINE_CODE;
   return e;
 }
 
 function isLinkSearchStreamDeadlineError(err: unknown): err is Error {
-  return err instanceof Error && (err as { code?: string }).code === 'LINK_SEARCH_STREAM_DEADLINE';
+  return err instanceof Error && (err as { code?: string }).code === LINK_SEARCH_STREAM_DEADLINE_CODE;
 }
 
 function clampLinkSearchStreamMaxMsFromEnv(): number {
@@ -1068,10 +1072,13 @@ export function codernetRoutes(): IRouter {
               searchElapsedMs: Date.now() - tSearch,
               streamMaxMs,
               message: searchErr.message,
+              opsHint:
+                '如需略延长上限可在部署环境设置 LINK_SEARCH_STREAM_MAX_MS（毫秒，勿超过约 900000 以免仍被网关切断）。',
             });
             console.error('[GITLINK] search stream deadline', { requestId, userId: callerId, streamMaxMs });
             writeLine({
               type: 'error',
+              code: LINK_SEARCH_STREAM_DEADLINE_CODE,
               message: searchErr.message,
             });
           } else {
