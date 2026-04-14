@@ -260,25 +260,11 @@ export function expandGithubQueriesAutoFromPrimary(primaryGithubQuery: string): 
 
   const locVariants = expandBroadLocationVariants(primary);
 
+  // 与单城市路径一致：每城完整 followers/repos 分桶（旧实现只取前两档会漏掉大半池子）。
   if (locVariants.length > 1) {
     const flat: string[] = [];
     for (const pv of locVariants) {
-      const hasF = githubUserQueryHasFollowersQualifier(pv);
-      const hasR = githubUserQueryHasReposQualifier(pv);
-      if (!hasF && !hasR) {
-        flat.push(
-          appendQualifierSuffix(pv, 'followers:1..500'),
-          appendQualifierSuffix(pv, 'followers:501..5000'),
-          appendQualifierSuffix(pv, 'repos:1..25'),
-          appendQualifierSuffix(pv, 'repos:26..150'),
-        );
-      } else if (hasF && !hasR) {
-        flat.push(...buildReposBucketGithubQueries(pv).slice(0, 3));
-      } else if (!hasF && hasR) {
-        flat.push(...buildFollowerBucketGithubQueries(pv).slice(0, 3));
-      } else {
-        flat.push(pv);
-      }
+      flat.push(...expandDimensionBucketsForQuery(pv));
     }
     return uniqGithubQueries(flat);
   }
