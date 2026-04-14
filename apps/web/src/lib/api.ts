@@ -238,6 +238,29 @@ function throwCodernetSearchResponseUnusable(rawText: string, traceId?: string |
   } catch (e) {
     if (e instanceof APIError) throw e;
   }
+
+  const lines = t.split('\n').map((l) => l.trim()).filter(Boolean);
+  let sawProgress = false;
+  let sawComplete = false;
+  for (const line of lines) {
+    try {
+      const o = JSON.parse(line) as { type?: string };
+      if (o.type === 'progress') sawProgress = true;
+      if (o.type === 'complete') sawComplete = true;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (sawProgress && !sawComplete) {
+    throw new APIError(
+      0,
+      withCodernetSearchTrace(
+        '搜索流中途结束：已收到进度但未收到最终结果，常见于网关或代理中断长连接。请稍后重试；若反复出现请对照服务端 [GITLINK] linkSearch 日志中的 requestId 检查反代缓冲与超时。',
+        traceId,
+      ),
+    );
+  }
+
   throw new APIError(
     0,
     withCodernetSearchTrace('搜索响应不完整或未识别。请重试；若持续出现多为网络或服务负载导致。', traceId),

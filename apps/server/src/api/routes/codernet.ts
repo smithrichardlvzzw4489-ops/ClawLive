@@ -797,6 +797,7 @@ export function codernetRoutes(): IRouter {
         let ndjsonLines = 0;
         let ndjsonBytes = 0;
         let lastStreamType = 'none';
+        let firstWriteElapsedMs: number | null = null;
 
         const logLinkSearch = (phase: string, extra?: Record<string, unknown>) => {
           console.log(
@@ -809,6 +810,8 @@ export function codernetRoutes(): IRouter {
               ndjsonLines,
               ndjsonBytes,
               lastStreamType,
+              firstWriteElapsedMs,
+              hadCompleteLine: lastStreamType === 'complete',
               queryChars: combinedQuery.length,
               attachmentFiles: files?.length ?? 0,
               ...extra,
@@ -825,7 +828,11 @@ export function codernetRoutes(): IRouter {
         });
 
         res.on('finish', () => {
-          logLinkSearch('res_finish', { writableEnded: res.writableEnded });
+          logLinkSearch('res_finish', {
+            writableEnded: res.writableEnded,
+            firstWriteElapsedMs,
+            hadCompleteLine: lastStreamType === 'complete',
+          });
         });
 
         res.on('error', (err: unknown) => {
@@ -836,12 +843,31 @@ export function codernetRoutes(): IRouter {
           const line = `${JSON.stringify(obj)}\n`;
           ndjsonBytes += Buffer.byteLength(line, 'utf8');
           ndjsonLines += 1;
+          if (firstWriteElapsedMs === null) {
+            firstWriteElapsedMs = Date.now() - t0;
+          }
           const typ = (obj as { type?: unknown })?.type;
           if (typ === 'complete' || typ === 'error' || typ === 'progress') {
             lastStreamType = String(typ);
           }
           res.write(line);
         };
+
+        // 立刻写出首包，避免在 parseQuery / GitHub 等前置 await 期间长时间无字节，
+        // 触发浏览器或反代「首字节超时 / 缓冲未刷」导致客户端只看到空或截断体。
+        writeLine({
+          type: 'progress',
+          progress: {
+            phase: 'parsing',
+            detail: '已收到请求并建立流；正在解析检索需求并进入检索流水线…',
+          },
+        });
+        try {
+          (res as { flush?: () => void }).flush?.();
+        } catch {
+          /* ignore */
+        }
+        logLinkSearch('first_chunk_sent');
 
         const token = getServerGitHubToken();
         try {
@@ -861,7 +887,10 @@ export function codernetRoutes(): IRouter {
             message: searchErr instanceof Error ? searchErr.message : 'Search failed',
           });
         }
-        logLinkSearch('before_res_end');
+        logLinkSearch('before_res_end', {
+          hadCompleteLine: lastStreamType === 'complete',
+          firstWriteElapsedMs,
+        });
         res.end();
       } catch (error) {
         console.error('[GITLINK] search error', { requestId }, error);
