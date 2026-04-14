@@ -55,12 +55,26 @@ function getNetworkErrorMsg(): string {
   return '无法连接服务器。若前端在 Vercel、后端在 Railway，请在 Vercel 环境变量中设置 BACKEND_URL 或 NEXT_PUBLIC_API_URL（Railway 公网 https 根地址，无尾斜杠），保存后重新部署；并确认 Railway 服务在线。';
 }
 
+/** 流式 NDJSON 行级统计（与后端 ndjsonLines / 进度日志对照）。 */
+export type CodernetLinkSearchStreamLineStats = {
+  jsonLines: number;
+  progressLines: number;
+  keepaliveLines: number;
+  lastProgressPhase?: string;
+};
+
 /** LINK 搜索流在浏览器侧的可量化诊断（与 `[GITLINK] linkSearch` 服务端日志对照）。 */
 export type CodernetLinkSearchClientDiag = {
   httpStatus?: number;
   contentType?: string | null;
   /** 与响应头 `X-Gitlink-Deploy-Commit` 一致时，可确认浏览器命中的后端构建 */
   deployCommit?: string | null;
+  /** 与响应头 `X-Gitlink-Link-Search-Stream` 一致 */
+  streamProtocolHeader?: string | null;
+  /** 浏览器发出的 `X-Request-Id` */
+  clientRequestId?: string;
+  /** 服务端回显或最终采用的追踪 ID */
+  responseRequestId?: string;
   chunkReads?: number;
   /** 各二进制分片 byteLength 之和（与 UTF-8 字符数接近，便于与后端 ndjsonBytes 对照） */
   rawChunkBytes?: number;
@@ -68,6 +82,13 @@ export type CodernetLinkSearchClientDiag = {
   firstChunkElapsedMs?: number | null;
   parsePath?: 'ndjson_stream' | 'fulltext_fallback';
   sawCompleteNdjsonLine?: boolean;
+  /** 与 `CodernetLinkSearchStreamLineStats` 对齐 */
+  ndjsonJsonLines?: number;
+  progressLineCount?: number;
+  keepaliveLineCount?: number;
+  lastProgressPhase?: string;
+  /** 流结束时未拼成整行的尾部长度（疑似截断） */
+  incompleteTailLen?: number;
   /** 截断后的响应前缀，仅用于控制台 JSON，避免刷屏 */
   bodyPrefix?: string;
 };
@@ -130,7 +151,32 @@ function formatCodernetLinkSearchDiagCn(d: CodernetLinkSearchClientDiag): string
   if (d.firstChunkElapsedMs != null) parts.push(`首包约 ${d.firstChunkElapsedMs}ms`);
   if (d.parsePath) parts.push(`解析路径 ${d.parsePath}`);
   if (d.sawCompleteNdjsonLine != null) parts.push(`已解析到 complete 行: ${d.sawCompleteNdjsonLine}`);
+  if (d.clientRequestId) parts.push(`客户端请求 ID ${d.clientRequestId}`);
+  if (d.responseRequestId && d.responseRequestId !== d.clientRequestId) {
+    parts.push(`响应追踪 ID ${d.responseRequestId}`);
+  }
+  if (d.streamProtocolHeader) parts.push(`流协议头 ${d.streamProtocolHeader}`);
+  if (d.ndjsonJsonLines != null) parts.push(`NDJSON 行 ${d.ndjsonJsonLines}`);
+  if (d.progressLineCount != null) parts.push(`progress 行 ${d.progressLineCount}`);
+  if (d.keepaliveLineCount != null) parts.push(`保活行 ${d.keepaliveLineCount}`);
+  if (d.lastProgressPhase) parts.push(`末次阶段 ${d.lastProgressPhase}`);
+  if (d.incompleteTailLen != null && d.incompleteTailLen > 0) {
+    parts.push(`未闭合尾部 ${d.incompleteTailLen} 字节`);
+  }
   return parts.join('；');
+}
+
+function mergeLineStatsIntoDiag(
+  d: CodernetLinkSearchClientDiag,
+  stats: CodernetLinkSearchStreamLineStats,
+): CodernetLinkSearchClientDiag {
+  return {
+    ...d,
+    ndjsonJsonLines: stats.jsonLines,
+    progressLineCount: stats.progressLines,
+    keepaliveLineCount: stats.keepaliveLines,
+    lastProgressPhase: stats.lastProgressPhase,
+  };
 }
 
 function logCodernetLinkSearchClientFailure(
@@ -176,6 +222,7 @@ function handleCodernetSearchNdjsonLine(
     meta: CodernetLinkSearchResponse['meta'] | null;
   },
   traceId?: string | null,
+  lineStats?: CodernetLinkSearchStreamLineStats | null,
 ): void {
   let msg: Record<string, unknown>;
   try {
@@ -183,8 +230,17 @@ function handleCodernetSearchNdjsonLine(
   } catch {
     return;
   }
+  if (lineStats) {
+    lineStats.jsonLines += 1;
+  }
   const typ = typeof msg.type === 'string' ? msg.type.toLowerCase() : '';
   if (typ === 'progress' && msg.progress && typeof msg.progress === 'object' && onProgress) {
+    if (lineStats) {
+      lineStats.progressLines += 1;
+      const pr = msg.progress as { keepalive?: boolean; phase?: string };
+      if (pr.keepalive) lineStats.keepaliveLines += 1;
+      if (typeof pr.phase === 'string') lineStats.lastProgressPhase = pr.phase;
+    }
     onProgress(msg.progress as CodernetSearchProgress);
   } else if (typ === 'complete') {
     state.results = Array.isArray(msg.results) ? msg.results : [];
@@ -216,7 +272,10 @@ function handleCodernetSearchNdjsonLine(
     throw new APIError(
       500,
       withCodernetSearchTrace(typeof msg.message === 'string' ? msg.message : '搜索失败', traceId),
-      attachCodernetSearchOpts(traceId),
+      attachCodernetSearchOpts(
+        traceId,
+        lineStats ? mergeLineStatsIntoDiag({}, lineStats) : undefined,
+      ),
     );
   }
 }
@@ -229,6 +288,7 @@ function parseCodernetSearchResponseBody(
   onProgress?: (p: CodernetSearchProgress) => void,
   traceId?: string | null,
   streamDiag?: CodernetLinkSearchClientDiag,
+  lineStats?: CodernetLinkSearchStreamLineStats | null,
 ): CodernetLinkSearchResponse {
   const text = stripUtf8Bom(rawText);
   const state: {
@@ -237,11 +297,19 @@ function parseCodernetSearchResponseBody(
     meta: CodernetLinkSearchResponse['meta'] | null;
   } = { results: null, buckets: null, meta: null };
 
+  const stats =
+    lineStats ??
+    ({
+      jsonLines: 0,
+      progressLines: 0,
+      keepaliveLines: 0,
+    } as CodernetLinkSearchStreamLineStats);
+
   const lines = text.split('\n');
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (!trimmed) continue;
-    handleCodernetSearchNdjsonLine(trimmed, onProgress, state, traceId);
+    handleCodernetSearchNdjsonLine(trimmed, onProgress, state, traceId, stats);
   }
 
   if (state.results !== null) {
@@ -282,7 +350,17 @@ function parseCodernetSearchResponseBody(
     /* fall through */
   }
 
-  throwCodernetSearchResponseUnusable(text, traceId, { ...streamDiag, parsePath: streamDiag?.parsePath ?? 'fulltext_fallback' });
+  const hasPreservedLineStats =
+    streamDiag?.ndjsonJsonLines != null ||
+    streamDiag?.progressLineCount != null ||
+    streamDiag?.keepaliveLineCount != null;
+  const mergedDiag = hasPreservedLineStats
+    ? { ...(streamDiag || {}), parsePath: streamDiag?.parsePath ?? 'fulltext_fallback' }
+    : mergeLineStatsIntoDiag(
+        { ...(streamDiag || {}), parsePath: streamDiag?.parsePath ?? 'fulltext_fallback' },
+        stats,
+      );
+  throwCodernetSearchResponseUnusable(text, traceId, mergedDiag);
 }
 
 /** 无法得到带 `results` 的 `complete` 行或等价 JSON 时的兜底说明（区分空/HTML/JSON 错误体）。 */
@@ -359,20 +437,32 @@ async function consumeCodernetSearchNdjsonStream(
   response: Response,
   onProgress?: (p: CodernetSearchProgress) => void,
   traceId?: string | null,
+  clientMeta?: { clientRequestId?: string },
 ): Promise<CodernetLinkSearchResponse> {
   const t0 = Date.now();
   const httpStatus = response.status;
   const contentType = response.headers.get('Content-Type') || response.headers.get('content-type');
   const deployCommit =
     response.headers.get('X-Gitlink-Deploy-Commit') || response.headers.get('x-gitlink-deploy-commit');
+  const streamProtocolHeader =
+    response.headers.get('X-Gitlink-Link-Search-Stream') || response.headers.get('x-gitlink-link-search-stream');
   let chunkReads = 0;
   let rawChunkBytes = 0;
   let firstChunkElapsedMs: number | null = null;
+
+  const lineStats: CodernetLinkSearchStreamLineStats = {
+    jsonLines: 0,
+    progressLines: 0,
+    keepaliveLines: 0,
+  };
 
   const streamBaseDiag = (): CodernetLinkSearchClientDiag => ({
     httpStatus,
     contentType,
     deployCommit: deployCommit?.trim() || undefined,
+    streamProtocolHeader: streamProtocolHeader?.trim() || undefined,
+    clientRequestId: clientMeta?.clientRequestId,
+    responseRequestId: typeof traceId === 'string' && traceId.trim() ? traceId.trim() : undefined,
     chunkReads,
     rawChunkBytes,
     elapsedMs: Date.now() - t0,
@@ -382,7 +472,7 @@ async function consumeCodernetSearchNdjsonStream(
 
   const body = response.body;
   if (!body) {
-    const d = { ...streamBaseDiag(), parsePath: 'ndjson_stream' as const };
+    const d = mergeLineStatsIntoDiag({ ...streamBaseDiag(), parsePath: 'ndjson_stream' as const }, lineStats);
     logCodernetLinkSearchClientFailure('no_body', traceId, d);
     throw new APIError(
       0,
@@ -407,7 +497,7 @@ async function consumeCodernetSearchNdjsonStream(
       chunk = await reader.read();
     } catch (e) {
       const raw = e instanceof Error ? e.message : String(e);
-      const d = streamBaseDiag();
+      const d = mergeLineStatsIntoDiag(streamBaseDiag(), lineStats);
       logCodernetLinkSearchClientFailure('stream_read_error', traceId, d, full);
       throw new APIError(
         0,
@@ -433,13 +523,18 @@ async function consumeCodernetSearchNdjsonStream(
     for (const raw of lines) {
       const trimmed = raw.trim();
       if (!trimmed) continue;
-      handleCodernetSearchNdjsonLine(trimmed, onProgress, state, traceId);
+      handleCodernetSearchNdjsonLine(trimmed, onProgress, state, traceId, lineStats);
     }
     if (done) break;
   }
 
-  if (buffer.trim()) {
-    handleCodernetSearchNdjsonLine(buffer.trim(), onProgress, state, traceId);
+  const tailRaw = buffer;
+  const tailTrim = tailRaw.trim();
+  const incompleteTailLen =
+    tailRaw.length > 0 ? new TextEncoder().encode(tailRaw).length : undefined;
+
+  if (tailTrim) {
+    handleCodernetSearchNdjsonLine(tailTrim, onProgress, state, traceId, lineStats);
   }
 
   if (state.results !== null) {
@@ -451,11 +546,15 @@ async function consumeCodernetSearchNdjsonStream(
   }
 
   // 未识别到 complete 行：用全文兜底（例如网关剥掉 ndjson Content-Type、或截断前行仍拼成可解析包）
-  const fallbackDiag: CodernetLinkSearchClientDiag = {
-    ...streamBaseDiag(),
-    parsePath: 'fulltext_fallback',
-    sawCompleteNdjsonLine: false,
-  };
+  const fallbackDiag = mergeLineStatsIntoDiag(
+    {
+      ...streamBaseDiag(),
+      parsePath: 'fulltext_fallback',
+      sawCompleteNdjsonLine: false,
+      incompleteTailLen: incompleteTailLen && incompleteTailLen > 0 ? incompleteTailLen : undefined,
+    },
+    lineStats,
+  );
   return parseCodernetSearchResponseBody(full, undefined, traceId, fallbackDiag);
 }
 
@@ -698,6 +797,7 @@ export const api = {
         body = JSON.stringify({ query });
       }
 
+      const tFetch = Date.now();
       let response: Response;
       try {
         response = await fetch(url, { method: 'POST', headers, body });
@@ -706,6 +806,11 @@ export const api = {
         throw new APIError(
           0,
           withCodernetSearchTrace(`${getNetworkErrorMsg()}\n([${url}] ${raw})`, requestTraceId),
+          attachCodernetSearchOpts(requestTraceId, {
+            clientRequestId: requestTraceId,
+            responseRequestId: requestTraceId,
+            elapsedMs: Date.now() - tFetch,
+          }),
         );
       }
 
@@ -719,12 +824,30 @@ export const api = {
         const msg =
           error?.error ||
           (response.status >= 500 ? `服务器错误 (${response.status})` : `请求失败 (${response.status})`);
-        throw new APIError(response.status, withCodernetSearchTrace(msg, traceForLogs));
+        const streamHdr =
+          response.headers.get('X-Gitlink-Link-Search-Stream') ||
+          response.headers.get('x-gitlink-link-search-stream');
+        const dep =
+          response.headers.get('X-Gitlink-Deploy-Commit') || response.headers.get('x-gitlink-deploy-commit');
+        throw new APIError(
+          response.status,
+          withCodernetSearchTrace(msg, traceForLogs),
+          attachCodernetSearchOpts(traceForLogs, {
+            httpStatus: response.status,
+            contentType: response.headers.get('Content-Type') || response.headers.get('content-type'),
+            deployCommit: dep?.trim() || undefined,
+            streamProtocolHeader: streamHdr?.trim() || undefined,
+            clientRequestId: requestTraceId,
+            responseRequestId: traceForLogs,
+          }),
+        );
       }
 
       // 200 时后端约定为 NDJSON；反代可能改写 Content-Type，故只要存在 body 就按流读取并带全文兜底
       if (response.body) {
-        return consumeCodernetSearchNdjsonStream(response, onProgress, traceForLogs);
+        return consumeCodernetSearchNdjsonStream(response, onProgress, traceForLogs, {
+          clientRequestId: requestTraceId,
+        });
       }
       const text = await response.text();
       return parseCodernetSearchResponseBody(text, onProgress, traceForLogs);

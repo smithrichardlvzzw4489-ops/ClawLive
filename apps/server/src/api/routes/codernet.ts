@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import type { IRouter } from 'express';
 import multer from 'multer';
 import { randomUUID } from 'crypto';
+import { hostname as osHostname } from 'os';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { decrypt } from '../../lib/crypto';
@@ -758,7 +759,10 @@ export function codernetRoutes(): IRouter {
         const body = req.body as { query?: string };
         const queryRaw = typeof body.query === 'string' ? body.query.trim() : '';
         const files = req.files as Express.Multer.File[] | undefined;
+        const tAttach0 = Date.now();
         let attachmentBlock = await concatExtractedFiles(files, '附件材料');
+        const attachmentIngestMs = Date.now() - tAttach0;
+        const attachmentBytesTotal = (files ?? []).reduce((sum, f) => sum + (f.size || 0), 0);
         if (attachmentBlock.length > LINK_SEARCH_MAX_ATTACHMENT_CHARS) {
           attachmentBlock =
             attachmentBlock.slice(0, LINK_SEARCH_MAX_ATTACHMENT_CHARS) + '\n…（附件正文已截断）';
@@ -807,6 +811,7 @@ export function codernetRoutes(): IRouter {
         let ndjsonBytes = 0;
         let lastStreamType = 'none';
         let firstWriteElapsedMs: number | null = null;
+        let writeBackpressureCount = 0;
 
         const logLinkSearch = (phase: string, extra?: Record<string, unknown>) => {
           console.log(
@@ -832,24 +837,41 @@ export function codernetRoutes(): IRouter {
         const xff = xffRaw ? xffRaw.split(',')[0]!.trim().slice(0, 96) : '';
         const xRealIp = (req.get('x-real-ip') || '').trim().slice(0, 96) || undefined;
         const ua = (req.get('user-agent') || '').trim().slice(0, 200) || undefined;
+        const mem0 = process.memoryUsage();
         logLinkSearch('stream_start', {
           clientIpHint: xff || xRealIp || undefined,
           ua,
+          host: osHostname(),
+          pid: process.pid,
+          nodeEnv: process.env.NODE_ENV || undefined,
+          railwayReplicaId: process.env.RAILWAY_REPLICA_ID || undefined,
+          railwayServiceId: process.env.RAILWAY_SERVICE_ID || undefined,
+          rssMb: Math.round((mem0.rss / 1024 / 1024) * 10) / 10,
+          heapUsedMb: Math.round((mem0.heapUsed / 1024 / 1024) * 10) / 10,
+          attachmentIngestMs,
+          attachmentBytesTotal,
         });
 
         req.on('close', () => {
           if (!res.writableEnded) {
-            logLinkSearch('req_close_before_res_end', { clientDisconnected: true });
+            logLinkSearch('req_close_before_res_end', {
+              clientDisconnected: true,
+              reqAborted: (req as { aborted?: boolean }).aborted === true,
+            });
           }
         });
 
         res.on('close', () => {
+          const mem1 = process.memoryUsage();
           logLinkSearch('res_close', {
             writableEnded: res.writableEnded,
             destroyed: res.destroyed,
             hadCompleteLine: lastStreamType === 'complete',
             ndjsonBytes,
             ndjsonLines,
+            writeBackpressureCount,
+            rssMb: Math.round((mem1.rss / 1024 / 1024) * 10) / 10,
+            heapUsedMb: Math.round((mem1.heapUsed / 1024 / 1024) * 10) / 10,
           });
         });
 
@@ -858,6 +880,7 @@ export function codernetRoutes(): IRouter {
             writableEnded: res.writableEnded,
             firstWriteElapsedMs,
             hadCompleteLine: lastStreamType === 'complete',
+            writeBackpressureCount,
           });
         });
 
@@ -868,6 +891,7 @@ export function codernetRoutes(): IRouter {
           });
         });
 
+        let resDrainListener = false;
         const writeLine = (obj: unknown) => {
           const line = `${JSON.stringify(obj)}\n`;
           ndjsonBytes += Buffer.byteLength(line, 'utf8');
@@ -879,7 +903,18 @@ export function codernetRoutes(): IRouter {
           if (typ === 'complete' || typ === 'error' || typ === 'progress') {
             lastStreamType = String(typ);
           }
-          res.write(line);
+          const ok = res.write(line);
+          if (ok === false) {
+            writeBackpressureCount += 1;
+            logLinkSearch('res_write_backpressure', { writeBackpressureCount, ndjsonLines });
+            if (!resDrainListener) {
+              resDrainListener = true;
+              res.once('drain', () => {
+                resDrainListener = false;
+                logLinkSearch('res_drain', { writeBackpressureCount, ndjsonLines });
+              });
+            }
+          }
         };
 
         // 立刻写出首包，避免在 parseQuery / GitHub 等前置 await 期间长时间无字节，
@@ -915,6 +950,7 @@ export function codernetRoutes(): IRouter {
         const heartbeatMs = Number.isFinite(hbRaw) ? Math.min(120_000, Math.max(5000, hbRaw)) : 15_000;
 
         let heartbeatHandle: ReturnType<typeof setInterval> | null = null;
+        let heartbeatSeq = 0;
         const clearLinkSearchHeartbeat = () => {
           if (heartbeatHandle != null) {
             clearInterval(heartbeatHandle);
@@ -927,6 +963,13 @@ export function codernetRoutes(): IRouter {
             return;
           }
           try {
+            heartbeatSeq += 1;
+            logLinkSearch('heartbeat_tick', {
+              heartbeatSeq,
+              lastEmittedPhase,
+              ndjsonLines,
+              ndjsonBytes,
+            });
             emitSearchProgress({
               phase: lastEmittedPhase,
               detail: `仍在处理…（已约 ${Math.round((Date.now() - t0) / 1000)}s；保活心跳，避免长时间无数据被网关断开）`,
@@ -947,10 +990,15 @@ export function codernetRoutes(): IRouter {
 
         const token = getServerGitHubToken();
         const tSearch = Date.now();
-        logLinkSearch('search_developers_enter', { heartbeatMs });
+        logLinkSearch('search_developers_enter', {
+          heartbeatMs,
+          githubTokenPresent: Boolean(token && String(token).trim()),
+        });
         heartbeatHandle = setInterval(pulseLinkSearchHeartbeat, heartbeatMs);
         try {
-          const pack = await searchDevelopers(combinedQuery, lookupCache, token, emitSearchProgress);
+          const pack = await searchDevelopers(combinedQuery, lookupCache, token, emitSearchProgress, {
+            requestId,
+          });
           logLinkSearch('search_developers_ok', {
             searchElapsedMs: Date.now() - tSearch,
             resultCount: pack.results.length,
@@ -979,6 +1027,8 @@ export function codernetRoutes(): IRouter {
         logLinkSearch('before_res_end', {
           hadCompleteLine: lastStreamType === 'complete',
           firstWriteElapsedMs,
+          writeBackpressureCount,
+          heartbeatTicks: heartbeatSeq,
         });
         res.end();
       } catch (error) {

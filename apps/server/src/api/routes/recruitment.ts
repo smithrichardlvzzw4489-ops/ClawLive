@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { randomUUID } from "crypto";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { checkQuota, consumeQuota } from "../../services/quota-manager";
@@ -431,7 +432,14 @@ export function recruitmentRoutes(): Router {
         .join("\n\n");
 
       const token = getServerGitHubToken();
-      const pack = await searchDevelopers(combinedQuery, new Map() as never, token);
+      const ridRaw = req.get("x-request-id")?.trim();
+      const pipelineRequestId =
+        ridRaw && ridRaw.length >= 4 && ridRaw.length <= 128 && !/[\r\n]/.test(ridRaw)
+          ? ridRaw.slice(0, 128)
+          : randomUUID();
+      const pack = await searchDevelopers(combinedQuery, new Map() as never, token, undefined, {
+        requestId: pipelineRequestId,
+      });
       const raw = pack.results;
       const limit = Math.min(20, Math.max(5, parseInt(String(req.body?.limit || "12"), 10) || 12));
       const results = raw.slice(0, limit).map((r) => ({

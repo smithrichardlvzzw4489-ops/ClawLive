@@ -528,20 +528,43 @@ async function fetchGitHubSearchShardAllPages(
   return acc;
 }
 
-async function searchGitHubUsers(parsedQuery: ParsedQuery, token?: string): Promise<GHSearchUserItem[]> {
+type PipelineDiagLog = (phase: string, extra?: Record<string, unknown>) => void;
+
+async function searchGitHubUsers(
+  parsedQuery: ParsedQuery,
+  token?: string,
+  pipeLog?: PipelineDiagLog,
+): Promise<GHSearchUserItem[]> {
   const maxMerged = getLinkSearchMaxMerged();
   const queries = expandGithubSearchQueries(parsedQuery);
   const batches: GHSearchUserItem[][] = [];
 
+  pipeLog?.('github_search_shards', { shardTotal: queries.length, maxMerged });
+
   for (let i = 0; i < queries.length; i++) {
     const q = queries[i];
     const sliceParsed: ParsedQuery = { ...parsedQuery, githubQuery: q };
+    const tShard = Date.now();
     try {
       const rows = await fetchGitHubSearchShardAllPages(sliceParsed, token);
       batches.push(rows);
       console.log(`[CodernetSearch] shard ${i + 1}/${queries.length} got ${rows.length} users`);
+      pipeLog?.('github_shard_ok', {
+        shardIndex: i + 1,
+        shardTotal: queries.length,
+        rowCount: rows.length,
+        shardElapsedMs: Date.now() - tShard,
+        qPreview: q.slice(0, 96),
+      });
     } catch (e) {
       console.warn(`[CodernetSearch] shard ${i + 1}/${queries.length} failed q=${q.slice(0, 100)}`, e);
+      pipeLog?.('github_shard_error', {
+        shardIndex: i + 1,
+        shardTotal: queries.length,
+        shardElapsedMs: Date.now() - tShard,
+        qPreview: q.slice(0, 96),
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
     if (i < queries.length - 1) await sleep(120);
   }
@@ -557,6 +580,7 @@ async function searchGitHubUsers(parsedQuery: ParsedQuery, token?: string): Prom
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
+  const tProf = Date.now();
   const profiled = await Promise.allSettled(
     top.map(async (u) => {
       try {
@@ -569,6 +593,11 @@ async function searchGitHubUsers(parsedQuery: ParsedQuery, token?: string): Prom
       return u;
     }),
   );
+
+  pipeLog?.('github_profile_enrich_ok', {
+    profileFetchCount: top.length,
+    profileEnrichElapsedMs: Date.now() - tProf,
+  });
 
   return profiled
     .filter((r): r is PromiseFulfilledResult<GHSearchUserItem> => r.status === 'fulfilled')
@@ -726,12 +755,32 @@ function fallbackScoreFromFollowers(followers: number): number {
   return Math.round((0.32 + (Math.log10(f + 10) / Math.log10(500_010)) * 0.16) * 1000) / 1000;
 }
 
+/** 与 `[GITLINK] linkSearch` 的 `requestId` 对齐，便于检索流水线分阶段耗时。 */
+export interface SearchDevelopersDiagContext {
+  requestId: string;
+}
+
 export async function searchDevelopers(
   query: string,
   lookupCache: Map<string, any>,
   token?: string,
   onProgress?: (p: SearchProgress) => void,
+  diag?: SearchDevelopersDiagContext,
 ): Promise<SearchDevelopersResponse> {
+  const rid = diag?.requestId?.trim() || null;
+  const tPipe0 = Date.now();
+  const pipeLog = (phase: string, extra?: Record<string, unknown>) => {
+    console.log(
+      '[GITLINK] linkSearchPipeline',
+      JSON.stringify({
+        requestId: rid,
+        phase,
+        pipelineElapsedMs: Date.now() - tPipe0,
+        ...extra,
+      }),
+    );
+  };
+
   const emptyBuckets = (): LinkSearchBuckets => ({
     jobSeekingAndContact: [],
     jobSeekingOnly: [],
@@ -739,12 +788,27 @@ export async function searchDevelopers(
     neither: [],
   });
 
+  try {
   onProgress?.({ phase: 'parsing', detail: '正在理解您的检索需求并生成 GitHub 检索策略…' });
 
+  pipeLog('pipeline_enter', { queryChars: query.length, enrichConcurrency: getEnrichConcurrency() });
+
+  const tParse = Date.now();
+  pipeLog('parse_llm_enter');
   const parsed = await parseQueryToGitHubSearch(query);
+  pipeLog('parse_llm_ok', {
+    parseElapsedMs: Date.now() - tParse,
+    githubQueryLen: parsed.githubQuery.length,
+    explanationLen: (parsed.explanation || '').length,
+    hasShardQueries: Boolean(parsed.shardQueries?.length),
+  });
   console.log(`[CodernetSearch] parsed: "${parsed.githubQuery}" (${parsed.explanation})`);
 
   const shardQs = expandGithubSearchQueries(parsed);
+  pipeLog('github_queries_expanded', {
+    expandedShardCount: shardQs.length,
+    primaryGithubQueryPreview: parsed.githubQuery.slice(0, 120),
+  });
   onProgress?.({
     phase: 'searching',
     detail:
@@ -754,10 +818,17 @@ export async function searchDevelopers(
     githubQuery: parsed.githubQuery,
   });
 
-  const ghUsers = await searchGitHubUsers(parsed, token);
+  const tGh = Date.now();
+  pipeLog('github_search_enter');
+  const ghUsers = await searchGitHubUsers(parsed, token, pipeLog);
+  pipeLog('github_search_ok', {
+    githubSearchElapsedMs: Date.now() - tGh,
+    mergedGithubCount: ghUsers.length,
+  });
   if (ghUsers.length === 0) {
     onProgress?.({ phase: 'done', detail: '未在 GitHub 上找到符合条件的用户', totalFound: 0 });
     const buckets = emptyBuckets();
+    pipeLog('pipeline_ok_empty_github', { totalElapsedMs: Date.now() - tPipe0 });
     return { results: [], buckets, meta: { mergedGithubCount: 0, enrichedCount: 0 } };
   }
 
@@ -767,6 +838,8 @@ export async function searchDevelopers(
     totalFound: ghUsers.length,
   });
 
+  const tEnrich = Date.now();
+  pipeLog('enrich_enter', { candidateCount: ghUsers.length });
   const enriched = await enrichCandidates(ghUsers, token, lookupCache, (done, total) => {
     onProgress?.({
       phase: 'enriching',
@@ -774,9 +847,17 @@ export async function searchDevelopers(
       totalFound: ghUsers.length,
     });
   });
+  const withCrawl = enriched.filter((c) => Boolean(c.crawl)).length;
+  pipeLog('enrich_ok', {
+    enrichElapsedMs: Date.now() - tEnrich,
+    enrichedCount: enriched.length,
+    withCrawlCount: withCrawl,
+  });
 
   const JOB_SIGNAL_BATCH = 6;
   const jobAndContactMeta: Array<{ hasJob: boolean; hasContact: boolean; bucket: LinkSearchBucketKey }> = [];
+  const tJob = Date.now();
+  pipeLog('job_signals_enter', { batchSize: JOB_SIGNAL_BATCH, enrichedTotal: enriched.length });
   for (let j = 0; j < enriched.length; j += JOB_SIGNAL_BATCH) {
     const slice = enriched.slice(j, j + JOB_SIGNAL_BATCH);
     const part = await Promise.all(
@@ -794,11 +875,18 @@ export async function searchDevelopers(
     );
     jobAndContactMeta.push(...part);
   }
+  pipeLog('job_signals_ok', { jobSignalsElapsedMs: Date.now() - tJob });
 
   onProgress?.({ phase: 'ranking', detail: '正在用 AI 精排（子集）并生成分类结果…' });
 
   const rerankPool = enriched.slice(0, Math.min(RERANK_POOL, enriched.length));
+  const tRerank = Date.now();
+  pipeLog('rerank_llm_enter', { rerankPoolSize: rerankPool.length });
   const ranked = await rerankCandidates(query, rerankPool);
+  pipeLog('rerank_llm_ok', {
+    rerankElapsedMs: Date.now() - tRerank,
+    rankedRowCount: ranked.length,
+  });
   const scoreMap = new Map<number, { score: number; reason: string }>();
   for (const r of ranked) {
     if (r.score >= 0.3 && r.index >= 0 && r.index < rerankPool.length) {
@@ -865,9 +953,24 @@ export async function searchDevelopers(
     totalFound: enriched.length,
   });
 
+  pipeLog('pipeline_ok', {
+    totalElapsedMs: Date.now() - tPipe0,
+    resultCount: results.length,
+    mergedGithubCount: ghUsers.length,
+    enrichedCount: enriched.length,
+  });
+
   return {
     results,
     buckets,
     meta: { mergedGithubCount: ghUsers.length, enrichedCount: enriched.length },
   };
+  } catch (e) {
+    pipeLog('pipeline_throw', {
+      totalElapsedMs: Date.now() - tPipe0,
+      message: e instanceof Error ? e.message : String(e),
+      stackTop: e instanceof Error ? (e.stack || '').split('\n').slice(0, 3).join(' | ') : undefined,
+    });
+    throw e;
+  }
 }
