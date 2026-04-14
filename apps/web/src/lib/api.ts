@@ -244,6 +244,12 @@ function throwCodernetSearchResponseUnusable(rawText: string, traceId?: string |
   );
 }
 
+/**
+ * 读取 LINK 搜索响应：按行解析 NDJSON，并同步累积全文。
+ * 不在此处使用 `body.tee()`：部分环境下未消费的 tee 分支会带来背压/内存问题；
+ * 若行级解析未收到 `complete`，再用全文走 `parseCodernetSearchResponseBody`（兼容反代改写 Content-Type、
+ * 或仅能通过整包解析识别的边界情况）。
+ */
 async function consumeCodernetSearchNdjsonStream(
   response: Response,
   onProgress?: (p: CodernetSearchProgress) => void,
@@ -254,18 +260,10 @@ async function consumeCodernetSearchNdjsonStream(
     throw new APIError(0, withCodernetSearchTrace('无法读取搜索响应流', traceId));
   }
 
-  let secondary: ReadableStream<Uint8Array> | null = null;
-  let reader: ReadableStreamDefaultReader<Uint8Array>;
-  try {
-    const tee = body.tee();
-    reader = tee[0].getReader();
-    secondary = tee[1];
-  } catch {
-    reader = body.getReader();
-  }
-
+  const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let full = '';
   const state: {
     results: unknown[] | null;
     buckets: CodernetLinkSearchBuckets | null;
@@ -281,7 +279,9 @@ async function consumeCodernetSearchNdjsonStream(
       throw new APIError(0, withCodernetSearchTrace(`读取搜索流失败，连接可能已断开：${raw}`, traceId));
     }
     const { done, value } = chunk;
-    buffer += decoder.decode(value ?? new Uint8Array(0), { stream: !done });
+    const piece = decoder.decode(value ?? new Uint8Array(0), { stream: !done });
+    full += piece;
+    buffer += piece;
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
     for (const raw of lines) {
@@ -304,18 +304,8 @@ async function consumeCodernetSearchNdjsonStream(
     };
   }
 
-  if (secondary) {
-    let full: string;
-    try {
-      full = await new Response(secondary).text();
-    } catch (e) {
-      const raw = e instanceof Error ? e.message : String(e);
-      throw new APIError(0, withCodernetSearchTrace(`合并搜索响应失败：${raw}`, traceId));
-    }
-    return parseCodernetSearchResponseBody(full, undefined, traceId);
-  }
-
-  throw new APIError(0, withCodernetSearchTrace('搜索流未正常结束（未收到完成行）。请重试。', traceId));
+  // 未识别到 complete 行：用全文兜底（例如网关剥掉 ndjson Content-Type、或截断前行仍拼成可解析包）
+  return parseCodernetSearchResponseBody(full, undefined, traceId);
 }
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
@@ -581,8 +571,8 @@ export const api = {
         throw new APIError(response.status, withCodernetSearchTrace(msg, traceForLogs));
       }
 
-      const ct = (response.headers.get('content-type') || '').toLowerCase();
-      if (ct.includes('ndjson')) {
+      // 200 时后端约定为 NDJSON；反代可能改写 Content-Type，故只要存在 body 就按流读取并带全文兜底
+      if (response.body) {
         return consumeCodernetSearchNdjsonStream(response, onProgress, traceForLogs);
       }
       const text = await response.text();
