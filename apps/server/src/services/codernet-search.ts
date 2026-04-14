@@ -1,15 +1,15 @@
 /**
  * Codernet 全网开发者搜索：
  * 1. LLM 解析自然语言 → GitHub Search API qualifiers
- * 2. GitHub Search API 实时搜人（/search/users；自动 followers/repos 分桶 + 大国地区分片 + 合并，缓解单次约 1000 条上限）
- * 3. 批量爬取 top 候选人画像
- * 4. LLM 精排 → 返回最匹配的开发者
+ * 2. GitHub Search API 实时搜人（/search/users；分片合并，缓解单次约 1000 条上限）
+ * 3. 每条 /users/:login 公开摘要（bio / blog / 粉丝等），不做仓库级深度爬取与 AI 画像
+ * 4. 按求职文案 + 公开联系方式分为四类输出（桶内按粉丝数排序），不做 LLM 精排
  */
 
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';
-import { crawlGitHubProfile, type GitHubCrawlResult } from './github-crawler';
-import { analyzeGitHubProfile, type CodernetAnalysis } from './codernet-profile-analyzer';
-import { collectJobSeekingSignals, textLooksJobSeeking } from './job-seeking-signals';
+import { type GitHubCrawlResult } from './github-crawler';
+import type { CodernetAnalysis } from './codernet-profile-analyzer';
+import { textLooksJobSeeking } from './job-seeking-signals';
 
 /** LINK 结果分桶（与 HR 筛选维度对齐） */
 export type LinkSearchBucketKey =
@@ -54,10 +54,11 @@ export interface SearchDevelopersResponse {
   buckets: LinkSearchBuckets;
   meta: {
     mergedGithubCount: number;
+    /** 参与分桶与返回的人数（当前均为公开元数据，无深度画像） */
     enrichedCount: number;
-    /** 实际走深度爬取 + 画像的人数（受 LINK_SEARCH_ENRICH_MAX_CANDIDATES 限制） */
+    /** 深度爬取 + AI 画像人数（当前流水线恒为 0） */
     deepEnrichCount: number;
-    /** 仅保留 GitHub 公开摘要、未深度爬取的人数 */
+    /** 仅公开摘要、未做深度爬取的人数（当前与 enrichedCount 相同） */
     metadataOnlyCount: number;
   };
 }
@@ -67,27 +68,13 @@ function getLinkSearchMaxMerged(): number {
   return Number.isFinite(n) ? Math.min(8000, Math.max(50, n)) : 2000;
 }
 
-function getEnrichConcurrency(): number {
-  const n = parseInt(process.env.LINK_SEARCH_ENRICH_CONCURRENCY || '4', 10);
-  return Number.isFinite(n) ? Math.min(12, Math.max(1, n)) : 4;
-}
-
-/**
- * 深度爬取 + AI 画像的最大人数（合并去重后仍可能上千；全量爬取会导致单次检索十余分钟级耗时与流被网关掐断）。
- * 其余候选人仅保留 GitHub Search / users 元数据，仍可参与求职信号（bio）与分桶。
- */
-function getLinkSearchEnrichMaxCandidates(): number {
-  const maxMerged = getLinkSearchMaxMerged();
-  const n = parseInt(process.env.LINK_SEARCH_ENRICH_MAX_CANDIDATES || '200', 10);
-  const v = Number.isFinite(n) ? n : 200;
-  return Math.min(maxMerged, Math.max(24, Math.min(2000, v)));
-}
-
-/** 单用户 enrich（爬取+分析）墙钟上限，超时则降级为仅 user。 */
-function getLinkSearchEnrichPerUserBudgetMs(): number {
-  const n = parseInt(process.env.LINK_SEARCH_ENRICH_PER_USER_BUDGET_MS || '120000', 10);
-  return Number.isFinite(n) ? Math.min(600_000, Math.max(15_000, n)) : 120_000;
-}
+/** LINK 结果列表顺序：四类人依次输出 */
+const LINK_BUCKET_OUTPUT_ORDER: LinkSearchBucketKey[] = [
+  'jobSeekingAndContact',
+  'jobSeekingOnly',
+  'contactOnly',
+  'neither',
+];
 
 /* ── Phase 1: LLM 解析用户意图 → GitHub Search qualifiers ─── */
 
@@ -628,155 +615,6 @@ async function searchGitHubUsers(
     .map((r) => r.value);
 }
 
-/* ── Phase 3: 批量爬取 + AI 分析（lightweight，只对 top 5）── */
-
-interface EnrichedCandidate {
-  user: GHSearchUserItem;
-  crawl?: GitHubCrawlResult;
-  analysis?: CodernetAnalysis;
-}
-
-async function enrichOneCandidate(
-  user: GHSearchUserItem,
-  token?: string,
-  lookupCache?: Map<string, any>,
-): Promise<EnrichedCandidate> {
-  const cacheKey = user.login.toLowerCase();
-  if (lookupCache?.has(cacheKey)) {
-    const cached = lookupCache.get(cacheKey);
-    return { user, crawl: cached.crawl, analysis: cached.analysis };
-  }
-
-  const budgetMs = getLinkSearchEnrichPerUserBudgetMs();
-
-  const run = async (): Promise<EnrichedCandidate> => {
-    const crawl = await crawlGitHubProfile(token, user.login);
-
-    let analysis: CodernetAnalysis | undefined;
-    try {
-      analysis = await analyzeGitHubProfile(crawl);
-    } catch (err) {
-      console.warn(`[CodernetSearch] AI analysis failed for @${user.login}:`, err);
-    }
-
-    if (lookupCache && analysis) {
-      lookupCache.set(cacheKey, {
-        crawl,
-        analysis,
-        cachedAt: Date.now(),
-        avatarUrl: user.avatar_url,
-      });
-    }
-
-    return { user, crawl, analysis };
-  };
-
-  try {
-    return await Promise.race([
-      run(),
-      new Promise<EnrichedCandidate>((resolve) => {
-        setTimeout(() => {
-          console.warn(
-            `[CodernetSearch] enrich per-user budget (${budgetMs}ms) exceeded for @${user.login}, skipping deep crawl/analysis`,
-          );
-          resolve({ user });
-        }, budgetMs);
-      }),
-    ]);
-  } catch (err) {
-    console.warn(`[CodernetSearch] crawl failed for @${user.login}:`, err);
-    return { user };
-  }
-}
-
-async function enrichCandidates(
-  users: GHSearchUserItem[],
-  token?: string,
-  lookupCache?: Map<string, any>,
-  onChunk?: (done: number, total: number) => void,
-): Promise<EnrichedCandidate[]> {
-  const conc = getEnrichConcurrency();
-  const out: EnrichedCandidate[] = [];
-  for (let i = 0; i < users.length; i += conc) {
-    const slice = users.slice(i, i + conc);
-    const settled = await Promise.allSettled(slice.map((u) => enrichOneCandidate(u, token, lookupCache)));
-    for (const s of settled) {
-      if (s.status === 'fulfilled') out.push(s.value);
-    }
-    onChunk?.(out.length, users.length);
-  }
-  return out;
-}
-
-/* ── Phase 4: LLM 精排 ───────────────────────────────────── */
-
-function buildRerankPrompt(query: string, candidates: EnrichedCandidate[]): string {
-  const list = candidates.map((c, i) => {
-    const u = c.user;
-    const a = c.analysis;
-    const tags = a?.techTags?.join(', ') || 'N/A';
-    const oneLiner = a?.oneLiner || 'N/A';
-    const bio = u.bio || '';
-    const loc = u.location || '?';
-    return `[${i}] @${u.login} | ${bio} | Location: ${loc} | Followers: ${u.followers ?? '?'} | Repos: ${u.public_repos ?? '?'} | Tags: ${tags} | AI: "${oneLiner}"`;
-  }).join('\n');
-
-  return `你是 Codernet 开发者匹配引擎。根据用户的需求，对从 GitHub 找到的候选人进行精排。
-
-用户需求：${query}
-
-候选人（已按 GitHub 相关性初筛）：
-${list}
-
-输出**仅一个 JSON 数组**，按匹配度降序：
-[
-  { "index": 0, "score": 0.95, "reason": "匹配理由（1句话中文）" },
-  ...
-]
-
-规则：
-- score 范围 0-1
-- 最多返回 24 条，只返回 score >= 0.3 的
-- reason 必须中文
-- 综合考虑技术栈匹配度、经验（stars/followers/repos）、地域、AI画像分析
-- 没有匹配的返回空数组 []`;
-}
-
-async function rerankCandidates(
-  query: string,
-  candidates: EnrichedCandidate[],
-): Promise<Array<{ index: number; score: number; reason: string }>> {
-  if (candidates.length === 0) return [];
-
-  const { model } = getPublishingLlmClient();
-  const prompt = buildRerankPrompt(query, candidates);
-
-  let response;
-  try {
-    response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.2, response_format: { type: 'json_object' } },
-      'search_rerank',
-    );
-  } catch {
-    response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 600, temperature: 0.2 },
-      'search_rerank',
-    );
-  }
-
-  const raw = response.choices[0]?.message?.content?.trim() || '[]';
-  const jsonMatch = raw.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return [];
-
-  try {
-    const arr = JSON.parse(jsonMatch[0]);
-    if (!Array.isArray(arr)) return [];
-    return arr.filter((r: any) => typeof r.index === 'number' && typeof r.score === 'number');
-  } catch {
-    return [];
-  }
-}
-
 /* ── Main: 完整搜索流水线 ─────────────────────────────────── */
 
 export interface SearchProgress {
@@ -787,8 +625,6 @@ export interface SearchProgress {
   /** 路由层定时保活：长时间无真实进度时写出，避免反代/浏览器空闲断流 */
   keepalive?: boolean;
 }
-
-const RERANK_POOL = 24;
 
 function fallbackScoreFromFollowers(followers: number): number {
   const f = Math.min(500_000, Math.max(0, followers));
@@ -829,9 +665,11 @@ export async function searchDevelopers(
   });
 
   try {
+  void lookupCache;
+
   onProgress?.({ phase: 'parsing', detail: '正在理解您的检索需求并生成 GitHub 检索策略…' });
 
-  pipeLog('pipeline_enter', { queryChars: query.length, enrichConcurrency: getEnrichConcurrency() });
+  pipeLog('pipeline_enter', { queryChars: query.length });
 
   const tParse = Date.now();
   pipeLog('parse_llm_enter');
@@ -876,115 +714,54 @@ export async function searchDevelopers(
     };
   }
 
-  const enrichCap = getLinkSearchEnrichMaxCandidates();
-  const deepUsers = ghUsers.slice(0, enrichCap);
-  const tailCount = ghUsers.length - deepUsers.length;
-
   onProgress?.({
-    phase: 'enriching',
-    detail:
-      tailCount > 0
-        ? `将对前 ${deepUsers.length} 位候选人做深度画像（合并 ${ghUsers.length} 人，其余 ${tailCount} 人仅保留公开摘要以控制耗时）；并发 ${getEnrichConcurrency()}…`
-        : `正在爬取与分析 ${ghUsers.length} 位候选人的公开资料（并发 ${getEnrichConcurrency()}）…`,
+    phase: 'ranking',
+    detail: `合并 ${ghUsers.length} 人，按公开 bio / 联系方式分为四类…`,
     totalFound: ghUsers.length,
   });
 
-  const tEnrich = Date.now();
-  pipeLog('enrich_enter', {
-    candidateCount: ghUsers.length,
-    deepEnrichCap: enrichCap,
-    deepEnrichSlice: deepUsers.length,
-    metadataOnlyTail: tailCount,
-  });
-  const deepEnriched = await enrichCandidates(deepUsers, token, lookupCache, (done, total) => {
-    onProgress?.({
-      phase: 'enriching',
-      detail:
-        tailCount > 0
-          ? `深度画像 ${done}/${total}（合并共 ${ghUsers.length} 人；并发 ${getEnrichConcurrency()}）…`
-          : `画像进度 ${done}/${total}（并发 ${getEnrichConcurrency()}）…`,
-      totalFound: ghUsers.length,
-    });
-  });
-  const tailEnriched: EnrichedCandidate[] =
-    tailCount > 0 ? ghUsers.slice(enrichCap).map((u) => ({ user: u })) : [];
-  const enriched = [...deepEnriched, ...tailEnriched];
-
-  const withCrawl = enriched.filter((c) => Boolean(c.crawl)).length;
-  pipeLog('enrich_ok', {
-    enrichElapsedMs: Date.now() - tEnrich,
-    enrichedCount: enriched.length,
-    deepCrawlCount: deepEnriched.filter((c) => Boolean(c.crawl)).length,
-    withCrawlCount: withCrawl,
-    metadataOnlyCount: tailCount,
+  const tBucket = Date.now();
+  const jobAndContactMeta = ghUsers.map((u) => {
+    const hasContact = hasPublicContactInfo(u);
+    const hasJob = Boolean(u.bio && textLooksJobSeeking(u.bio));
+    return { hasJob, hasContact, bucket: assignLinkBucket(hasJob, hasContact) };
   });
 
-  const JOB_SIGNAL_BATCH = 6;
-  const jobAndContactMeta: Array<{ hasJob: boolean; hasContact: boolean; bucket: LinkSearchBucketKey }> = [];
-  const tJob = Date.now();
-  pipeLog('job_signals_enter', { batchSize: JOB_SIGNAL_BATCH, enrichedTotal: enriched.length });
-  for (let j = 0; j < enriched.length; j += JOB_SIGNAL_BATCH) {
-    const slice = enriched.slice(j, j + JOB_SIGNAL_BATCH);
-    const part = await Promise.all(
-      slice.map(async (c) => {
-        const hasContact = hasPublicContactInfo(c.user, c.crawl);
-        let hasJob = false;
-        if (c.crawl) {
-          const sigs = await collectJobSeekingSignals(c.crawl, token);
-          hasJob = sigs.length > 0;
-        } else if (c.user.bio && textLooksJobSeeking(c.user.bio)) {
-          hasJob = true;
-        }
-        return { hasJob, hasContact, bucket: assignLinkBucket(hasJob, hasContact) };
-      }),
+  const idxByBucket: Record<LinkSearchBucketKey, number[]> = {
+    jobSeekingAndContact: [],
+    jobSeekingOnly: [],
+    contactOnly: [],
+    neither: [],
+  };
+  for (let i = 0; i < ghUsers.length; i++) {
+    idxByBucket[jobAndContactMeta[i]!.bucket].push(i);
+  }
+  for (const bk of LINK_BUCKET_OUTPUT_ORDER) {
+    idxByBucket[bk].sort(
+      (ia, ib) => (Number(ghUsers[ib]!.followers) || 0) - (Number(ghUsers[ia]!.followers) || 0),
     );
-    jobAndContactMeta.push(...part);
-  }
-  pipeLog('job_signals_ok', { jobSignalsElapsedMs: Date.now() - tJob });
-
-  onProgress?.({ phase: 'ranking', detail: '正在用 AI 精排（子集）并生成分类结果…' });
-
-  const rerankPool = enriched.slice(0, Math.min(RERANK_POOL, enriched.length));
-  const tRerank = Date.now();
-  pipeLog('rerank_llm_enter', { rerankPoolSize: rerankPool.length });
-  const ranked = await rerankCandidates(query, rerankPool);
-  pipeLog('rerank_llm_ok', {
-    rerankElapsedMs: Date.now() - tRerank,
-    rankedRowCount: ranked.length,
-  });
-  const scoreMap = new Map<number, { score: number; reason: string }>();
-  for (const r of ranked) {
-    if (r.score >= 0.3 && r.index >= 0 && r.index < rerankPool.length) {
-      const gIdx = r.index;
-      const prev = scoreMap.get(gIdx);
-      if (!prev || r.score > prev.score) scoreMap.set(gIdx, { score: r.score, reason: r.reason });
-    }
   }
 
-  function buildRow(globalIdx: number, c: EnrichedCandidate): DeveloperSearchResult {
-    const u = c.user;
-    const followers = u.followers ?? c.crawl?.followers ?? 0;
-    const sr = scoreMap.get(globalIdx);
-    const score = sr?.score ?? fallbackScoreFromFollowers(followers);
-    const reason = sr?.reason || 'GitHub 检索命中（未进入精排子集时按公开影响力估算）';
+  function buildPublicMetadataRow(globalIdx: number): DeveloperSearchResult {
+    const u = ghUsers[globalIdx]!;
     const meta = jobAndContactMeta[globalIdx]!;
+    const followers = u.followers ?? 0;
     return {
-      githubUsername: c.user.login,
-      avatarUrl: c.user.avatar_url,
-      oneLiner: c.analysis?.oneLiner || '',
-      techTags: c.analysis?.techTags || [],
-      sharpCommentary: c.analysis?.sharpCommentary || '',
-      score,
-      reason,
+      githubUsername: u.login,
+      avatarUrl: u.avatar_url,
+      oneLiner: '',
+      techTags: [],
+      sharpCommentary: '',
+      score: fallbackScoreFromFollowers(followers),
+      reason: 'GitHub 公开检索命中（按四类分桶；未做深度画像与精排）',
       source: 'github_search' as const,
       stats: {
-        totalPublicRepos: c.user.public_repos ?? c.crawl?.totalPublicRepos ?? 0,
-        totalStars: c.crawl?.totalStars ?? 0,
+        totalPublicRepos: u.public_repos ?? 0,
+        totalStars: 0,
         followers,
       },
-      bio: c.user.bio ?? c.crawl?.bio ?? null,
-      location: c.user.location ?? c.crawl?.location ?? null,
-      capabilityQuadrant: c.analysis?.capabilityQuadrant,
+      bio: u.bio ?? null,
+      location: u.location ?? null,
       hasJobSeekingIntent: meta.hasJob,
       hasContact: meta.hasContact,
       linkBucket: meta.bucket,
@@ -992,40 +769,35 @@ export async function searchDevelopers(
   }
 
   const buckets = emptyBuckets();
-
-  const byIdx = enriched.map((c, globalIdx) => ({ c, globalIdx }));
-  byIdx.sort((a, b) => {
-    const sa = scoreMap.get(a.globalIdx)?.score ?? fallbackScoreFromFollowers(a.c.user.followers ?? 0);
-    const sb = scoreMap.get(b.globalIdx)?.score ?? fallbackScoreFromFollowers(b.c.user.followers ?? 0);
-    return sb - sa;
-  });
-
-  for (const { c, globalIdx } of byIdx) {
-    const row = buildRow(globalIdx, c);
-    buckets[row.linkBucket!].push(row);
+  const results: DeveloperSearchResult[] = [];
+  for (const bk of LINK_BUCKET_OUTPUT_ORDER) {
+    for (const idx of idxByBucket[bk]) {
+      const row = buildPublicMetadataRow(idx);
+      buckets[bk].push(row);
+      results.push(row);
+    }
   }
 
-  const results: DeveloperSearchResult[] = [
-    ...buckets.jobSeekingAndContact,
-    ...buckets.jobSeekingOnly,
-    ...buckets.contactOnly,
-    ...buckets.neither,
-  ];
+  pipeLog('bucket_only_ok', {
+    bucketElapsedMs: Date.now() - tBucket,
+    mergedGithubCount: ghUsers.length,
+    bucket1: buckets.jobSeekingAndContact.length,
+    bucket2: buckets.jobSeekingOnly.length,
+    bucket3: buckets.contactOnly.length,
+    bucket4: buckets.neither.length,
+  });
 
   onProgress?.({
     phase: 'done',
-    detail:
-      tailCount > 0
-        ? `完成：合并 ${ghUsers.length} 人 → 深度画像 ${deepUsers.length} 人 + 摘要 ${tailCount} 人；分桶 ①${buckets.jobSeekingAndContact.length} ②${buckets.jobSeekingOnly.length} ③${buckets.contactOnly.length} ④${buckets.neither.length}`
-        : `完成：合并 ${ghUsers.length} 人 → 全量分析 ${enriched.length} 人；分桶 ①${buckets.jobSeekingAndContact.length} ②${buckets.jobSeekingOnly.length} ③${buckets.contactOnly.length} ④${buckets.neither.length}`,
-    totalFound: enriched.length,
+    detail: `完成：合并 ${ghUsers.length} 人；按四类依次输出 ①求职+联系方式 ${buckets.jobSeekingAndContact.length} ②仅求职 ${buckets.jobSeekingOnly.length} ③仅联系方式 ${buckets.contactOnly.length} ④其他 ${buckets.neither.length}（桶内按粉丝数）`,
+    totalFound: ghUsers.length,
   });
 
   pipeLog('pipeline_ok', {
     totalElapsedMs: Date.now() - tPipe0,
     resultCount: results.length,
     mergedGithubCount: ghUsers.length,
-    enrichedCount: enriched.length,
+    enrichedCount: ghUsers.length,
   });
 
   return {
@@ -1033,9 +805,9 @@ export async function searchDevelopers(
     buckets,
     meta: {
       mergedGithubCount: ghUsers.length,
-      enrichedCount: enriched.length,
-      deepEnrichCount: deepUsers.length,
-      metadataOnlyCount: tailCount,
+      enrichedCount: ghUsers.length,
+      deepEnrichCount: 0,
+      metadataOnlyCount: ghUsers.length,
     },
   };
   } catch (e) {
