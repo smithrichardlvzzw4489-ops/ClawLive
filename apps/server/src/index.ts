@@ -26,6 +26,7 @@ import {
 } from './services/darwin-evolver-service';
 import { bootstrapPersistentStateFromPostgres } from './services/persistent-bootstrap';
 import { syncAdminBootstrapFromEnv } from './services/admin-bootstrap';
+import { syncRecruitmentProTierBootstrapFromEnv } from './services/recruitment-tier-bootstrap';
 import { migrateLegacyCodernetInterfaceUsageFromDisk } from './services/codernet-interface-usage';
 import { startRecruitmentWeeklyRecommendScheduler } from './services/recruitment-recommend';
 
@@ -143,6 +144,7 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
     await bootstrapPersistentStateFromPostgres();
     await migrateLegacyCodernetInterfaceUsageFromDisk();
     await syncAdminBootstrapFromEnv();
+    await syncRecruitmentProTierBootstrapFromEnv();
     await initRoomsStore();
     setupRoutes(app, io);
     setupSocketIO(io);
