@@ -2,10 +2,12 @@
  * 用量配额管理 — 免费增值模型
  *
  * 每个已登录用户按月追踪以下维度的使用量：
- *   - profile_lookup : 画像生成（最核心、成本最高）
- *   - search         : 语义搜索
+ *   - gitlink_mine / gitlink_github / gitlink_link : GITLINK 三入口（免费档有次数上限，与招聘推荐额度分离）
+ *   - profile_lookup : 其它画像类消耗（保留兼容）
+ *   - search         : 其它语义检索（保留兼容；LINK 主入口已改用 gitlink_link）
  *   - outreach       : 批量触达邮件
  *   - jd_resume_match: MATH 页 JD×简历匹配（LLM）
+ *   - recruitment_recommend : 招聘管理「按 JD 智能推荐」（付费档；免费档默认 0）
  *
  * 数据持久化到 .data/quota-usage.json，启动时加载。
  */
@@ -17,7 +19,15 @@ import path from 'path';
    Types
    ══════════════════════════════════════════════════════════════ */
 
-export type QuotaDimension = 'profile_lookup' | 'search' | 'outreach' | 'jd_resume_match';
+export type QuotaDimension =
+  | 'gitlink_mine'
+  | 'gitlink_github'
+  | 'gitlink_link'
+  | 'profile_lookup'
+  | 'search'
+  | 'outreach'
+  | 'jd_resume_match'
+  | 'recruitment_recommend';
 
 export interface QuotaTier {
   name: string;
@@ -61,33 +71,54 @@ const TIERS: Record<string, QuotaTier> = {
   free: {
     name: 'Free',
     limits: {
+      gitlink_mine: 24,
+      gitlink_github: 24,
+      gitlink_link: 36,
       profile_lookup: 20,
       search: 30,
       outreach: 10,
       jd_resume_match: 15,
+      recruitment_recommend: 0,
     },
   },
   pro: {
     name: 'Pro',
     limits: {
+      gitlink_mine: 200,
+      gitlink_github: 200,
+      gitlink_link: 600,
       profile_lookup: 200,
       search: 500,
       outreach: 100,
       jd_resume_match: 150,
+      recruitment_recommend: 500,
     },
   },
   team: {
     name: 'Team',
     limits: {
+      gitlink_mine: 2000,
+      gitlink_github: 2000,
+      gitlink_link: 8000,
       profile_lookup: 1000,
       search: 9999,
       outreach: 500,
       jd_resume_match: 2000,
+      recruitment_recommend: 4000,
     },
   },
 };
 
-const ALL_DIMENSIONS: QuotaDimension[] = ['profile_lookup', 'search', 'outreach', 'jd_resume_match'];
+const ALL_DIMENSIONS: QuotaDimension[] = [
+  'gitlink_mine',
+  'gitlink_github',
+  'gitlink_link',
+  'profile_lookup',
+  'search',
+  'outreach',
+  'jd_resume_match',
+  'recruitment_recommend',
+];
 
 /* ══════════════════════════════════════════════════════════════
    Persistence
@@ -161,7 +192,16 @@ function getOrCreateUsage(userId: string): UserQuotaUsage {
   const fresh: UserQuotaUsage = {
     userId,
     month,
-    usage: { profile_lookup: 0, search: 0, outreach: 0, jd_resume_match: 0 },
+    usage: {
+      gitlink_mine: 0,
+      gitlink_github: 0,
+      gitlink_link: 0,
+      profile_lookup: 0,
+      search: 0,
+      outreach: 0,
+      jd_resume_match: 0,
+      recruitment_recommend: 0,
+    },
   };
   usageMap.set(userId, fresh);
   return fresh;
@@ -183,18 +223,29 @@ export function checkQuota(userId: string, dimension: QuotaDimension): QuotaChec
   const record = getOrCreateUsage(userId);
   const tier = getTier(userId);
   const used = record.usage[dimension] ?? 0;
-  const limit = tier.limits[dimension];
+  const limit = tier.limits[dimension] ?? 0;
   const remaining = Math.max(0, limit - used);
   const ratio = limit > 0 ? used / limit : 1;
 
   return {
-    allowed: used < limit,
+    allowed: limit > 0 && used < limit,
     dimension,
     used,
     limit,
     remaining,
     ratio,
     tier: tier.name,
+  };
+}
+
+/** 检查是否至少还剩 `need` 点额度（不扣减）。`need <= 0` 视为通过。 */
+export function checkQuotaHasRemaining(userId: string, dimension: QuotaDimension, need: number): QuotaCheckResult {
+  const base = checkQuota(userId, dimension);
+  if (need <= 0) return base;
+  const enough = base.remaining >= need;
+  return {
+    ...base,
+    allowed: enough,
   };
 }
 

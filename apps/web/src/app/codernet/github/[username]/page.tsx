@@ -743,7 +743,7 @@ export default function GitHubLookupCardPage() {
     }
     if (res.status === 429) {
       const data = await res.json().catch(() => ({}));
-      alert(data.error || '本月画像生成额度已用完，下月自动重置');
+      alert(data.error || '本月 GITLINK「公开 GitHub 画像」触发次数已用完，下月自动重置');
       return;
     }
     setTriggered(true);

@@ -3,10 +3,17 @@ import { randomUUID } from "crypto";
 import multer from "multer";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { prisma } from "../../lib/prisma";
-import { checkQuota, consumeQuota } from "../../services/quota-manager";
+import { checkQuotaHasRemaining, consumeQuota } from "../../services/quota-manager";
 import { searchDevelopers } from "../../services/codernet-search";
 import { getServerGitHubToken } from "../../services/github-crawler";
 import { extractTextFromUpload } from "../../services/attachment-text-ingest";
+import {
+  buildCombinedQueryFromJd,
+  mapDeveloperToRecommendHit,
+  parsePendingRecommendHits,
+  RECRUIT_FIRST_RECOMMEND_QUOTA_COST,
+  RECRUIT_MANUAL_RECOMMEND_QUOTA_COST,
+} from "../../services/recruitment-recommend";
 
 const MAX_TITLE = 200;
 const MAX_BODY = 50_000;
@@ -61,6 +68,9 @@ function serializeJd(row: {
   matchTags: unknown;
   status: string;
   publishedAt: Date | null;
+  firstRecommendAt?: Date | null;
+  lastWeeklyRecommendAt?: Date | null;
+  pendingRecommendHits?: unknown;
   createdAt: Date;
   updatedAt: Date;
   candidates?: {
@@ -87,6 +97,9 @@ function serializeJd(row: {
     matchTags: tags,
     status: row.status,
     publishedAt: row.publishedAt?.toISOString() ?? null,
+    firstRecommendAt: row.firstRecommendAt?.toISOString() ?? null,
+    lastWeeklyRecommendAt: row.lastWeeklyRecommendAt?.toISOString() ?? null,
+    pendingRecommendCount: parsePendingRecommendHits(row.pendingRecommendHits).length,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     candidates: (row.candidates || []).map((c) => ({
@@ -321,15 +334,25 @@ export function recruitmentRoutes(): Router {
         pipelineStage = "新建";
       }
 
-      const row = await prisma.jobPostingCandidate.create({
-        data: {
-          jobPostingId,
-          githubUsername,
-          displayName,
-          email,
-          notes,
-          pipelineStage,
-        },
+      const row = await prisma.$transaction(async (tx) => {
+        const created = await tx.jobPostingCandidate.create({
+          data: {
+            jobPostingId,
+            githubUsername,
+            displayName,
+            email,
+            notes,
+            pipelineStage,
+          },
+        });
+        const pending = parsePendingRecommendHits(jd.pendingRecommendHits).filter(
+          (h) => h.githubUsername.trim().toLowerCase() !== githubUsername.toLowerCase(),
+        );
+        await tx.jobPosting.update({
+          where: { id: jobPostingId },
+          data: { pendingRecommendHits: pending as object[] },
+        });
+        return created;
       });
       res.status(201).json({
         candidate: {
@@ -432,7 +455,32 @@ export function recruitmentRoutes(): Router {
     }
   });
 
-  /** 基于 JD 正文与标签，调用与 LINK 相同的语义搜人（扣 search 额度） */
+  /** 周更写入的待查看推荐池（不扣额度） */
+  router.get("/jds/:id/recommend-queue", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const id = req.params.id;
+      const jd = await prisma.jobPosting.findFirst({ where: { id, authorId: userId } });
+      if (!jd) {
+        res.status(404).json({ error: "未找到 JD" });
+        return;
+      }
+      const pending = parsePendingRecommendHits(jd.pendingRecommendHits);
+      res.json({
+        pending,
+        firstRecommendAt: jd.firstRecommendAt?.toISOString() ?? null,
+        lastWeeklyRecommendAt: jd.lastWeeklyRecommendAt?.toISOString() ?? null,
+      });
+    } catch (e) {
+      console.error("[recruitment] recommend-queue", e);
+      res.status(500).json({ error: "加载失败" });
+    }
+  });
+
+  /**
+   * 与 LINK 相同流水线，但扣 **recruitment_recommend**（与 GITLINK 三入口的 gitlink_* 分离）。
+   * 首次：多结果、高扣点；之后：小批次；周更后台由 `runRecruitmentWeeklyRecommendJobs` 写入 pending。
+   */
   router.post("/jds/:id/recommend", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
@@ -443,54 +491,68 @@ export function recruitmentRoutes(): Router {
         return;
       }
 
-      const check = checkQuota(userId, "search");
-      if (!check.allowed) {
+      const isFirst = jd.firstRecommendAt == null;
+      const quotaCost = isFirst ? RECRUIT_FIRST_RECOMMEND_QUOTA_COST() : RECRUIT_MANUAL_RECOMMEND_QUOTA_COST();
+      const quotaCheck = checkQuotaHasRemaining(userId, "recruitment_recommend", quotaCost);
+      if (!quotaCheck.allowed) {
         res.status(429).json({
-          error: "本月搜索额度已用完",
+          error:
+            quotaCheck.limit <= 0
+              ? "招聘智能推荐为付费能力：当前套餐未开通「招聘推荐」额度（与 GITLINK 三入口免费次数无关）。"
+              : "招聘推荐额度不足，请下月重置后重试、升级套餐或联系管理员。",
           code: "QUOTA_EXCEEDED",
-          quota: { dimension: "search", used: check.used, limit: check.limit, tier: check.tier },
+          quota: {
+            dimension: "recruitment_recommend",
+            used: quotaCheck.used,
+            limit: quotaCheck.limit,
+            tier: quotaCheck.tier,
+            required: quotaCost,
+          },
         });
         return;
       }
-      consumeQuota(userId, "search");
 
-      const tags = Array.isArray(jd.matchTags)
-        ? jd.matchTags.filter((x): x is string => typeof x === "string")
-        : [];
-      const tagLine = tags.length ? `【匹配标签】\n${tags.join("、")}` : "";
-      const combinedQuery = [
-        `【职位标题】\n${jd.title}`,
-        jd.companyName ? `【公司】\n${jd.companyName}` : "",
-        jd.location ? `【地点】\n${jd.location}` : "",
-        `【职位描述 JD】\n${jd.body.slice(0, 12_000)}`,
-        tagLine,
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-
-      const token = getServerGitHubToken();
       const ridRaw = req.get("x-request-id")?.trim();
       const pipelineRequestId =
         ridRaw && ridRaw.length >= 4 && ridRaw.length <= 128 && !/[\r\n]/.test(ridRaw)
           ? ridRaw.slice(0, 128)
           : randomUUID();
+
+      const token = getServerGitHubToken();
+      const combinedQuery = buildCombinedQueryFromJd(jd);
       const pack = await searchDevelopers(combinedQuery, new Map() as never, token, undefined, {
         requestId: pipelineRequestId,
       });
-      const raw = pack.results;
-      const limit = Math.min(20, Math.max(5, parseInt(String(req.body?.limit || "12"), 10) || 12));
-      const results = raw.slice(0, limit).map((r) => ({
-        githubUsername: r.githubUsername,
-        avatarUrl: r.avatarUrl,
-        oneLiner: r.oneLiner,
-        techTags: r.techTags,
-        score: r.score,
-        reason: r.reason,
-        stats: r.stats,
-        location: r.location,
-      }));
 
-      res.json({ results, meta: { jdId: id, count: results.length } });
+      const raw = pack.results;
+      const clientLimit = parseInt(String((req.body as { limit?: unknown })?.limit ?? ""), 10);
+      const defaultLimit = isFirst ? 40 : 10;
+      let limit = Number.isFinite(clientLimit) ? clientLimit : defaultLimit;
+      limit = Math.min(isFirst ? 55 : 15, Math.max(isFirst ? 18 : 5, limit));
+
+      const results = raw.slice(0, limit).map((r) => mapDeveloperToRecommendHit(r, "sync"));
+
+      consumeQuota(userId, "recruitment_recommend", quotaCost);
+
+      if (isFirst) {
+        await prisma.jobPosting.update({
+          where: { id },
+          data: { firstRecommendAt: new Date() },
+        });
+      }
+
+      res.json({
+        results,
+        meta: {
+          jdId: id,
+          count: results.length,
+          quotaCost,
+          isFirstRecommend: isFirst,
+          hint: isFirst
+            ? "首次推荐已按大额扣点返回较多结果；之后手动点击为小批次。系统每周还会向「待查看池」缓慢补充（见上方接口 recommend-queue）。"
+            : "手动刷新为小批次；周更推荐请在「待查看池」查看。",
+        },
+      });
     } catch (e) {
       console.error("[recruitment] recommend", e);
       res.status(500).json({

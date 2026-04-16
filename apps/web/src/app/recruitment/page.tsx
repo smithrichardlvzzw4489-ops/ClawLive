@@ -27,6 +27,9 @@ type JdRow = {
   matchTags: string[];
   status: string;
   publishedAt: string | null;
+  firstRecommendAt?: string | null;
+  lastWeeklyRecommendAt?: string | null;
+  pendingRecommendCount?: number;
   createdAt: string;
   updatedAt: string;
   candidates: CandidateRow[];
@@ -41,6 +44,7 @@ type RecommendHit = {
   reason: string;
   stats: { totalPublicRepos: number; totalStars: number; followers: number };
   location: string | null;
+  source?: string;
 };
 
 function RecruitmentPageContent() {
@@ -61,8 +65,48 @@ function RecruitmentPageContent() {
   const [newGh, setNewGh] = useState('');
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendHits, setRecommendHits] = useState<RecommendHit[] | null>(null);
+  const [weeklyPending, setWeeklyPending] = useState<RecommendHit[] | null>(null);
+  const [weeklyQueueMeta, setWeeklyQueueMeta] = useState<{
+    firstRecommendAt: string | null;
+    lastWeeklyRecommendAt: string | null;
+  } | null>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
+
+  const loadRecommendQueue = useCallback(async (jid: string) => {
+    try {
+      const data = await api.recruitment.recommendQueue(jid);
+      const raw = data.pending;
+      const hits: RecommendHit[] = Array.isArray(raw)
+        ? raw
+            .filter((x): x is Record<string, unknown> => x != null && typeof x === 'object')
+            .map((o) => ({
+              githubUsername: String(o.githubUsername ?? ''),
+              avatarUrl: String(o.avatarUrl ?? ''),
+              oneLiner: String(o.oneLiner ?? ''),
+              techTags: Array.isArray(o.techTags) ? o.techTags.filter((t): t is string => typeof t === 'string') : [],
+              score: typeof o.score === 'number' ? o.score : 0,
+              reason: String(o.reason ?? ''),
+              stats: {
+                totalPublicRepos: Number((o.stats as { totalPublicRepos?: unknown })?.totalPublicRepos) || 0,
+                totalStars: Number((o.stats as { totalStars?: unknown })?.totalStars) || 0,
+                followers: Number((o.stats as { followers?: unknown })?.followers) || 0,
+              },
+              location: typeof o.location === 'string' ? o.location : null,
+              source: typeof o.source === 'string' ? o.source : undefined,
+            }))
+            .filter((h) => h.githubUsername)
+        : [];
+      setWeeklyPending(hits);
+      setWeeklyQueueMeta({
+        firstRecommendAt: data.firstRecommendAt ?? null,
+        lastWeeklyRecommendAt: data.lastWeeklyRecommendAt ?? null,
+      });
+    } catch {
+      setWeeklyPending(null);
+      setWeeklyQueueMeta(null);
+    }
+  }, []);
 
   const loadAll = useCallback(async () => {
     setErr(null);
@@ -105,6 +149,15 @@ function RecruitmentPageContent() {
     setBody(selected.body);
     setMatchTagsStr(selected.matchTags.join('、'));
   }, [selected]);
+
+  useEffect(() => {
+    if (!selectedId) {
+      setWeeklyPending(null);
+      setWeeklyQueueMeta(null);
+      return;
+    }
+    void loadRecommendQueue(selectedId);
+  }, [selectedId, loadRecommendQueue]);
 
   const syncItem = (jd: JdRow) => {
     setItems((prev) => prev.map((x) => (x.id === jd.id ? jd : x)));
@@ -218,12 +271,18 @@ function RecruitmentPageContent() {
 
   const handleRecommend = async () => {
     if (!selectedId) return;
+    const jdRow = items.find((x) => x.id === selectedId);
+    const isFirst = !jdRow?.firstRecommendAt;
     setRecommendLoading(true);
     setRecommendHits(null);
     setErr(null);
     try {
-      const data = (await api.recruitment.recommend(selectedId, { limit: 15 })) as { results?: RecommendHit[] };
+      const data = (await api.recruitment.recommend(selectedId, {
+        limit: isFirst ? 40 : 10,
+      })) as { results?: RecommendHit[] };
       setRecommendHits(data.results ?? []);
+      await loadAll();
+      void loadRecommendQueue(selectedId);
     } catch (e: unknown) {
       setErr(e instanceof APIError ? e.message : '推荐失败');
     } finally {
@@ -243,6 +302,7 @@ function RecruitmentPageContent() {
             jd.id !== selectedId ? jd : { ...jd, candidates: [data.candidate!, ...jd.candidates] },
           ),
         );
+        void loadRecommendQueue(selectedId);
       }
     } catch (e: unknown) {
       setErr(e instanceof APIError ? e.message : '加入候选人失败（可能已存在）');
@@ -267,7 +327,9 @@ function RecruitmentPageContent() {
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white">招聘管理</h1>
-            <p className="text-sm text-slate-500 mt-1">管理 JD、候选人流程状态；智能推荐消耗与 LINK 相同的搜索额度。</p>
+            <p className="text-sm text-slate-500 mt-1">
+              管理 JD 与候选人流程。智能推荐走「招聘推荐」付费额度，与 GITLINK 三入口（我的画像 / 公开画像 / LINK）的免费次数分开计费；首次推荐结果较多，之后为小额刷新，系统每周向待查看池缓慢补充。
+            </p>
           </div>
           <Link
             href="/recruitment/new"
@@ -396,8 +458,49 @@ function RecruitmentPageContent() {
                     </button>
                   </div>
                   <p className="text-xs text-slate-500 mb-4">
-                    使用 JD 标题、正文与匹配标签拼接为检索语，走与 LINK 相同的 GitHub 语义搜人；每次点击消耗 1 次搜索额度。
+                    与 LINK 相同流水线，但扣「招聘推荐」额度（非 LINK 免费次数）。首次点击默认多返回一些人并多扣点；之后每次为小额刷新。每周一（可配 RECRUIT_WEEKLY_CRON）后台向下方「待查看池」少量写入。
                   </p>
+                  {weeklyPending && weeklyPending.length > 0 && (
+                    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                      周更待查看池共 {weeklyPending.length} 人
+                      {weeklyQueueMeta?.lastWeeklyRecommendAt
+                        ? ` · 最近写入 ${new Date(weeklyQueueMeta.lastWeeklyRecommendAt).toLocaleString('zh-CN')}`
+                        : ''}
+                    </div>
+                  )}
+                  {weeklyPending && weeklyPending.length > 0 && (
+                    <ul className="space-y-2 max-h-56 overflow-y-auto mb-4">
+                      {weeklyPending.map((h) => (
+                        <li
+                          key={`w-${h.githubUsername}`}
+                          className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-black/25 px-3 py-2 text-sm"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={h.avatarUrl} alt="" className="h-9 w-9 rounded-lg border border-white/10" />
+                          <div className="min-w-0 flex-1">
+                            <span className="font-mono text-white">@{h.githubUsername}</span>
+                            <span className="text-amber-200/80 text-[10px] ml-2">周更</span>
+                            <p className="text-[11px] text-slate-500 line-clamp-1">{h.reason}</p>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <Link
+                              href={`/codernet/github/${encodeURIComponent(h.githubUsername)}`}
+                              className="text-xs text-violet-300 hover:underline"
+                            >
+                              画像
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => void addFromRecommend(h.githubUsername)}
+                              className="text-xs rounded bg-white/10 hover:bg-white/15 px-2 py-1"
+                            >
+                              加入候选人
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {recommendHits && recommendHits.length === 0 && (
                     <p className="text-sm text-slate-500">未返回结果，可尝试补充匹配标签或调整 JD 描述。</p>
                   )}

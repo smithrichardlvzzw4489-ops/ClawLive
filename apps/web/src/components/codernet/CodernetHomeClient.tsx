@@ -278,7 +278,7 @@ export function CodernetHomeClient() {
                   <p className="text-left text-xs text-red-300 mt-2 px-1">{lookupErr}</p>
                 ) : (
                   <p className="text-left text-[10px] text-slate-600 mt-2 px-1 leading-relaxed">
-                    邮箱解析需登录，并消耗与 LINK 相同的搜索额度；依据站内绑定或 GitHub 公开提交中的邮箱，无法保证所有人都能匹配。
+                    邮箱解析需登录，并消耗 GITLINK「语义链」月度次数（与 LINK 搜人共用 gitlink_link 额度）；依据站内绑定或 GitHub 公开提交中的邮箱，无法保证所有人都能匹配。
                   </p>
                 )}
               </form>
@@ -475,7 +475,7 @@ export function CodernetHomeClient() {
                   </button>
                 </form>
                 <p className="text-[10px] text-slate-600 text-center mt-3 font-mono">
-                  登录用户受月度搜索额度限制；结果来自公开 GitHub 数据。
+                  登录用户受 GITLINK「LINK 语义搜人」月度次数限制（与招聘推荐额度无关）；结果来自公开 GitHub 数据。
                 </p>
               </div>
 

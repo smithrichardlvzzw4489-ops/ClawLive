@@ -380,16 +380,16 @@ export async function handleCodernetGithubLookupPost(
     }
 
     if (quotaUserId) {
-      const check = checkQuota(quotaUserId, 'profile_lookup');
+      const check = checkQuota(quotaUserId, 'gitlink_github');
       if (!check.allowed) {
         res.status(429).json({
-          error: '本月画像生成额度已用完',
+          error: '本月 GITLINK「公开 GitHub 画像」触发次数已用完',
           code: 'QUOTA_EXCEEDED',
-          quota: { dimension: 'profile_lookup', used: check.used, limit: check.limit, tier: check.tier },
+          quota: { dimension: 'gitlink_github', used: check.used, limit: check.limit, tier: check.tier },
         });
         return;
       }
-      consumeQuota(quotaUserId, 'profile_lookup');
+      consumeQuota(quotaUserId, 'gitlink_github');
       void recordCodernetInterfaceUsage(quotaUserId, 'githubPortrait');
     }
 
@@ -621,6 +621,15 @@ export function codernetRoutes(): IRouter {
         });
       }
 
+      const mineCheck = checkQuota(userId, 'gitlink_mine');
+      if (!mineCheck.allowed) {
+        return res.status(429).json({
+          error: '本月 GITLINK「我的画像」刷新次数已用完',
+          code: 'QUOTA_EXCEEDED',
+          quota: { dimension: 'gitlink_mine', used: mineCheck.used, limit: mineCheck.limit, tier: mineCheck.tier },
+        });
+      }
+      consumeQuota(userId, 'gitlink_mine');
       void recordCodernetInterfaceUsage(userId, 'minePortrait');
 
       res.json({ status: 'crawling', message: 'GitHub profile crawl started.' });
@@ -714,15 +723,15 @@ export function codernetRoutes(): IRouter {
       }
 
       const callerId = req.user!.id;
-      const check = checkQuota(callerId, 'search');
+      const check = checkQuota(callerId, 'gitlink_link');
       if (!check.allowed) {
         return res.status(429).json({
-          error: '本月搜索额度已用完',
+          error: '本月 GITLINK「语义链」相关次数已用完（含邮箱解析）',
           code: 'QUOTA_EXCEEDED',
-          quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
+          quota: { dimension: 'gitlink_link', used: check.used, limit: check.limit, tier: check.tier },
         });
       }
-      consumeQuota(callerId, 'search');
+      consumeQuota(callerId, 'gitlink_link');
 
       const result = await resolveGithubUsernameFromEmail(prisma, email);
       if (!result.githubUsername) {
@@ -826,15 +835,15 @@ export function codernetRoutes(): IRouter {
         }
 
         const callerId = req.user!.id;
-        const check = checkQuota(callerId, 'search');
+        const check = checkQuota(callerId, 'gitlink_link');
         if (!check.allowed) {
           return res.status(429).json({
-            error: '本月搜索额度已用完',
+            error: '本月 GITLINK「LINK 语义搜人」次数已用完',
             code: 'QUOTA_EXCEEDED',
-            quota: { dimension: 'search', used: check.used, limit: check.limit, tier: check.tier },
+            quota: { dimension: 'gitlink_link', used: check.used, limit: check.limit, tier: check.tier },
           });
         }
-        consumeQuota(callerId, 'search');
+        consumeQuota(callerId, 'gitlink_link');
         void recordCodernetInterfaceUsage(callerId, 'linkSearch');
 
         res.status(200);

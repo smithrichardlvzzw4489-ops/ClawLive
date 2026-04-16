@@ -27,6 +27,7 @@ import {
 import { bootstrapPersistentStateFromPostgres } from './services/persistent-bootstrap';
 import { syncAdminBootstrapFromEnv } from './services/admin-bootstrap';
 import { migrateLegacyCodernetInterfaceUsageFromDisk } from './services/codernet-interface-usage';
+import { startRecruitmentWeeklyRecommendScheduler } from './services/recruitment-recommend';
 
 /**
  * GramJS（telegram 包）在 MTProto 重连时会在内部 recv 循环里抛出
@@ -152,6 +153,7 @@ httpServer.listen(PORT, '0.0.0.0', async () => {
     });
     startScheduler();
     startContentCurator();
+    startRecruitmentWeeklyRecommendScheduler();
     try {
       initEvolutionNetwork();
     } catch (e) {

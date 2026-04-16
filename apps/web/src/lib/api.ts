@@ -955,6 +955,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body ?? {}),
       }),
+    recommendQueue: (jdId: string) =>
+      fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/recommend-queue`) as Promise<{
+        pending?: unknown[];
+        firstRecommendAt?: string | null;
+        lastWeeklyRecommendAt?: string | null;
+      }>,
   },
   math: {
     /** SSE: same FormData as match(); onEvent receives JSON payloads { phase, ... } */
