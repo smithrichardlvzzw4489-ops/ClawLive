@@ -281,40 +281,33 @@ function RecruitmentPageContent() {
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-          <aside className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 max-h-[70vh] overflow-y-auto">
-            <p className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-2">我的 JD</p>
-            <ul className="space-y-1">
-              {items.map((jd) => (
-                <li key={jd.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelect(jd.id)}
-                    className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                      selectedId === jd.id
-                        ? 'bg-violet-600/30 text-white ring-1 ring-violet-500/40'
-                        : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
-                    }`}
-                  >
-                    <span className="line-clamp-2">{jd.title}</span>
-                    <span className="block text-[10px] text-slate-600 mt-0.5">
-                      {jd.status === 'published' ? '已发布' : jd.status === 'closed' ? '已关闭' : '草稿'} ·{' '}
-                      {jd.candidates.length} 人
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {items.length === 0 && (
-              <p className="text-xs text-slate-600 mt-4 px-1">
-                暂无 JD，点击右上方
-                <Link href="/recruitment/new" className="text-violet-400 hover:underline mx-0.5">
-                  新建
-                </Link>
-                。
-              </p>
-            )}
-          </aside>
+        <div className={`grid gap-6 ${items.length > 0 ? 'lg:grid-cols-[240px_1fr]' : ''}`}>
+          {items.length > 0 && (
+            <aside className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 max-h-[70vh] overflow-y-auto">
+              <p className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-2">我的 JD</p>
+              <ul className="space-y-1">
+                {items.map((jd) => (
+                  <li key={jd.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(jd.id)}
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                        selectedId === jd.id
+                          ? 'bg-violet-600/30 text-white ring-1 ring-violet-500/40'
+                          : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
+                      }`}
+                    >
+                      <span className="line-clamp-2">{jd.title}</span>
+                      <span className="block text-[10px] text-slate-600 mt-0.5">
+                        {jd.status === 'published' ? '已发布' : jd.status === 'closed' ? '已关闭' : '草稿'} ·{' '}
+                        {jd.candidates.length} 人
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
 
           <main className="min-w-0 space-y-6">
             {selected ? (
@@ -528,7 +521,7 @@ function RecruitmentPageContent() {
             ) : (
               <p className="text-slate-500">
                 {items.length === 0
-                  ? '暂无 JD，请点击右上方「新建 JD」。'
+                  ? '请先点击右上方「新建 JD」创建职位。'
                   : '请从左侧选择一个 JD，或点击右上方「新建 JD」。'}
               </p>
             )}

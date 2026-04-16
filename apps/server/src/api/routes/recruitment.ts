@@ -1,15 +1,22 @@
 import { Router, Response } from "express";
 import { randomUUID } from "crypto";
+import multer from "multer";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { checkQuota, consumeQuota } from "../../services/quota-manager";
 import { searchDevelopers } from "../../services/codernet-search";
 import { getServerGitHubToken } from "../../services/github-crawler";
+import { extractTextFromUpload } from "../../services/attachment-text-ingest";
 
 const MAX_TITLE = 200;
 const MAX_BODY = 50_000;
 const MAX_TAG = 40;
 const MAX_TAGS = 24;
+
+const jdBodyFileUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 12 * 1024 * 1024 },
+});
 const PIPELINE_STAGES = [
   "新建",
   "沟通中",
@@ -119,6 +126,36 @@ export function recruitmentRoutes(): Router {
       res.status(500).json({ error: "加载失败" });
     }
   });
+
+  router.post(
+    "/jds/extract-text",
+    authenticateToken,
+    jdBodyFileUpload.single("file"),
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const f = req.file;
+        if (!f?.buffer?.length) {
+          res.status(400).json({ error: "请选择文件" });
+          return;
+        }
+        const text = (await extractTextFromUpload(f)).trim();
+        if (!text) {
+          res.status(400).json({
+            error: "未能从文件中提取文字。请使用 .txt / .md / .docx / .pdf，或直接粘贴正文。",
+          });
+          return;
+        }
+        if (text.length > MAX_BODY) {
+          res.status(400).json({ error: `提取的正文过长（>${MAX_BODY} 字），请精简后重试` });
+          return;
+        }
+        res.json({ text });
+      } catch (e) {
+        console.error("[recruitment] extract jd file", e);
+        res.status(500).json({ error: "解析失败" });
+      }
+    },
+  );
 
   router.post("/jds", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {

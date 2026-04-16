@@ -593,9 +593,12 @@ async function consumeCodernetSearchNdjsonStream(
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const bodyIsFormData =
+    typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const headers: Record<string, string> = {};
+  if (!bodyIsFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -899,6 +902,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+    /** 从 .txt / .md / .pdf / .docx 等提取正文，填入「职位描述」 */
+    extractJdBodyFromFile: (file: File) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return fetchAPI('/api/recruitment/jds/extract-text', {
+        method: 'POST',
+        body: fd,
+      }) as Promise<{ text?: string }>;
+    },
     getJd: (id: string) => fetchAPI(`/api/recruitment/jds/${encodeURIComponent(id)}`),
     updateJd: (
       id: string,
