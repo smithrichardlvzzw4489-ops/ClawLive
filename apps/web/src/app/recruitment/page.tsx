@@ -457,8 +457,15 @@ function RecruitmentPageContent() {
                       {recommendLoading ? '分析中…' : '根据本 JD 推荐候选人'}
                     </button>
                   </div>
-                  <p className="text-xs text-slate-500 mb-4">
+                  <p className="text-xs text-slate-500 mb-3">
                     与 LINK 相同流水线，但扣「招聘推荐」额度（非 LINK 免费次数）。首次点击默认多返回一些人并多扣点；之后每次为小额刷新。每周一（可配 RECRUIT_WEEKLY_CRON）后台向下方「待查看池」少量写入。
+                  </p>
+                  <p className="text-xs text-amber-100/90 mb-4 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 leading-relaxed">
+                    <strong className="text-amber-200">在哪里开通？</strong> 当前 Web 端没有「购买 / 自助开通」入口。免费档的「招聘推荐」额度默认为 0；需要使用时请{' '}
+                    <strong className="text-amber-100">联系站点管理员</strong> 将你的账号设为 <strong className="font-mono text-amber-200">pro</strong> 或{' '}
+                    <strong className="font-mono text-amber-200">team</strong>（对应服务端管理接口{' '}
+                    <code className="text-[10px] text-amber-100/80">POST /api/platform/quota/tier</code>，需管理员凭证）。自托管开发也可在服务端调整免费档的{' '}
+                    <code className="text-[10px] text-amber-100/80">recruitment_recommend</code> 上限。
                   </p>
                   {weeklyPending && weeklyPending.length > 0 && (
                     <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
