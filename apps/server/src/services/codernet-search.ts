@@ -66,13 +66,16 @@ export interface SearchDevelopersResponse {
   };
 }
 
-/** 未配置 `LINK_SEARCH_MAX_MERGED_CANDIDATES` 时：合并后最多拉 `/users/:login` 的人数，避免单次检索十几分钟。 */
-const LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT = 400;
+/** 单次 LINK 合并后最多拉 `/users/:login` 的人数硬顶（含「无合并上限」配置路径），与 GitHub 单路约 1000 条量级对齐。 */
+const LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP = 1000;
+
+/** 未配置 `LINK_SEARCH_MAX_MERGED_CANDIDATES` 时：合并后最多拉 `/users/:login` 的人数，避免单次检索过久。 */
+const LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT = 300;
 
 /**
- * 合并去重后参与 `/users/:login` 补全的人数上限。
+ * 合并去重后参与 `/users/:login` 补全的人数上限（最终仍不超过 `LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP`）。
  * - 未配置环境变量：默认 `LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT`。
- * - `LINK_SEARCH_MAX_MERGED_CANDIDATES=0`：不限制（慎用，易触发流超时）。
+ * - `LINK_SEARCH_MAX_MERGED_CANDIDATES=0`：不限制合并条数，但流水线仍只取硬顶内的人数（当前 1000）。
  */
 function getLinkSearchMaxMergedCap(): number | null {
   const raw = process.env.LINK_SEARCH_MAX_MERGED_CANDIDATES;
@@ -82,7 +85,7 @@ function getLinkSearchMaxMergedCap(): number | null {
   const n = parseInt(String(raw).trim(), 10);
   if (!Number.isFinite(n)) return LINK_SEARCH_MAX_MERGED_CANDIDATES_DEFAULT;
   if (n <= 0) return null;
-  return Math.min(2_000_000, Math.max(1, n));
+  return Math.min(LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP, Math.max(1, n));
 }
 
 /** 未配置 `LINK_SEARCH_MAX_QUERY_SHARDS` 时：GitHub Search 分路条数上限，控制分页请求总量。 */
@@ -960,12 +963,17 @@ async function searchGitHubUsers(
   const merged = mergeGitHubUserSearchItems(batches);
   merged.sort((a, b) => (Number(b.followers) || 0) - (Number(a.followers) || 0));
   const mergedBeforeCap = merged.length;
-  const top = mergedCap == null ? merged : merged.slice(0, mergedCap);
-  if (mergedCap != null && mergedBeforeCap > top.length) {
+  const resolvedCap =
+    mergedCap == null
+      ? LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP
+      : Math.min(mergedCap, LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP);
+  const top = merged.slice(0, resolvedCap);
+  if (mergedBeforeCap > top.length) {
     pipeLog?.('github_merged_cap_applied', {
       mergedBeforeCap,
       mergedAfterCap: top.length,
-      mergedCap,
+      mergedCap: mergedCap ?? 'none',
+      resolvedCap,
     });
   }
 
