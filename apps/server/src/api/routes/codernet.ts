@@ -404,6 +404,25 @@ export async function handleCodernetGithubLookupPost(
 
 const LINK_SEARCH_MAX_ATTACHMENT_CHARS = 80_000;
 
+/** NDJSON 流在无业务 progress 时的保活间隔；默认较密，降低反代/浏览器按「长时间无数据」断流概率。可调 `LINK_SEARCH_STREAM_HEARTBEAT_MS`。 */
+const LINK_SEARCH_STREAM_HEARTBEAT_MS_DEFAULT = 8_000;
+const LINK_SEARCH_STREAM_HEARTBEAT_MS_FLOOR = 4_000;
+const LINK_SEARCH_STREAM_HEARTBEAT_MS_CAP = 120_000;
+
+function clampLinkSearchStreamHeartbeatMsFromEnv(): number {
+  const raw = parseInt(
+    process.env.LINK_SEARCH_STREAM_HEARTBEAT_MS || String(LINK_SEARCH_STREAM_HEARTBEAT_MS_DEFAULT),
+    10,
+  );
+  if (!Number.isFinite(raw)) return LINK_SEARCH_STREAM_HEARTBEAT_MS_DEFAULT;
+  return Math.min(LINK_SEARCH_STREAM_HEARTBEAT_MS_CAP, Math.max(LINK_SEARCH_STREAM_HEARTBEAT_MS_FLOOR, raw));
+}
+
+/** 首段真实检索可能较久：在整间隔到达前先打一拍保活，夹在约 2～5s，避开常见 ~30～60s idle 切断。 */
+function linkSearchFirstHeartbeatDelayMs(heartbeatMs: number): number {
+  return Math.min(5_000, Math.max(2_000, Math.floor(heartbeatMs / 2)));
+}
+
 /** 默认尽量贴近常见 ~900s 网关上限，仍留出约 20s 写出终端 NDJSON，避免客户端只看到 progress。 */
 const LINK_SEARCH_STREAM_MAX_MS_DEFAULT = 880_000;
 const LINK_SEARCH_STREAM_MAX_MS_CAP = 890_000;
@@ -839,10 +858,15 @@ export function codernetRoutes(): IRouter {
         let lastStreamType = 'none';
         let firstWriteElapsedMs: number | null = null;
         let writeBackpressureCount = 0;
+        let heartbeatKickoff: ReturnType<typeof setTimeout> | null = null;
         let heartbeatHandle: ReturnType<typeof setInterval> | null = null;
         let streamDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
 
         const clearLinkSearchHeartbeat = () => {
+          if (heartbeatKickoff != null) {
+            clearTimeout(heartbeatKickoff);
+            heartbeatKickoff = null;
+          }
           if (heartbeatHandle != null) {
             clearInterval(heartbeatHandle);
             heartbeatHandle = null;
@@ -990,8 +1014,8 @@ export function codernetRoutes(): IRouter {
           writeLine({ type: 'progress', progress });
         };
 
-        const hbRaw = parseInt(process.env.LINK_SEARCH_STREAM_HEARTBEAT_MS || '15000', 10);
-        const heartbeatMs = Number.isFinite(hbRaw) ? Math.min(120_000, Math.max(5000, hbRaw)) : 15_000;
+        const heartbeatMs = clampLinkSearchStreamHeartbeatMsFromEnv();
+        const firstHeartbeatDelayMs = linkSearchFirstHeartbeatDelayMs(heartbeatMs);
         const streamMaxMs = clampLinkSearchStreamMaxMsFromEnv();
 
         let heartbeatSeq = 0;
@@ -1030,10 +1054,18 @@ export function codernetRoutes(): IRouter {
         const tSearch = Date.now();
         logLinkSearch('search_developers_enter', {
           heartbeatMs,
+          firstHeartbeatDelayMs,
           streamMaxMs,
           githubTokenPresent: Boolean(token && String(token).trim()),
         });
-        heartbeatHandle = setInterval(pulseLinkSearchHeartbeat, heartbeatMs);
+        heartbeatKickoff = setTimeout(() => {
+          heartbeatKickoff = null;
+          if (res.writableEnded || res.destroyed) return;
+          pulseLinkSearchHeartbeat();
+          if (!res.writableEnded && !res.destroyed) {
+            heartbeatHandle = setInterval(pulseLinkSearchHeartbeat, heartbeatMs);
+          }
+        }, firstHeartbeatDelayMs);
         try {
           let pack: Awaited<ReturnType<typeof searchDevelopers>>;
           try {
