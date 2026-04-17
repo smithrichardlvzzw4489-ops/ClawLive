@@ -280,7 +280,7 @@ export function CodernetHomeClient() {
               </form>
               <div className="flex flex-wrap justify-center gap-2">
                 <span className="text-[10px] text-slate-600 self-center mr-1">Try:</span>
-                {['torvalds', 'yyx990803', 'tj', 'sindresorhus', 'antirez'].map((n) => (
+                {['torvalds', 'yyx990803', 'tj', 'sindresorhus'].map((n) => (
                   <button
                     key={n}
                     onClick={() => router.push(withReturnTo(`/codernet/github/${encodeURIComponent(n)}`, here))}
