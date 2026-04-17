@@ -53,27 +53,6 @@ export default function JobPlazaPage() {
   return (
     <MainLayout flatBackground>
       <div className="mx-auto max-w-4xl px-4 py-8 text-slate-200">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">招聘广场</h1>
-            <p className="text-sm text-slate-500 mt-1">已发布的职位 JD，无需登录即可浏览；在「招聘管理」新建 JD 时会自动出现在此列表。</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href="/recruitment"
-              className="rounded-xl border border-white/15 px-4 py-2 text-sm text-slate-300 hover:bg-white/[0.06]"
-            >
-              招聘管理
-            </Link>
-            <Link
-              href="/recruitment/new"
-              className="rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white"
-            >
-              新建 JD
-            </Link>
-          </div>
-        </div>
-
         {err && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div>
         )}
@@ -110,7 +89,7 @@ export default function JobPlazaPage() {
         </ul>
 
         {items.length === 0 && !loading && (
-          <p className="text-center text-slate-500 py-12">暂无已发布职位，去招聘管理新建一个吧。</p>
+          <p className="text-center text-slate-500 py-12">暂无已发布职位。</p>
         )}
 
         {total > 20 && (
