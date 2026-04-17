@@ -47,6 +47,7 @@ function isGramJsTransientTransportRejection(reason: unknown): boolean {
   const fromGram =
     stack.includes('MTProtoSender') ||
     stack.includes('telegram/network') ||
+    stack.includes('ConnectionTCPFull') ||
     stack.includes('telegram/client/') ||
     stack.includes('node_modules/telegram/') ||
     (stack.includes('.pnpm') && stack.includes('telegram@'));
