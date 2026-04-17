@@ -204,6 +204,7 @@ export function recruitmentRoutes(): Router {
         return;
       }
 
+      /** 新建即已发布，公开列表 /api/job-plaza 立即可见 */
       const publishedAt = new Date();
       const row = await prisma.jobPosting.create({
         data: {
@@ -306,11 +307,43 @@ export function recruitmentRoutes(): Router {
         patch.matchTags = tags;
       }
 
+      const wasDraft = existing.status === "draft";
+      const updateData: typeof patch & { status?: string; publishedAt?: Date } = { ...patch };
+      if (wasDraft) {
+        const existingTags = parseMatchTags(existing.matchTags);
+        if (!patch.matchTags?.length && existingTags.length === 0) {
+          updateData.matchTags = ["招聘管理"];
+        }
+        updateData.status = "published";
+        updateData.publishedAt = existing.publishedAt ?? new Date();
+      }
+
       const row = await prisma.jobPosting.update({
         where: { id },
-        data: patch,
+        data: updateData,
         include: { candidates: true },
       });
+
+      if (wasDraft) {
+        const matchTags = Array.isArray(row.matchTags)
+          ? row.matchTags.filter((x): x is string => typeof x === "string")
+          : [];
+        try {
+          await notifyMatchedUsersForJobPosting(prisma, row.id, userId, {
+            title: row.title,
+            companyName: row.companyName,
+            location: row.location,
+            body: row.body,
+            matchTags,
+          });
+        } catch (notifyErr) {
+          console.error("[recruitment] notify on jd publish from draft", notifyErr);
+        }
+        void kickoffRecruitmentRecommendAfterJdCreate(row.id).catch((err) =>
+          console.error("[recruitment] bootstrap enqueue after draft publish", row.id, err),
+        );
+      }
+
       res.json({ jd: serializeJd(row) });
     } catch (e) {
       console.error("[recruitment] patch jd", e);

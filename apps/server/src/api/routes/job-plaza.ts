@@ -76,7 +76,7 @@ export function jobPlazaRoutes(): Router {
 
       const [rows, total] = await Promise.all([
         prisma.jobPosting.findMany({
-          where: { status: "published" },
+          where: { status: "published", publishedAt: { not: null } },
           orderBy: { publishedAt: "desc" },
           skip,
           take: limit,
@@ -84,7 +84,7 @@ export function jobPlazaRoutes(): Router {
             author: { select: { username: true, githubUsername: true } },
           },
         }),
-        prisma.jobPosting.count({ where: { status: "published" } }),
+        prisma.jobPosting.count({ where: { status: "published", publishedAt: { not: null } } }),
       ]);
 
       res.json({
