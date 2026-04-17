@@ -80,12 +80,6 @@ export function Header({}: HeaderProps) {
               active={gitlinkSectionActive}
             />
             <NavItem
-              href="/recruitment"
-              label="招聘管理"
-              icon="📋"
-              active={pathname.startsWith('/recruitment')}
-            />
-            <NavItem
               href="/job-plaza"
               label="招聘广场"
               icon="🏢"

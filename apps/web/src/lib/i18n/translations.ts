@@ -44,6 +44,7 @@ export const translations = {
       darwinShowcase: 'GITLINK 展厅',
       vibeKids: 'VibeKids',
       myDeveloperCard: '我的画像',
+      recruitment: '招聘管理',
       siteMessages: '站内信',
     },
 
@@ -870,6 +871,7 @@ export const translations = {
       darwinShowcase: 'GITLINK gallery',
       vibeKids: 'VibeKids',
       myDeveloperCard: 'My card',
+      recruitment: 'Recruitment',
       siteMessages: 'Messages',
     },
 
