@@ -1,12 +1,17 @@
 /** @type {import('next').NextConfig} */
 const isVercel = Boolean(process.env.VERCEL);
 
-const apiOrigin = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001').replace(/\/$/, '');
+/** 与 `src/lib/api.ts` 对齐：反代目标优先 BACKEND_URL（可仅服务端），否则 NEXT_PUBLIC_API_URL */
+const apiOrigin = (
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'http://localhost:3001'
+).replace(/\/$/, '');
 
 if (isVercel && !process.env.NEXT_PUBLIC_API_URL && !process.env.BACKEND_URL) {
   // eslint-disable-next-line no-console
   console.warn(
-    '[next.config] Vercel: 未设置 NEXT_PUBLIC_API_URL 或 BACKEND_URL；/api、/uploads 将无法反代到 Railway，请在项目环境变量中配置其一后重新部署。',
+    '[next.config] Vercel: 未设置 BACKEND_URL 或 NEXT_PUBLIC_API_URL；/api、/uploads 将无法反代到 Railway，请在项目环境变量中配置至少其一（公网 https 根地址，无尾斜杠）后重新部署。',
   );
 }
 

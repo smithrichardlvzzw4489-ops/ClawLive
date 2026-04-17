@@ -52,7 +52,7 @@ function getNetworkErrorMsg(): string {
       return '无法连接服务器。请确认本地后端已启动（本仓库默认 http://localhost:3001）。';
     }
   }
-  return '无法连接服务器。若前端在 Vercel、后端在 Railway，请在 Vercel 环境变量中设置 BACKEND_URL 或 NEXT_PUBLIC_API_URL（Railway 公网 https 根地址，无尾斜杠），保存后重新部署；并确认 Railway 服务在线。';
+  return '无法连接服务器。若前端在 Vercel、后端在 Railway，请在 Vercel 项目环境变量中至少设置其一并重新部署：BACKEND_URL 或 NEXT_PUBLIC_API_URL（均为 Railway 公网 https 根地址，无尾斜杠；仅服务端可配 BACKEND_URL，构建时也会用于 /api 反代）。并确认 Railway 服务在线。';
 }
 
 /** 流式 NDJSON 行级统计（与后端 ndjsonLines / 进度日志对照）。 */
