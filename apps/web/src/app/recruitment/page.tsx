@@ -340,13 +340,8 @@ function RecruitmentPageContent() {
   return (
     <MainLayout flatBackground>
       <div className="mx-auto max-w-7xl px-4 py-8 text-slate-200">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white">招聘管理</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              管理 JD 与候选人流程。新建 JD 会同步发布到「招聘广场」，并自动在后台启动智能推荐（GitHub 合并检索上限 1000）。智能推荐使用「招聘推荐」月度额度（与 GITLINK 三入口分开计数）；每日北京时间 8:00 向待查看池补充 10 位新候选人（去重），池用尽时会自动再次检索。
-            </p>
-          </div>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-2xl font-bold text-white">招聘管理</h1>
           <Link
             href="/recruitment/new"
             className="inline-flex items-center rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white"
