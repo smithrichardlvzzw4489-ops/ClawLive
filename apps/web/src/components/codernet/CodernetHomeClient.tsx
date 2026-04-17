@@ -470,9 +470,6 @@ export function CodernetHomeClient() {
                     )}
                   </button>
                 </form>
-                <p className="text-[10px] text-slate-600 text-center mt-3 font-mono">
-                  登录用户受 GITLINK「LINK 语义搜人」月度次数限制；结果来自公开 GitHub。若候选人在本站有账号，卡片右侧会出现「站内信」。
-                </p>
               </div>
 
               {linkResults && linkResults.length === 0 && !linkLoading && (
