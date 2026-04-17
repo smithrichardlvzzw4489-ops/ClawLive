@@ -15,7 +15,15 @@ import {
 } from '../../services/github-crawler';
 import { analyzeGitHubProfile, type CodernetAnalysis } from '../../services/codernet-profile-analyzer';
 import { crawlMultiPlatform, type MultiPlatformProfile } from '../../services/multiplatform-crawler';
-import { searchDevelopers, type SearchProgress } from '../../services/codernet-search';
+import {
+  searchDevelopers,
+  type DeveloperSearchResult,
+  type SearchProgress,
+} from '../../services/codernet-search';
+import {
+  enrichDeveloperResultWithSiteUser,
+  mapGitHubLoginsToSiteUsers,
+} from '../../services/link-result-site-users';
 import { concatExtractedFiles } from '../../services/attachment-text-ingest';
 import { resolveGithubUsernameFromEmail } from '../../services/github-email-resolve';
 import {
@@ -1101,10 +1109,22 @@ export function codernetRoutes(): IRouter {
             deepEnrichCount: pack.meta.deepEnrichCount,
             metadataOnlyCount: pack.meta.metadataOnlyCount,
           });
+          const bucketKeyList = ['jobSeekingAndContact', 'jobSeekingOnly', 'contactOnly', 'neither'] as const;
+          const allLogins: string[] = pack.results.map((r) => r.githubUsername);
+          for (const k of bucketKeyList) {
+            for (const r of pack.buckets[k]) allLogins.push(r.githubUsername);
+          }
+          const siteMap = await mapGitHubLoginsToSiteUsers(allLogins);
+          const enrich = (r: DeveloperSearchResult) => enrichDeveloperResultWithSiteUser(r, siteMap);
           writeLine({
             type: 'complete',
-            results: pack.results,
-            buckets: pack.buckets,
+            results: pack.results.map(enrich),
+            buckets: {
+              jobSeekingAndContact: pack.buckets.jobSeekingAndContact.map(enrich),
+              jobSeekingOnly: pack.buckets.jobSeekingOnly.map(enrich),
+              contactOnly: pack.buckets.contactOnly.map(enrich),
+              neither: pack.buckets.neither.map(enrich),
+            },
             meta: pack.meta,
           });
         } catch (searchErr) {

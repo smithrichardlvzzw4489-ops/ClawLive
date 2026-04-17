@@ -7,6 +7,7 @@ import { checkQuotaHasRemaining, consumeQuota } from "../../services/quota-manag
 import { searchDevelopers } from "../../services/codernet-search";
 import { getServerGitHubToken } from "../../services/github-crawler";
 import { extractTextFromUpload } from "../../services/attachment-text-ingest";
+import { notifyMatchedUsersForJobPosting } from "../../services/job-plaza-notify";
 import {
   buildCombinedQueryFromJd,
   mapDeveloperToRecommendHit,
@@ -194,6 +195,7 @@ export function recruitmentRoutes(): Router {
         return;
       }
 
+      const publishedAt = new Date();
       const row = await prisma.jobPosting.create({
         data: {
           authorId: userId,
@@ -202,11 +204,22 @@ export function recruitmentRoutes(): Router {
           location,
           body,
           matchTags,
-          status: "draft",
-          publishedAt: null,
+          status: "published",
+          publishedAt,
         },
         include: { candidates: true },
       });
+      try {
+        await notifyMatchedUsersForJobPosting(prisma, row.id, userId, {
+          title,
+          companyName,
+          location,
+          body,
+          matchTags,
+        });
+      } catch (notifyErr) {
+        console.error("[recruitment] notify on jd create", notifyErr);
+      }
       res.status(201).json({ jd: serializeJd(row) });
     } catch (e) {
       console.error("[recruitment] create jd", e);
@@ -498,8 +511,8 @@ export function recruitmentRoutes(): Router {
         res.status(429).json({
           error:
             quotaCheck.limit <= 0
-              ? "招聘智能推荐为付费能力：当前套餐未开通「招聘推荐」额度（与 GITLINK 三入口免费次数无关）。"
-              : "招聘推荐额度不足，请下月重置后重试、升级套餐或联系管理员。",
+              ? "当前账号未配置招聘推荐额度，请联系管理员。"
+              : "本月招聘推荐额度已用完，请下月重置或升级套餐。",
           code: "QUOTA_EXCEEDED",
           quota: {
             dimension: "recruitment_recommend",

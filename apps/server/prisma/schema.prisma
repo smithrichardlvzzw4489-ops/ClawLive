@@ -89,6 +89,8 @@ model User {
 
   jobPostingsAuthored           JobPosting[]               @relation("JobPostingAuthor")
   jobPostingNotificationsRecv JobPostingNotification[]   @relation("JobPostingNotifyRecipient")
+  siteMessagesSent            SiteMessage[]              @relation("SiteMessageSender")
+  siteMessagesReceived        SiteMessage[]              @relation("SiteMessageRecipient")
 
   @@index([username])
   @@index([telegramId])
@@ -615,4 +617,22 @@ model JobPostingCandidate {
   @@unique([jobPostingId, githubUsername])
   @@index([jobPostingId])
   @@map("job_posting_candidates")
+}
+
+/// 用户间站内信（与 /api/inbox Agent 通道无关）
+model SiteMessage {
+  id          String    @id @default(uuid())
+  senderId    String
+  recipientId String
+  subject     String    @default("") @db.VarChar(300)
+  body        String    @db.Text
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  sender    User @relation("SiteMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient User @relation("SiteMessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, createdAt(sort: Desc)])
+  @@index([senderId, createdAt(sort: Desc)])
+  @@map("site_messages")
 }

@@ -962,6 +962,34 @@ export const api = {
         lastWeeklyRecommendAt?: string | null;
       }>,
   },
+  jobPlaza: {
+    list: (params?: { page?: number; limit?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.page) q.set('page', String(params.page));
+      if (params?.limit) q.set('limit', String(params.limit));
+      const s = q.toString();
+      return fetchAPI(`/api/job-plaza${s ? `?${s}` : ''}`) as Promise<{
+        items?: unknown[];
+        page?: number;
+        limit?: number;
+        total?: number;
+      }>;
+    },
+    get: (id: string) =>
+      fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}`) as Promise<{ posting?: Record<string, unknown> }>,
+  },
+  siteMessages: {
+    send: (body: { toUsername: string; subject?: string; body: string }) =>
+      fetchAPI('/api/site-messages', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    inbox: () =>
+      fetchAPI('/api/site-messages/inbox') as Promise<{ items?: unknown[]; unread?: number }>,
+    sent: () => fetchAPI('/api/site-messages/sent') as Promise<{ items?: unknown[] }>,
+    markRead: (id: string) =>
+      fetchAPI(`/api/site-messages/${encodeURIComponent(id)}/read`, { method: 'PATCH', body: '{}' }),
+  },
   math: {
     /** SSE: same FormData as match(); onEvent receives JSON payloads { phase, ... } */
     matchStream: async (formData: FormData, onEvent: (payload: Record<string, unknown>) => void) => {

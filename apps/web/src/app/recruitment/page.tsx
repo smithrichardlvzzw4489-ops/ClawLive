@@ -328,7 +328,7 @@ function RecruitmentPageContent() {
           <div>
             <h1 className="text-2xl font-bold text-white">招聘管理</h1>
             <p className="text-sm text-slate-500 mt-1">
-              管理 JD 与候选人流程。智能推荐走「招聘推荐」付费额度，与 GITLINK 三入口（我的画像 / 公开画像 / LINK）的免费次数分开计费；首次推荐结果较多，之后为小额刷新，系统每周向待查看池缓慢补充。
+              管理 JD 与候选人流程。新建 JD 会同步发布到「招聘广场」。智能推荐使用「招聘推荐」月度额度（全员有免费试用额度，与 GITLINK 三入口分开计数）；首次结果较多，之后为小额刷新，系统每周向待查看池缓慢补充。
             </p>
           </div>
           <Link
@@ -440,8 +440,8 @@ function RecruitmentPageContent() {
                     />
                   </label>
                   <p className="text-[10px] text-slate-600 mt-2">
-                    状态：{selected.status === 'published' ? '已发布（广场可见）' : selected.status === 'closed' ? '已关闭' : '草稿'}
-                    。发布/关闭请在「招聘广场」流程中操作或使用既有 job-plaza API。
+                    状态：{selected.status === 'published' ? '已发布（招聘广场可见）' : selected.status === 'closed' ? '已关闭' : '草稿'}
+                    。新建 JD 默认已发布；关闭职位可在招聘广场详情或 job-plaza API 操作。
                   </p>
                 </section>
 
@@ -458,14 +458,7 @@ function RecruitmentPageContent() {
                     </button>
                   </div>
                   <p className="text-xs text-slate-500 mb-3">
-                    与 LINK 相同流水线，但扣「招聘推荐」额度（非 LINK 免费次数）。首次点击默认多返回一些人并多扣点；之后每次为小额刷新。每周一（可配 RECRUIT_WEEKLY_CRON）后台向下方「待查看池」少量写入。
-                  </p>
-                  <p className="text-xs text-amber-100/90 mb-4 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 leading-relaxed">
-                    <strong className="text-amber-200">在哪里开通？</strong> 当前 Web 端没有「购买 / 自助开通」入口。免费档的「招聘推荐」额度默认为 0；需要使用时请{' '}
-                    <strong className="text-amber-100">联系站点管理员</strong> 将你的账号设为 <strong className="font-mono text-amber-200">pro</strong> 或{' '}
-                    <strong className="font-mono text-amber-200">team</strong>（对应服务端管理接口{' '}
-                    <code className="text-[10px] text-amber-100/80">POST /api/platform/quota/tier</code>，需管理员凭证）。自托管开发也可在服务端调整免费档的{' '}
-                    <code className="text-[10px] text-amber-100/80">recruitment_recommend</code> 上限。
+                    与 LINK 相同流水线，扣「招聘推荐」月度额度（全员有免费试用额度）。首次点击默认多返回一些人并多扣点；之后每次为小额刷新。每周一（可配 RECRUIT_WEEKLY_CRON）后台向下方「待查看池」少量写入。
                   </p>
                   {weeklyPending && weeklyPending.length > 0 && (
                     <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">

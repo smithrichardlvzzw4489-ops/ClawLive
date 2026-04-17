@@ -7,7 +7,7 @@
  *   - search         : 其它语义检索（保留兼容；LINK 主入口已改用 gitlink_link）
  *   - outreach       : 批量触达邮件
  *   - jd_resume_match: MATH 页 JD×简历匹配（LLM）
- *   - recruitment_recommend : 招聘管理「按 JD 智能推荐」（付费档；免费档默认 0）
+ *   - recruitment_recommend : 招聘管理「按 JD 智能推荐」（全员月度额度；Pro/Team 更高）
  *
  * 数据持久化到 .data/quota-usage.json，启动时加载。
  */
@@ -78,7 +78,7 @@ const TIERS: Record<string, QuotaTier> = {
       search: 30,
       outreach: 10,
       jd_resume_match: 15,
-      recruitment_recommend: 0,
+      recruitment_recommend: 80,
     },
   },
   pro: {

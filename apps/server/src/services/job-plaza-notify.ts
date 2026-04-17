@@ -40,7 +40,7 @@ function scoreMatch(jobTags: string[], userTags: string[], titleBody: string): n
 
 /**
  * 向尚未记过该 JD 推送的用户写入去重记录（按画像标签与 matchTags 重叠打分，取前 N）。
- * 站内信已下线，不再写入收件箱。
+ * 匹配通知写入 job_posting_notifications；用户间私信见 /api/site-messages。
  */
 export async function notifyMatchedUsersForJobPosting(
   prisma: PrismaClient,
