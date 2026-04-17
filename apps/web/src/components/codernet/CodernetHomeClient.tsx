@@ -276,13 +276,7 @@ export function CodernetHomeClient() {
                     {lookupBusy ? '解析中…' : 'Generate'}
                   </button>
                 </div>
-                {lookupErr ? (
-                  <p className="text-left text-xs text-red-300 mt-2 px-1">{lookupErr}</p>
-                ) : (
-                  <p className="text-left text-[10px] text-slate-600 mt-2 px-1 leading-relaxed">
-                    邮箱解析需登录，并消耗 GITLINK「语义链」月度次数（与 LINK 搜人共用 gitlink_link 额度）；依据站内绑定或 GitHub 公开提交中的邮箱，无法保证所有人都能匹配。
-                  </p>
-                )}
+                {lookupErr ? <p className="text-left text-xs text-red-300 mt-2 px-1">{lookupErr}</p> : null}
               </form>
               <div className="flex flex-wrap justify-center gap-2">
                 <span className="text-[10px] text-slate-600 self-center mr-1">Try:</span>
