@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
@@ -64,20 +63,7 @@ export default function MessagesInboxPage() {
   return (
     <MainLayout flatBackground>
       <div className="mx-auto max-w-3xl px-4 py-8 text-slate-200">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-white">站内信</h1>
-          <div className="flex gap-2">
-            <Link
-              href="/messages/new"
-              className="rounded-xl bg-violet-600 hover:bg-violet-500 px-4 py-2 text-sm font-semibold text-white"
-            >
-              写信
-            </Link>
-            <Link href="/" className="rounded-xl border border-white/15 px-4 py-2 text-sm text-slate-400 hover:bg-white/[0.06]">
-              首页
-            </Link>
-          </div>
-        </div>
+        <h1 className="text-2xl font-bold text-white mb-6">站内信</h1>
 
         {unread > 0 && <p className="text-xs text-amber-200/90 mb-3">未读 {unread} 封</p>}
         {err && (
