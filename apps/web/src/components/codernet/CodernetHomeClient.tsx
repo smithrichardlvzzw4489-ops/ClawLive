@@ -205,15 +205,15 @@ export function CodernetHomeClient() {
           }`}
         >
         <div className="text-center max-w-2xl w-full mx-auto">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-4 leading-snug text-balance">
-            <span className="text-white">30 秒 × 1.8 亿开发者画像 = </span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
-              招聘无忧
-            </span>
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-4 leading-snug text-balance text-white">
+            专门面向 GitHub 开发者的招聘网站
           </h1>
 
-          <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8">
-            360° 技术画像，让AI帮助高效决策
+          <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8 text-balance">
+            <span>30 秒 × 1.8 亿开发者画像 = </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400 font-semibold">
+              招聘无忧
+            </span>
           </p>
 
           {/* Tab Switcher：GitHub 画像 · LINK · MATH */}

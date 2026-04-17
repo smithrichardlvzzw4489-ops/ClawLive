@@ -42,22 +42,17 @@ export default function JobPlazaPage() {
     void load(1);
   }, [load]);
 
+  if (loading) {
+    return (
+      <MainLayout flatBackground>
+        <div className="mx-auto max-w-4xl px-4 py-16 text-center text-slate-400">加载中…</div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout flatBackground>
       <div className="mx-auto max-w-4xl px-4 py-8 text-slate-200">
-        <header className="mb-10 text-center sm:mb-12">
-          <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl md:leading-tight">
-            专门面向 GitHub 开发者的招聘网站
-          </h1>
-          <p className="mt-3 text-sm text-slate-400 sm:text-base max-w-2xl mx-auto leading-relaxed">
-            30 秒 × 1.8 亿开发者画像 = 招聘无忧
-          </p>
-        </header>
-
-        {loading ? (
-          <div className="py-16 text-center text-slate-400">加载中…</div>
-        ) : (
-          <>
         {err && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div>
         )}
@@ -116,8 +111,6 @@ export default function JobPlazaPage() {
               下一页
             </button>
           </div>
-        )}
-          </>
         )}
       </div>
     </MainLayout>
