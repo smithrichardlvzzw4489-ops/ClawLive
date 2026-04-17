@@ -564,7 +564,7 @@ export function recruitmentRoutes(): Router {
       const combinedQuery = buildCombinedQueryFromJd(jd);
       const pack = await searchDevelopers(combinedQuery, new Map() as never, token, undefined, {
         requestId: pipelineRequestId,
-        maxMergedCandidates: 1000,
+        ...(isFirst ? { maxMergedCandidates: 1000 } : {}),
       });
 
       const raw = pack.results;
