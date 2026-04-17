@@ -205,10 +205,6 @@ export function CodernetHomeClient() {
           }`}
         >
         <div className="text-center max-w-2xl w-full mx-auto">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-1.5 mb-6">
-            <span className="text-xs font-mono text-violet-400 tracking-wider">GITLINK</span>
-          </div>
-
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-4 leading-snug text-balance">
             <span className="text-white">30 秒 × 1.8 亿开发者画像 = </span>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400">
