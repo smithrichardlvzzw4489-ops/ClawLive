@@ -65,8 +65,6 @@ function RecruitmentPageContent() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [newGh, setNewGh] = useState('');
-  const [recommendLoading, setRecommendLoading] = useState(false);
-  const [recommendHits, setRecommendHits] = useState<RecommendHit[] | null>(null);
   const [poolPending, setPoolPending] = useState<RecommendHit[] | null>(null);
   const [poolQueueMeta, setPoolQueueMeta] = useState<{
     firstRecommendAt: string | null;
@@ -143,7 +141,6 @@ function RecruitmentPageContent() {
     if (!id || items.length === 0) return;
     if (!items.some((x) => x.id === id)) return;
     setSelectedId(id);
-    setRecommendHits(null);
     router.replace('/recruitment', { scroll: false });
   }, [searchParams, items, router]);
 
@@ -181,7 +178,6 @@ function RecruitmentPageContent() {
 
   const handleSelect = (id: string) => {
     setSelectedId(id);
-    setRecommendHits(null);
     setErr(null);
   };
 
@@ -217,7 +213,6 @@ function RecruitmentPageContent() {
       await api.recruitment.deleteJd(selectedId);
       setItems((prev) => prev.filter((x) => x.id !== selectedId));
       setSelectedId(null);
-      setRecommendHits(null);
     } catch (e: unknown) {
       setErr(e instanceof APIError ? e.message : '删除失败');
     } finally {
@@ -282,27 +277,6 @@ function RecruitmentPageContent() {
       );
     } catch (e: unknown) {
       setErr(e instanceof APIError ? e.message : '删除失败');
-    }
-  };
-
-  const handleRecommend = async () => {
-    if (!selectedId) return;
-    const jdRow = items.find((x) => x.id === selectedId);
-    const isFirst = !jdRow?.firstRecommendAt;
-    setRecommendLoading(true);
-    setRecommendHits(null);
-    setErr(null);
-    try {
-      const data = (await api.recruitment.recommend(selectedId, {
-        limit: isFirst ? 40 : 10,
-      })) as { results?: RecommendHit[] };
-      setRecommendHits(data.results ?? []);
-      await loadAll();
-      void loadRecommendQueue(selectedId);
-    } catch (e: unknown) {
-      setErr(e instanceof APIError ? e.message : '推荐失败');
-    } finally {
-      setRecommendLoading(false);
     }
   };
 
@@ -457,19 +431,9 @@ function RecruitmentPageContent() {
                 </section>
 
                 <section className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <h2 className="text-lg font-semibold text-cyan-100">岗位智能推荐</h2>
-                    <button
-                      type="button"
-                      disabled={recommendLoading || selected.status === 'closed'}
-                      onClick={() => void handleRecommend()}
-                      className="rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 px-4 py-2 text-sm font-semibold text-white"
-                    >
-                      {recommendLoading ? '分析中…' : '根据本 JD 推荐候选人'}
-                    </button>
-                  </div>
+                  <h2 className="text-lg font-semibold text-cyan-100 mb-3">岗位智能推荐</h2>
                   <p className="text-xs text-slate-500 mb-3">
-                    与 LINK 相同流水线，扣「招聘推荐」月度额度（全员有免费试用额度）。新建 JD 后系统会自动首轮检索；仍可手动点击刷新（小批次）。每日北京时间 8:00（可配 RECRUIT_DAILY_CRON / RECRUIT_DAILY_TZ）后台向下方「待查看池」写入最多 10 人；backlog 用尽时会自动补缺检索。
+                    与 LINK 相同流水线，扣「招聘推荐」月度额度（全员有免费试用额度）。新建 JD 后系统会自动首轮检索。每日北京时间 8:00（可配 RECRUIT_DAILY_CRON / RECRUIT_DAILY_TZ）后台向下方「待查看池」写入最多 10 人；backlog 用尽时会自动补缺检索。
                   </p>
                   {selected?.recommendBootstrapPending ? (
                     <div className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
@@ -501,42 +465,6 @@ function RecruitmentPageContent() {
                             <span className="text-amber-200/80 text-[10px] ml-2">
                               {h.source === 'daily' ? '每日' : h.source === 'weekly' ? '周更' : '推荐'}
                             </span>
-                            <p className="text-[11px] text-slate-500 line-clamp-1">{h.reason}</p>
-                          </div>
-                          <div className="flex gap-2 shrink-0">
-                            <Link
-                              href={`/codernet/github/${encodeURIComponent(h.githubUsername)}`}
-                              className="text-xs text-violet-300 hover:underline"
-                            >
-                              画像
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => void addFromRecommend(h.githubUsername)}
-                              className="text-xs rounded bg-white/10 hover:bg-white/15 px-2 py-1"
-                            >
-                              加入候选人
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {recommendHits && recommendHits.length === 0 && (
-                    <p className="text-sm text-slate-500">未返回结果，可尝试补充匹配标签或调整 JD 描述。</p>
-                  )}
-                  {recommendHits && recommendHits.length > 0 && (
-                    <ul className="space-y-2 max-h-80 overflow-y-auto">
-                      {recommendHits.map((h) => (
-                        <li
-                          key={h.githubUsername}
-                          className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-black/20 px-3 py-2 text-sm"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={h.avatarUrl} alt="" className="h-9 w-9 rounded-lg border border-white/10" />
-                          <div className="min-w-0 flex-1">
-                            <span className="font-mono text-white">@{h.githubUsername}</span>
-                            <span className="text-violet-400 text-xs ml-2">{(h.score * 100).toFixed(0)}%</span>
                             <p className="text-[11px] text-slate-500 line-clamp-1">{h.reason}</p>
                           </div>
                           <div className="flex gap-2 shrink-0">
