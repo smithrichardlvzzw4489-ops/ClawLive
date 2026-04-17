@@ -3,9 +3,7 @@ import type { JobPosting, JobPostingCandidate } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { searchDevelopers, type DeveloperSearchResult } from './codernet-search';
 import { getServerGitHubToken } from './github-crawler';
-import { checkQuota, checkQuotaHasRemaining, consumeQuota } from './quota-manager';
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+import { checkQuotaHasRemaining, consumeQuota } from './quota-manager';
 
 function parsePositiveInt(name: string, fallback: number): number {
   const v = parseInt(process.env[name] || String(fallback), 10);
@@ -18,12 +16,22 @@ export const RECRUIT_FIRST_RECOMMEND_QUOTA_COST = () =>
 /** 非首次手动点击推荐 */
 export const RECRUIT_MANUAL_RECOMMEND_QUOTA_COST = () =>
   parsePositiveInt('RECRUIT_MANUAL_RECOMMEND_QUOTA_COST', 2);
-/** 每周后台任务每个 JD 消耗点数 */
-export const RECRUIT_WEEKLY_RECOMMEND_QUOTA_COST = () =>
-  parsePositiveInt('RECRUIT_WEEKLY_RECOMMEND_QUOTA_COST', 2);
-/** 每周每个 JD 最多追加几条进待查看池 */
-export const RECRUIT_WEEKLY_RECOMMEND_ADD = () =>
-  parsePositiveInt('RECRUIT_WEEKLY_RECOMMEND_ADD', 5);
+/** 每日后台补缺搜索每个 JD 消耗点数（优先 `RECRUIT_DAILY_REFILL_QUOTA_COST`，否则兼容旧 `RECRUIT_WEEKLY_RECOMMEND_QUOTA_COST`） */
+export const RECRUIT_DAILY_REFILL_QUOTA_COST = () => {
+  const d = parseInt(process.env.RECRUIT_DAILY_REFILL_QUOTA_COST || '', 10);
+  if (Number.isFinite(d) && d > 0) return d;
+  const w = parseInt(process.env.RECRUIT_WEEKLY_RECOMMEND_QUOTA_COST || '', 10);
+  if (Number.isFinite(w) && w > 0) return w;
+  return 2;
+};
+/** 每日从 backlog 推入待查看池的人数 */
+export const RECRUIT_DAILY_RECOMMEND_ADD = () =>
+  parsePositiveInt('RECRUIT_DAILY_RECOMMEND_ADD', 10);
+/** 创建 JD 后轮询推荐写入待查看池的首批人数 */
+export const RECRUIT_INITIAL_PENDING_TAKE = () =>
+  parsePositiveInt('RECRUIT_INITIAL_PENDING_TAKE', 40);
+/** 待查看池最多保留条数（超出丢弃最旧） */
+export const RECRUIT_PENDING_CAP = () => parsePositiveInt('RECRUIT_PENDING_CAP', 200);
 
 export type RecruitmentRecommendHit = {
   githubUsername: string;
@@ -34,7 +42,7 @@ export type RecruitmentRecommendHit = {
   reason: string;
   stats: { totalPublicRepos: number; totalStars: number; followers: number };
   location: string | null;
-  source?: 'sync' | 'weekly';
+  source?: 'sync' | 'weekly' | 'daily';
 };
 
 export function buildCombinedQueryFromJd(jd: {
@@ -84,6 +92,9 @@ export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit
     const o = x as Record<string, unknown>;
     const gh = typeof o.githubUsername === 'string' ? o.githubUsername.trim() : '';
     if (!gh) continue;
+    const src = o.source;
+    const source: RecruitmentRecommendHit['source'] =
+      src === 'weekly' || src === 'sync' || src === 'daily' ? src : 'sync';
     out.push({
       githubUsername: gh,
       avatarUrl: typeof o.avatarUrl === 'string' ? o.avatarUrl : '',
@@ -100,104 +111,269 @@ export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit
             }
           : { totalPublicRepos: 0, totalStars: 0, followers: 0 },
       location: typeof o.location === 'string' ? o.location : null,
-      source: o.source === 'weekly' || o.source === 'sync' ? o.source : 'weekly',
+      source,
     });
   }
   return out;
 }
 
-function excludeUsernames(jd: JobPosting & { candidates: JobPostingCandidate[] }): Set<string> {
+/** 已在候选人表或待查看池中的 GitHub login（从 backlog 取数时不应再排除 backlog 自身） */
+function excludeCandidatesAndPending(
+  candidates: JobPostingCandidate[],
+  pendingHits: RecruitmentRecommendHit[],
+): Set<string> {
   const s = new Set<string>();
-  for (const c of jd.candidates) {
+  for (const c of candidates) {
     s.add(c.githubUsername.trim().toLowerCase());
   }
-  for (const h of parsePendingRecommendHits(jd.pendingRecommendHits)) {
+  for (const h of pendingHits) {
     s.add(h.githubUsername.trim().toLowerCase());
   }
   return s;
 }
 
+/** 候选人 + 待查看 + backlog 全部 login（补缺搜索去重用） */
+function excludeCandidatesPendingAndBacklog(
+  candidates: JobPostingCandidate[],
+  pendingHits: RecruitmentRecommendHit[],
+  backlogHits: RecruitmentRecommendHit[],
+): Set<string> {
+  const s = excludeCandidatesAndPending(candidates, pendingHits);
+  for (const h of backlogHits) {
+    s.add(h.githubUsername.trim().toLowerCase());
+  }
+  return s;
+}
+
+const BOOTSTRAP_STALE_MS = 50 * 60 * 1000;
+
+/** 首轮推荐是否仍在后台排队/执行（用于手动接口避让） */
+export function isRecruitmentBootstrapBlocking(jd: {
+  firstRecommendAt: Date | null;
+  recommendBootstrapStartedAt: Date | null;
+}): boolean {
+  if (jd.firstRecommendAt != null) return false;
+  const t = jd.recommendBootstrapStartedAt;
+  if (!t) return false;
+  return Date.now() - t.getTime() < BOOTSTRAP_STALE_MS;
+}
+
 /**
- * 周更：对已做过首次推荐的 JD，按周合并少量新候选人进 pendingRecommendHits（扣 recruitment_recommend）。
+ * 新建 JD 后异步执行：GitHub 合并上限 1000 的单次全量检索，首批写入待查看池，其余进 backlog；扣首次额度。
  */
-export async function runRecruitmentWeeklyRecommendJobs(): Promise<void> {
+export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: string): Promise<void> {
+  const claim = await prisma.jobPosting.updateMany({
+    where: {
+      id: jobPostingId,
+      firstRecommendAt: null,
+      recommendBootstrapStartedAt: null,
+      status: { not: 'closed' },
+    },
+    data: { recommendBootstrapStartedAt: new Date() },
+  });
+  if (claim.count === 0) {
+    return;
+  }
+
+  try {
+    const jd = await prisma.jobPosting.findUnique({
+      where: { id: jobPostingId },
+      include: { candidates: true },
+    });
+    if (!jd || jd.status === 'closed') {
+      await prisma.jobPosting.update({
+        where: { id: jobPostingId },
+        data: { recommendBootstrapStartedAt: null },
+      });
+      return;
+    }
+
+    const authorId = jd.authorId;
+    const quotaCost = RECRUIT_FIRST_RECOMMEND_QUOTA_COST();
+    if (!checkQuotaHasRemaining(authorId, 'recruitment_recommend', quotaCost).allowed) {
+      console.warn('[recruitment] bootstrap skipped quota', jobPostingId);
+      await prisma.jobPosting.update({
+        where: { id: jobPostingId },
+        data: { recommendBootstrapStartedAt: null },
+      });
+      return;
+    }
+
+    const token = getServerGitHubToken();
+    const combined = buildCombinedQueryFromJd(jd);
+    const pack = await searchDevelopers(combined, new Map() as never, token, undefined, {
+      requestId: randomUUID(),
+      maxMergedCandidates: 1000,
+    });
+
+    const exclude = excludeCandidatesAndPending(jd.candidates, parsePendingRecommendHits(jd.pendingRecommendHits));
+
+    const allHits: RecruitmentRecommendHit[] = [];
+    for (const r of pack.results) {
+      const login = r.githubUsername.trim().toLowerCase();
+      if (exclude.has(login)) continue;
+      exclude.add(login);
+      allHits.push(mapDeveloperToRecommendHit(r, 'sync'));
+    }
+
+    const take = RECRUIT_INITIAL_PENDING_TAKE();
+    const pending = allHits.slice(0, take);
+    const backlog = allHits.slice(take);
+
+    consumeQuota(authorId, 'recruitment_recommend', quotaCost);
+    await prisma.jobPosting.update({
+      where: { id: jobPostingId },
+      data: {
+        firstRecommendAt: new Date(),
+        recommendBootstrapStartedAt: null,
+        pendingRecommendHits: pending as object[],
+        recommendBacklogHits: backlog as object[],
+      },
+    });
+    console.log('[recruitment] bootstrap ok', jobPostingId, {
+      pending: pending.length,
+      backlog: backlog.length,
+    });
+  } catch (e) {
+    console.error('[recruitment] bootstrap jd', jobPostingId, e);
+    await prisma.jobPosting.update({
+      where: { id: jobPostingId },
+      data: { recommendBootstrapStartedAt: null },
+    });
+  }
+}
+
+/**
+ * 每日（默认北京时间 8:00）：每个 JD 从 backlog 向待查看池移入最多 10 人（去重）；
+ * backlog 不足则触发一次补缺检索（合并上限 1000）并合并进 backlog。
+ */
+export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
   const token = getServerGitHubToken();
-  const weekAgo = new Date(Date.now() - WEEK_MS);
+  const dailyAdd = RECRUIT_DAILY_RECOMMEND_ADD();
+  const refillCost = RECRUIT_DAILY_REFILL_QUOTA_COST();
+  const pendingCap = RECRUIT_PENDING_CAP();
+
   const rows = await prisma.jobPosting.findMany({
     where: {
       firstRecommendAt: { not: null },
-      OR: [{ lastWeeklyRecommendAt: null }, { lastWeeklyRecommendAt: { lt: weekAgo } }],
       status: { not: 'closed' },
     },
     include: { candidates: true },
-    orderBy: { updatedAt: 'desc' },
-    take: 40,
+    orderBy: [{ lastDailyRecommendAt: 'asc' }],
+    take: 200,
   });
-
-  const weeklyCost = RECRUIT_WEEKLY_RECOMMEND_QUOTA_COST();
-  const addCap = RECRUIT_WEEKLY_RECOMMEND_ADD();
 
   for (const jd of rows) {
     const authorId = jd.authorId;
-    if (!checkQuotaHasRemaining(authorId, 'recruitment_recommend', weeklyCost).allowed) {
-      continue;
-    }
-
     try {
-      const combined = buildCombinedQueryFromJd(jd);
-      const pack = await searchDevelopers(combined, new Map() as never, token, undefined, {
-        requestId: randomUUID(),
-      });
-      const exclude = excludeUsernames(jd);
-      const fresh: RecruitmentRecommendHit[] = [];
-      for (const r of pack.results) {
-        if (fresh.length >= addCap) break;
-        const login = r.githubUsername.trim().toLowerCase();
-        if (exclude.has(login)) continue;
-        exclude.add(login);
-        fresh.push(mapDeveloperToRecommendHit(r, 'weekly'));
+      let pending = parsePendingRecommendHits(jd.pendingRecommendHits);
+      let backlog = parsePendingRecommendHits(jd.recommendBacklogHits);
+
+      const pickFromBacklog = (n: number, excludePick: Set<string>): { moved: RecruitmentRecommendHit[]; backlog: RecruitmentRecommendHit[] } => {
+        const moved: RecruitmentRecommendHit[] = [];
+        const rest: RecruitmentRecommendHit[] = [];
+        for (const h of backlog) {
+          const login = h.githubUsername.trim().toLowerCase();
+          if (excludePick.has(login)) {
+            continue;
+          }
+          if (moved.length < n) {
+            excludePick.add(login);
+            moved.push({ ...h, source: 'daily' });
+          } else {
+            rest.push(h);
+          }
+        }
+        return { moved, backlog: rest };
+      };
+
+      let excludePick = excludeCandidatesAndPending(jd.candidates, pending);
+      let { moved: fresh, backlog: backlogAfterPick } = pickFromBacklog(dailyAdd, excludePick);
+      backlog = backlogAfterPick;
+
+      if (fresh.length < dailyAdd) {
+        if (!checkQuotaHasRemaining(authorId, 'recruitment_recommend', refillCost).allowed) {
+          await prisma.jobPosting.update({
+            where: { id: jd.id },
+            data: { lastDailyRecommendAt: new Date() },
+          });
+          continue;
+        }
+
+        const excludeSearch = excludeCandidatesPendingAndBacklog(jd.candidates, pending, backlog);
+        for (const h of fresh) {
+          excludeSearch.add(h.githubUsername.trim().toLowerCase());
+        }
+        const combined = buildCombinedQueryFromJd(jd);
+        const pack = await searchDevelopers(combined, new Map() as never, token, undefined, {
+          requestId: randomUUID(),
+          maxMergedCandidates: 1000,
+        });
+
+        const newBacklogPieces: RecruitmentRecommendHit[] = [];
+        for (const r of pack.results) {
+          const login = r.githubUsername.trim().toLowerCase();
+          if (excludeSearch.has(login)) continue;
+          excludeSearch.add(login);
+          newBacklogPieces.push(mapDeveloperToRecommendHit(r, 'daily'));
+        }
+
+        if (newBacklogPieces.length > 0) {
+          consumeQuota(authorId, 'recruitment_recommend', refillCost);
+        }
+        backlog = [...backlog, ...newBacklogPieces];
+
+        const pendingPlusFresh = [...pending, ...fresh];
+        excludePick = excludeCandidatesAndPending(jd.candidates, pendingPlusFresh);
+        const second = pickFromBacklog(dailyAdd - fresh.length, excludePick);
+        fresh = [...fresh, ...second.moved];
+        backlog = second.backlog;
       }
 
-      const now = new Date();
       if (fresh.length > 0) {
-        consumeQuota(authorId, 'recruitment_recommend', weeklyCost);
-        const prev = parsePendingRecommendHits(jd.pendingRecommendHits);
-        const merged = [...prev, ...fresh];
-        const cap = 120;
-        const trimmed = merged.slice(-cap);
-        await prisma.jobPosting.update({
-          where: { id: jd.id },
-          data: {
-            lastWeeklyRecommendAt: now,
-            pendingRecommendHits: trimmed as object[],
-          },
-        });
-      } else {
-        await prisma.jobPosting.update({
-          where: { id: jd.id },
-          data: { lastWeeklyRecommendAt: now },
-        });
+        pending = [...pending, ...fresh];
+        if (pending.length > pendingCap) {
+          pending = pending.slice(pending.length - pendingCap);
+        }
       }
+
+      await prisma.jobPosting.update({
+        where: { id: jd.id },
+        data: {
+          pendingRecommendHits: pending as object[],
+          recommendBacklogHits: backlog as object[],
+          lastDailyRecommendAt: new Date(),
+        },
+      });
     } catch (e) {
-      console.error('[recruitment] weekly job jd', jd.id, e);
+      console.error('[recruitment] daily job jd', jd.id, e);
     }
   }
 }
 
-export function startRecruitmentWeeklyRecommendScheduler(): void {
+export function startRecruitmentDailyRecommendScheduler(): void {
   import('node-cron')
     .then(({ default: cron }) => {
-      const expr = (process.env.RECRUIT_WEEKLY_CRON || '0 9 * * 1').trim();
+      const expr = (process.env.RECRUIT_DAILY_CRON || '0 8 * * *').trim();
       if (!cron.validate(expr)) {
-        console.warn('[recruitment] invalid RECRUIT_WEEKLY_CRON, skip scheduler:', expr);
+        console.warn('[recruitment] invalid RECRUIT_DAILY_CRON, skip scheduler:', expr);
         return;
       }
-      cron.schedule(expr, () => {
-        void runRecruitmentWeeklyRecommendJobs().catch((err) =>
-          console.error('[recruitment] weekly scheduler', err),
-        );
-      });
-      console.log('[recruitment] weekly recommend scheduler:', expr);
+      cron.schedule(
+        expr,
+        () => {
+          void runRecruitmentDailyRecommendJobs().catch((err) =>
+            console.error('[recruitment] daily scheduler', err),
+          );
+        },
+        { timezone: process.env.RECRUIT_DAILY_TZ || 'Asia/Shanghai' },
+      );
+      console.log(
+        '[recruitment] daily recommend scheduler:',
+        expr,
+        'tz=',
+        process.env.RECRUIT_DAILY_TZ || 'Asia/Shanghai',
+      );
     })
     .catch((e) => console.error('[recruitment] failed to load node-cron', e));
 }

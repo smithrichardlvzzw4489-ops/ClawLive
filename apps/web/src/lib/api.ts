@@ -958,8 +958,10 @@ export const api = {
     recommendQueue: (jdId: string) =>
       fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/recommend-queue`) as Promise<{
         pending?: unknown[];
+        backlogCount?: number;
         firstRecommendAt?: string | null;
-        lastWeeklyRecommendAt?: string | null;
+        lastDailyRecommendAt?: string | null;
+        recommendBootstrapPending?: boolean;
       }>,
   },
   jobPlaza: {

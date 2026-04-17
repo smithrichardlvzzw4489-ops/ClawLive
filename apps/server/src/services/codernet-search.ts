@@ -904,9 +904,16 @@ async function searchGitHubUsers(
   token?: string,
   pipeLog?: PipelineDiagLog,
   rawQueryHint?: string,
+  mergedCapOverride?: number,
 ): Promise<GHSearchUserItem[]> {
   const discoveryHead = (rawQueryHint ?? '').split(/\n{2,}/)[0]?.trim().slice(0, 800) ?? '';
-  const mergedCap = getLinkSearchMaxMergedCap();
+  const mergedCap =
+    mergedCapOverride !== undefined && Number.isFinite(mergedCapOverride)
+      ? Math.min(
+          Math.max(1, Math.floor(mergedCapOverride)),
+          LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP,
+        )
+      : getLinkSearchMaxMergedCap();
   const queries = expandGithubSearchQueries(parsedQuery, discoveryHead);
   const batches: GHSearchUserItem[][] = [];
 
@@ -1027,6 +1034,11 @@ function fallbackScoreFromFollowers(followers: number): number {
 /** 与 `[GITLINK] linkSearch` 的 `requestId` 对齐，便于检索流水线分阶段耗时。 */
 export interface SearchDevelopersDiagContext {
   requestId: string;
+  /**
+   * 单次请求覆盖 `LINK_SEARCH_MAX_MERGED_CANDIDATES`：合并去重后参与 `/users/:login` 的人数上限，
+   * 仍不超过 `LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP`（当前 1000）。未传则走环境变量默认。
+   */
+  maxMergedCandidates?: number;
 }
 
 export async function searchDevelopers(
@@ -1093,7 +1105,13 @@ export async function searchDevelopers(
 
   const tGh = Date.now();
   pipeLog('github_search_enter');
-  const ghUsersRaw = await searchGitHubUsers(parsed, token, pipeLog, query);
+  const ghUsersRaw = await searchGitHubUsers(
+    parsed,
+    token,
+    pipeLog,
+    query,
+    diag?.maxMergedCandidates,
+  );
   pipeLog('github_search_ok', {
     githubSearchElapsedMs: Date.now() - tGh,
     mergedGithubCount: ghUsersRaw.length,

@@ -28,8 +28,10 @@ type JdRow = {
   status: string;
   publishedAt: string | null;
   firstRecommendAt?: string | null;
-  lastWeeklyRecommendAt?: string | null;
+  lastDailyRecommendAt?: string | null;
+  recommendBootstrapPending?: boolean;
   pendingRecommendCount?: number;
+  backlogRecommendCount?: number;
   createdAt: string;
   updatedAt: string;
   candidates: CandidateRow[];
@@ -65,10 +67,12 @@ function RecruitmentPageContent() {
   const [newGh, setNewGh] = useState('');
   const [recommendLoading, setRecommendLoading] = useState(false);
   const [recommendHits, setRecommendHits] = useState<RecommendHit[] | null>(null);
-  const [weeklyPending, setWeeklyPending] = useState<RecommendHit[] | null>(null);
-  const [weeklyQueueMeta, setWeeklyQueueMeta] = useState<{
+  const [poolPending, setPoolPending] = useState<RecommendHit[] | null>(null);
+  const [poolQueueMeta, setPoolQueueMeta] = useState<{
     firstRecommendAt: string | null;
-    lastWeeklyRecommendAt: string | null;
+    lastDailyRecommendAt: string | null;
+    backlogCount: number;
+    recommendBootstrapPending: boolean;
   } | null>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
@@ -97,14 +101,16 @@ function RecruitmentPageContent() {
             }))
             .filter((h) => h.githubUsername)
         : [];
-      setWeeklyPending(hits);
-      setWeeklyQueueMeta({
+      setPoolPending(hits);
+      setPoolQueueMeta({
         firstRecommendAt: data.firstRecommendAt ?? null,
-        lastWeeklyRecommendAt: data.lastWeeklyRecommendAt ?? null,
+        lastDailyRecommendAt: data.lastDailyRecommendAt ?? null,
+        backlogCount: typeof data.backlogCount === 'number' ? data.backlogCount : 0,
+        recommendBootstrapPending: Boolean(data.recommendBootstrapPending),
       });
     } catch {
-      setWeeklyPending(null);
-      setWeeklyQueueMeta(null);
+      setPoolPending(null);
+      setPoolQueueMeta(null);
     }
   }, []);
 
@@ -152,12 +158,22 @@ function RecruitmentPageContent() {
 
   useEffect(() => {
     if (!selectedId) {
-      setWeeklyPending(null);
-      setWeeklyQueueMeta(null);
+      setPoolPending(null);
+      setPoolQueueMeta(null);
       return;
     }
     void loadRecommendQueue(selectedId);
   }, [selectedId, loadRecommendQueue]);
+
+  useEffect(() => {
+    if (!selected?.recommendBootstrapPending || !selectedId) return;
+    const timer = setInterval(() => {
+      void loadAll().then(() => {
+        void loadRecommendQueue(selectedId);
+      });
+    }, 10_000);
+    return () => clearInterval(timer);
+  }, [selected?.recommendBootstrapPending, selectedId, loadAll, loadRecommendQueue]);
 
   const syncItem = (jd: JdRow) => {
     setItems((prev) => prev.map((x) => (x.id === jd.id ? jd : x)));
@@ -328,7 +344,7 @@ function RecruitmentPageContent() {
           <div>
             <h1 className="text-2xl font-bold text-white">招聘管理</h1>
             <p className="text-sm text-slate-500 mt-1">
-              管理 JD 与候选人流程。新建 JD 会同步发布到「招聘广场」。智能推荐使用「招聘推荐」月度额度（全员有免费试用额度，与 GITLINK 三入口分开计数）；首次结果较多，之后为小额刷新，系统每周向待查看池缓慢补充。
+              管理 JD 与候选人流程。新建 JD 会同步发布到「招聘广场」，并自动在后台启动智能推荐（GitHub 合并检索上限 1000）。智能推荐使用「招聘推荐」月度额度（与 GITLINK 三入口分开计数）；每日北京时间 8:00 向待查看池补充 10 位新候选人（去重），池用尽时会自动再次检索。
             </p>
           </div>
           <Link
@@ -458,19 +474,27 @@ function RecruitmentPageContent() {
                     </button>
                   </div>
                   <p className="text-xs text-slate-500 mb-3">
-                    与 LINK 相同流水线，扣「招聘推荐」月度额度（全员有免费试用额度）。首次点击默认多返回一些人并多扣点；之后每次为小额刷新。每周一（可配 RECRUIT_WEEKLY_CRON）后台向下方「待查看池」少量写入。
+                    与 LINK 相同流水线，扣「招聘推荐」月度额度（全员有免费试用额度）。新建 JD 后系统会自动首轮检索；仍可手动点击刷新（小批次）。每日北京时间 8:00（可配 RECRUIT_DAILY_CRON / RECRUIT_DAILY_TZ）后台向下方「待查看池」写入最多 10 人；backlog 用尽时会自动补缺检索。
                   </p>
-                  {weeklyPending && weeklyPending.length > 0 && (
+                  {selected?.recommendBootstrapPending ? (
+                    <div className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+                      正在后台执行首轮智能推荐，请稍后刷新本页；完成后候选人将出现在「待查看池」。
+                    </div>
+                  ) : null}
+                  {poolPending && poolPending.length > 0 && (
                     <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                      周更待查看池共 {weeklyPending.length} 人
-                      {weeklyQueueMeta?.lastWeeklyRecommendAt
-                        ? ` · 最近写入 ${new Date(weeklyQueueMeta.lastWeeklyRecommendAt).toLocaleString('zh-CN')}`
+                      待查看池共 {poolPending.length} 人
+                      {poolQueueMeta?.backlogCount != null && poolQueueMeta.backlogCount > 0
+                        ? ` · 后备池约 ${poolQueueMeta.backlogCount} 人`
+                        : ''}
+                      {poolQueueMeta?.lastDailyRecommendAt
+                        ? ` · 最近写入 ${new Date(poolQueueMeta.lastDailyRecommendAt).toLocaleString('zh-CN')}`
                         : ''}
                     </div>
                   )}
-                  {weeklyPending && weeklyPending.length > 0 && (
+                  {poolPending && poolPending.length > 0 && (
                     <ul className="space-y-2 max-h-56 overflow-y-auto mb-4">
-                      {weeklyPending.map((h) => (
+                      {poolPending.map((h) => (
                         <li
                           key={`w-${h.githubUsername}`}
                           className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-black/25 px-3 py-2 text-sm"
@@ -479,7 +503,9 @@ function RecruitmentPageContent() {
                           <img src={h.avatarUrl} alt="" className="h-9 w-9 rounded-lg border border-white/10" />
                           <div className="min-w-0 flex-1">
                             <span className="font-mono text-white">@{h.githubUsername}</span>
-                            <span className="text-amber-200/80 text-[10px] ml-2">周更</span>
+                            <span className="text-amber-200/80 text-[10px] ml-2">
+                              {h.source === 'daily' ? '每日' : h.source === 'weekly' ? '周更' : '推荐'}
+                            </span>
                             <p className="text-[11px] text-slate-500 line-clamp-1">{h.reason}</p>
                           </div>
                           <div className="flex gap-2 shrink-0">

@@ -10,6 +10,8 @@ import { extractTextFromUpload } from "../../services/attachment-text-ingest";
 import { notifyMatchedUsersForJobPosting } from "../../services/job-plaza-notify";
 import {
   buildCombinedQueryFromJd,
+  kickoffRecruitmentRecommendAfterJdCreate,
+  isRecruitmentBootstrapBlocking,
   mapDeveloperToRecommendHit,
   parsePendingRecommendHits,
   RECRUIT_FIRST_RECOMMEND_QUOTA_COST,
@@ -70,8 +72,10 @@ function serializeJd(row: {
   status: string;
   publishedAt: Date | null;
   firstRecommendAt?: Date | null;
-  lastWeeklyRecommendAt?: Date | null;
+  lastDailyRecommendAt?: Date | null;
+  recommendBootstrapStartedAt?: Date | null;
   pendingRecommendHits?: unknown;
+  recommendBacklogHits?: unknown;
   createdAt: Date;
   updatedAt: Date;
   candidates?: {
@@ -99,8 +103,13 @@ function serializeJd(row: {
     status: row.status,
     publishedAt: row.publishedAt?.toISOString() ?? null,
     firstRecommendAt: row.firstRecommendAt?.toISOString() ?? null,
-    lastWeeklyRecommendAt: row.lastWeeklyRecommendAt?.toISOString() ?? null,
+    lastDailyRecommendAt: row.lastDailyRecommendAt?.toISOString() ?? null,
+    recommendBootstrapPending: isRecruitmentBootstrapBlocking({
+      firstRecommendAt: row.firstRecommendAt ?? null,
+      recommendBootstrapStartedAt: row.recommendBootstrapStartedAt ?? null,
+    }),
     pendingRecommendCount: parsePendingRecommendHits(row.pendingRecommendHits).length,
+    backlogRecommendCount: parsePendingRecommendHits(row.recommendBacklogHits).length,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     candidates: (row.candidates || []).map((c) => ({
@@ -220,6 +229,9 @@ export function recruitmentRoutes(): Router {
       } catch (notifyErr) {
         console.error("[recruitment] notify on jd create", notifyErr);
       }
+      void kickoffRecruitmentRecommendAfterJdCreate(row.id).catch((err) =>
+        console.error("[recruitment] bootstrap enqueue", row.id, err),
+      );
       res.status(201).json({ jd: serializeJd(row) });
     } catch (e) {
       console.error("[recruitment] create jd", e);
@@ -361,9 +373,12 @@ export function recruitmentRoutes(): Router {
         const pending = parsePendingRecommendHits(jd.pendingRecommendHits).filter(
           (h) => h.githubUsername.trim().toLowerCase() !== githubUsername.toLowerCase(),
         );
+        const backlog = parsePendingRecommendHits(jd.recommendBacklogHits).filter(
+          (h) => h.githubUsername.trim().toLowerCase() !== githubUsername.toLowerCase(),
+        );
         await tx.jobPosting.update({
           where: { id: jobPostingId },
-          data: { pendingRecommendHits: pending as object[] },
+          data: { pendingRecommendHits: pending as object[], recommendBacklogHits: backlog as object[] },
         });
         return created;
       });
@@ -468,7 +483,7 @@ export function recruitmentRoutes(): Router {
     }
   });
 
-  /** 周更写入的待查看推荐池（不扣额度） */
+  /** 待查看推荐池 + backlog 条数（不扣额度） */
   router.get("/jds/:id/recommend-queue", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
@@ -479,10 +494,16 @@ export function recruitmentRoutes(): Router {
         return;
       }
       const pending = parsePendingRecommendHits(jd.pendingRecommendHits);
+      const backlog = parsePendingRecommendHits(jd.recommendBacklogHits);
       res.json({
         pending,
+        backlogCount: backlog.length,
         firstRecommendAt: jd.firstRecommendAt?.toISOString() ?? null,
-        lastWeeklyRecommendAt: jd.lastWeeklyRecommendAt?.toISOString() ?? null,
+        lastDailyRecommendAt: jd.lastDailyRecommendAt?.toISOString() ?? null,
+        recommendBootstrapPending: isRecruitmentBootstrapBlocking({
+          firstRecommendAt: jd.firstRecommendAt ?? null,
+          recommendBootstrapStartedAt: jd.recommendBootstrapStartedAt ?? null,
+        }),
       });
     } catch (e) {
       console.error("[recruitment] recommend-queue", e);
@@ -492,7 +513,7 @@ export function recruitmentRoutes(): Router {
 
   /**
    * 与 LINK 相同流水线，但扣 **recruitment_recommend**（与 GITLINK 三入口的 gitlink_* 分离）。
-   * 首次：多结果、高扣点；之后：小批次；周更后台由 `runRecruitmentWeeklyRecommendJobs` 写入 pending。
+   * 首次：多结果、高扣点；之后：小批次；每日 8 点（北京）后台从 backlog 向待查看池补充（见 `runRecruitmentDailyRecommendJobs`）。
    */
   router.post("/jds/:id/recommend", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
@@ -501,6 +522,14 @@ export function recruitmentRoutes(): Router {
       const jd = await prisma.jobPosting.findFirst({ where: { id, authorId: userId } });
       if (!jd) {
         res.status(404).json({ error: "未找到 JD" });
+        return;
+      }
+
+      if (isRecruitmentBootstrapBlocking(jd)) {
+        res.status(429).json({
+          error: "智能推荐正在后台执行，请稍后刷新页面或待查看池。",
+          code: "RECOMMEND_BOOTSTRAP_IN_PROGRESS",
+        });
         return;
       }
 
@@ -535,6 +564,7 @@ export function recruitmentRoutes(): Router {
       const combinedQuery = buildCombinedQueryFromJd(jd);
       const pack = await searchDevelopers(combinedQuery, new Map() as never, token, undefined, {
         requestId: pipelineRequestId,
+        maxMergedCandidates: 1000,
       });
 
       const raw = pack.results;
@@ -562,8 +592,8 @@ export function recruitmentRoutes(): Router {
           quotaCost,
           isFirstRecommend: isFirst,
           hint: isFirst
-            ? "首次推荐已按大额扣点返回较多结果；之后手动点击为小批次。系统每周还会向「待查看池」缓慢补充（见上方接口 recommend-queue）。"
-            : "手动刷新为小批次；周更推荐请在「待查看池」查看。",
+            ? "首次推荐已按大额扣点返回较多结果；新建 JD 时系统也会在后台自动检索（合并上限 1000）。之后每日北京时间 8:00 向「待查看池」补充 10 人（去重），详见 recommend-queue。"
+            : "手动刷新为小批次；每日补充的候选人请在「待查看池」查看。",
         },
       });
     } catch (e) {

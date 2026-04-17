@@ -566,12 +566,16 @@ model JobPosting {
   matchTags   Json      @default("[]")
   status      String    @default("draft")
   publishedAt DateTime?
-  /// 首次「按 JD 智能推荐」完成时间；之后走手动小批次 + 周更后台池
+  /// 首次「按 JD 智能推荐」完成时间；之后每日从 backlog 向待查看池补充
   firstRecommendAt DateTime?
-  /// 最近一次周更任务写入 pending 的时间
-  lastWeeklyRecommendAt DateTime?
-  /// 周更后台累积的待查看推荐（JSON 数组，与推荐 API 单条结构一致）
+  /// 最近一次每日任务写入 pending 或执行补缺搜索的时间
+  lastDailyRecommendAt DateTime?
+  /// 异步首轮推荐进行中（避免与手动点击并发重复扣点）
+  recommendBootstrapStartedAt DateTime?
+  /// 待查看推荐（JSON 数组，与推荐 API 单条结构一致）
   pendingRecommendHits Json @default("[]")
+  /// 已检索尚未进入待查看池的候选人（结构同 pendingRecommendHits）
+  recommendBacklogHits Json @default("[]")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
