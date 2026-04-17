@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth';
 import { MainLayout } from '@/components/MainLayout';
 
 type Posting = {
@@ -21,38 +20,44 @@ type Posting = {
 
 export default function JobPlazaDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = typeof params.id === 'string' ? params.id : '';
-  const { user, loading: authLoading } = useAuth();
   const [posting, setPosting] = useState<Posting | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!!id);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace(`/login?redirect=/job-plaza/${encodeURIComponent(id)}`);
+    if (!id) {
+      setPosting(null);
+      setErr('无效的职位链接');
+      setLoading(false);
       return;
     }
-    if (!id) return;
+    let cancelled = false;
+    setLoading(true);
+    setErr(null);
+    setPosting(null);
     (async () => {
       try {
         const data = await api.jobPlaza.get(id);
-        setPosting((data.posting ?? null) as Posting | null);
+        if (!cancelled) setPosting((data.posting ?? null) as Posting | null);
       } catch (e: unknown) {
-        setErr(e instanceof APIError ? e.message : '加载失败');
+        if (!cancelled) setErr(e instanceof APIError ? e.message : '加载失败');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, [authLoading, user, router, id]);
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  if (authLoading || (!posting && !err)) {
+  if (loading) {
     return (
       <MainLayout flatBackground>
         <div className="mx-auto max-w-3xl px-4 py-16 text-center text-slate-400">加载中…</div>
       </MainLayout>
     );
   }
-
-  if (!user) return null;
 
   return (
     <MainLayout flatBackground>
@@ -89,7 +94,7 @@ export default function JobPlazaDetailPage() {
             {posting.body ? (
               <div className="mt-6 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{posting.body}</div>
             ) : (
-              <p className="mt-6 text-sm text-slate-500">正文仅作者可见或未加载。</p>
+              <p className="mt-6 text-sm text-slate-500">暂无职位描述正文。</p>
             )}
           </article>
         )}

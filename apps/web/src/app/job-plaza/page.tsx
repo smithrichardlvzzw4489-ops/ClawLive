@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
-import { useAuth } from '@/hooks/useAuth';
 import { MainLayout } from '@/components/MainLayout';
 
 type PlazaItem = {
@@ -19,8 +17,6 @@ type PlazaItem = {
 };
 
 export default function JobPlazaPage() {
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
   const [items, setItems] = useState<PlazaItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -43,15 +39,10 @@ export default function JobPlazaPage() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace('/login?redirect=/job-plaza');
-      return;
-    }
     void load(1);
-  }, [authLoading, user, router, load]);
+  }, [load]);
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <MainLayout flatBackground>
         <div className="mx-auto max-w-4xl px-4 py-16 text-center text-slate-400">加载中…</div>
@@ -59,15 +50,13 @@ export default function JobPlazaPage() {
     );
   }
 
-  if (!user) return null;
-
   return (
     <MainLayout flatBackground>
       <div className="mx-auto max-w-4xl px-4 py-8 text-slate-200">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white">招聘广场</h1>
-            <p className="text-sm text-slate-500 mt-1">已发布的职位 JD；在「招聘管理」新建 JD 时会自动出现在此列表。</p>
+            <p className="text-sm text-slate-500 mt-1">已发布的职位 JD，无需登录即可浏览；在「招聘管理」新建 JD 时会自动出现在此列表。</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link
