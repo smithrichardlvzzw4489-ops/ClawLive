@@ -10,6 +10,7 @@ import { extractTextFromUpload } from "../../services/attachment-text-ingest";
 import { notifyMatchedUsersForJobPosting } from "../../services/job-plaza-notify";
 import {
   buildCombinedQueryFromJd,
+  diagnoseRecruitmentBootstrapQueue,
   kickoffRecruitmentRecommendAfterJdCreate,
   isRecruitmentBootstrapBlocking,
   mapDeveloperToRecommendHit,
@@ -74,6 +75,7 @@ function serializeJd(row: {
   firstRecommendAt?: Date | null;
   lastDailyRecommendAt?: Date | null;
   recommendBootstrapStartedAt?: Date | null;
+  recommendBootstrapTrace?: unknown;
   pendingRecommendHits?: unknown;
   recommendBacklogHits?: unknown;
   createdAt: Date;
@@ -92,6 +94,11 @@ function serializeJd(row: {
   const tags = Array.isArray(row.matchTags)
     ? row.matchTags.filter((x): x is string => typeof x === "string")
     : [];
+  const boot = diagnoseRecruitmentBootstrapQueue({
+    firstRecommendAt: row.firstRecommendAt ?? null,
+    recommendBootstrapStartedAt: row.recommendBootstrapStartedAt ?? null,
+    recommendBootstrapTrace: row.recommendBootstrapTrace,
+  });
   return {
     id: row.id,
     authorId: row.authorId,
@@ -108,6 +115,9 @@ function serializeJd(row: {
       firstRecommendAt: row.firstRecommendAt ?? null,
       recommendBootstrapStartedAt: row.recommendBootstrapStartedAt ?? null,
     }),
+    recommendBootstrapOutcome: boot.outcome,
+    recommendBootstrapLastPhase: boot.lastPhase,
+    recommendBootstrapLastOk: boot.lastOk,
     pendingRecommendCount: parsePendingRecommendHits(row.pendingRecommendHits).length,
     backlogRecommendCount: parsePendingRecommendHits(row.recommendBacklogHits).length,
     createdAt: row.createdAt.toISOString(),
@@ -528,6 +538,11 @@ export function recruitmentRoutes(): Router {
       }
       const pending = parsePendingRecommendHits(jd.pendingRecommendHits);
       const backlog = parsePendingRecommendHits(jd.recommendBacklogHits);
+      const bootstrapDiag = diagnoseRecruitmentBootstrapQueue({
+        firstRecommendAt: jd.firstRecommendAt ?? null,
+        recommendBootstrapStartedAt: jd.recommendBootstrapStartedAt ?? null,
+        recommendBootstrapTrace: jd.recommendBootstrapTrace,
+      });
       res.json({
         pending,
         backlogCount: backlog.length,
@@ -537,6 +552,10 @@ export function recruitmentRoutes(): Router {
           firstRecommendAt: jd.firstRecommendAt ?? null,
           recommendBootstrapStartedAt: jd.recommendBootstrapStartedAt ?? null,
         }),
+        recommendBootstrapTrace: bootstrapDiag.steps,
+        recommendBootstrapOutcome: bootstrapDiag.outcome,
+        recommendBootstrapLastPhase: bootstrapDiag.lastPhase,
+        recommendBootstrapLastOk: bootstrapDiag.lastOk,
       });
     } catch (e) {
       console.error("[recruitment] recommend-queue", e);

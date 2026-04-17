@@ -147,6 +147,125 @@ function excludeCandidatesPendingAndBacklog(
 
 const BOOTSTRAP_STALE_MS = 50 * 60 * 1000;
 
+const BOOTSTRAP_TRACE_MAX_STEPS = 80;
+const BOOTSTRAP_DETAIL_MAX = 400;
+
+export type RecruitmentBootstrapTraceStep = {
+  at: string;
+  phase: string;
+  ok: boolean;
+  detail?: string;
+  meta?: Record<string, unknown>;
+};
+
+function truncateDetail(s: string): string {
+  const t = s.replace(/\s+/g, ' ').trim();
+  return t.length <= BOOTSTRAP_DETAIL_MAX ? t : `${t.slice(0, BOOTSTRAP_DETAIL_MAX)}…`;
+}
+
+export function parseRecruitmentBootstrapTrace(raw: unknown): RecruitmentBootstrapTraceStep[] {
+  if (!Array.isArray(raw)) return [];
+  const out: RecruitmentBootstrapTraceStep[] = [];
+  for (const x of raw) {
+    if (!x || typeof x !== 'object') continue;
+    const o = x as Record<string, unknown>;
+    const at = typeof o.at === 'string' ? o.at : '';
+    const phase = typeof o.phase === 'string' ? o.phase : '';
+    if (!at || !phase) continue;
+    const ok = o.ok === true;
+    const step: RecruitmentBootstrapTraceStep = { at, phase, ok };
+    if (typeof o.detail === 'string' && o.detail) step.detail = o.detail;
+    if (o.meta && typeof o.meta === 'object' && !Array.isArray(o.meta)) {
+      step.meta = o.meta as Record<string, unknown>;
+    }
+    out.push(step);
+  }
+  return out;
+}
+
+export type RecruitmentBootstrapQueueDiag = {
+  steps: RecruitmentBootstrapTraceStep[];
+  lastPhase: string | null;
+  lastOk: boolean | null;
+  /** 与首轮异步引导相关的粗粒度结论（由 DB 状态 + 末步推导，不靠猜） */
+  outcome: 'idle' | 'running' | 'succeeded' | 'aborted' | 'failed' | 'stuck';
+};
+
+export function diagnoseRecruitmentBootstrapQueue(jd: {
+  firstRecommendAt: Date | null;
+  recommendBootstrapStartedAt: Date | null;
+  recommendBootstrapTrace: unknown;
+}): RecruitmentBootstrapQueueDiag {
+  const steps = parseRecruitmentBootstrapTrace(jd.recommendBootstrapTrace);
+  const last = steps.length ? steps[steps.length - 1]! : null;
+  const lastPhase = last?.phase ?? null;
+  const lastOk = last != null ? last.ok : null;
+
+  if (jd.firstRecommendAt != null) {
+    return { steps, lastPhase, lastOk, outcome: 'succeeded' };
+  }
+  const blocking = isRecruitmentBootstrapBlocking({
+    firstRecommendAt: jd.firstRecommendAt,
+    recommendBootstrapStartedAt: jd.recommendBootstrapStartedAt,
+  });
+  if (blocking) {
+    return { steps, lastPhase, lastOk, outcome: 'running' };
+  }
+  if (jd.recommendBootstrapStartedAt != null && !blocking) {
+    return { steps, lastPhase, lastOk, outcome: 'stuck' };
+  }
+  if (!last) {
+    return { steps, lastPhase, lastOk, outcome: 'idle' };
+  }
+  if (!last.ok && typeof last.phase === 'string' && last.phase.startsWith('abort_')) {
+    return { steps, lastPhase, lastOk, outcome: 'aborted' };
+  }
+  if (!last.ok || last.phase === 'error') {
+    return { steps, lastPhase, lastOk, outcome: 'failed' };
+  }
+  return { steps, lastPhase, lastOk, outcome: 'idle' };
+}
+
+async function resetRecruitmentBootstrapTrace(
+  jobPostingId: string,
+  first: RecruitmentBootstrapTraceStep,
+): Promise<void> {
+  await prisma.jobPosting.update({
+    where: { id: jobPostingId },
+    data: { recommendBootstrapTrace: [first] as object[] },
+  });
+}
+
+async function appendRecruitmentBootstrapTrace(
+  jobPostingId: string,
+  step: Omit<RecruitmentBootstrapTraceStep, 'at'> & { at?: string; detail?: string; meta?: Record<string, unknown> },
+): Promise<void> {
+  const full: RecruitmentBootstrapTraceStep = {
+    at: step.at ?? new Date().toISOString(),
+    phase: step.phase,
+    ok: step.ok,
+    ...(step.detail != null && step.detail !== '' ? { detail: truncateDetail(step.detail) } : {}),
+    ...(step.meta != null ? { meta: step.meta } : {}),
+  };
+  await prisma.$transaction(async (tx) => {
+    const row = await tx.jobPosting.findUnique({
+      where: { id: jobPostingId },
+      select: { recommendBootstrapTrace: true },
+    });
+    const prev = parseRecruitmentBootstrapTrace(row?.recommendBootstrapTrace);
+    const next = [...prev, full].slice(-BOOTSTRAP_TRACE_MAX_STEPS);
+    await tx.jobPosting.update({
+      where: { id: jobPostingId },
+      data: { recommendBootstrapTrace: next as object[] },
+    });
+  });
+}
+
+function logBootstrapPhase(jobPostingId: string, phase: string, ok: boolean, extra?: Record<string, unknown>) {
+  const base = { jobPostingId, phase, ok, ...extra };
+  console.log(`[recruitment] bootstrap ${JSON.stringify(base)}`);
+}
+
 /** 首轮推荐是否仍在后台排队/执行（用于手动接口避让） */
 export function isRecruitmentBootstrapBlocking(jd: {
   firstRecommendAt: Date | null;
@@ -175,12 +294,23 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
     return;
   }
 
+  const t0 = Date.now();
+  const claimedAt = new Date().toISOString();
+  await resetRecruitmentBootstrapTrace(jobPostingId, { at: claimedAt, phase: 'claimed', ok: true });
+  logBootstrapPhase(jobPostingId, 'claimed', true);
+
   try {
     const jd = await prisma.jobPosting.findUnique({
       where: { id: jobPostingId },
       include: { candidates: true },
     });
     if (!jd || jd.status === 'closed') {
+      await appendRecruitmentBootstrapTrace(jobPostingId, {
+        phase: 'abort_jd_missing_or_closed',
+        ok: false,
+        detail: !jd ? 'jd_not_found' : `status=${jd.status}`,
+      });
+      logBootstrapPhase(jobPostingId, 'abort_jd_missing_or_closed', false);
       await prisma.jobPosting.update({
         where: { id: jobPostingId },
         data: { recommendBootstrapStartedAt: null },
@@ -191,7 +321,12 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
     const authorId = jd.authorId;
     const quotaCost = RECRUIT_FIRST_RECOMMEND_QUOTA_COST();
     if (!checkQuotaHasRemaining(authorId, 'recruitment_recommend', quotaCost).allowed) {
-      console.warn('[recruitment] bootstrap skipped quota', jobPostingId);
+      await appendRecruitmentBootstrapTrace(jobPostingId, {
+        phase: 'abort_quota',
+        ok: false,
+        meta: { quotaCost },
+      });
+      logBootstrapPhase(jobPostingId, 'abort_quota', false, { quotaCost });
       await prisma.jobPosting.update({
         where: { id: jobPostingId },
         data: { recommendBootstrapStartedAt: null },
@@ -200,10 +335,51 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
     }
 
     const token = getServerGitHubToken();
+    if (!token) {
+      await appendRecruitmentBootstrapTrace(jobPostingId, {
+        phase: 'abort_no_github_token',
+        ok: false,
+        detail: 'missing GITHUB_SERVER_TOKEN | GITHUB_TOKEN | GH_TOKEN',
+      });
+      logBootstrapPhase(jobPostingId, 'abort_no_github_token', false);
+      await prisma.jobPosting.update({
+        where: { id: jobPostingId },
+        data: { recommendBootstrapStartedAt: null },
+      });
+      return;
+    }
+
     const combined = buildCombinedQueryFromJd(jd);
+    await appendRecruitmentBootstrapTrace(jobPostingId, {
+      phase: 'search_started',
+      ok: true,
+      meta: { queryCharCount: combined.length, quotaCost },
+    });
+    logBootstrapPhase(jobPostingId, 'search_started', true, {
+      queryCharCount: combined.length,
+      elapsedMs: Date.now() - t0,
+    });
+
+    const searchRequestId = randomUUID();
     const pack = await searchDevelopers(combined, new Map() as never, token, undefined, {
-      requestId: randomUUID(),
+      requestId: searchRequestId,
       maxMergedCandidates: 1000,
+    });
+
+    await appendRecruitmentBootstrapTrace(jobPostingId, {
+      phase: 'search_done',
+      ok: true,
+      meta: {
+        requestId: searchRequestId,
+        resultCount: pack.results.length,
+        mergedGithubCount: pack.meta.mergedGithubCount,
+        elapsedMsSinceStart: Date.now() - t0,
+      },
+    });
+    logBootstrapPhase(jobPostingId, 'search_done', true, {
+      resultCount: pack.results.length,
+      mergedGithubCount: pack.meta.mergedGithubCount,
+      elapsedMs: Date.now() - t0,
     });
 
     const exclude = excludeCandidatesAndPending(jd.candidates, parsePendingRecommendHits(jd.pendingRecommendHits));
@@ -220,6 +396,21 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
     const pending = allHits.slice(0, take);
     const backlog = allHits.slice(take);
 
+    await appendRecruitmentBootstrapTrace(jobPostingId, {
+      phase: 'persisting',
+      ok: true,
+      meta: {
+        pendingCount: pending.length,
+        backlogCount: backlog.length,
+        rawResultCount: pack.results.length,
+        afterDedupeCount: allHits.length,
+      },
+    });
+    logBootstrapPhase(jobPostingId, 'persisting', true, {
+      pending: pending.length,
+      backlog: backlog.length,
+    });
+
     consumeQuota(authorId, 'recruitment_recommend', quotaCost);
     await prisma.jobPosting.update({
       where: { id: jobPostingId },
@@ -230,11 +421,29 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
         recommendBacklogHits: backlog as object[],
       },
     });
-    console.log('[recruitment] bootstrap ok', jobPostingId, {
+
+    await appendRecruitmentBootstrapTrace(jobPostingId, {
+      phase: 'complete',
+      ok: true,
+      meta: {
+        pendingCount: pending.length,
+        backlogCount: backlog.length,
+        totalElapsedMs: Date.now() - t0,
+      },
+    });
+    logBootstrapPhase(jobPostingId, 'complete', true, {
       pending: pending.length,
       backlog: backlog.length,
+      elapsedMs: Date.now() - t0,
     });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await appendRecruitmentBootstrapTrace(jobPostingId, {
+      phase: 'error',
+      ok: false,
+      detail: msg,
+    });
+    logBootstrapPhase(jobPostingId, 'error', false, { detail: truncateDetail(msg) });
     console.error('[recruitment] bootstrap jd', jobPostingId, e);
     await prisma.jobPosting.update({
       where: { id: jobPostingId },

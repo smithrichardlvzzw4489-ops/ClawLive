@@ -30,12 +30,50 @@ type JdRow = {
   firstRecommendAt?: string | null;
   lastDailyRecommendAt?: string | null;
   recommendBootstrapPending?: boolean;
+  recommendBootstrapOutcome?: string;
+  recommendBootstrapLastPhase?: string | null;
+  recommendBootstrapLastOk?: boolean | null;
   pendingRecommendCount?: number;
   backlogRecommendCount?: number;
   createdAt: string;
   updatedAt: string;
   candidates: CandidateRow[];
 };
+
+type BootstrapTraceStep = {
+  at: string;
+  phase: string;
+  ok: boolean;
+  detail?: string;
+  meta?: Record<string, unknown>;
+};
+
+function bootstrapPhaseLabel(phase: string): string {
+  const m: Record<string, string> = {
+    claimed: '已认领首轮任务',
+    abort_jd_missing_or_closed: '中止：JD 不存在或已关闭',
+    abort_quota: '中止：招聘推荐额度不足',
+    abort_no_github_token: '中止：未配置服务端 GitHub Token',
+    search_started: '检索已开始',
+    search_done: '检索已结束',
+    persisting: '正在写入待查看池 / 后备池',
+    complete: '首轮引导已完成',
+    error: '执行异常',
+  };
+  return m[phase] ?? phase;
+}
+
+function bootstrapOutcomeLabel(outcome: string | undefined): string {
+  const m: Record<string, string> = {
+    idle: '无记录',
+    running: '执行中',
+    succeeded: '已成功',
+    aborted: '已中止（业务条件）',
+    failed: '失败（见末步）',
+    stuck: '可能中断（标记超时或进程未写完）',
+  };
+  return outcome ? m[outcome] ?? outcome : '—';
+}
 
 type RecommendHit = {
   githubUsername: string;
@@ -71,6 +109,10 @@ function RecruitmentPageContent() {
     lastDailyRecommendAt: string | null;
     backlogCount: number;
     recommendBootstrapPending: boolean;
+    recommendBootstrapOutcome?: string;
+    recommendBootstrapLastPhase?: string | null;
+    recommendBootstrapLastOk?: boolean | null;
+    recommendBootstrapTrace?: BootstrapTraceStep[];
   } | null>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
@@ -100,11 +142,35 @@ function RecruitmentPageContent() {
             .filter((h) => h.githubUsername)
         : [];
       setPoolPending(hits);
+      const traceRaw = data.recommendBootstrapTrace;
+      const trace: BootstrapTraceStep[] = Array.isArray(traceRaw)
+        ? traceRaw
+            .filter((x) => x != null && typeof x === 'object')
+            .map((x) => {
+              const o = x as Record<string, unknown>;
+              return {
+              at: typeof o.at === 'string' ? o.at : '',
+              phase: typeof o.phase === 'string' ? o.phase : '',
+              ok: o.ok === true,
+              detail: typeof o.detail === 'string' ? o.detail : undefined,
+              meta: o.meta && typeof o.meta === 'object' && !Array.isArray(o.meta) ? (o.meta as Record<string, unknown>) : undefined,
+              };
+            })
+            .filter((s) => s.at && s.phase)
+        : [];
       setPoolQueueMeta({
         firstRecommendAt: data.firstRecommendAt ?? null,
         lastDailyRecommendAt: data.lastDailyRecommendAt ?? null,
         backlogCount: typeof data.backlogCount === 'number' ? data.backlogCount : 0,
         recommendBootstrapPending: Boolean(data.recommendBootstrapPending),
+        recommendBootstrapOutcome: typeof data.recommendBootstrapOutcome === 'string' ? data.recommendBootstrapOutcome : undefined,
+        recommendBootstrapLastPhase:
+          data.recommendBootstrapLastPhase === null || typeof data.recommendBootstrapLastPhase === 'string'
+            ? data.recommendBootstrapLastPhase
+            : null,
+        recommendBootstrapLastOk:
+          typeof data.recommendBootstrapLastOk === 'boolean' ? data.recommendBootstrapLastOk : null,
+        recommendBootstrapTrace: trace,
       });
     } catch {
       setPoolPending(null);
@@ -168,7 +234,7 @@ function RecruitmentPageContent() {
       void loadAll().then(() => {
         void loadRecommendQueue(selectedId);
       });
-    }, 10_000);
+    }, 5_000);
     return () => clearInterval(timer);
   }, [selected?.recommendBootstrapPending, selectedId, loadAll, loadRecommendQueue]);
 
@@ -437,7 +503,43 @@ function RecruitmentPageContent() {
                   </p>
                   {selected?.recommendBootstrapPending ? (
                     <div className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
-                      正在后台执行首轮智能推荐，请稍后刷新本页；完成后候选人将出现在「待查看池」。
+                      正在后台执行首轮智能推荐（约每 5 秒刷新进度）；完成后候选人将出现在「待查看池」。
+                    </div>
+                  ) : null}
+                  {poolQueueMeta &&
+                    (poolQueueMeta.recommendBootstrapTrace?.length ||
+                      poolQueueMeta.recommendBootstrapOutcome) ? (
+                    <div className="mb-4 rounded-xl border border-white/[0.12] bg-black/20 px-3 py-3 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-slate-300 mb-2">
+                        <span className="font-medium text-slate-200">首轮引导执行记录</span>
+                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px]">
+                          {bootstrapOutcomeLabel(poolQueueMeta.recommendBootstrapOutcome)}
+                        </span>
+                        {poolQueueMeta.recommendBootstrapLastPhase ? (
+                          <span className="text-slate-500">
+                            末步：{bootstrapPhaseLabel(poolQueueMeta.recommendBootstrapLastPhase)}
+                            {poolQueueMeta.recommendBootstrapLastOk === false ? ' · 未成功' : ''}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-[10px] text-slate-600 mb-2">
+                        以下步骤由服务端写入数据库，用于定位「卡在哪一步 / 为何中止」，非前端推测。
+                      </p>
+                      {poolQueueMeta.recommendBootstrapTrace && poolQueueMeta.recommendBootstrapTrace.length > 0 ? (
+                        <ul className="max-h-40 overflow-y-auto space-y-1 font-mono text-[10px] text-slate-400 border-t border-white/[0.06] pt-2">
+                          {poolQueueMeta.recommendBootstrapTrace.map((s, i) => (
+                            <li key={`${s.at}-${i}`} className="flex flex-wrap gap-x-2 gap-y-0.5">
+                              <span className="text-slate-600 shrink-0">{new Date(s.at).toLocaleString('zh-CN')}</span>
+                              <span className={s.ok ? 'text-emerald-400/90' : 'text-rose-300/90'}>
+                                {bootstrapPhaseLabel(s.phase)}
+                              </span>
+                              {s.detail ? <span className="text-slate-500 break-all">— {s.detail}</span> : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-slate-600">暂无分步记录（可能尚未认领任务或库未迁移）。</p>
+                      )}
                     </div>
                   ) : null}
                   {poolPending && poolPending.length > 0 && (

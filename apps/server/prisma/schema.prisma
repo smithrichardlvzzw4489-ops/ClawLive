@@ -572,6 +572,8 @@ model JobPosting {
   lastDailyRecommendAt DateTime?
   /// 异步首轮推荐进行中（避免与手动点击并发重复扣点）
   recommendBootstrapStartedAt DateTime?
+  /// 新建 JD 后首轮异步引导：分步追踪（{ at, phase, ok, detail?, meta? }[]），供排障与前端展示
+  recommendBootstrapTrace Json @default("[]")
   /// 待查看推荐（JSON 数组，与推荐 API 单条结构一致）
   pendingRecommendHits Json @default("[]")
   /// 已检索尚未进入待查看池的候选人（结构同 pendingRecommendHits）

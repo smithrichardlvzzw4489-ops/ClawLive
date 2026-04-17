@@ -962,6 +962,16 @@ export const api = {
         firstRecommendAt?: string | null;
         lastDailyRecommendAt?: string | null;
         recommendBootstrapPending?: boolean;
+        recommendBootstrapTrace?: Array<{
+          at: string;
+          phase: string;
+          ok: boolean;
+          detail?: string;
+          meta?: Record<string, unknown>;
+        }>;
+        recommendBootstrapOutcome?: string;
+        recommendBootstrapLastPhase?: string | null;
+        recommendBootstrapLastOk?: boolean | null;
       }>,
   },
   jobPlaza: {
