@@ -7,9 +7,7 @@ import { CodernetCardPageClient } from '@/components/codernet/CodernetCardPageCl
 import { PersonalResumeSection } from '@/components/my/PersonalResumeSection';
 import { API_BASE_URL } from '@/lib/api';
 
-/**
- * 「我的」开发者名片：上方为自行维护的个人简历，下方为 GITLINK 技术画像（与公开 /codernet/card/:user 同源）。
- */
+/** 「我的」开发者名片：上方为自行维护的个人简历，下方为 GITLINK 技术画像（与公开 /codernet/card/:user 同源）。 */
 export default function MyProfilePage() {
   const router = useRouter();
   const [username, setUsername] = useState<string | null>(null);
@@ -54,10 +52,6 @@ export default function MyProfilePage() {
       <div className="bg-[#06080f] px-4 pt-6 pb-2">
         <div className="mx-auto max-w-4xl">
           <h1 className="text-lg font-bold text-white">My card · 完整简历</h1>
-          <p className="text-[11px] text-slate-500 mt-1 leading-relaxed max-w-2xl">
-            上半部分由你手写<strong className="text-slate-400">个人简历</strong>；下半部分为系统根据公开数据生成的
-            <strong className="text-slate-400">技术画像</strong>。二者数据互不覆盖，合在一起即对外完整叙事。
-          </p>
           <PersonalResumeSection
             initialText={personalResume ?? ''}
             onSaved={handleResumeSaved}

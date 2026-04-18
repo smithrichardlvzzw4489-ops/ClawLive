@@ -273,10 +273,6 @@ function JobSeekerAssistCard({
   return (
     <div className="rounded-xl border border-teal-500/30 bg-teal-950/25 p-4">
       <h3 className="text-sm font-semibold text-teal-200 mb-1">本页使用说明</h3>
-      <p className="text-[11px] text-slate-500 mb-2 leading-relaxed">
-        这是你在 <strong className="text-slate-300">GITLINK</strong> 上的<strong className="text-slate-300">公开技术名片</strong>（画像）；页面顶部另有你自填的
-        <strong className="text-slate-300">个人简历</strong>，二者独立，复制本区「投递用简介」时会合并输出。
-      </p>
       <ul className="text-[11px] text-slate-500 mb-3 list-disc pl-4 space-y-1 leading-relaxed">
         <li>在邮件/表单里附上画像链接，减少重复自我介绍。</li>
         <li>修改 GitHub 简介或仓库后，可用此处「刷新画像」同步最新公开信息。</li>

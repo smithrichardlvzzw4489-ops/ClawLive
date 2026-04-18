@@ -40,12 +40,6 @@ export function PersonalResumeSection({ initialText, onSaved }: Props) {
   return (
     <section className="rounded-2xl border border-violet-500/20 bg-violet-950/20 p-5 mb-6">
       <h2 className="text-sm font-semibold text-violet-200">个人简历（自行填写）</h2>
-      <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-        与下方 <strong className="text-slate-400">GITLINK 技术画像</strong>（由 GitHub
-        与多平台数据自动生成）<strong className="text-slate-400">相互独立</strong>
-        ：画像展示栈与项目信号；此处可写教育、经历、项目叙事、求职意向等。两者合起来构成你对外的一份
-        <strong className="text-slate-400">完整简历</strong>；复制「投递用简介」时会自动附带本节内容。
-      </p>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
