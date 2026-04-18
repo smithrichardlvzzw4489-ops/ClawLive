@@ -1,4 +1,5 @@
 import { Prisma, type PrismaClient } from "@prisma/client";
+import { scoreMatch, userTechTagsFromAnalysis } from "./job-plaza-tag-match";
 
 const MAX_NOTIFY_PER_POST = 120;
 const MAX_SITE_MESSAGE_BODY = 19_000;
@@ -8,42 +9,6 @@ const JD_EXCERPT_CHARS = 4_000;
 function publicWebBase(): string {
   const u = (process.env.SERVER_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/$/, "");
   return u || "https://clawlab.live";
-}
-
-function norm(s: string): string {
-  return s.trim().toLowerCase();
-}
-
-function parseJsonStringArray(v: unknown): string[] {
-  if (!Array.isArray(v)) return [];
-  return v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim());
-}
-
-/** 从 codernetAnalysis 取技术标签 */
-function userTechTagsFromAnalysis(analysis: unknown): string[] {
-  if (!analysis || typeof analysis !== "object") return [];
-  const o = analysis as Record<string, unknown>;
-  const raw = o.techTags ?? o.tech_tags;
-  return parseJsonStringArray(raw);
-}
-
-function scoreMatch(jobTags: string[], userTags: string[], titleBody: string): number {
-  const hay = norm(titleBody);
-  let score = 0;
-  for (const jt of jobTags) {
-    const j = norm(jt);
-    if (!j) continue;
-    if (hay.includes(j)) score += 1;
-    for (const ut of userTags) {
-      const u = norm(ut);
-      if (!u) continue;
-      if (u === j || u.includes(j) || j.includes(u)) {
-        score += 2;
-        break;
-      }
-    }
-  }
-  return score;
 }
 
 function buildAutoMatchSubject(title: string): string {

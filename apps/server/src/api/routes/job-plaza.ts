@@ -2,6 +2,12 @@ import { Router, Response, Request } from "express";
 import { authenticateToken, AuthRequest, getUserIdFromBearer } from "../middleware/auth";
 import { prisma } from "../../lib/prisma";
 import { notifyMatchedUsersForJobPosting } from "../../services/job-plaza-notify";
+import { computeTagMatchPreview, userTechTagsFromAnalysis } from "../../services/job-plaza-tag-match";
+import { resolveGithubPortraitForMath } from "../../services/github-portrait-resolve-math";
+import { checkQuota, consumeQuota } from "../../services/quota-manager";
+import { runJdResumeMatchAnalysis } from "../../services/jd-resume-match";
+
+const MAX_MATH_COMBINED = 90_000;
 
 const MAX_TITLE = 200;
 const MAX_BODY = 50_000;
@@ -26,6 +32,26 @@ function parseMatchTags(raw: unknown): string[] {
       .map((t) => (t.length > MAX_TAG ? t.slice(0, MAX_TAG) : t));
   }
   return [];
+}
+
+function buildJdTextForMathMatch(row: {
+  title: string;
+  companyName: string | null;
+  location: string | null;
+  body: string;
+  matchTags: unknown;
+}): string {
+  const tags = Array.isArray(row.matchTags)
+    ? row.matchTags.filter((x): x is string => typeof x === "string").map((t) => t.trim()).filter(Boolean)
+    : [];
+  const parts = [
+    `【职位】${row.title.trim()}`,
+    row.companyName?.trim() ? `【公司】${row.companyName.trim()}` : null,
+    row.location?.trim() ? `【地点】${row.location.trim()}` : null,
+    tags.length ? `【匹配标签】${tags.join("、")}` : null,
+    `【职位描述】\n${row.body.trim()}`,
+  ].filter(Boolean) as string[];
+  return parts.join("\n\n");
 }
 
 function serializePosting(
@@ -66,6 +92,158 @@ function serializePosting(
 
 export function jobPlazaRoutes(): Router {
   const router = Router();
+
+  /** 登录求职者：批量返回与站内通知一致的「标签×JD 正文」预估，用于列表卡片 */
+  router.post("/match-previews", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const raw = (req.body as { ids?: unknown })?.ids;
+      const ids = Array.isArray(raw)
+        ? raw
+            .filter((x): x is string => typeof x === "string")
+            .map((x) => x.trim())
+            .filter(Boolean)
+            .slice(0, 25)
+        : [];
+      if (ids.length === 0) {
+        res.status(400).json({ error: "请提供 ids 数组" });
+        return;
+      }
+      const uniqueIds = [...new Set(ids)];
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { codernetAnalysis: true, personalResume: true, githubUsername: true },
+      });
+      const userTags = userTechTagsFromAnalysis(user?.codernetAnalysis);
+      const hasMaterials = Boolean(
+        (user?.personalResume || "").trim() || (user?.githubUsername || "").trim().replace(/^@/, ""),
+      );
+
+      const postings = await prisma.jobPosting.findMany({
+        where: { id: { in: uniqueIds }, status: "published", publishedAt: { not: null } },
+        select: { id: true, title: true, body: true, matchTags: true },
+      });
+
+      const previews: Record<
+        string,
+        {
+          tagMatchPercent: number;
+          rawTagScore: number;
+          maxTagScore: number;
+          tagLines: Array<{ jobTag: string; bodyHit: boolean; userMatch?: string; points: number }>;
+          hasMaterials: boolean;
+          userTagCount: number;
+        }
+      > = {};
+
+      for (const p of postings) {
+        const jobTags = parseMatchTags(p.matchTags);
+        const titleBody = `${p.title}\n${p.body}`;
+        const { rawScore, maxScore, percent, lines } = computeTagMatchPreview(jobTags, userTags, titleBody);
+        previews[p.id] = {
+          tagMatchPercent: percent,
+          rawTagScore: rawScore,
+          maxTagScore: maxScore,
+          tagLines: lines,
+          hasMaterials,
+          userTagCount: userTags.length,
+        };
+      }
+
+      res.json({ previews });
+    } catch (e) {
+      console.error("[job-plaza] match-previews", e);
+      res.status(500).json({ error: "加载失败" });
+    }
+  });
+
+  /** 登录用户：对单条已发布 JD 调用与 `/api/math/match` 相同的 LLM 分析（扣 jd_resume_match 额度） */
+  router.post("/:id/math-match", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const id = req.params.id;
+
+      const q = checkQuota(userId, "jd_resume_match");
+      if (!q.allowed) {
+        res.status(429).json({
+          error: "本月 Math 匹配次数已用完",
+          code: "QUOTA_EXCEEDED",
+          quota: { dimension: "jd_resume_match", used: q.used, limit: q.limit, tier: q.tier },
+        });
+        return;
+      }
+
+      const posting = await prisma.jobPosting.findUnique({ where: { id } });
+      if (!posting || posting.status !== "published" || !posting.publishedAt) {
+        res.status(404).json({ error: "未找到" });
+        return;
+      }
+
+      const jdCombined = buildJdTextForMathMatch(posting);
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { personalResume: true, githubUsername: true },
+      });
+      const resumeCombined = (user?.personalResume || "").trim();
+      const githubUsername = (user?.githubUsername || "").trim().replace(/^@/, "");
+
+      if (!jdCombined) {
+        res.status(400).json({ error: "职位正文为空" });
+        return;
+      }
+
+      let githubPortraitSummary = "";
+      if (githubUsername) {
+        const gh = await resolveGithubPortraitForMath(githubUsername);
+        if (!gh.ok) {
+          const status = gh.code === "INVALID" ? 400 : 502;
+          res.status(status).json({
+            error: gh.message,
+            code: gh.code ?? "GITHUB_FETCH_FAILED",
+            githubLogin: githubUsername,
+          });
+          return;
+        }
+        githubPortraitSummary = gh.portraitSummary;
+      }
+
+      if (!resumeCombined && !githubPortraitSummary) {
+        res.status(400).json({
+          error: "请在个人资料中填写「个人简历」或绑定 GitHub，以便使用与首页 MATH 相同的材料参与匹配。",
+          code: "NO_CANDIDATE_MATERIAL",
+        });
+        return;
+      }
+
+      if (jdCombined.length + resumeCombined.length > MAX_MATH_COMBINED) {
+        res.status(400).json({ error: "JD 与简历合并长度过长，请删减个人资料中的简历正文或分次匹配" });
+        return;
+      }
+
+      const result = await runJdResumeMatchAnalysis({
+        jdText: jdCombined,
+        resumeText: resumeCombined,
+        githubPortraitSummary,
+      });
+
+      consumeQuota(userId, "jd_resume_match", 1);
+
+      res.json({
+        result,
+        meta: {
+          jobPostingId: id,
+          jdChars: jdCombined.length,
+          resumeChars: resumeCombined.length,
+          githubUsed: Boolean(githubUsername),
+        },
+      });
+    } catch (e) {
+      console.error("[job-plaza] math-match", e);
+      const msg = e instanceof Error ? e.message : "匹配失败";
+      res.status(500).json({ error: msg });
+    }
+  });
 
   /** 公开：未登录可浏览已发布职位 */
   router.get("/", async (req: Request, res: Response) => {

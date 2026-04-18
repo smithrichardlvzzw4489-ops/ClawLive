@@ -989,6 +989,36 @@ export const api = {
     },
     get: (id: string) =>
       fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}`) as Promise<{ posting?: Record<string, unknown> }>,
+    matchPreviews: (ids: string[]) =>
+      fetchAPI('/api/job-plaza/match-previews', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      }) as Promise<{
+        previews?: Record<
+          string,
+          {
+            tagMatchPercent: number;
+            rawTagScore: number;
+            maxTagScore: number;
+            tagLines: Array<{ jobTag: string; bodyHit: boolean; userMatch?: string; points: number }>;
+            hasMaterials: boolean;
+            userTagCount: number;
+          }
+        >;
+      }>,
+    mathMatch: (id: string) =>
+      fetchAPI(`/api/job-plaza/${encodeURIComponent(id)}/math-match`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }) as Promise<{
+        result?: {
+          jdItemMatches: Array<{ id: string; title: string; matchScore: number; rationale: string; gap?: string }>;
+          overallMatch: number;
+          executiveSummary: string;
+          notes?: string;
+        };
+        meta?: Record<string, unknown>;
+      }>,
   },
   siteMessages: {
     send: (body: { toUsername: string; subject?: string; body: string }) =>
