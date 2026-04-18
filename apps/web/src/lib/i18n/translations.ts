@@ -47,6 +47,8 @@ export const translations = {
       recruitment: '招聘管理',
       siteMessages: '站内信',
       jobPlaza: '职位',
+      /** 招聘方顶栏：原「主页」三入口（GitHub 画像 / LINK / MATH） */
+      developer360: '开发者360画像',
       entryDevelopers: '求职者入口',
       entryRecruiters: '招聘方入口',
       personaDeveloperBadge: '求职者：招聘管理入口已隐藏',
@@ -68,7 +70,8 @@ export const translations = {
       developerBullet4: '三入口：GitHub 画像 · LINK · MATH',
       developerCta: '进入求职者工作台',
       recruiterCardTitle: '我是招聘方 / HR',
-      recruiterCardBody: '管理职位与候选人、站内沟通、职位曝光；在主页用三入口检索与触达人才。',
+      recruiterCardBody:
+        '管理职位与候选人、站内沟通、职位曝光；开发者360画像侧重 GitHub 画像与 MATH，并保留 LINK 用于检索与触达。',
       recruiterBullet1: '招聘管理',
       recruiterBullet2: '站内信',
       recruiterBullet3: '职位',
@@ -93,6 +96,8 @@ export const translations = {
       enterJobPlaza: '进入职位',
       enterRecruitment: '进入招聘管理',
       enterHomeCodernet: '进入主页（三入口）',
+      /** 招聘方落地页：进入 GitHub 画像 + MATH 等三入口 */
+      enterDeveloper360Hub: '进入开发者360画像',
     },
 
     evolutionNetwork: {
@@ -921,6 +926,8 @@ export const translations = {
       recruitment: 'Recruitment',
       siteMessages: 'Messages',
       jobPlaza: 'Jobs',
+      /** Hiring nav: former “home” hub (GitHub portrait / LINK / MATH) */
+      developer360: 'Developer 360° portrait',
       entryDevelopers: 'For developers',
       entryRecruiters: 'For hiring',
       personaDeveloperBadge: 'Job seeker: recruitment link hidden',
@@ -942,7 +949,8 @@ export const translations = {
       developerBullet4: 'Triple entry: GitHub portrait · LINK · MATH',
       developerCta: 'Continue as job seeker',
       recruiterCardTitle: 'I am hiring / HR',
-      recruiterCardBody: 'Recruitment tools, messages, job visibility, plus the same three-entry home for talent search.',
+      recruiterCardBody:
+        'Recruitment tools, messages, and job visibility; Developer 360° focuses on GitHub portrait and MATH, with LINK for search and outreach.',
       recruiterBullet1: 'Recruitment',
       recruiterBullet2: 'Messages',
       recruiterBullet3: 'Jobs',
@@ -967,6 +975,7 @@ export const translations = {
       enterJobPlaza: 'Open jobs',
       enterRecruitment: 'Open recruitment',
       enterHomeCodernet: 'Open home (triple entry)',
+      enterDeveloper360Hub: 'Open Developer 360° portrait',
     },
 
     evolutionNetwork: {

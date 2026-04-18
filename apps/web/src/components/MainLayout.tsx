@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, Suspense } from 'react';
 import { Header } from './Header';
 
 interface MainLayoutProps {
@@ -39,7 +39,18 @@ export function MainLayout({
         lockViewportHeight ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-screen'
       }`}
     >
-      {!hideHeader && <Header />}
+      {!hideHeader && (
+        <Suspense
+          fallback={
+            <div
+              className="fixed left-0 right-0 top-0 z-50 h-14 border-b border-white/[0.07] glass"
+              aria-hidden
+            />
+          }
+        >
+          <Header />
+        </Suspense>
+      )}
 
       <div
         className={`${mainTop} ${

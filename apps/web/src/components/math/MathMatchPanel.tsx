@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
+import { usePrimaryPersona } from '@/contexts/PrimaryPersonaContext';
 import { MathMatchResultView, type JdResumeMatchResultShape } from '@/components/math/MathMatchResultView';
 
 type MatchResult = JdResumeMatchResultShape;
@@ -64,6 +65,7 @@ function FileHint() {
 /** GITLINK 首页「MATH」标签：JD / 简历 / GitHub 全方位匹配（原独立 /math 页） */
 export function MathMatchPanel() {
   const router = useRouter();
+  const { persona, personaReady } = usePrimaryPersona();
   const [jdText, setJdText] = useState('');
   const [resumeText, setResumeText] = useState('');
   const [githubUsername, setGithubUsername] = useState('');
@@ -136,7 +138,7 @@ export function MathMatchPanel() {
       setLoading(false);
       setTimeout(() => setProgress(null), 1200);
     }
-  }, [jdText, resumeText, githubUsername, jdFiles, resumeFiles, router]);
+  }, [jdText, resumeText, githubUsername, jdFiles, resumeFiles, router, persona, personaReady]);
 
   return (
     <div className="w-full text-left pb-8">

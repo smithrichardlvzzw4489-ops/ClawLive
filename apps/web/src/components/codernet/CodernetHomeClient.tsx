@@ -86,9 +86,24 @@ export function CodernetHomeClient() {
     if (searchParams.get('tab') === 'math') setTab('math');
   }, [searchParams]);
 
+  /** 招聘方：根路径默认进职位列表；显式 `?view=hub` 或 `?tab=math` 进入开发者360画像 */
+  useEffect(() => {
+    if (!personaReady || persona !== 'recruiter' || pathname !== '/') return;
+    const tab = searchParams.get('tab');
+    const view = searchParams.get('view');
+    if (tab === 'math' || view === 'hub') return;
+    router.replace('/job-plaza');
+  }, [personaReady, persona, pathname, router, searchParams]);
+
   const selectTab = (next: TabId) => {
     setTab(next);
-    if (next === 'math') {
+    if (persona === 'recruiter') {
+      if (next === 'math') {
+        router.replace('/?view=hub&tab=math', { scroll: false });
+      } else {
+        router.replace('/?view=hub', { scroll: false });
+      }
+    } else if (next === 'math') {
       router.replace('/?tab=math', { scroll: false });
     } else {
       router.replace('/', { scroll: false });
@@ -200,7 +215,14 @@ export function CodernetHomeClient() {
           {t('loading')}
         </div>
       ) : persona === 'unset' ? (
-        <HomePersonaGate onSelect={(role) => setPersona(role)} />
+        <HomePersonaGate
+          onSelect={(role) => {
+            setPersona(role);
+            if (role === 'recruiter') {
+              router.replace('/job-plaza');
+            }
+          }}
+        />
       ) : (
       <>
       <div

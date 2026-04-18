@@ -2,11 +2,12 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { usePrimaryPersona } from '@/contexts/PrimaryPersonaContext';
 
 const navItemBase =
   'flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-medium transition-all duration-150 sm:gap-2.5 sm:px-3.5';
@@ -46,11 +47,21 @@ type HeaderProps = {
 export function Header({}: HeaderProps) {
   const { t } = useLocale();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { persona, personaReady } = usePrimaryPersona();
 
-  const gitlinkSectionActive = pathname === '/' || pathname.startsWith('/codernet');
+  const isRecruiter = personaReady && persona === 'recruiter';
+  const viewHub = searchParams.get('view') === 'hub';
+  const tabMath = searchParams.get('tab') === 'math';
+
   const jobPlazaActive = pathname.startsWith('/job-plaza');
+  const portraitHubActive = isRecruiter
+    ? pathname === '/' && (viewHub || tabMath)
+    : pathname === '/' || pathname.startsWith('/codernet');
 
   const isHome = false;
+
+  const logoHref = isRecruiter ? '/job-plaza' : '/';
 
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/[0.07] glass">
@@ -61,7 +72,7 @@ export function Header({}: HeaderProps) {
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
           <Link
-            href="/"
+            href={logoHref}
             className="flex shrink-0 items-center rounded-lg px-1 py-0.5 outline-none ring-violet-500/30 focus-visible:ring-2"
             aria-label="GITLINK"
           >
@@ -74,8 +85,17 @@ export function Header({}: HeaderProps) {
             className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto pb-0.5 md:pb-0 [scrollbar-width:thin]"
             aria-label="主导航"
           >
-            <NavItem href="/" label={t('nav.landing')} icon="👤" active={gitlinkSectionActive} />
-            <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
+            {isRecruiter ? (
+              <>
+                <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
+                <NavItem href="/?view=hub" label={t('nav.developer360')} icon="🔭" active={portraitHubActive} />
+              </>
+            ) : (
+              <>
+                <NavItem href="/" label={t('nav.landing')} icon="👤" active={portraitHubActive} />
+                <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
+              </>
+            )}
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}
