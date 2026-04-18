@@ -63,7 +63,7 @@ export const translations = {
     personaGate: {
       title: '专注GitHub 开发者的求职网站',
       developerCardTitle: '我是开发者 / 求职者',
-      developerCardBody: '浏览职位机会、维护个人画像、用站内信沟通；在主页使用三入口做检索与匹配。',
+      developerCardBody: '浏览职位机会、维护个人画像、用站内信沟通；在开发者360画像使用 GitHub 画像、LINK、MATH 做检索与匹配。',
       developerBullet1: '职位',
       developerBullet2: 'My card（我的画像）',
       developerBullet3: '站内信',
@@ -86,7 +86,7 @@ export const translations = {
       developersTitle: '求职者入口',
       developersLead: '面向开发者 / 求职者：优先浏览职位、维护个人画像与站内沟通。',
       developersBody:
-        '建议关注：在职位列表浏览机会；「我的画像」完善资料；站内信与机会方沟通；主页的「三入口」提供检索、触达与能力匹配等能力。',
+        '建议关注：在职位列表浏览机会；「我的画像」完善资料；站内信与机会方沟通；开发者360画像中的「三入口」提供检索、触达与能力匹配等能力。',
       recruitersTitle: '招聘方入口',
       recruitersLead: '面向 HR / 招聘者：优先使用招聘管理、候选人沟通与职位曝光。',
       recruitersBody:
@@ -942,7 +942,8 @@ export const translations = {
     personaGate: {
       title: 'A job-search site for GitHub developers',
       developerCardTitle: 'I am a developer / job seeker',
-      developerCardBody: 'Job listings, your card, messages, plus the three-entry home for search and matching.',
+      developerCardBody:
+        'Job listings, your card, and messages; use Developer 360° for GitHub portrait, LINK, and MATH for search and matching.',
       developerBullet1: 'Jobs',
       developerBullet2: 'My card',
       developerBullet3: 'Messages',
@@ -965,7 +966,7 @@ export const translations = {
       developersTitle: 'Developer entry',
       developersLead: 'For developers and job seekers: jobs, your profile, and messages come first.',
       developersBody:
-        'Browse job listings, use “My card” for your profile, messages to talk with employers, and the home “triple entry” for search, outreach, and skills matching.',
+        'Browse job listings, use “My card” for your profile, messages to talk with employers, and Developer 360° “triple entry” for search, outreach, and skills matching.',
       recruitersTitle: 'Hiring entry',
       recruitersLead: 'For HR and hiring managers: recruitment tools and candidate messaging first.',
       recruitersBody:

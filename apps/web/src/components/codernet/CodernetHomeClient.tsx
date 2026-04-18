@@ -86,9 +86,10 @@ export function CodernetHomeClient() {
     if (searchParams.get('tab') === 'math') setTab('math');
   }, [searchParams]);
 
-  /** 招聘方：根路径默认进职位列表；显式 `?view=hub` 或 `?tab=math` 进入开发者360画像 */
+  /** 求职者 / 招聘方：根路径默认进职位；`?view=hub` 或 `?tab=math` 进入开发者360画像 */
   useEffect(() => {
-    if (!personaReady || persona !== 'recruiter' || pathname !== '/') return;
+    if (!personaReady || pathname !== '/') return;
+    if (persona !== 'recruiter' && persona !== 'developer') return;
     const tab = searchParams.get('tab');
     const view = searchParams.get('view');
     if (tab === 'math' || view === 'hub') return;
@@ -97,7 +98,7 @@ export function CodernetHomeClient() {
 
   const selectTab = (next: TabId) => {
     setTab(next);
-    if (persona === 'recruiter') {
+    if (persona === 'recruiter' || persona === 'developer') {
       if (next === 'math') {
         router.replace('/?view=hub&tab=math', { scroll: false });
       } else {
@@ -218,9 +219,7 @@ export function CodernetHomeClient() {
         <HomePersonaGate
           onSelect={(role) => {
             setPersona(role);
-            if (role === 'recruiter') {
-              router.replace('/job-plaza');
-            }
+            router.replace('/job-plaza');
           }}
         />
       ) : (

@@ -80,7 +80,11 @@ export function MathMatchPanel() {
   const runMatch = useCallback(async () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) {
-      router.push(`/login?redirect=${encodeURIComponent('/?tab=math')}`);
+      const back =
+        personaReady && (persona === 'recruiter' || persona === 'developer')
+          ? '/?view=hub&tab=math'
+          : '/?tab=math';
+      router.push(`/login?redirect=${encodeURIComponent(back)}`);
       return;
     }
     setErr(null);
