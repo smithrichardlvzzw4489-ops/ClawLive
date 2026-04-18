@@ -23,7 +23,6 @@ export default function ForDevelopersPage() {
         <h1 className="mb-4 text-2xl font-bold text-white sm:text-3xl">{t('personaEntry.developersTitle')}</h1>
         <p className="mb-3 text-slate-300">{t('personaEntry.developersLead')}</p>
         <p className="mb-8 text-sm leading-relaxed text-slate-400">{t('personaEntry.developersBody')}</p>
-        <p className="mb-6 text-xs text-slate-500">{t('personaEntry.noteStoredLocally')}</p>
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button
             type="button"

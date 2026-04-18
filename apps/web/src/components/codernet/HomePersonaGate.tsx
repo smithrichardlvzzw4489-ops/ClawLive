@@ -78,10 +78,6 @@ export function HomePersonaGate({ onSelect }: Props) {
           </span>
         </button>
       </div>
-
-      <p className="mx-auto mt-10 max-w-md text-center text-[11px] leading-relaxed text-slate-600">
-        {t('personaEntry.noteStoredLocally')}
-      </p>
     </div>
   );
 }

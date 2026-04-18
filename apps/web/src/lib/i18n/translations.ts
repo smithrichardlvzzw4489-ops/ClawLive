@@ -89,7 +89,6 @@ export const translations = {
       enterJobPlaza: '进入招聘广场',
       enterRecruitment: '进入招聘管理',
       enterHomeCodernet: '进入主页（三入口）',
-      noteStoredLocally: '身份偏好仅保存在本机浏览器，用于排序个人菜单。',
     },
 
     evolutionNetwork: {
@@ -960,7 +959,6 @@ export const translations = {
       enterJobPlaza: 'Open job plaza',
       enterRecruitment: 'Open recruitment',
       enterHomeCodernet: 'Open home (triple entry)',
-      noteStoredLocally: 'Your choice is stored only in this browser and affects menu order.',
     },
 
     evolutionNetwork: {
