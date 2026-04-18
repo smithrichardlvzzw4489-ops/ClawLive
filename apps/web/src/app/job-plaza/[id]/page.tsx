@@ -15,8 +15,21 @@ type Posting = {
   matchTags: string[];
   status: string;
   publishedAt: string | null;
+  createdAt?: string;
   author?: { username: string; githubUsername: string | null };
 };
+
+function formatZhDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export default function JobPlazaDetailPage() {
   const params = useParams();
@@ -78,6 +91,11 @@ export default function JobPlazaDetailPage() {
             </p>
             <p className="text-xs text-slate-600 mt-2">
               发布者：{posting.author?.username ? `@${posting.author.username}` : '—'} · 状态 {posting.status}
+              {posting.publishedAt ? (
+                <> · 发布于 {formatZhDateTime(posting.publishedAt)}</>
+              ) : posting.createdAt ? (
+                <> · 提交于 {formatZhDateTime(posting.createdAt)}</>
+              ) : null}
             </p>
             {posting.matchTags?.length ? (
               <div className="flex flex-wrap gap-1.5 mt-4">
