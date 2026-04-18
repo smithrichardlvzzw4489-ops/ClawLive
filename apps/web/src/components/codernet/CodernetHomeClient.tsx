@@ -219,7 +219,9 @@ export function CodernetHomeClient() {
         >
         <div className="text-center max-w-2xl w-full mx-auto">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-4 leading-snug text-balance text-white">
-            专门面向 GitHub 开发者的招聘网站
+            {persona === 'developer'
+              ? t('codernetHome.titleDeveloper')
+              : t('codernetHome.titleRecruiter')}
           </h1>
 
           <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8 text-balance">

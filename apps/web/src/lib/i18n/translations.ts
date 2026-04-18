@@ -75,6 +75,10 @@ export const translations = {
       recruiterBullet4: '三入口：GitHub 画像 · LINK · MATH',
       recruiterCta: '进入招聘方工作台',
     },
+    codernetHome: {
+      titleDeveloper: '专注GitHub 开发者的求职网站',
+      titleRecruiter: '专门面向 GitHub 开发者的招聘网站',
+    },
     personaEntry: {
       developersTitle: '求职者入口',
       developersLead: '面向开发者 / 求职者：优先使用招聘广场、个人画像与站内沟通。',
@@ -944,6 +948,10 @@ export const translations = {
       recruiterBullet3: 'Job plaza',
       recruiterBullet4: 'Triple entry: GitHub portrait · LINK · MATH',
       recruiterCta: 'Continue as hiring',
+    },
+    codernetHome: {
+      titleDeveloper: 'A job-search site for GitHub developers',
+      titleRecruiter: 'A hiring platform for GitHub developers',
     },
     personaEntry: {
       developersTitle: 'Developer entry',
