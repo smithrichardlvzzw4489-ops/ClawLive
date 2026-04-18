@@ -15,12 +15,9 @@ export function HomePersonaGate({ onSelect }: Props) {
   return (
     <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-4rem)] max-w-5xl flex-col justify-center px-4 py-12 sm:py-16">
       <p className="mb-2 text-center text-xs font-medium uppercase tracking-[0.2em] text-violet-300/90">GITLINK</p>
-      <h1 className="mb-2 text-center text-2xl font-black tracking-tight text-white sm:text-3xl md:text-4xl">
+      <h1 className="mb-8 text-center text-2xl font-black tracking-tight text-white sm:text-3xl md:text-4xl">
         {t('personaGate.title')}
       </h1>
-      <p className="mx-auto mb-10 max-w-xl text-center text-sm leading-relaxed text-slate-400">
-        {t('personaGate.subtitle')}
-      </p>
 
       <div className="grid gap-4 sm:grid-cols-2 sm:gap-6">
         <button

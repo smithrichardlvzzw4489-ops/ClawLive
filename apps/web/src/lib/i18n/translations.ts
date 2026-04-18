@@ -60,7 +60,6 @@ export const translations = {
     },
     personaGate: {
       title: '请选择你的使用方式',
-      subtitle: '选择后，顶栏与个人菜单只显示与你身份相关的入口；主页下方为 GitHub 画像、LINK、MATH 三入口。',
       developerCardTitle: '我是开发者 / 求职者',
       developerCardBody: '浏览职位机会、维护个人画像、用站内信沟通；在主页使用三入口做检索与匹配。',
       developerBullet1: '招聘广场',
@@ -75,7 +74,6 @@ export const translations = {
       recruiterBullet3: '招聘广场',
       recruiterBullet4: '三入口：GitHub 画像 · LINK · MATH',
       recruiterCta: '进入招聘方工作台',
-      quickNavHint: '下方为',
     },
     personaEntry: {
       developersTitle: '求职者入口',
@@ -933,8 +931,6 @@ export const translations = {
     },
     personaGate: {
       title: 'How will you use GITLINK?',
-      subtitle:
-        'We only show the navigation that matches your role. Below that, the home always offers the three entries: portrait, LINK, and MATH.',
       developerCardTitle: 'I am a developer / job seeker',
       developerCardBody: 'Job plaza, your card, messages, plus the three-entry home for search and matching.',
       developerBullet1: 'Job plaza',
@@ -949,7 +945,6 @@ export const translations = {
       recruiterBullet3: 'Job plaza',
       recruiterBullet4: 'Triple entry: GitHub portrait · LINK · MATH',
       recruiterCta: 'Continue as hiring',
-      quickNavHint: 'Below:',
     },
     personaEntry: {
       developersTitle: 'Developer entry',
