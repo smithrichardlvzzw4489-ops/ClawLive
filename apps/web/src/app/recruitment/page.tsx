@@ -491,8 +491,8 @@ function RecruitmentPageContent() {
                     />
                   </label>
                   <p className="text-[10px] text-slate-600 mt-2">
-                    状态：{selected.status === 'published' ? '已发布（招聘广场可见）' : selected.status === 'closed' ? '已关闭' : '草稿'}
-                    。新建 JD 默认已发布；关闭职位可在招聘广场详情或 job-plaza API 操作。
+                    状态：{selected.status === 'published' ? '已发布（职位列表可见）' : selected.status === 'closed' ? '已关闭' : '草稿'}
+                    。新建 JD 默认已发布；关闭职位可在职位详情或 job-plaza API 操作。
                   </p>
                 </section>
 

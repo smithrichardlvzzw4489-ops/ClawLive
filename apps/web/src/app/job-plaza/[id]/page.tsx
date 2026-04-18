@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
 import { MainLayout } from '@/components/MainLayout';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 type Posting = {
   id: string;
@@ -32,6 +33,7 @@ function formatZhDateTime(iso: string): string {
 }
 
 export default function JobPlazaDetailPage() {
+  const { t } = useLocale();
   const params = useParams();
   const id = typeof params.id === 'string' ? params.id : '';
   const [posting, setPosting] = useState<Posting | null>(null);
@@ -76,7 +78,7 @@ export default function JobPlazaDetailPage() {
     <MainLayout flatBackground>
       <div className="mx-auto max-w-3xl px-4 py-8 text-slate-200">
         <Link href="/job-plaza" className="text-sm text-violet-400 hover:underline">
-          ← 招聘广场
+          ← {t('nav.jobPlaza')}
         </Link>
 
         {err && (

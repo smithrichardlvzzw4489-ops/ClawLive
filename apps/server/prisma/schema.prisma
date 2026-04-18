@@ -554,7 +554,7 @@ model VibekidsWorkFavoriteDedupe {
   @@map("vibekids_work_favorite_dedupe")
 }
 
-/// 招聘广场：HR 发布的 JD
+/// 职位（公开 JD）：HR 发布的 JD
 model JobPosting {
   id          String    @id @default(uuid())
   authorId    String

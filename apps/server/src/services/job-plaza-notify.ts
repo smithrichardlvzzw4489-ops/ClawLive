@@ -47,7 +47,7 @@ function scoreMatch(jobTags: string[], userTags: string[], titleBody: string): n
 }
 
 function buildAutoMatchSubject(title: string): string {
-  const prefix = "【GITLINK 招聘广场】";
+  const prefix = "【GITLINK 职位】";
   const rest = title.trim().slice(0, Math.max(0, MAX_SITE_SUBJECT - prefix.length));
   return `${prefix}${rest}`.slice(0, MAX_SITE_SUBJECT);
 }

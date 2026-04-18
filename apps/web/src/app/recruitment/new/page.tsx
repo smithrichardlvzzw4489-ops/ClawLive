@@ -112,7 +112,7 @@ export default function RecruitmentNewJdPage() {
             </Link>
             <h1 className="mt-2 text-2xl font-bold text-white">新建职位 JD</h1>
             <p className="mt-2 text-xs text-slate-500 max-w-xl">
-              保存后将<strong className="text-slate-400">自动发布到招聘广场</strong>（公开列表），并尝试向标签匹配的站内用户发送匹配提醒；同时会在后台自动启动岗位智能推荐（无需再点「推荐」）。
+              保存后将<strong className="text-slate-400">自动发布到职位列表</strong>（公开列表），并尝试向标签匹配的站内用户发送匹配提醒；同时会在后台自动启动岗位智能推荐（无需再点「推荐」）。
             </p>
           </div>
         </div>

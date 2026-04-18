@@ -21,7 +21,7 @@ type Props = {
 };
 
 /**
- * 登录后用户菜单：招聘广场在顶栏；此处仅角色相关入口（顶栏不重复招聘广场）。
+ * 登录后用户菜单：职位在顶栏；此处仅角色相关入口（顶栏不重复职位）。
  */
 export function UserPersonaMenuLinks({ t, persona, user }: Props) {
   const router = useRouter();
