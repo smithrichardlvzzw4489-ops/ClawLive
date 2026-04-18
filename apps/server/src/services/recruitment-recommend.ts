@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { JobPosting, JobPostingCandidate } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { railwayDiag } from '../lib/railway-diag';
 import { searchDevelopers, type DeveloperSearchResult } from './codernet-search';
 import { getServerGitHubToken } from './github-crawler';
 import { checkQuotaHasRemaining, consumeQuota } from './quota-manager';
@@ -264,6 +265,14 @@ async function appendRecruitmentBootstrapTrace(
 function logBootstrapPhase(jobPostingId: string, phase: string, ok: boolean, extra?: Record<string, unknown>) {
   const base = { jobPostingId, phase, ok, ...extra };
   console.log(`[recruitment] bootstrap ${JSON.stringify(base)}`);
+  railwayDiag({
+    area: 'recruitment',
+    event: 'bootstrap.phase',
+    jobPostingId,
+    phase,
+    ok,
+    ...extra,
+  });
 }
 
 /** 首轮推荐是否仍在后台排队/执行（用于手动接口避让） */
@@ -299,6 +308,7 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
   await resetRecruitmentBootstrapTrace(jobPostingId, { at: claimedAt, phase: 'claimed', ok: true });
   logBootstrapPhase(jobPostingId, 'claimed', true);
 
+  let searchRequestId: string | undefined;
   try {
     const jd = await prisma.jobPosting.findUnique({
       where: { id: jobPostingId },
@@ -350,20 +360,23 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
     }
 
     const combined = buildCombinedQueryFromJd(jd);
+    searchRequestId = randomUUID();
     await appendRecruitmentBootstrapTrace(jobPostingId, {
       phase: 'search_started',
       ok: true,
-      meta: { queryCharCount: combined.length, quotaCost },
+      meta: { queryCharCount: combined.length, quotaCost, requestId: searchRequestId },
     });
     logBootstrapPhase(jobPostingId, 'search_started', true, {
       queryCharCount: combined.length,
       elapsedMs: Date.now() - t0,
+      requestId: searchRequestId,
     });
 
-    const searchRequestId = randomUUID();
     const pack = await searchDevelopers(combined, new Map() as never, token, undefined, {
       requestId: searchRequestId,
       maxMergedCandidates: 1000,
+      jobPostingId,
+      source: 'recruitment_bootstrap',
     });
 
     await appendRecruitmentBootstrapTrace(jobPostingId, {
@@ -377,6 +390,7 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
       },
     });
     logBootstrapPhase(jobPostingId, 'search_done', true, {
+      requestId: searchRequestId,
       resultCount: pack.results.length,
       mergedGithubCount: pack.meta.mergedGithubCount,
       elapsedMs: Date.now() - t0,
@@ -407,6 +421,7 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
       },
     });
     logBootstrapPhase(jobPostingId, 'persisting', true, {
+      requestId: searchRequestId,
       pending: pending.length,
       backlog: backlog.length,
     });
@@ -432,6 +447,7 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
       },
     });
     logBootstrapPhase(jobPostingId, 'complete', true, {
+      requestId: searchRequestId,
       pending: pending.length,
       backlog: backlog.length,
       elapsedMs: Date.now() - t0,
@@ -442,8 +458,22 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
       phase: 'error',
       ok: false,
       detail: msg,
+      ...(searchRequestId ? { meta: { requestId: searchRequestId } } : {}),
     });
-    logBootstrapPhase(jobPostingId, 'error', false, { detail: truncateDetail(msg) });
+    logBootstrapPhase(jobPostingId, 'error', false, {
+      detail: truncateDetail(msg),
+      ...(searchRequestId ? { requestId: searchRequestId } : {}),
+    });
+    railwayDiag({
+      area: 'recruitment',
+      event: 'bootstrap.error',
+      level: 'error',
+      jobPostingId,
+      requestId: searchRequestId,
+      elapsedMs: Date.now() - t0,
+      error: truncateDetail(msg),
+      errorName: e instanceof Error ? e.name : undefined,
+    });
     console.error('[recruitment] bootstrap jd', jobPostingId, e);
     await prisma.jobPosting.update({
       where: { id: jobPostingId },
@@ -470,6 +500,14 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
     include: { candidates: true },
     orderBy: [{ lastDailyRecommendAt: 'asc' }],
     take: 200,
+  });
+
+  railwayDiag({
+    area: 'recruitment',
+    event: 'daily.tick',
+    jdCount: rows.length,
+    dailyAdd,
+    githubTokenPresent: Boolean(token),
   });
 
   for (const jd of rows) {
@@ -514,9 +552,28 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
           excludeSearch.add(h.githubUsername.trim().toLowerCase());
         }
         const combined = buildCombinedQueryFromJd(jd);
+        const refillRequestId = randomUUID();
+        railwayDiag({
+          area: 'recruitment',
+          event: 'daily.refill_search_start',
+          jobPostingId: jd.id,
+          authorId,
+          requestId: refillRequestId,
+          freshFromBacklog: fresh.length,
+          dailyAdd,
+        });
         const pack = await searchDevelopers(combined, new Map() as never, token, undefined, {
-          requestId: randomUUID(),
+          requestId: refillRequestId,
           maxMergedCandidates: 1000,
+          jobPostingId: jd.id,
+          source: 'recruitment_daily',
+        });
+        railwayDiag({
+          area: 'recruitment',
+          event: 'daily.refill_search_done',
+          jobPostingId: jd.id,
+          requestId: refillRequestId,
+          rawResultCount: pack.results.length,
         });
 
         const newBacklogPieces: RecruitmentRecommendHit[] = [];
@@ -555,6 +612,16 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
         },
       });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      railwayDiag({
+        area: 'recruitment',
+        event: 'daily.jd_error',
+        level: 'error',
+        jobPostingId: jd.id,
+        authorId,
+        error: truncateDetail(msg),
+        errorName: e instanceof Error ? e.name : undefined,
+      });
       console.error('[recruitment] daily job jd', jd.id, e);
     }
   }
@@ -565,15 +632,29 @@ export function startRecruitmentDailyRecommendScheduler(): void {
     .then(({ default: cron }) => {
       const expr = (process.env.RECRUIT_DAILY_CRON || '0 8 * * *').trim();
       if (!cron.validate(expr)) {
+        railwayDiag({
+          area: 'recruitment',
+          event: 'daily.cron_invalid',
+          level: 'error',
+          expr,
+        });
         console.warn('[recruitment] invalid RECRUIT_DAILY_CRON, skip scheduler:', expr);
         return;
       }
       cron.schedule(
         expr,
         () => {
-          void runRecruitmentDailyRecommendJobs().catch((err) =>
-            console.error('[recruitment] daily scheduler', err),
-          );
+          void runRecruitmentDailyRecommendJobs().catch((err) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            railwayDiag({
+              area: 'recruitment',
+              event: 'daily.scheduler_run_failed',
+              level: 'error',
+              error: truncateDetail(msg),
+              errorName: err instanceof Error ? err.name : undefined,
+            });
+            console.error('[recruitment] daily scheduler', err);
+          });
         },
         { timezone: process.env.RECRUIT_DAILY_TZ || 'Asia/Shanghai' },
       );
@@ -584,5 +665,13 @@ export function startRecruitmentDailyRecommendScheduler(): void {
         process.env.RECRUIT_DAILY_TZ || 'Asia/Shanghai',
       );
     })
-    .catch((e) => console.error('[recruitment] failed to load node-cron', e));
+    .catch((e) => {
+      railwayDiag({
+        area: 'recruitment',
+        event: 'daily.node_cron_load_failed',
+        level: 'error',
+        error: e instanceof Error ? truncateDetail(e.message) : String(e),
+      });
+      console.error('[recruitment] failed to load node-cron', e);
+    });
 }

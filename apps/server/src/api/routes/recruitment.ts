@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import multer from "multer";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 import { prisma } from "../../lib/prisma";
+import { railwayDiag } from "../../lib/railway-diag";
 import { checkQuotaHasRemaining, consumeQuota } from "../../services/quota-manager";
 import { searchDevelopers } from "../../services/codernet-search";
 import { getServerGitHubToken } from "../../services/github-crawler";
@@ -240,9 +241,19 @@ export function recruitmentRoutes(): Router {
       } catch (notifyErr) {
         console.error("[recruitment] notify on jd create", notifyErr);
       }
-      void kickoffRecruitmentRecommendAfterJdCreate(row.id).catch((err) =>
-        console.error("[recruitment] bootstrap enqueue", row.id, err),
-      );
+      void kickoffRecruitmentRecommendAfterJdCreate(row.id).catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        railwayDiag({
+          area: "recruitment",
+          event: "bootstrap.enqueue_failed",
+          level: "error",
+          jobPostingId: row.id,
+          authorId: userId,
+          error: msg.slice(0, 400),
+          errorName: err instanceof Error ? err.name : undefined,
+        });
+        console.error("[recruitment] bootstrap enqueue", row.id, err);
+      });
       res.status(201).json({ jd: serializeJd(row) });
     } catch (e) {
       console.error("[recruitment] create jd", e);
@@ -349,9 +360,19 @@ export function recruitmentRoutes(): Router {
         } catch (notifyErr) {
           console.error("[recruitment] notify on jd publish from draft", notifyErr);
         }
-        void kickoffRecruitmentRecommendAfterJdCreate(row.id).catch((err) =>
-          console.error("[recruitment] bootstrap enqueue after draft publish", row.id, err),
-        );
+        void kickoffRecruitmentRecommendAfterJdCreate(row.id).catch((err) => {
+          const msg = err instanceof Error ? err.message : String(err);
+          railwayDiag({
+            area: "recruitment",
+            event: "bootstrap.enqueue_after_publish_failed",
+            level: "error",
+            jobPostingId: row.id,
+            authorId: userId,
+            error: msg.slice(0, 400),
+            errorName: err instanceof Error ? err.name : undefined,
+          });
+          console.error("[recruitment] bootstrap enqueue after draft publish", row.id, err);
+        });
       }
 
       res.json({ jd: serializeJd(row) });
@@ -558,6 +579,16 @@ export function recruitmentRoutes(): Router {
         recommendBootstrapLastOk: bootstrapDiag.lastOk,
       });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      railwayDiag({
+        area: "recruitment",
+        event: "http.recommend_queue_failed",
+        level: "error",
+        jobPostingId: req.params.id,
+        userId: req.user?.id,
+        error: msg.slice(0, 400),
+        errorName: e instanceof Error ? e.name : undefined,
+      });
       console.error("[recruitment] recommend-queue", e);
       res.status(500).json({ error: "加载失败" });
     }
@@ -612,11 +643,35 @@ export function recruitmentRoutes(): Router {
           ? ridRaw.slice(0, 128)
           : randomUUID();
 
+      const tRecommend = Date.now();
+      railwayDiag({
+        area: "recruitment",
+        event: "http.recommend_request",
+        userId,
+        jobPostingId: id,
+        requestId: pipelineRequestId,
+        isFirstRecommend: isFirst,
+        quotaCost,
+      });
+
       const token = getServerGitHubToken();
       const combinedQuery = buildCombinedQueryFromJd(jd);
       const pack = await searchDevelopers(combinedQuery, new Map() as never, token, undefined, {
         requestId: pipelineRequestId,
+        jobPostingId: id,
+        source: "recruitment_api",
         ...(isFirst ? { maxMergedCandidates: 1000 } : {}),
+      });
+
+      railwayDiag({
+        area: "recruitment",
+        event: "http.recommend_search_ok",
+        userId,
+        jobPostingId: id,
+        requestId: pipelineRequestId,
+        elapsedMs: Date.now() - tRecommend,
+        rawResultCount: pack.results.length,
+        mergedGithubCount: pack.meta.mergedGithubCount,
       });
 
       const raw = pack.results;
@@ -649,6 +704,16 @@ export function recruitmentRoutes(): Router {
         },
       });
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      railwayDiag({
+        area: "recruitment",
+        event: "http.recommend_failed",
+        level: "error",
+        userId: req.user?.id,
+        jobPostingId: req.params.id,
+        error: msg.slice(0, 400),
+        errorName: e instanceof Error ? e.name : undefined,
+      });
       console.error("[recruitment] recommend", e);
       res.status(500).json({
         error: e instanceof Error ? e.message : "推荐失败",

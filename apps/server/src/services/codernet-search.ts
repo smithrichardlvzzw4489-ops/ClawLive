@@ -1034,6 +1034,10 @@ function fallbackScoreFromFollowers(followers: number): number {
 /** 与 `[GITLINK] linkSearch` 的 `requestId` 对齐，便于检索流水线分阶段耗时。 */
 export interface SearchDevelopersDiagContext {
   requestId: string;
+  /** 可选：写入 `linkSearchPipeline` 日志，便于与 `[recruitment] bootstrap` 等同进程日志关联。 */
+  jobPostingId?: string;
+  /** 可选：调用方标识，Railway 中按 `source` 过滤流水线。 */
+  source?: string;
   /**
    * 单次请求覆盖 `LINK_SEARCH_MAX_MERGED_CANDIDATES`：合并去重后参与 `/users/:login` 的人数上限，
    * 仍不超过 `LINK_SEARCH_MAX_MERGED_CANDIDATES_HARD_CAP`（当前 1000）。未传则走环境变量默认。
@@ -1049,12 +1053,16 @@ export async function searchDevelopers(
   diag?: SearchDevelopersDiagContext,
 ): Promise<SearchDevelopersResponse> {
   const rid = diag?.requestId?.trim() || null;
+  const jobPostingId = diag?.jobPostingId?.trim() || undefined;
+  const source = diag?.source?.trim() || undefined;
   const tPipe0 = Date.now();
   const pipeLog = (phase: string, extra?: Record<string, unknown>) => {
     console.log(
       '[GITLINK] linkSearchPipeline',
       JSON.stringify({
         requestId: rid,
+        ...(jobPostingId ? { jobPostingId } : {}),
+        ...(source ? { source } : {}),
         phase,
         pipelineElapsedMs: Date.now() - tPipe0,
         ...extra,
@@ -1249,10 +1257,12 @@ export async function searchDevelopers(
     },
   };
   } catch (e) {
+    const err = e instanceof Error ? e : null;
     pipeLog('pipeline_throw', {
       totalElapsedMs: Date.now() - tPipe0,
-      message: e instanceof Error ? e.message : String(e),
-      stackTop: e instanceof Error ? (e.stack || '').split('\n').slice(0, 3).join(' | ') : undefined,
+      errorName: err?.name,
+      message: err?.message ?? String(e),
+      stackTop: err ? (err.stack || '').split('\n').slice(0, 4).join(' | ') : undefined,
     });
     throw e;
   }

@@ -1089,6 +1089,7 @@ export function codernetRoutes(): IRouter {
             pack = await Promise.race([
               searchDevelopers(combinedQuery, lookupCache, token, emitSearchProgress, {
                 requestId,
+                source: 'codernet_link_stream',
               }),
               new Promise<never>((_, reject) => {
                 streamDeadlineTimer = setTimeout(() => {
