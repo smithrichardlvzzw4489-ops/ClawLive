@@ -46,6 +46,29 @@ export const translations = {
       myDeveloperCard: '我的画像',
       recruitment: '招聘管理',
       siteMessages: '站内信',
+      jobPlaza: '招聘广场',
+      entryDevelopers: '求职者入口',
+      entryRecruiters: '招聘方入口',
+      personaDeveloperBadge: '菜单顺序：求职者优先',
+      personaRecruiterBadge: '菜单顺序：招聘方优先',
+      personaSwitchDeveloper: '求职者',
+      personaSwitchRecruiter: '招聘方',
+    },
+    personaEntry: {
+      developersTitle: '求职者入口',
+      developersLead: '面向开发者 / 求职者：优先使用招聘广场、个人画像与站内沟通。',
+      developersBody:
+        '建议关注：招聘广场浏览职位；「我的画像」完善资料；站内信与机会方沟通；主页的「三入口」提供检索、触达与能力匹配等能力。',
+      recruitersTitle: '招聘方入口',
+      recruitersLead: '面向 HR / 招聘者：优先使用招聘管理、候选人沟通与职位曝光。',
+      recruitersBody:
+        '建议关注：招聘管理发布与维护 JD；站内信与候选人联系；招聘广场展示职位；主页「三入口」用于人才检索与触达。',
+      ctaDevelopers: '以求职者视角进入',
+      ctaRecruiters: '以招聘方视角进入',
+      enterJobPlaza: '进入招聘广场',
+      enterRecruitment: '进入招聘管理',
+      enterHomeCodernet: '进入主页（三入口）',
+      noteStoredLocally: '身份偏好仅保存在本机浏览器，用于排序个人菜单。',
     },
 
     evolutionNetwork: {
@@ -873,6 +896,29 @@ export const translations = {
       myDeveloperCard: 'My card',
       recruitment: 'Recruitment',
       siteMessages: 'Messages',
+      jobPlaza: 'Job plaza',
+      entryDevelopers: 'For developers',
+      entryRecruiters: 'For hiring',
+      personaDeveloperBadge: 'Menu: job seeker first',
+      personaRecruiterBadge: 'Menu: hiring first',
+      personaSwitchDeveloper: 'Job seeker',
+      personaSwitchRecruiter: 'Hiring',
+    },
+    personaEntry: {
+      developersTitle: 'Developer entry',
+      developersLead: 'For developers and job seekers: job plaza, your profile, and messages come first.',
+      developersBody:
+        'Use the job plaza to browse roles, “My card” for your profile, messages to talk with employers, and the home “triple entry” for search, outreach, and skills matching.',
+      recruitersTitle: 'Hiring entry',
+      recruitersLead: 'For HR and hiring managers: recruitment tools and candidate messaging first.',
+      recruitersBody:
+        'Use recruitment to manage JDs, messages to reach candidates, the job plaza for visibility, and the home “triple entry” for talent search and outreach.',
+      ctaDevelopers: 'Continue as job seeker',
+      ctaRecruiters: 'Continue as hiring',
+      enterJobPlaza: 'Open job plaza',
+      enterRecruitment: 'Open recruitment',
+      enterHomeCodernet: 'Open home (triple entry)',
+      noteStoredLocally: 'Your choice is stored only in this browser and affects menu order.',
     },
 
     evolutionNetwork: {

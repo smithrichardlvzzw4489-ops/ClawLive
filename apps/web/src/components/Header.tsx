@@ -85,6 +85,29 @@ export function Header({}: HeaderProps) {
               icon="🏢"
               active={pathname.startsWith('/job-plaza')}
             />
+            <div className="mx-0.5 hidden h-6 w-px shrink-0 bg-white/10 sm:block" aria-hidden />
+            <div className="hidden shrink-0 items-center gap-1 sm:flex">
+              <Link
+                href="/for-developers"
+                className={`rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                  pathname.startsWith('/for-developers')
+                    ? 'bg-lobster/15 text-lobster'
+                    : 'text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
+                }`}
+              >
+                {t('nav.entryDevelopers')}
+              </Link>
+              <Link
+                href="/for-recruiters"
+                className={`rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                  pathname.startsWith('/for-recruiters')
+                    ? 'bg-violet-500/15 text-violet-200'
+                    : 'text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
+                }`}
+              >
+                {t('nav.entryRecruiters')}
+              </Link>
+            </div>
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}

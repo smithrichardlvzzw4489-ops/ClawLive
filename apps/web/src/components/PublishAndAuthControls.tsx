@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 import { API_BASE_URL } from '@/lib/api';
+import { usePrimaryPersona } from '@/hooks/usePrimaryPersona';
+import { UserPersonaMenuLinks } from '@/components/UserPersonaMenuLinks';
 
 type Variant = 'nav' | 'sidebar' | 'rail';
 
@@ -22,6 +24,7 @@ const navBtn =
  */
 export function PublishAndAuthControls({ variant = 'nav', showPublish = false }: { variant?: Variant; showPublish?: boolean }) {
   const { t } = useLocale();
+  const { persona, setPersona } = usePrimaryPersona();
   const router = useRouter();
   const [user, setUser] = useState<{
     id: string;
@@ -120,30 +123,8 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
-            <div className="invisible absolute left-0 right-0 z-50 mt-1 w-full rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
-              <Link href="/my/profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-                🪪 {t('nav.myDeveloperCard')}
-              </Link>
-              <Link
-                href="/recruitment"
-                className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-              >
-                📋 {t('nav.recruitment')}
-              </Link>
-              <Link
-                href="/messages"
-                className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-              >
-                ✉️ {t('nav.siteMessages')}
-              </Link>
-              {user.isAdmin && (
-                <Link
-                  href="/admin/users"
-                  className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-                >
-                  📊 用户与使用统计
-                </Link>
-              )}
+            <div className="invisible absolute left-0 right-0 z-50 mt-1 w-full overflow-hidden rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
+              <UserPersonaMenuLinks t={t} persona={persona} setPersona={setPersona} user={user} />
               <div className="border-t border-white/10" />
               <button
                 type="button"
@@ -234,30 +215,8 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               )}
               <span className="font-medium text-gray-700 truncate text-left text-sm">{user.username}</span>
             </button>
-            <div className="absolute left-0 right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
-              <Link href="/my/profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-                🪪 {t('nav.myDeveloperCard')}
-              </Link>
-              <Link
-                href="/recruitment"
-                className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-              >
-                📋 {t('nav.recruitment')}
-              </Link>
-              <Link
-                href="/messages"
-                className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-              >
-                ✉️ {t('nav.siteMessages')}
-              </Link>
-              {user.isAdmin && (
-                <Link
-                  href="/admin/users"
-                  className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-                >
-                  📊 用户与使用统计
-                </Link>
-              )}
+            <div className="absolute left-0 right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all invisible group-hover:visible group-hover:opacity-100">
+              <UserPersonaMenuLinks t={t} persona={persona} setPersona={setPersona} user={user} />
               <div className="border-t border-white/10" />
               <button
                 type="button"
@@ -349,30 +308,8 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          <div className="absolute right-0 mt-1 w-48 rounded-xl border border-white/10 glass opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 shadow-xl">
-            <Link href="/my/profile" className="block px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-lobster">
-              🪪 {t('nav.myDeveloperCard')}
-            </Link>
-            <Link
-              href="/recruitment"
-              className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-            >
-              📋 {t('nav.recruitment')}
-            </Link>
-            <Link
-              href="/messages"
-              className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-            >
-              ✉️ {t('nav.siteMessages')}
-            </Link>
-            {user.isAdmin && (
-              <Link
-                href="/admin/users"
-                className="block border-t border-white/10 px-4 py-3 text-slate-300 hover:bg-white/[0.06] hover:text-violet-300"
-              >
-                📊 用户与使用统计
-              </Link>
-            )}
+          <div className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all invisible group-hover:visible group-hover:opacity-100">
+            <UserPersonaMenuLinks t={t} persona={persona} setPersona={setPersona} user={user} />
             <div className="border-t border-white/10" />
             <button
               type="button"
