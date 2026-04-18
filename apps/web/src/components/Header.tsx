@@ -2,11 +2,12 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { PublishAndAuthControls } from '@/components/PublishAndAuthControls';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { usePrimaryPersona } from '@/contexts/PrimaryPersonaContext';
 
 const navItemBase =
   'flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[15px] font-medium transition-all duration-150 sm:gap-2.5 sm:px-3.5';
@@ -46,8 +47,19 @@ type HeaderProps = {
 export function Header({}: HeaderProps) {
   const { t } = useLocale();
   const pathname = usePathname();
+  const router = useRouter();
+  const { persona, personaReady, clearPersona } = usePrimaryPersona();
 
   const gitlinkSectionActive = pathname === '/' || pathname.startsWith('/codernet');
+  const messagesActive = pathname.startsWith('/messages');
+  const jobPlazaActive = pathname.startsWith('/job-plaza');
+  const recruitmentActive = pathname.startsWith('/recruitment');
+  const profileActive = pathname.startsWith('/my/profile');
+
+  const onSwitchPersona = () => {
+    clearPersona();
+    if (pathname !== '/') router.push('/');
+  };
 
   const isHome = false;
 
@@ -73,41 +85,53 @@ export function Header({}: HeaderProps) {
             className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto pb-0.5 md:pb-0 [scrollbar-width:thin]"
             aria-label="主导航"
           >
-            <NavItem
-              href="/"
-              label={t('nav.landing')}
-              icon="👤"
-              active={gitlinkSectionActive}
-            />
-            <NavItem
-              href="/job-plaza"
-              label="招聘广场"
-              icon="🏢"
-              active={pathname.startsWith('/job-plaza')}
-            />
-            <div className="mx-0.5 hidden h-6 w-px shrink-0 bg-white/10 sm:block" aria-hidden />
-            <div className="hidden shrink-0 items-center gap-1 sm:flex">
-              <Link
-                href="/for-developers"
-                className={`rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
-                  pathname.startsWith('/for-developers')
-                    ? 'bg-lobster/15 text-lobster'
-                    : 'text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
-                }`}
-              >
-                {t('nav.entryDevelopers')}
-              </Link>
-              <Link
-                href="/for-recruiters"
-                className={`rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
-                  pathname.startsWith('/for-recruiters')
-                    ? 'bg-violet-500/15 text-violet-200'
-                    : 'text-slate-500 hover:bg-white/[0.06] hover:text-slate-300'
-                }`}
-              >
-                {t('nav.entryRecruiters')}
-              </Link>
-            </div>
+            {!personaReady ? (
+              <>
+                <NavItem href="/" label={t('nav.landing')} icon="👤" active={gitlinkSectionActive} />
+                <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
+              </>
+            ) : persona === 'unset' ? (
+              pathname !== '/' ? (
+                <>
+                  <NavItem
+                    href="/"
+                    label={t('nav.choosePersonaHome')}
+                    icon="🏠"
+                    active={pathname === '/'}
+                  />
+                  <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
+                  <NavItem href="/messages" label={t('nav.siteMessages')} icon="✉️" active={messagesActive} />
+                </>
+              ) : null
+            ) : persona === 'developer' ? (
+              <>
+                <NavItem href="/" label={t('nav.landing')} icon="👤" active={gitlinkSectionActive} />
+                <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
+                <NavItem href="/messages" label={t('nav.siteMessages')} icon="✉️" active={messagesActive} />
+                <NavItem href="/my/profile" label={t('nav.myDeveloperCard')} icon="🪪" active={profileActive} />
+              </>
+            ) : (
+              <>
+                <NavItem href="/" label={t('nav.landing')} icon="👤" active={gitlinkSectionActive} />
+                <NavItem href="/recruitment" label={t('nav.recruitment')} icon="📋" active={recruitmentActive} />
+                <NavItem href="/messages" label={t('nav.siteMessages')} icon="✉️" active={messagesActive} />
+                <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
+              </>
+            )}
+
+            {personaReady && persona !== 'unset' && (
+              <>
+                <div className="mx-0.5 hidden h-6 w-px shrink-0 bg-white/10 sm:block" aria-hidden />
+                <button
+                  type="button"
+                  onClick={onSwitchPersona}
+                  className="hidden shrink-0 rounded-lg px-2.5 py-2 text-xs font-medium text-slate-500 transition-colors hover:bg-white/[0.06] hover:text-slate-300 sm:block"
+                >
+                  {t('nav.switchPersona')}
+                </button>
+              </>
+            )}
+
             {SHOW_LIVE_FEATURES && (
               <NavItem href="/rooms" label={t('nav.live')} icon="📺" active={pathname.startsWith('/rooms')} />
             )}

@@ -1,7 +1,8 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
-import type { PrimaryPersona } from '@/hooks/usePrimaryPersona';
+import type { PrimaryPersona } from '@/contexts/PrimaryPersonaContext';
 
 type TFunc = (key: string, params?: Record<string, string>) => string;
 
@@ -16,12 +17,12 @@ const linkRowProfile = `${linkRow} hover:text-lobster`;
 type Props = {
   t: TFunc;
   persona: PrimaryPersona;
-  setPersona: (p: PrimaryPersona) => void;
+  setPersona: (p: 'developer' | 'recruiter') => void;
   user: MenuUser;
 };
 
 /**
- * 登录后用户菜单：按「求职者 / 招聘方」偏好排序（招聘广场一并放入菜单便于触达）。
+ * 登录后用户菜单：与首页身份一致；求职者不展示招聘管理，招聘方不展示我的画像。
  */
 export function UserPersonaMenuLinks({ t, persona, setPersona, user }: Props) {
   const profile = (
@@ -44,17 +45,28 @@ export function UserPersonaMenuLinks({ t, persona, setPersona, user }: Props) {
       🏢 {t('nav.jobPlaza')}
     </Link>
   );
+  const chooseHome = (
+    <Link key="choose" href="/" className={linkRow}>
+      🏠 {t('nav.choosePersonaHome')}
+    </Link>
+  );
 
-  const ordered =
-    persona === 'recruiter'
-      ? [recruitment, messages, jobPlaza, profile]
-      : [profile, messages, jobPlaza, recruitment];
+  let ordered: ReactNode[];
+  let badge: string;
+  if (persona === 'recruiter') {
+    ordered = [recruitment, messages, jobPlaza];
+    badge = t('nav.personaRecruiterBadge');
+  } else if (persona === 'developer') {
+    ordered = [profile, messages, jobPlaza];
+    badge = t('nav.personaDeveloperBadge');
+  } else {
+    ordered = [chooseHome, jobPlaza, messages];
+    badge = t('nav.personaUnsetBadge');
+  }
 
   return (
     <>
-      <div className="border-b border-white/10 px-4 py-2 text-[11px] leading-snug text-slate-500">
-        {persona === 'recruiter' ? t('nav.personaRecruiterBadge') : t('nav.personaDeveloperBadge')}
-      </div>
+      <div className="border-b border-white/10 px-4 py-2 text-[11px] leading-snug text-slate-500">{badge}</div>
       <div className="divide-y divide-white/10">{ordered}</div>
       <div className="flex gap-1 border-t border-white/10 p-2">
         <button

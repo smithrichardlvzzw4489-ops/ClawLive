@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Inter, Noto_Sans_SC, Noto_Serif_SC, ZCOOL_XiaoWei } from 'next/font/google'
 import './globals.css'
 import { LocaleProvider } from '@/lib/i18n/LocaleContext'
+import { PrimaryPersonaProvider } from '@/contexts/PrimaryPersonaContext'
 import { ArticleFontProvider } from '@/components/ArticleFontProvider'
 import { AgentChatWidget } from '@/components/AgentChatWidget'
 import { BRAND_ZH } from '@/lib/brand'
@@ -52,7 +53,9 @@ export default function RootLayout({
         className={`${inter.className} ${notoSansSC.variable} ${notoSerifSC.variable} ${zcoolXiaoWei.variable}`}
       >
         <LocaleProvider>
-          <ArticleFontProvider>{children}</ArticleFontProvider>
+          <PrimaryPersonaProvider>
+            <ArticleFontProvider>{children}</ArticleFontProvider>
+          </PrimaryPersonaProvider>
           {/* <AgentChatWidget /> */}
         </LocaleProvider>
       </body>
