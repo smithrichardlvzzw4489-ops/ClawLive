@@ -59,7 +59,7 @@ export const translations = {
       tripleEntryShort: '三入口',
     },
     personaGate: {
-      title: '请选择你的使用方式',
+      title: '请选择你的登录方式',
       developerCardTitle: '我是开发者 / 求职者',
       developerCardBody: '浏览职位机会、维护个人画像、用站内信沟通；在主页使用三入口做检索与匹配。',
       developerBullet1: '招聘广场',
@@ -930,7 +930,7 @@ export const translations = {
       tripleEntryShort: 'Triple entry',
     },
     personaGate: {
-      title: 'How will you use GITLINK?',
+      title: 'Choose your sign-in option',
       developerCardTitle: 'I am a developer / job seeker',
       developerCardBody: 'Job plaza, your card, messages, plus the three-entry home for search and matching.',
       developerBullet1: 'Job plaza',
