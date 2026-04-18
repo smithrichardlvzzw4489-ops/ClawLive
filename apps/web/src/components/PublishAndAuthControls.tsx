@@ -24,7 +24,7 @@ const navBtn =
  */
 export function PublishAndAuthControls({ variant = 'nav', showPublish = false }: { variant?: Variant; showPublish?: boolean }) {
   const { t } = useLocale();
-  const { persona, setPersona } = usePrimaryPersona();
+  const { persona } = usePrimaryPersona();
   const router = useRouter();
   const [user, setUser] = useState<{
     id: string;
@@ -124,7 +124,7 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               </svg>
             </button>
             <div className="invisible absolute left-0 right-0 z-50 mt-1 w-full overflow-hidden rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
-              <UserPersonaMenuLinks t={t} persona={persona} setPersona={setPersona} user={user} />
+              <UserPersonaMenuLinks t={t} persona={persona} user={user} />
               <div className="border-t border-white/10" />
               <button
                 type="button"
@@ -216,7 +216,7 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
               <span className="font-medium text-gray-700 truncate text-left text-sm">{user.username}</span>
             </button>
             <div className="absolute left-0 right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all invisible group-hover:visible group-hover:opacity-100">
-              <UserPersonaMenuLinks t={t} persona={persona} setPersona={setPersona} user={user} />
+              <UserPersonaMenuLinks t={t} persona={persona} user={user} />
               <div className="border-t border-white/10" />
               <button
                 type="button"
@@ -309,7 +309,7 @@ export function PublishAndAuthControls({ variant = 'nav', showPublish = false }:
             </svg>
           </button>
           <div className="absolute right-0 z-50 mt-1 w-56 overflow-hidden rounded-xl border border-white/10 glass opacity-0 shadow-xl transition-all invisible group-hover:visible group-hover:opacity-100">
-            <UserPersonaMenuLinks t={t} persona={persona} setPersona={setPersona} user={user} />
+            <UserPersonaMenuLinks t={t} persona={persona} user={user} />
             <div className="border-t border-white/10" />
             <button
               type="button"

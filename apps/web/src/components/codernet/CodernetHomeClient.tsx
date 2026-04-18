@@ -210,57 +210,6 @@ export function CodernetHomeClient() {
             : 'relative z-10 min-h-[calc(100dvh-4rem)]'
         }
       >
-        <div className="sticky top-16 z-20 border-b border-white/[0.06] bg-[#06080f]/90 px-3 py-2 backdrop-blur-md sm:px-4">
-          <p className="mb-1.5 text-center text-[10px] font-medium uppercase tracking-wide text-slate-500">
-            {t('personaGate.quickNavHint')} {t('nav.tripleEntryShort')}
-          </p>
-          <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-2">
-            {persona === 'developer' ? (
-              <>
-                <Link
-                  href="/job-plaza"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-lobster/30 hover:text-lobster"
-                >
-                  🏢 {t('nav.jobPlaza')}
-                </Link>
-                <Link
-                  href="/my/profile"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-lobster/30 hover:text-lobster"
-                >
-                  🪪 {t('nav.myDeveloperCard')}
-                </Link>
-                <Link
-                  href="/messages"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-violet-400/30 hover:text-violet-200"
-                >
-                  ✉️ {t('nav.siteMessages')}
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/recruitment"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-violet-400/35 hover:text-violet-200"
-                >
-                  📋 {t('nav.recruitment')}
-                </Link>
-                <Link
-                  href="/messages"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-violet-400/30 hover:text-violet-200"
-                >
-                  ✉️ {t('nav.siteMessages')}
-                </Link>
-                <Link
-                  href="/job-plaza"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 hover:border-violet-400/30 hover:text-violet-200"
-                >
-                  🏢 {t('nav.jobPlaza')}
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-
         <div
           className={`flex flex-col items-center px-4 ${
             tab === 'math'
