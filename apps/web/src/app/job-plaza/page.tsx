@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, APIError } from '@/lib/api';
 import { MainLayout } from '@/components/MainLayout';
+import { usePrimaryPersona } from '@/contexts/PrimaryPersonaContext';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 type PlazaItem = {
   id: string;
@@ -17,6 +19,8 @@ type PlazaItem = {
 };
 
 export default function JobPlazaPage() {
+  const { persona, personaReady } = usePrimaryPersona();
+  const { t } = useLocale();
   const [items, setItems] = useState<PlazaItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -59,36 +63,55 @@ export default function JobPlazaPage() {
 
         <p className="text-xs text-slate-600 mb-4">共 {total} 条</p>
 
-        <ul className="space-y-3">
-          {items.map((it) => (
-            <li key={it.id}>
+        <div
+          className={
+            personaReady && persona === 'recruiter'
+              ? 'flex flex-col sm:flex-row gap-4 sm:items-start'
+              : undefined
+          }
+        >
+          <ul className={`space-y-3 ${personaReady && persona === 'recruiter' ? 'min-w-0 flex-1' : ''}`}>
+            {items.map((it) => (
+              <li key={it.id}>
+                <Link
+                  href={`/job-plaza/${encodeURIComponent(it.id)}`}
+                  className="flex rounded-2xl border border-white/[0.08] bg-white/[0.03] transition hover:border-violet-500/30 hover:bg-white/[0.05] px-5 py-4 text-left min-w-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-semibold text-white">{it.title}</h2>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {[it.companyName, it.location].filter(Boolean).join(' · ') || '未填公司与地点'}
+                      {it.author?.username ? ` · @${it.author.username}` : ''}
+                    </p>
+                    {it.matchTags?.length ? (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {it.matchTags.slice(0, 8).map((tag) => (
+                          <span
+                            key={tag}
+                            className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.06] text-slate-400"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          {personaReady && persona === 'recruiter' ? (
+            <div className="shrink-0 sm:pt-1">
               <Link
-                href={`/job-plaza/${encodeURIComponent(it.id)}`}
-                className="flex rounded-2xl border border-white/[0.08] bg-white/[0.03] transition hover:border-violet-500/30 hover:bg-white/[0.05] px-5 py-4 text-left min-w-0"
+                href="/recruitment"
+                className="inline-flex items-center justify-center rounded-xl border border-violet-500/35 bg-violet-600/20 px-4 py-2.5 text-sm font-semibold text-violet-100 transition hover:border-violet-400/50 hover:bg-violet-600/35 whitespace-nowrap"
               >
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-semibold text-white">{it.title}</h2>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {[it.companyName, it.location].filter(Boolean).join(' · ') || '未填公司与地点'}
-                    {it.author?.username ? ` · @${it.author.username}` : ''}
-                  </p>
-                  {it.matchTags?.length ? (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {it.matchTags.slice(0, 8).map((t) => (
-                        <span
-                          key={t}
-                          className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.06] text-slate-400"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+                {t('nav.jobPlazaPostJob')}
               </Link>
-            </li>
-          ))}
-        </ul>
+            </div>
+          ) : null}
+        </div>
 
         {items.length === 0 && !loading && (
           <p className="text-center text-slate-500 py-12">暂无已发布职位。</p>

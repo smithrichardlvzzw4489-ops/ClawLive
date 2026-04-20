@@ -47,6 +47,8 @@ export const translations = {
       recruitment: '招聘管理',
       siteMessages: '站内信',
       jobPlaza: '职位',
+      /** 职位广场：招聘方侧栏进入招聘管理 / 发 JD */
+      jobPlazaPostJob: '发布职位',
       /** 招聘方：LINK 语义检索独立页 */
       linkSemantic: 'LINK',
       /** 招聘方顶栏：原「主页」三入口（GitHub 画像 / LINK / MATH） */
@@ -931,6 +933,7 @@ export const translations = {
       recruitment: 'Recruitment',
       siteMessages: 'Messages',
       jobPlaza: 'Jobs',
+      jobPlazaPostJob: 'Post job',
       linkSemantic: 'LINK',
       /** Hiring nav: former “home” hub (GitHub portrait / LINK / MATH) */
       developer360: 'Developer 360° portrait',
