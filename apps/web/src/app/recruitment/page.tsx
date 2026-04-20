@@ -40,41 +40,6 @@ type JdRow = {
   candidates: CandidateRow[];
 };
 
-type BootstrapTraceStep = {
-  at: string;
-  phase: string;
-  ok: boolean;
-  detail?: string;
-  meta?: Record<string, unknown>;
-};
-
-function bootstrapPhaseLabel(phase: string): string {
-  const m: Record<string, string> = {
-    claimed: '已认领首轮任务',
-    abort_jd_missing_or_closed: '中止：JD 不存在或已关闭',
-    abort_quota: '中止：招聘推荐额度不足',
-    abort_no_github_token: '中止：未配置服务端 GitHub Token',
-    search_started: '检索已开始',
-    search_done: '检索已结束',
-    persisting: '正在写入待查看池 / 后备池',
-    complete: '首轮引导已完成',
-    error: '执行异常',
-  };
-  return m[phase] ?? phase;
-}
-
-function bootstrapOutcomeLabel(outcome: string | undefined): string {
-  const m: Record<string, string> = {
-    idle: '无记录',
-    running: '执行中',
-    succeeded: '已成功',
-    aborted: '已中止（业务条件）',
-    failed: '失败（见末步）',
-    stuck: '可能中断（标记超时或进程未写完）',
-  };
-  return outcome ? m[outcome] ?? outcome : '—';
-}
-
 type RecommendHit = {
   githubUsername: string;
   avatarUrl: string;
@@ -104,16 +69,6 @@ function RecruitmentPageContent() {
   const [err, setErr] = useState<string | null>(null);
   const [newGh, setNewGh] = useState('');
   const [poolPending, setPoolPending] = useState<RecommendHit[] | null>(null);
-  const [poolQueueMeta, setPoolQueueMeta] = useState<{
-    firstRecommendAt: string | null;
-    lastDailyRecommendAt: string | null;
-    backlogCount: number;
-    recommendBootstrapPending: boolean;
-    recommendBootstrapOutcome?: string;
-    recommendBootstrapLastPhase?: string | null;
-    recommendBootstrapLastOk?: boolean | null;
-    recommendBootstrapTrace?: BootstrapTraceStep[];
-  } | null>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -142,39 +97,8 @@ function RecruitmentPageContent() {
             .filter((h) => h.githubUsername)
         : [];
       setPoolPending(hits);
-      const traceRaw = data.recommendBootstrapTrace;
-      const trace: BootstrapTraceStep[] = Array.isArray(traceRaw)
-        ? traceRaw
-            .filter((x) => x != null && typeof x === 'object')
-            .map((x) => {
-              const o = x as Record<string, unknown>;
-              return {
-              at: typeof o.at === 'string' ? o.at : '',
-              phase: typeof o.phase === 'string' ? o.phase : '',
-              ok: o.ok === true,
-              detail: typeof o.detail === 'string' ? o.detail : undefined,
-              meta: o.meta && typeof o.meta === 'object' && !Array.isArray(o.meta) ? (o.meta as Record<string, unknown>) : undefined,
-              };
-            })
-            .filter((s) => s.at && s.phase)
-        : [];
-      setPoolQueueMeta({
-        firstRecommendAt: data.firstRecommendAt ?? null,
-        lastDailyRecommendAt: data.lastDailyRecommendAt ?? null,
-        backlogCount: typeof data.backlogCount === 'number' ? data.backlogCount : 0,
-        recommendBootstrapPending: Boolean(data.recommendBootstrapPending),
-        recommendBootstrapOutcome: typeof data.recommendBootstrapOutcome === 'string' ? data.recommendBootstrapOutcome : undefined,
-        recommendBootstrapLastPhase:
-          data.recommendBootstrapLastPhase === null || typeof data.recommendBootstrapLastPhase === 'string'
-            ? data.recommendBootstrapLastPhase
-            : null,
-        recommendBootstrapLastOk:
-          typeof data.recommendBootstrapLastOk === 'boolean' ? data.recommendBootstrapLastOk : null,
-        recommendBootstrapTrace: trace,
-      });
     } catch {
       setPoolPending(null);
-      setPoolQueueMeta(null);
     }
   }, []);
 
@@ -222,7 +146,6 @@ function RecruitmentPageContent() {
   useEffect(() => {
     if (!selectedId) {
       setPoolPending(null);
-      setPoolQueueMeta(null);
       return;
     }
     void loadRecommendQueue(selectedId);
@@ -497,62 +420,7 @@ function RecruitmentPageContent() {
                 </section>
 
                 <section className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-                  <h2 className="text-lg font-semibold text-cyan-100 mb-3">岗位智能推荐</h2>
-                  <p className="text-xs text-slate-500 mb-3">
-                    与 LINK 相同流水线，扣「招聘推荐」月度额度（全员有免费试用额度）。新建 JD 后系统会自动首轮检索。每日北京时间 8:00（可配 RECRUIT_DAILY_CRON / RECRUIT_DAILY_TZ）后台向下方「待查看池」写入最多 10 人；backlog 用尽时会自动补缺检索。
-                  </p>
-                  {selected?.recommendBootstrapPending ? (
-                    <div className="mb-4 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
-                      正在后台执行首轮智能推荐（约每 5 秒刷新进度）；完成后候选人将出现在「待查看池」。
-                    </div>
-                  ) : null}
-                  {poolQueueMeta &&
-                    (poolQueueMeta.recommendBootstrapTrace?.length ||
-                      poolQueueMeta.recommendBootstrapOutcome) ? (
-                    <div className="mb-4 rounded-xl border border-white/[0.12] bg-black/20 px-3 py-3 text-xs">
-                      <div className="flex flex-wrap items-center gap-2 text-slate-300 mb-2">
-                        <span className="font-medium text-slate-200">首轮引导执行记录</span>
-                        <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px]">
-                          {bootstrapOutcomeLabel(poolQueueMeta.recommendBootstrapOutcome)}
-                        </span>
-                        {poolQueueMeta.recommendBootstrapLastPhase ? (
-                          <span className="text-slate-500">
-                            末步：{bootstrapPhaseLabel(poolQueueMeta.recommendBootstrapLastPhase)}
-                            {poolQueueMeta.recommendBootstrapLastOk === false ? ' · 未成功' : ''}
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="text-[10px] text-slate-600 mb-2">
-                        以下步骤由服务端写入数据库，用于定位「卡在哪一步 / 为何中止」，非前端推测。
-                      </p>
-                      {poolQueueMeta.recommendBootstrapTrace && poolQueueMeta.recommendBootstrapTrace.length > 0 ? (
-                        <ul className="max-h-40 overflow-y-auto space-y-1 font-mono text-[10px] text-slate-400 border-t border-white/[0.06] pt-2">
-                          {poolQueueMeta.recommendBootstrapTrace.map((s, i) => (
-                            <li key={`${s.at}-${i}`} className="flex flex-wrap gap-x-2 gap-y-0.5">
-                              <span className="text-slate-600 shrink-0">{new Date(s.at).toLocaleString('zh-CN')}</span>
-                              <span className={s.ok ? 'text-emerald-400/90' : 'text-rose-300/90'}>
-                                {bootstrapPhaseLabel(s.phase)}
-                              </span>
-                              {s.detail ? <span className="text-slate-500 break-all">— {s.detail}</span> : null}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="text-slate-600">暂无分步记录（可能尚未认领任务或库未迁移）。</p>
-                      )}
-                    </div>
-                  ) : null}
-                  {poolPending && poolPending.length > 0 && (
-                    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-                      待查看池共 {poolPending.length} 人
-                      {poolQueueMeta?.backlogCount != null && poolQueueMeta.backlogCount > 0
-                        ? ` · 后备池约 ${poolQueueMeta.backlogCount} 人`
-                        : ''}
-                      {poolQueueMeta?.lastDailyRecommendAt
-                        ? ` · 最近写入 ${new Date(poolQueueMeta.lastDailyRecommendAt).toLocaleString('zh-CN')}`
-                        : ''}
-                    </div>
-                  )}
+                  <h2 className="text-lg font-semibold text-cyan-100 mb-4">岗位智能推荐</h2>
                   {poolPending && poolPending.length > 0 && (
                     <ul className="space-y-2 max-h-56 overflow-y-auto mb-4">
                       {poolPending.map((h) => (
