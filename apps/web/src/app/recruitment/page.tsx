@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MainLayout } from '@/components/MainLayout';
+import { RecruiterOutboundEmailSection } from '@/components/my/RecruiterOutboundEmailSection';
 
 type CandidateRow = {
   id: string;
@@ -86,6 +87,7 @@ function RecruitmentPageContent() {
   const candidateSelectAllRef = useRef<HTMLInputElement>(null);
   /** 当前 JD 是否已尝试过自动拉取 GitHub 邮箱（避免重复请求） */
   const candidateEmailsResolvedJdRef = useRef<string | null>(null);
+  const [recruiterOutboundEmail, setRecruiterOutboundEmail] = useState<string | null>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -164,6 +166,14 @@ function RecruitmentPageContent() {
       })
       .finally(() => setLoading(false));
   }, [authLoading, user, router, loadAll]);
+
+  useEffect(() => {
+    if (!user) return;
+    const raw = user.recruiterOutboundEmail;
+    setRecruiterOutboundEmail(
+      typeof raw === 'string' && raw.trim() ? raw.trim() : null,
+    );
+  }, [user]);
 
   useEffect(() => {
     const id = searchParams.get('select');
@@ -575,6 +585,12 @@ function RecruitmentPageContent() {
             新建 JD
           </Link>
         </div>
+
+        <RecruiterOutboundEmailSection
+          initialEmail={recruiterOutboundEmail}
+          onSaved={(e) => setRecruiterOutboundEmail(e)}
+          variant="dark"
+        />
 
         {err && (
           <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{err}</div>
