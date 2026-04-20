@@ -79,6 +79,8 @@ function RecruitmentPageContent() {
   const [smartEmailLoading, setSmartEmailLoading] = useState(false);
   const [smartEmailResult, setSmartEmailResult] = useState<{ subject: string; body: string } | null>(null);
   const [smartEmailErr, setSmartEmailErr] = useState<string | null>(null);
+  /** 编辑 JD：职位描述长文折叠 */
+  const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -152,6 +154,7 @@ function RecruitmentPageContent() {
     setLocation(selected.location ?? '');
     setBody(selected.body);
     setMatchTagsStr(selected.matchTags.join('、'));
+    setJdDescriptionOpen(false);
   }, [selected]);
 
   useEffect(() => {
@@ -561,15 +564,38 @@ function RecruitmentPageContent() {
                       />
                     </label>
                   </div>
-                  <label className="block text-sm mt-4">
-                    <span className="text-slate-500 text-xs">职位描述</span>
-                    <textarea
-                      value={body}
-                      onChange={(e) => setBody(e.target.value)}
-                      rows={10}
-                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm resize-y min-h-[180px]"
-                    />
-                  </label>
+                  <div className="mt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                      <span className="text-slate-500 text-xs">职位描述</span>
+                      <button
+                        type="button"
+                        onClick={() => setJdDescriptionOpen((v) => !v)}
+                        className="text-xs text-violet-400 hover:text-violet-300 tabular-nums"
+                      >
+                        {jdDescriptionOpen ? '收起 ▲' : '展开编辑 ▼'}
+                      </button>
+                    </div>
+                    {jdDescriptionOpen ? (
+                      <textarea
+                        value={body}
+                        onChange={(e) => setBody(e.target.value)}
+                        rows={10}
+                        className="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm resize-y min-h-[180px]"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setJdDescriptionOpen(true)}
+                        className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-left text-sm text-slate-400 hover:bg-black/30 hover:border-white/15 transition"
+                      >
+                        {body.trim() ? (
+                          <span className="line-clamp-4 whitespace-pre-wrap">{body}</span>
+                        ) : (
+                          <span className="text-slate-600">暂无正文，点击展开编辑</span>
+                        )}
+                      </button>
+                    )}
+                  </div>
                   <p className="text-[10px] text-slate-600 mt-2">
                     状态：{selected.status === 'published' ? '已发布（职位列表可见）' : selected.status === 'closed' ? '已关闭' : '草稿'}
                     。新建 JD 默认已发布；关闭职位可在职位详情或 job-plaza API 操作。
