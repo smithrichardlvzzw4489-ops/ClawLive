@@ -84,6 +84,8 @@ function RecruitmentPageContent() {
   /** 候选人表格：待批量移除的 id */
   const [candidateRemoveSelected, setCandidateRemoveSelected] = useState<Set<string>>(() => new Set());
   const candidateSelectAllRef = useRef<HTMLInputElement>(null);
+  /** 当前 JD 是否已尝试过自动拉取 GitHub 邮箱（避免重复请求） */
+  const candidateEmailsResolvedJdRef = useRef<string | null>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -196,6 +198,31 @@ function RecruitmentPageContent() {
   useEffect(() => {
     setCandidateRemoveSelected(new Set());
   }, [selectedId]);
+
+  useEffect(() => {
+    candidateEmailsResolvedJdRef.current = null;
+  }, [selectedId, selected?.candidates?.length]);
+
+  useEffect(() => {
+    if (!selectedId || !selected?.candidates?.length) return;
+    if (candidateEmailsResolvedJdRef.current === selectedId) return;
+    if (!selected.candidates.some((c) => !String(c.email ?? '').trim())) return;
+    candidateEmailsResolvedJdRef.current = selectedId;
+    void (async () => {
+      try {
+        const data = (await api.recruitment.resolveCandidateEmails(selectedId)) as {
+          candidates?: CandidateRow[];
+        };
+        if (data.candidates?.length) {
+          setItems((prev) =>
+            prev.map((jd) => (jd.id !== selectedId ? jd : { ...jd, candidates: data.candidates! })),
+          );
+        }
+      } catch {
+        /* 未配置 GitHub Token 或限流时跳过 */
+      }
+    })();
+  }, [selectedId, selected]);
 
   useEffect(() => {
     if (!poolPending?.length) return;
@@ -809,7 +836,12 @@ function RecruitmentPageContent() {
                             />
                           </th>
                           <th className="py-2 pr-3">GitHub</th>
-                          <th className="py-2 pr-3 min-w-[11rem]">联系方式</th>
+                          <th className="py-2 pr-3 min-w-[11rem] align-bottom">
+                            <span className="block">联系方式</span>
+                            <span className="block text-[10px] font-normal text-slate-600 mt-0.5 leading-snug max-w-[10rem]">
+                              自动从 GitHub 提取（公开资料或近期 Push）
+                            </span>
+                          </th>
                           <th className="py-2 pr-3">状态</th>
                           <th className="py-2 pr-3">备注</th>
                           <th className="py-2 min-w-[9rem]">操作</th>
@@ -842,7 +874,7 @@ function RecruitmentPageContent() {
                                 autoComplete="email"
                                 key={`email-${c.id}-${c.updatedAt}`}
                                 defaultValue={c.email ?? ''}
-                                placeholder="邮箱"
+                                placeholder="自动提取"
                                 className="w-full min-w-[10rem] max-w-[14rem] rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-slate-200"
                                 onBlur={(e) => {
                                   const v = e.target.value.trim();

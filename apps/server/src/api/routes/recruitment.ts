@@ -22,6 +22,7 @@ import {
   RECRUIT_MANUAL_RECOMMEND_QUOTA_COST,
 } from "../../services/recruitment-recommend";
 import { generateRecruitmentOutreachEmail } from "../../services/recruitment-outreach-email";
+import { extractContactInfo } from "../../services/codernet-outreach";
 
 const MAX_TITLE = 200;
 const MAX_BODY = 50_000;
@@ -523,6 +524,79 @@ export function recruitmentRoutes(): Router {
     } catch (e) {
       console.error("[recruitment] patch candidate", e);
       res.status(500).json({ error: "更新失败" });
+    }
+  });
+
+  /**
+   * 从 GitHub 公开资料与近期 Push 事件推断邮箱，写回尚无邮箱的候选人（需 GITHUB_SERVER_TOKEN 等）。
+   * 路由须写在 /candidates/:cid/... 之前，避免 resolve-emails 被当成 cid。
+   */
+  router.post("/jds/:id/candidates/resolve-emails", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const jobPostingId = req.params.id;
+      const jd = await prisma.jobPosting.findFirst({
+        where: { id: jobPostingId, authorId: userId },
+        include: { candidates: { orderBy: { updatedAt: "desc" } } },
+      });
+      if (!jd) {
+        res.status(404).json({ error: "未找到 JD" });
+        return;
+      }
+      const token = getServerGitHubToken();
+      if (!token) {
+        res.status(503).json({
+          error: "未配置 GitHub Token，无法拉取公开邮箱（请配置 GITHUB_SERVER_TOKEN 或 GITHUB_TOKEN）",
+          code: "NO_GITHUB_TOKEN",
+        });
+        return;
+      }
+      const rawMax = parseInt(process.env.RECRUIT_RESOLVE_EMAILS_MAX || "15", 10);
+      const MAX = Number.isFinite(rawMax) ? Math.min(40, Math.max(1, rawMax)) : 15;
+
+      const missing = jd.candidates.filter((c) => !String(c.email ?? "").trim());
+      let updated = 0;
+      let attempted = 0;
+
+      for (const c of missing) {
+        if (attempted >= MAX) break;
+        attempted++;
+        try {
+          const { contact } = await extractContactInfo(c.githubUsername, token);
+          const email = contact.bestEmail?.trim() || null;
+          if (!email) continue;
+          await prisma.jobPostingCandidate.update({
+            where: { id: c.id },
+            data: { email },
+          });
+          updated++;
+        } catch (e) {
+          console.warn("[recruitment] resolve-emails skip", c.githubUsername, e);
+        }
+        await new Promise((r) => setTimeout(r, 120));
+      }
+
+      const rows = await prisma.jobPostingCandidate.findMany({
+        where: { jobPostingId },
+        orderBy: { updatedAt: "desc" },
+      });
+      res.json({
+        updated,
+        attempted,
+        candidates: rows.map((row) => ({
+          id: row.id,
+          githubUsername: row.githubUsername,
+          displayName: row.displayName,
+          email: row.email,
+          notes: row.notes,
+          pipelineStage: row.pipelineStage,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        })),
+      });
+    } catch (e) {
+      console.error("[recruitment] resolve-emails", e);
+      res.status(500).json({ error: "解析邮箱失败" });
     }
   });
 

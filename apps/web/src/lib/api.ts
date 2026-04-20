@@ -950,6 +950,25 @@ export const api = {
         `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}`,
         { method: 'DELETE' },
       ),
+    /** 从 GitHub 公开信息补全尚无邮箱的候选人（服务端批量） */
+    resolveCandidateEmails: (jdId: string) =>
+      fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/resolve-emails`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }) as Promise<{
+        updated?: number;
+        attempted?: number;
+        candidates?: Array<{
+          id: string;
+          githubUsername: string;
+          displayName: string | null;
+          email: string | null;
+          notes: string | null;
+          pipelineStage: string;
+          createdAt: string;
+          updatedAt: string;
+        }>;
+      }>,
     /** 根据 JD 与候选人信息生成沟通邮件主题与正文（LLM） */
     smartEmail: (jdId: string, candidateId: string) =>
       fetchAPI(
