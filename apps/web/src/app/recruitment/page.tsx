@@ -84,6 +84,35 @@ function looksLikeEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 }
 
+/** 网页版邮箱撰写链接过长时部分浏览器会截断；超过则只打开「仅收件人」页并依赖剪贴板 */
+const WEB_COMPOSE_URL_MAX = 1850;
+
+function buildGmailComposeUrl(to: string, subject: string, body: string): string {
+  return `https://mail.google.com/mail/?${new URLSearchParams({
+    view: 'cm',
+    fs: '1',
+    to,
+    su: subject,
+    body,
+  }).toString()}`;
+}
+
+function buildGmailComposeUrlMinimal(to: string): string {
+  return `https://mail.google.com/mail/?${new URLSearchParams({ view: 'cm', fs: '1', to }).toString()}`;
+}
+
+function buildOutlookWebComposeUrl(to: string, subject: string, body: string): string {
+  return `https://outlook.live.com/mail/0/deeplink/compose?${new URLSearchParams({
+    to,
+    subject,
+    body,
+  }).toString()}`;
+}
+
+function buildOutlookWebComposeUrlMinimal(to: string): string {
+  return `https://outlook.live.com/mail/0/deeplink/compose?${new URLSearchParams({ to }).toString()}`;
+}
+
 function RecruitmentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,7 +141,7 @@ function RecruitmentPageContent() {
   const [smartEmailSending, setSmartEmailSending] = useState(false);
   const [smartEmailSendErr, setSmartEmailSendErr] = useState<string | null>(null);
   const [smartEmailSendOk, setSmartEmailSendOk] = useState(false);
-  const [smartMailtoNotice, setSmartMailtoNotice] = useState<string | null>(null);
+  const [smartEmailComposeHint, setSmartEmailComposeHint] = useState<string | null>(null);
   /** 编辑 JD：职位描述长文折叠 */
   const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
   /** 候选人表格：待批量移除的 id */
@@ -578,7 +607,7 @@ function RecruitmentPageContent() {
       setSmartEmailErr(null);
       setSmartEmailSendErr(null);
       setSmartEmailSendOk(false);
-      setSmartMailtoNotice(null);
+      setSmartEmailComposeHint(null);
       setSmartEmailResult(null);
       try {
         const data = (await api.recruitment.smartEmail(selectedId, c.id)) as {
@@ -605,7 +634,7 @@ function RecruitmentPageContent() {
       setSmartEmailErr(null);
       setSmartEmailSendErr(null);
       setSmartEmailSendOk(false);
-      setSmartMailtoNotice(null);
+      setSmartEmailComposeHint(null);
       setSmartEmailResult(null);
       void loadSmartEmail(c);
     },
@@ -619,46 +648,49 @@ function RecruitmentPageContent() {
     return !!(to && looksLikeEmail(to) && rt && looksLikeEmail(rt));
   }, [smartEmailResult, smartEmailCandidate, recruiterContactEmail]);
 
-  const handleMailtoSmartEmail = useCallback(() => {
-    if (!smartEmailResult || !smartEmailCandidate?.email?.trim()) return;
-    const to = smartEmailCandidate.email.trim();
-    const { subject, body } = smartEmailResult;
-    /** 完整可复制文本（避免超长 mailto 被浏览器当成普通 URL 打开新标签） */
-    const fullPlain = `主题：${subject}\n\n${body}`;
+  /** 网页版撰写只需候选人邮箱；不依赖 mailto / 系统默认邮件客户端 */
+  const smartEmailHasCandidateMail = useMemo(() => {
+    const em = smartEmailCandidate?.email?.trim();
+    return !!(em && looksLikeEmail(em));
+  }, [smartEmailCandidate]);
 
-    const buildShortMailtoHref = (): string => {
-      const base = `mailto:${encodeURIComponent(to)}`;
-      const withSubject = `${base}?${new URLSearchParams({ subject }).toString()}`;
-      /** Arc / 部分浏览器对过长 mailto 会错误导航；仅收件人 + 可选短 subject */
-      if (withSubject.length <= 1100) return withSubject;
-      return base;
-    };
+  const openWebMailCompose = useCallback(
+    (provider: 'gmail' | 'outlook') => {
+      if (!smartEmailResult || !smartEmailCandidate?.email?.trim()) return;
+      const to = smartEmailCandidate.email.trim();
+      if (!looksLikeEmail(to)) return;
+      const { subject, body } = smartEmailResult;
+      const fullPlain = `主题：${subject}\n\n${body}`;
 
-    const openMailtoLink = (href: string) => {
-      const a = document.createElement('a');
-      a.href = href;
-      a.setAttribute('rel', 'noopener noreferrer');
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    };
+      const fullUrl =
+        provider === 'gmail'
+          ? buildGmailComposeUrl(to, subject, body)
+          : buildOutlookWebComposeUrl(to, subject, body);
+      const minimalUrl =
+        provider === 'gmail' ? buildGmailComposeUrlMinimal(to) : buildOutlookWebComposeUrlMinimal(to);
 
-    const afterCopy = () => {
-      openMailtoLink(buildShortMailtoHref());
-      setSmartMailtoNotice(
-        '已将完整主题与正文复制到剪贴板。若邮件正文为空，请在编辑窗口中粘贴（Ctrl+V / ⌘V）。若未唤起系统邮件应用，请在系统设置中将默认邮件程序设为 Outlook / Mail 等，或改用「通过服务器发送」。',
+      if (fullUrl.length <= WEB_COMPOSE_URL_MAX) {
+        window.open(fullUrl, '_blank', 'noopener,noreferrer');
+        setSmartEmailComposeHint(null);
+        return;
+      }
+
+      void navigator.clipboard.writeText(fullPlain).then(
+        () => {
+          window.open(minimalUrl, '_blank', 'noopener,noreferrer');
+          setSmartEmailComposeHint(
+            '正文较长：已将完整主题与正文复制到剪贴板；已打开邮箱撰写页，请粘贴后再发送。',
+          );
+        },
+        () => {
+          window.open(minimalUrl, '_blank', 'noopener,noreferrer');
+          setSmartEmailComposeHint('正文较长且无法自动复制：请先点「复制全部」，再在已打开的邮箱窗口中粘贴。',
+          );
+        },
       );
-    };
-
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      void navigator.clipboard.writeText(fullPlain).then(afterCopy, () => {
-        afterCopy();
-      });
-    } else {
-      afterCopy();
-    }
-  }, [smartEmailResult, smartEmailCandidate]);
+    },
+    [smartEmailResult, smartEmailCandidate],
+  );
 
   const handleSendSmartEmailServer = useCallback(async () => {
     if (!selectedId || !smartEmailCandidate || !smartEmailResult || !smartEmailCanSend) return;
@@ -1113,7 +1145,7 @@ function RecruitmentPageContent() {
             setSmartEmailCandidate(null);
             setSmartEmailSendErr(null);
             setSmartEmailSendOk(false);
-            setSmartMailtoNotice(null);
+            setSmartEmailComposeHint(null);
           }}
         >
           <div
@@ -1131,7 +1163,7 @@ function RecruitmentPageContent() {
                   setSmartEmailCandidate(null);
                   setSmartEmailSendErr(null);
                   setSmartEmailSendOk(false);
-                  setSmartMailtoNotice(null);
+                  setSmartEmailComposeHint(null);
                 }}
                 aria-label="关闭"
               >
@@ -1165,6 +1197,9 @@ function RecruitmentPageContent() {
                       ) : (
                         <span className="text-amber-400/95">请在资料中填写招聘沟通邮箱或绑定账号邮箱</span>
                       )}
+                    </p>
+                    <p className="text-[10px] text-slate-600 leading-snug pt-0.5">
+                      「在 Gmail / Outlook 网页中打开」会在浏览器新标签打开撰写页（需已在对应网站登录），无需配置系统默认邮件应用。
                     </p>
                   </div>
                   <div>
@@ -1212,16 +1247,29 @@ function RecruitmentPageContent() {
                     </button>
                     <button
                       type="button"
-                      disabled={!smartEmailCanSend}
+                      disabled={!smartEmailHasCandidateMail}
                       className="rounded-lg bg-emerald-700/90 hover:bg-emerald-600 disabled:opacity-35 disabled:pointer-events-none px-3 py-1.5 text-xs font-medium text-white"
-                      onClick={() => handleMailtoSmartEmail()}
+                      onClick={() => openWebMailCompose('gmail')}
                       title={
-                        smartEmailCanSend
-                          ? '使用本机默认邮件客户端撰写并发送'
-                          : '需候选人邮箱与招聘方联系邮箱均有效'
+                        smartEmailHasCandidateMail
+                          ? '在浏览器新标签打开 Gmail 撰写（需已登录 Google 账号）'
+                          : '请先在表格中填写候选人有效邮箱'
                       }
                     >
-                      用邮件客户端打开
+                      在 Gmail 中打开
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!smartEmailHasCandidateMail}
+                      className="rounded-lg bg-sky-800/90 hover:bg-sky-700 disabled:opacity-35 disabled:pointer-events-none px-3 py-1.5 text-xs font-medium text-white"
+                      onClick={() => openWebMailCompose('outlook')}
+                      title={
+                        smartEmailHasCandidateMail
+                          ? '在浏览器新标签打开 Outlook 网页版撰写（需已登录微软账号）'
+                          : '请先在表格中填写候选人有效邮箱'
+                      }
+                    >
+                      在 Outlook 网页中打开
                     </button>
                     <button
                       type="button"
@@ -1241,9 +1289,9 @@ function RecruitmentPageContent() {
                       重新生成
                     </button>
                   </div>
-                  {smartMailtoNotice ? (
+                  {smartEmailComposeHint ? (
                     <p className="text-xs text-slate-300/95 leading-relaxed rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5">
-                      {smartMailtoNotice}
+                      {smartEmailComposeHint}
                     </p>
                   ) : null}
                   {smartEmailSendOk ? (
@@ -1253,7 +1301,7 @@ function RecruitmentPageContent() {
                     <p className="text-xs text-amber-300/95 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1.5">
                       {smartEmailSendErr}
                       {smartEmailSendErr.includes('未配置') || smartEmailSendErr.includes('RECRUITMENT')
-                        ? ' 可改用「用邮件客户端打开」。'
+                        ? ' 可改用「在 Gmail 中打开」或「在 Outlook 网页中打开」。'
                         : ''}
                     </p>
                   ) : null}
