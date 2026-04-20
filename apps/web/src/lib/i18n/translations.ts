@@ -75,7 +75,7 @@ export const translations = {
       recruiterBullet1: '招聘管理',
       recruiterBullet2: '站内信',
       recruiterBullet3: '职位',
-      recruiterBullet4: '三入口：GitHub 画像 · LINK · MATH',
+      recruiterBullet4: 'GitHub 画像 · LINK · MATH',
       recruiterCta: '进入招聘方工作台',
     },
     codernetHome: {
@@ -956,7 +956,7 @@ export const translations = {
       recruiterBullet1: 'Recruitment',
       recruiterBullet2: 'Messages',
       recruiterBullet3: 'Jobs',
-      recruiterBullet4: 'Triple entry: GitHub portrait · LINK · MATH',
+      recruiterBullet4: 'GitHub portrait · LINK · MATH',
       recruiterCta: 'Continue as hiring',
     },
     codernetHome: {
