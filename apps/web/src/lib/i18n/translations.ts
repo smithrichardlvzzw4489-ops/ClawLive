@@ -63,15 +63,11 @@ export const translations = {
     personaGate: {
       title: '专注GitHub 开发者的求职网站',
       developerCardTitle: '我是开发者 / 求职者',
-      developerCardBody: '浏览职位机会、维护个人画像、用站内信沟通；在开发者360画像使用 GitHub 画像、LINK、MATH 做检索与匹配。',
       developerBullet1: '职位',
       developerBullet2: 'My card（我的画像）',
       developerBullet3: '站内信',
-      developerBullet4: '三入口：GitHub 画像 · LINK · MATH',
       developerCta: '进入求职者工作台',
       recruiterCardTitle: '我是招聘方 / HR',
-      recruiterCardBody:
-        '管理职位与候选人、站内沟通、职位曝光；开发者360画像侧重 GitHub 画像与 MATH，并保留 LINK 用于检索与触达。',
       recruiterBullet1: '招聘管理',
       recruiterBullet2: '站内信',
       recruiterBullet3: '职位',
@@ -942,16 +938,11 @@ export const translations = {
     personaGate: {
       title: 'A job-search site for GitHub developers',
       developerCardTitle: 'I am a developer / job seeker',
-      developerCardBody:
-        'Job listings, your card, and messages; use Developer 360° for GitHub portrait, LINK, and MATH for search and matching.',
       developerBullet1: 'Jobs',
       developerBullet2: 'My card',
       developerBullet3: 'Messages',
-      developerBullet4: 'Triple entry: GitHub portrait · LINK · MATH',
       developerCta: 'Continue as job seeker',
       recruiterCardTitle: 'I am hiring / HR',
-      recruiterCardBody:
-        'Recruitment tools, messages, and job visibility; Developer 360° focuses on GitHub portrait and MATH, with LINK for search and outreach.',
       recruiterBullet1: 'Recruitment',
       recruiterBullet2: 'Messages',
       recruiterBullet3: 'Jobs',

@@ -14,7 +14,6 @@ export function HomePersonaGate({ onSelect }: Props) {
 
   return (
     <div className="relative z-10 mx-auto flex min-h-[calc(100dvh-4rem)] max-w-5xl flex-col justify-center px-4 py-12 sm:py-16">
-      <p className="mb-2 text-center text-xs font-medium uppercase tracking-[0.2em] text-violet-300/90">GITLINK</p>
       <h1 className="mb-8 text-center text-2xl font-black tracking-tight text-white sm:text-3xl md:text-4xl">
         {t('personaGate.title')}
       </h1>
@@ -29,7 +28,6 @@ export function HomePersonaGate({ onSelect }: Props) {
             👤
           </span>
           <span className="text-lg font-bold text-white">{t('personaGate.developerCardTitle')}</span>
-          <p className="mt-2 text-sm leading-relaxed text-slate-400">{t('personaGate.developerCardBody')}</p>
           <ul className="mt-4 space-y-1.5 text-xs text-slate-500">
             <li className="flex items-center gap-2">
               <span className="text-lobster">✓</span> {t('personaGate.developerBullet1')}
@@ -39,9 +37,6 @@ export function HomePersonaGate({ onSelect }: Props) {
             </li>
             <li className="flex items-center gap-2">
               <span className="text-lobster">✓</span> {t('personaGate.developerBullet3')}
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-lobster">✓</span> {t('personaGate.developerBullet4')}
             </li>
           </ul>
           <span className="mt-6 text-sm font-semibold text-lobster group-hover:underline">
@@ -58,7 +53,6 @@ export function HomePersonaGate({ onSelect }: Props) {
             📋
           </span>
           <span className="text-lg font-bold text-white">{t('personaGate.recruiterCardTitle')}</span>
-          <p className="mt-2 text-sm leading-relaxed text-slate-400">{t('personaGate.recruiterCardBody')}</p>
           <ul className="mt-4 space-y-1.5 text-xs text-slate-500">
             <li className="flex items-center gap-2">
               <span className="text-violet-400">✓</span> {t('personaGate.recruiterBullet1')}
