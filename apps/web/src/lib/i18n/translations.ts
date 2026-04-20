@@ -646,6 +646,10 @@ export const translations = {
       profileUsernameTaken: '该用户名已被占用',
       profileUsernameInvalid: '用户名仅支持字母、数字、下划线与中文',
       profileBioTooLong: '简介过长（最多 500 字）',
+      profileRecruiterEmail: '招聘沟通邮箱',
+      profileRecruiterEmailHint:
+        'GitHub 登录后也可填写 Gmail 等工作邮箱，用于招聘「智能邮件」中的署名与回复说明（系统不代发邮件，请复制到邮箱客户端发送）。留空则智能邮件中优先使用账号邮箱（若有）。',
+      profileRecruiterEmailInvalid: '邮箱格式不正确',
     },
 
     myAgent: {
@@ -1465,6 +1469,10 @@ export const translations = {
       profileUsernameTaken: 'That username is already taken',
       profileUsernameInvalid: 'Use letters, numbers, underscore, or Chinese only',
       profileBioTooLong: 'Bio is too long (max 500 characters)',
+      profileRecruiterEmail: 'Recruiting contact email',
+      profileRecruiterEmailHint:
+        'After GitHub sign-in, add a work email (e.g. Gmail) for signatures and reply hints in recruitment smart-email drafts. We do not send mail for you—copy into your mail client. If empty, your account email is used when present.',
+      profileRecruiterEmailInvalid: 'Invalid email format',
     },
 
     myAgent: {

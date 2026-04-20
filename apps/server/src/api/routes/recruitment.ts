@@ -619,6 +619,15 @@ export function recruitmentRoutes(): Router {
         res.status(404).json({ error: "未找到候选人" });
         return;
       }
+      const author = await prisma.user.findUnique({
+        where: { id: jd.authorId },
+        select: { email: true, recruiterOutboundEmail: true },
+      });
+      const recruiterContactEmail =
+        (author?.recruiterOutboundEmail && String(author.recruiterOutboundEmail).trim()) ||
+        (author?.email && String(author.email).trim()) ||
+        null;
+
       const out = await generateRecruitmentOutreachEmail({
         jdTitle: jd.title,
         jdCompany: jd.companyName,
@@ -628,6 +637,7 @@ export function recruitmentRoutes(): Router {
         candidateDisplayName: cand.displayName,
         candidateEmail: cand.email,
         candidateNotes: cand.notes,
+        recruiterContactEmail,
       });
       res.json({ subject: out.subject, body: out.body });
     } catch (e: unknown) {

@@ -164,6 +164,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
         updatedAt: true,
         githubUsername: true,
         personalResume: true,
+        recruiterOutboundEmail: true,
       },
     });
     if (!user) {
@@ -180,11 +181,24 @@ const USERNAME_RE = /^[\w\u4e00-\u9fff]+$/;
 
 const PERSONAL_RESUME_MAX = 50_000;
 
+/** 招聘沟通邮箱：宽松校验（含 Gmail 等） */
+const OUTBOUND_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
-    const body = req.body as { username?: unknown; bio?: unknown; personalResume?: unknown };
-    const data: { username?: string; bio?: string | null; personalResume?: string | null } = {};
+    const body = req.body as {
+      username?: unknown;
+      bio?: unknown;
+      personalResume?: unknown;
+      recruiterOutboundEmail?: unknown;
+    };
+    const data: {
+      username?: string;
+      bio?: string | null;
+      personalResume?: string | null;
+      recruiterOutboundEmail?: string | null;
+    } = {};
 
     if (body.username !== undefined) {
       const u = String(body.username).trim();
@@ -222,6 +236,18 @@ router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) =
       }
     }
 
+    if (body.recruiterOutboundEmail !== undefined) {
+      if (body.recruiterOutboundEmail === null || body.recruiterOutboundEmail === '') {
+        data.recruiterOutboundEmail = null;
+      } else {
+        const e = String(body.recruiterOutboundEmail).trim().toLowerCase();
+        if (e.length > 320 || !OUTBOUND_EMAIL_RE.test(e)) {
+          return res.status(400).json({ error: 'RECRUITER_EMAIL_INVALID' });
+        }
+        data.recruiterOutboundEmail = e;
+      }
+    }
+
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: 'NO_FIELDS' });
     }
@@ -251,6 +277,7 @@ router.patch('/me', authenticateToken, async (req: AuthRequest, res: Response) =
         githubUsername: true,
         isAdmin: true,
         personalResume: true,
+        recruiterOutboundEmail: true,
       },
     });
 

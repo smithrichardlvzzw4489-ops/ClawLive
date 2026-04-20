@@ -44,6 +44,8 @@ model User {
   wechatMpOpenid    String?  @unique
   username          String   @unique
   email             String?  @unique
+  /// 招聘方在「我的」中填写的沟通/发件邮箱（如 Gmail），用于智能邮件正文中的署名与回复指引；与账号 email 独立
+  recruiterOutboundEmail String?
   passwordHash      String?
   avatarUrl         String?
   bio               String?  @db.Text

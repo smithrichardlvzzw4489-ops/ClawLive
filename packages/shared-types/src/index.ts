@@ -3,6 +3,8 @@ export interface User {
   telegramId?: string;
   username: string;
   email?: string;
+  /** 招聘方填写的沟通邮箱（如 Gmail），用于智能邮件署名等 */
+  recruiterOutboundEmail?: string | null;
   avatarUrl?: string;
   /** 虾米积分；未返回时视为 0 */
   clawPoints?: number;

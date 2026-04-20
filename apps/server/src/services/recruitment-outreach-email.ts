@@ -21,6 +21,8 @@ export async function generateRecruitmentOutreachEmail(params: {
   candidateDisplayName: string | null;
   candidateEmail: string | null;
   candidateNotes: string | null;
+  /** 招聘方在资料中填写的沟通邮箱（如 Gmail），用于正文署名与回复指引 */
+  recruiterContactEmail: string | null;
 }): Promise<{ subject: string; body: string }> {
   const { client, model } = getPublishingLlmClient();
   const jdSnippet =
@@ -39,6 +41,9 @@ GitHub：@${params.candidateGithub}
 已知邮箱：${params.candidateEmail ?? '（未填写，正文中可写「如邮箱有误请回复告知」类措辞）'}
 内部备注：${params.candidateNotes ?? '（无）'}
 
+【招聘方联系/回复】
+${params.recruiterContactEmail ? `建议使用署名与回复邮箱：${params.recruiterContactEmail}（请在邮件末尾签名中体现，并说明候选人可回复至此邮箱）` : '（用户尚未在「我的」填写招聘沟通邮箱；正文可写公司或团队邮箱，或邀请候选人回复讨论）'}
+
 请写一封简短、专业、真诚的中文 cold outreach 邮件（技术招聘场景）。
 只输出一个 JSON 对象，不要其它文字。格式严格为：
 {"subject":"邮件主题一行","body":"邮件正文，换行用 \\n 表示"}
@@ -51,7 +56,7 @@ body 内不要使用 markdown 标题符号。`;
         {
           role: 'system',
           content:
-            '你是资深技术招聘顾问，帮助 HR 给开发者写首封沟通邮件。只输出合法 JSON 对象，键为 subject 与 body，字符串内使用 \\n 表示换行。',
+            '你是资深技术招聘顾问，帮助 HR 给开发者写首封沟通邮件。若已提供招聘方联系邮箱，请在正文末自然附上签名与回复方式。只输出合法 JSON 对象，键为 subject 与 body，字符串内使用 \\n 表示换行。',
         },
         { role: 'user', content: user },
       ],

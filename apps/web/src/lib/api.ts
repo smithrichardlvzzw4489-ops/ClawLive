@@ -642,7 +642,13 @@ export const api = {
         body: JSON.stringify({ username, email, password, avatar }),
       }),
     me: () => fetchAPI('/api/auth/me'),
-    updateMe: (body: { username?: string; bio?: string | null; personalResume?: string | null }) =>
+    updateMe: (body: {
+      username?: string;
+      bio?: string | null;
+      personalResume?: string | null;
+      /** 招聘沟通/发件邮箱（如 Gmail），与账号邮箱独立 */
+      recruiterOutboundEmail?: string | null;
+    }) =>
       fetchAPI('/api/auth/me', {
         method: 'PATCH',
         body: JSON.stringify(body),
