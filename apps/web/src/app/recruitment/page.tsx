@@ -112,6 +112,7 @@ function RecruitmentPageContent() {
   const [smartEmailSending, setSmartEmailSending] = useState(false);
   const [smartEmailSendErr, setSmartEmailSendErr] = useState<string | null>(null);
   const [smartEmailSendOk, setSmartEmailSendOk] = useState(false);
+  const [smartMailtoNotice, setSmartMailtoNotice] = useState<string | null>(null);
   /** 编辑 JD：职位描述长文折叠 */
   const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
   /** 候选人表格：待批量移除的 id */
@@ -577,6 +578,7 @@ function RecruitmentPageContent() {
       setSmartEmailErr(null);
       setSmartEmailSendErr(null);
       setSmartEmailSendOk(false);
+      setSmartMailtoNotice(null);
       setSmartEmailResult(null);
       try {
         const data = (await api.recruitment.smartEmail(selectedId, c.id)) as {
@@ -603,6 +605,7 @@ function RecruitmentPageContent() {
       setSmartEmailErr(null);
       setSmartEmailSendErr(null);
       setSmartEmailSendOk(false);
+      setSmartMailtoNotice(null);
       setSmartEmailResult(null);
       void loadSmartEmail(c);
     },
@@ -620,16 +623,41 @@ function RecruitmentPageContent() {
     if (!smartEmailResult || !smartEmailCandidate?.email?.trim()) return;
     const to = smartEmailCandidate.email.trim();
     const { subject, body } = smartEmailResult;
-    const q = new URLSearchParams();
-    q.set('subject', subject);
-    q.set('body', body);
-    let href = `mailto:${encodeURIComponent(to)}?${q.toString()}`;
-    if (href.length > 1950) {
-      void navigator.clipboard.writeText(body);
-      q.set('body', '（完整正文较长，已复制到剪贴板，请将光标放入正文区域后粘贴 Ctrl+V / ⌘V。）');
-      href = `mailto:${encodeURIComponent(to)}?${q.toString()}`;
+    /** 完整可复制文本（避免超长 mailto 被浏览器当成普通 URL 打开新标签） */
+    const fullPlain = `主题：${subject}\n\n${body}`;
+
+    const buildShortMailtoHref = (): string => {
+      const base = `mailto:${encodeURIComponent(to)}`;
+      const withSubject = `${base}?${new URLSearchParams({ subject }).toString()}`;
+      /** Arc / 部分浏览器对过长 mailto 会错误导航；仅收件人 + 可选短 subject */
+      if (withSubject.length <= 1100) return withSubject;
+      return base;
+    };
+
+    const openMailtoLink = (href: string) => {
+      const a = document.createElement('a');
+      a.href = href;
+      a.setAttribute('rel', 'noopener noreferrer');
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    };
+
+    const afterCopy = () => {
+      openMailtoLink(buildShortMailtoHref());
+      setSmartMailtoNotice(
+        '已将完整主题与正文复制到剪贴板。若邮件正文为空，请在编辑窗口中粘贴（Ctrl+V / ⌘V）。若未唤起系统邮件应用，请在系统设置中将默认邮件程序设为 Outlook / Mail 等，或改用「通过服务器发送」。',
+      );
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      void navigator.clipboard.writeText(fullPlain).then(afterCopy, () => {
+        afterCopy();
+      });
+    } else {
+      afterCopy();
     }
-    window.location.href = href;
   }, [smartEmailResult, smartEmailCandidate]);
 
   const handleSendSmartEmailServer = useCallback(async () => {
@@ -1085,6 +1113,7 @@ function RecruitmentPageContent() {
             setSmartEmailCandidate(null);
             setSmartEmailSendErr(null);
             setSmartEmailSendOk(false);
+            setSmartMailtoNotice(null);
           }}
         >
           <div
@@ -1102,6 +1131,7 @@ function RecruitmentPageContent() {
                   setSmartEmailCandidate(null);
                   setSmartEmailSendErr(null);
                   setSmartEmailSendOk(false);
+                  setSmartMailtoNotice(null);
                 }}
                 aria-label="关闭"
               >
@@ -1211,6 +1241,11 @@ function RecruitmentPageContent() {
                       重新生成
                     </button>
                   </div>
+                  {smartMailtoNotice ? (
+                    <p className="text-xs text-slate-300/95 leading-relaxed rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5">
+                      {smartMailtoNotice}
+                    </p>
+                  ) : null}
                   {smartEmailSendOk ? (
                     <p className="text-xs text-emerald-400/95">已通过服务器发送（候选人将收到邮件，回复会到您填写的联系邮箱）。</p>
                   ) : null}
