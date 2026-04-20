@@ -57,7 +57,7 @@ function payloadToProgress(payload: Record<string, unknown>): ProgressUi | null 
 function FileHint() {
   return (
     <p className="text-[10px] text-slate-600 font-mono mt-1 leading-relaxed">
-      支持 .txt / .md / .pdf / .docx / 常见图片（PNG、JPG 等）。多文件将按顺序拼接进正文。
+      支持 .txt / .md / .pdf / .docx / 常见图片（PNG、JPG 等）。
     </p>
   );
 }
@@ -160,7 +160,6 @@ export function MathMatchPanel() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-          <h3 className="text-sm font-semibold text-violet-200 mb-3">左侧 · 职位 JD</h3>
           <textarea
             value={jdText}
             onChange={(e) => setJdText(e.target.value)}
@@ -182,7 +181,6 @@ export function MathMatchPanel() {
         </section>
 
         <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5">
-          <h3 className="text-sm font-semibold text-cyan-200 mb-3">右侧 · 简历 + GitHub</h3>
           <textarea
             value={resumeText}
             onChange={(e) => setResumeText(e.target.value)}
@@ -223,9 +221,6 @@ export function MathMatchPanel() {
           >
             {loading ? '分析中…' : '开始全方位匹配'}
           </button>
-          <p className="text-[10px] text-slate-600 max-w-md leading-relaxed">
-            结果由大模型生成，仅供参考；涉密 JD/简历请勿上传至不可信环境。下方会显示解析附件、拉取 GitHub、LLM 对比等阶段进度。
-          </p>
         </div>
 
         {progress && (
