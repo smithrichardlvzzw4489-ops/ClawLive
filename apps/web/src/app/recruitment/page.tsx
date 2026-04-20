@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
@@ -71,6 +71,10 @@ function RecruitmentPageContent() {
   const [err, setErr] = useState<string | null>(null);
   const [newGh, setNewGh] = useState('');
   const [poolPending, setPoolPending] = useState<RecommendHit[] | null>(null);
+  /** 岗位智能推荐列表多选：GitHub 用户名 */
+  const [recommendSelected, setRecommendSelected] = useState<Set<string>>(() => new Set());
+  const [bulkAdding, setBulkAdding] = useState(false);
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -153,6 +157,40 @@ function RecruitmentPageContent() {
     }
     void loadRecommendQueue(selectedId);
   }, [selectedId, loadRecommendQueue]);
+
+  useEffect(() => {
+    setRecommendSelected(new Set());
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!poolPending?.length) return;
+    const inPool = new Set(poolPending.map((h) => h.githubUsername));
+    setRecommendSelected((prev) => {
+      const next = new Set([...prev].filter((u) => inPool.has(u)));
+      return next.size === prev.size && [...next].every((u) => prev.has(u)) ? prev : next;
+    });
+  }, [poolPending]);
+
+  const poolUsernames = useMemo(
+    () => (poolPending ?? []).map((h) => h.githubUsername),
+    [poolPending],
+  );
+
+  const allPoolSelected = useMemo(
+    () => poolUsernames.length > 0 && poolUsernames.every((u) => recommendSelected.has(u)),
+    [poolUsernames, recommendSelected],
+  );
+
+  const somePoolSelected = useMemo(
+    () => poolUsernames.some((u) => recommendSelected.has(u)),
+    [poolUsernames, recommendSelected],
+  );
+
+  useEffect(() => {
+    const el = selectAllCheckboxRef.current;
+    if (!el) return;
+    el.indeterminate = somePoolSelected && !allPoolSelected;
+  }, [somePoolSelected, allPoolSelected]);
 
   useEffect(() => {
     if (!selected?.recommendBootstrapPending || !selectedId) return;
@@ -284,10 +322,70 @@ function RecruitmentPageContent() {
             jd.id !== selectedId ? jd : { ...jd, candidates: [data.candidate!, ...jd.candidates] },
           ),
         );
+        setRecommendSelected((prev) => {
+          const n = new Set(prev);
+          n.delete(gh);
+          return n;
+        });
         void loadRecommendQueue(selectedId);
       }
     } catch (e: unknown) {
       setErr(e instanceof APIError ? e.message : '加入候选人失败（可能已存在）');
+    }
+  };
+
+  const toggleRecommendSelect = (gh: string) => {
+    setRecommendSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(gh)) n.delete(gh);
+      else n.add(gh);
+      return n;
+    });
+  };
+
+  const toggleSelectAllPool = () => {
+    if (!poolPending?.length) return;
+    if (allPoolSelected) {
+      setRecommendSelected(new Set());
+    } else {
+      setRecommendSelected(new Set(poolUsernames));
+    }
+  };
+
+  const addBulkFromRecommend = async () => {
+    if (!selectedId || recommendSelected.size === 0) return;
+    const toAdd = [...recommendSelected];
+    setBulkAdding(true);
+    setErr(null);
+    const failures: string[] = [];
+    try {
+      for (const gh of toAdd) {
+        try {
+          const data = (await api.recruitment.addCandidate(selectedId, { githubUsername: gh })) as {
+            candidate?: CandidateRow;
+          };
+          if (data.candidate) {
+            setItems((prev) =>
+              prev.map((jd) =>
+                jd.id !== selectedId ? jd : { ...jd, candidates: [data.candidate!, ...jd.candidates] },
+              ),
+            );
+            setRecommendSelected((prev) => {
+              const n = new Set(prev);
+              n.delete(gh);
+              return n;
+            });
+            await loadRecommendQueue(selectedId);
+          }
+        } catch {
+          failures.push(gh);
+        }
+      }
+      if (failures.length > 0) {
+        setErr(`未能加入：${failures.join('、')}（可能已存在或网络错误）`);
+      }
+    } finally {
+      setBulkAdding(false);
     }
   };
 
@@ -423,7 +521,33 @@ function RecruitmentPageContent() {
                 </section>
 
                 <section className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-6">
-                  <h2 className="text-lg font-semibold text-cyan-100 mb-4">岗位智能推荐</h2>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h2 className="text-lg font-semibold text-cyan-100">岗位智能推荐</h2>
+                    {poolPending && poolPending.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-3 text-sm">
+                        <label className="inline-flex items-center gap-2 cursor-pointer text-slate-300 select-none">
+                          <input
+                            ref={selectAllCheckboxRef}
+                            type="checkbox"
+                            className="rounded border-white/30 bg-black/40"
+                            checked={allPoolSelected}
+                            onChange={toggleSelectAllPool}
+                            disabled={bulkAdding}
+                          />
+                          全选
+                        </label>
+                        <button
+                          type="button"
+                          disabled={bulkAdding || recommendSelected.size === 0}
+                          onClick={() => void addBulkFromRecommend()}
+                          className="text-xs rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:pointer-events-none px-3 py-1.5 font-medium"
+                        >
+                          加入所选
+                          {recommendSelected.size > 0 ? `（${recommendSelected.size}）` : ''}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {poolPending && poolPending.length > 0 && (
                     <ul className="space-y-2 max-h-56 overflow-y-auto mb-4">
                       {poolPending.map((h) => (
@@ -431,6 +555,14 @@ function RecruitmentPageContent() {
                           key={`w-${h.githubUsername}`}
                           className="flex flex-wrap items-center gap-3 rounded-xl border border-white/[0.08] bg-black/25 px-3 py-2 text-sm"
                         >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 rounded border-white/30 bg-black/40 shrink-0"
+                            checked={recommendSelected.has(h.githubUsername)}
+                            onChange={() => toggleRecommendSelect(h.githubUsername)}
+                            disabled={bulkAdding}
+                            aria-label={`选择 ${h.githubUsername}`}
+                          />
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={h.avatarUrl} alt="" className="h-9 w-9 rounded-lg border border-white/10" />
                           <div className="min-w-0 flex-1">
@@ -450,8 +582,9 @@ function RecruitmentPageContent() {
                             </Link>
                             <button
                               type="button"
+                              disabled={bulkAdding}
                               onClick={() => void addFromRecommend(h.githubUsername)}
-                              className="text-xs rounded bg-white/10 hover:bg-white/15 px-2 py-1"
+                              className="text-xs rounded bg-white/10 hover:bg-white/15 disabled:opacity-40 px-2 py-1"
                             >
                               加入候选人
                             </button>
