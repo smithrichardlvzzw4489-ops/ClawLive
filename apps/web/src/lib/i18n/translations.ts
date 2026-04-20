@@ -82,9 +82,6 @@ export const translations = {
       titleDeveloper: '专注GitHub 开发者的求职网站',
       titleRecruiter: '1分钟了解您的候选人',
     },
-    codernetLinkPage: {
-      title: 'LINK · 语义检索与人才列表',
-    },
     personaEntry: {
       developersTitle: '求职者入口',
       developersLead: '面向开发者 / 求职者：优先浏览职位、维护个人画像与站内沟通。',
@@ -965,9 +962,6 @@ export const translations = {
     codernetHome: {
       titleDeveloper: 'A job-search site for GitHub developers',
       titleRecruiter: 'Understand your candidates in about one minute',
-    },
-    codernetLinkPage: {
-      title: 'LINK · Semantic search & candidates',
     },
     personaEntry: {
       developersTitle: 'Developer entry',

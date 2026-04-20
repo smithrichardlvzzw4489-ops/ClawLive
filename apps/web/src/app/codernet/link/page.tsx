@@ -37,9 +37,6 @@ function CodernetLinkPageInner() {
       <div className="pointer-events-none fixed -top-48 -left-48 h-[700px] w-[700px] rounded-full bg-violet-700/15 blur-[160px]" />
       <div className="pointer-events-none fixed -bottom-48 -right-48 h-[700px] w-[700px] rounded-full bg-indigo-600/10 blur-[160px]" />
       <div className="relative z-10 mx-auto max-w-5xl px-4 py-8">
-        <h1 className="mb-6 text-center text-xl font-bold text-white sm:text-left sm:text-2xl">
-          {t('codernetLinkPage.title')}
-        </h1>
         <CodernetLinkSearchPanel returnTo={returnTo} />
       </div>
     </>
