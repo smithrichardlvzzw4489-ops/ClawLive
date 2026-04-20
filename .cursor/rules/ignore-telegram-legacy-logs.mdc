@@ -1,0 +1,10 @@
+---
+description: Ignore Telegram/MTProto logs for debugging; legacy subsystem
+alwaysApply: true
+---
+
+# Telegram logs are out of scope
+
+When triaging production issues, Railway logs, recruitment/bootstrap flows, or performance: **do not** spend effort interpreting Telegram MTProto, `telegram-bridge`, or related connection/reconnect stack traces unless the user **explicitly** asks about Telegram.
+
+Treat those lines as **legacy noise** in the same Node process. Prefer application-owned signals (HTTP, Prisma, `[recruitment] bootstrap`, `[GITLINK] linkSearchPipeline`, scheduled jobs the user cares about, etc.).
