@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { api, APIError } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { MainLayout } from '@/components/MainLayout';
+import { usePrimaryPersona } from '@/contexts/PrimaryPersonaContext';
+import { useLocale } from '@/lib/i18n/LocaleContext';
 
 type MsgRow = {
   id: string;
@@ -18,6 +20,8 @@ type MsgRow = {
 export default function MessagesInboxPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { persona, personaReady } = usePrimaryPersona();
+  const { t } = useLocale();
   const [items, setItems] = useState<MsgRow[]>([]);
   const [unread, setUnread] = useState(0);
   const [err, setErr] = useState<string | null>(null);
@@ -63,7 +67,18 @@ export default function MessagesInboxPage() {
   return (
     <MainLayout flatBackground>
       <div className="mx-auto max-w-3xl px-4 py-8 text-slate-200">
-        <h1 className="text-2xl font-bold text-white mb-6">站内信</h1>
+        <h1
+          className={`text-2xl font-bold text-white ${
+            personaReady && persona === 'developer' ? 'mb-2' : 'mb-6'
+          }`}
+        >
+          {t('nav.siteMessages')}
+        </h1>
+        {personaReady && persona === 'developer' ? (
+          <p className="text-sm text-slate-400 mb-6 leading-relaxed max-w-2xl">
+            {t('messagesInbox.developerIntro')}
+          </p>
+        ) : null}
 
         {unread > 0 && <p className="text-xs text-amber-200/90 mb-3">未读 {unread} 封</p>}
         {err && (

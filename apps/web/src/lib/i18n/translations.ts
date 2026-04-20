@@ -96,6 +96,11 @@ export const translations = {
       enterDeveloper360Hub: '进入开发者360画像',
     },
 
+    messagesInbox: {
+      developerIntro:
+        '求职者模式下：这里用来接收招聘方发来的职位沟通、跟进与面试说明，以及平台或职位相关的系统提醒。你也可以从用户公开主页向对方发起站内信。',
+    },
+
     evolutionNetwork: {
       title: '进化网络',
       subtitle:
@@ -968,6 +973,11 @@ export const translations = {
       enterRecruitment: 'Open recruitment',
       enterHomeCodernet: 'Open home (triple entry)',
       enterDeveloper360Hub: 'Open Developer 360° portrait',
+    },
+
+    messagesInbox: {
+      developerIntro:
+        'As a job seeker, this inbox is where you get messages from employers (role discussions, follow-ups, interview notes) plus platform or job-related notices. You can also start a message to another user from their public profile.',
     },
 
     evolutionNetwork: {
