@@ -47,6 +47,8 @@ export const translations = {
       recruitment: '招聘管理',
       siteMessages: '站内信',
       jobPlaza: '职位',
+      /** 招聘方：LINK 语义检索独立页 */
+      linkSemantic: 'LINK',
       /** 招聘方顶栏：原「主页」三入口（GitHub 画像 / LINK / MATH） */
       developer360: '开发者360画像',
       entryDevelopers: '求职者入口',
@@ -77,6 +79,9 @@ export const translations = {
     codernetHome: {
       titleDeveloper: '专注GitHub 开发者的求职网站',
       titleRecruiter: '1分钟了解您的候选人',
+    },
+    codernetLinkPage: {
+      title: 'LINK · 语义检索与人才列表',
     },
     personaEntry: {
       developersTitle: '求职者入口',
@@ -927,6 +932,7 @@ export const translations = {
       recruitment: 'Recruitment',
       siteMessages: 'Messages',
       jobPlaza: 'Jobs',
+      linkSemantic: 'LINK',
       /** Hiring nav: former “home” hub (GitHub portrait / LINK / MATH) */
       developer360: 'Developer 360° portrait',
       entryDevelopers: 'For developers',
@@ -957,6 +963,9 @@ export const translations = {
     codernetHome: {
       titleDeveloper: 'A job-search site for GitHub developers',
       titleRecruiter: 'Understand your candidates in about one minute',
+    },
+    codernetLinkPage: {
+      title: 'LINK · Semantic search & candidates',
     },
     personaEntry: {
       developersTitle: 'Developer entry',

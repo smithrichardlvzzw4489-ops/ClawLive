@@ -56,12 +56,15 @@ export function Header({}: HeaderProps) {
   const tabMath = searchParams.get('tab') === 'math';
 
   const jobPlazaActive = pathname.startsWith('/job-plaza');
+  const onCodernetLinkPage = pathname === '/codernet/link' || pathname.startsWith('/codernet/link/');
+  const linkPageActive = onCodernetLinkPage;
   const portraitHubActive =
     persona === 'developer' && personaReady
       ? false
       : isHubPersona
-        ? (pathname === '/' && (viewHub || tabMath)) || pathname.startsWith('/codernet')
-        : pathname === '/' || pathname.startsWith('/codernet');
+        ? (pathname === '/' && (viewHub || tabMath)) ||
+          (pathname.startsWith('/codernet') && !onCodernetLinkPage)
+        : pathname === '/' || (pathname.startsWith('/codernet') && !onCodernetLinkPage);
 
   const isHome = false;
 
@@ -93,7 +96,10 @@ export function Header({}: HeaderProps) {
               <>
                 <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
                 {persona === 'recruiter' && (
-                  <NavItem href="/?view=hub" label={t('nav.developer360')} icon="🔭" active={portraitHubActive} />
+                  <>
+                    <NavItem href="/codernet/link" label={t('nav.linkSemantic')} icon="🔗" active={linkPageActive} />
+                    <NavItem href="/?view=hub" label={t('nav.developer360')} icon="🔭" active={portraitHubActive} />
+                  </>
                 )}
               </>
             ) : (
