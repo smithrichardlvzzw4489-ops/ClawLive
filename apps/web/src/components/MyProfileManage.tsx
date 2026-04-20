@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { MainLayout } from '@/components/MainLayout';
 import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, APIError, api, resolveMediaUrl } from '@/lib/api';
+import { RecruiterOutboundEmailSection } from '@/components/my/RecruiterOutboundEmailSection';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
 
 interface MeUser {
@@ -40,7 +41,6 @@ export function MyProfileManage() {
   const [error, setError] = useState('');
   const [draftUsername, setDraftUsername] = useState('');
   const [draftBio, setDraftBio] = useState('');
-  const [draftRecruiterEmail, setDraftRecruiterEmail] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState('');
   const [profileSavedFlash, setProfileSavedFlash] = useState(false);
@@ -112,29 +112,19 @@ export function MyProfileManage() {
     if (!user) return;
     setDraftUsername(user.username);
     setDraftBio(user.bio ?? '');
-    setDraftRecruiterEmail(user.recruiterOutboundEmail ?? '');
   }, [user]);
 
   const handleSaveProfile = async () => {
     if (!user) return;
     const u = draftUsername.trim();
     const b = draftBio.trim();
-    const re = draftRecruiterEmail.trim();
-    const reOut = re === '' ? null : re;
-    if (
-      u === user.username &&
-      (b || '') === (user.bio ?? '') &&
-      (reOut || '') === (user.recruiterOutboundEmail ?? '')
-    ) {
-      return;
-    }
+    if (u === user.username && (b || '') === (user.bio ?? '')) return;
     setSavingProfile(true);
     setProfileSaveError('');
     try {
       const updated = (await api.auth.updateMe({
         username: u,
         bio: b === '' ? null : b,
-        recruiterOutboundEmail: reOut,
       })) as MeUser;
       setUser(updated);
       setProfileSavedFlash(true);
@@ -147,8 +137,6 @@ export function MyProfileManage() {
         setProfileSaveError(t('myProfileCenter.profileUsernameInvalid'));
       } else if (code === 'BIO_TOO_LONG') {
         setProfileSaveError(t('myProfileCenter.profileBioTooLong'));
-      } else if (code === 'RECRUITER_EMAIL_INVALID') {
-        setProfileSaveError(t('myProfileCenter.profileRecruiterEmailInvalid'));
       } else {
         setProfileSaveError(t('myProfileCenter.profileSaveFailed'));
       }
@@ -159,9 +147,7 @@ export function MyProfileManage() {
 
   const profileDirty =
     user &&
-    (draftUsername.trim() !== user.username ||
-      (draftBio.trim() || '') !== (user.bio ?? '') ||
-      (draftRecruiterEmail.trim() || '') !== (user.recruiterOutboundEmail ?? ''));
+    (draftUsername.trim() !== user.username || (draftBio.trim() || '') !== (user.bio ?? ''));
 
   if (loading) {
     return (
@@ -239,22 +225,13 @@ export function MyProfileManage() {
                     className="mt-1 w-full max-w-xl resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-lobster/40 focus:ring-2 focus:ring-lobster/15"
                   />
                 </div>
-                <div>
-                  <label htmlFor="profile-recruiter-email" className="block text-xs font-medium text-gray-500">
-                    {t('myProfileCenter.profileRecruiterEmail')}
-                  </label>
-                  <input
-                    id="profile-recruiter-email"
-                    type="email"
-                    autoComplete="email"
-                    inputMode="email"
-                    value={draftRecruiterEmail}
-                    onChange={(e) => setDraftRecruiterEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    className="mt-1 w-full max-w-md rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-lobster/40 focus:ring-2 focus:ring-lobster/15"
+                {user ? (
+                  <RecruiterOutboundEmailSection
+                    initialEmail={user.recruiterOutboundEmail ?? null}
+                    onSaved={(email) => setUser((prev) => (prev ? { ...prev, recruiterOutboundEmail: email } : prev))}
+                    variant="light"
                   />
-                  <p className="mt-1 max-w-xl text-xs text-gray-400">{t('myProfileCenter.profileRecruiterEmailHint')}</p>
-                </div>
+                ) : null}
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
