@@ -617,6 +617,12 @@ model JobPostingCandidate {
   displayName    String?
   email          String?
   notes          String?  @db.Text
+  /// 候选人简介（如智能推荐的 oneLiner，可编辑）
+  intro          String?  @db.Text
+  /// 岗位匹配度得分（智能推荐写入；手动添加可为空）
+  matchScore     Float?
+  /// 系统推荐进入待查看池/写入推荐结果的时间（加入候选人时落库）
+  systemRecommendedAt DateTime?
   /// 新建 | 沟通中 | 面试中 | 已发Offer | 已入职 | 已拒绝 | 暂不联系
   pipelineStage  String   @default("新建")
   createdAt      DateTime @default(now())

@@ -21,6 +21,8 @@ export async function generateRecruitmentOutreachEmail(params: {
   candidateDisplayName: string | null;
   candidateEmail: string | null;
   candidateNotes: string | null;
+  /** 候选人简介（如智能推荐 oneLiner） */
+  candidateIntro: string | null;
   /** 招聘方在资料中填写的沟通邮箱（如 Gmail），用于正文署名与回复指引 */
   recruiterContactEmail: string | null;
 }): Promise<{ subject: string; body: string }> {
@@ -38,6 +40,7 @@ ${jdSnippet}
 【候选人】
 GitHub：@${params.candidateGithub}
 称呼/显示名：${params.candidateDisplayName ?? '（未知）'}
+简介/亮点：${params.candidateIntro?.trim() ? params.candidateIntro.trim().slice(0, 2_000) : '（无）'}
 已知邮箱：${params.candidateEmail ?? '（未填写，正文中可写「如邮箱有误请回复告知」类措辞）'}
 内部备注：${params.candidateNotes ?? '（无）'}
 

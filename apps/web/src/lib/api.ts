@@ -936,6 +936,10 @@ export const api = {
         email?: string | null;
         notes?: string | null;
         pipelineStage?: string;
+        /** 简介（如智能推荐 oneLiner） */
+        intro?: string | null;
+        matchScore?: number | null;
+        systemRecommendedAt?: string | null;
       },
     ) =>
       fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates`, {
@@ -945,7 +949,13 @@ export const api = {
     updateCandidate: (
       jdId: string,
       candidateId: string,
-      body: { displayName?: string | null; email?: string | null; notes?: string | null; pipelineStage?: string },
+      body: {
+        displayName?: string | null;
+        email?: string | null;
+        notes?: string | null;
+        intro?: string | null;
+        pipelineStage?: string;
+      },
     ) =>
       fetchAPI(
         `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}`,
@@ -970,6 +980,9 @@ export const api = {
           displayName: string | null;
           email: string | null;
           notes: string | null;
+          intro: string | null;
+          matchScore: number | null;
+          systemRecommendedAt: string | null;
           pipelineStage: string;
           createdAt: string;
           updatedAt: string;

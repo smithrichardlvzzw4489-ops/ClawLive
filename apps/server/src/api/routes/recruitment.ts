@@ -28,6 +28,7 @@ const MAX_TITLE = 200;
 const MAX_BODY = 50_000;
 const MAX_TAG = 40;
 const MAX_TAGS = 24;
+const MAX_CANDIDATE_INTRO = 8_000;
 
 const jdBodyFileUpload = multer({
   storage: multer.memoryStorage(),
@@ -67,6 +68,69 @@ function normGh(u: string): string {
   return u.trim().replace(/^@/, "").toLowerCase();
 }
 
+function parseOptionalFiniteNumber(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim()) {
+    const n = Number(raw.trim());
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function parseIntroFromCreateBody(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const intro = (body as { intro?: unknown }).intro;
+  if (intro === undefined || intro === null) return null;
+  if (typeof intro !== "string") return null;
+  const t = intro.trim();
+  if (!t) return null;
+  return t.length > MAX_CANDIDATE_INTRO ? t.slice(0, MAX_CANDIDATE_INTRO) : t;
+}
+
+function parseMatchScoreFromBody(body: unknown): number | null {
+  if (!body || typeof body !== "object") return null;
+  const raw = (body as { matchScore?: unknown }).matchScore;
+  if (raw === undefined || raw === null) return null;
+  return parseOptionalFiniteNumber(raw);
+}
+
+function parseSystemRecommendedAtFromBody(body: unknown): Date | null {
+  if (!body || typeof body !== "object") return null;
+  const raw = (body as { systemRecommendedAt?: unknown }).systemRecommendedAt;
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "string") return null;
+  const d = new Date(raw.trim());
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+function serializeCandidate(row: {
+  id: string;
+  githubUsername: string;
+  displayName: string | null;
+  email: string | null;
+  notes: string | null;
+  intro: string | null;
+  matchScore: number | null;
+  systemRecommendedAt: Date | null;
+  pipelineStage: string;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    id: row.id,
+    githubUsername: row.githubUsername,
+    displayName: row.displayName,
+    email: row.email,
+    notes: row.notes,
+    intro: row.intro,
+    matchScore: row.matchScore,
+    systemRecommendedAt: row.systemRecommendedAt?.toISOString() ?? null,
+    pipelineStage: row.pipelineStage,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
 function serializeJd(row: {
   id: string;
   authorId: string;
@@ -91,6 +155,9 @@ function serializeJd(row: {
     displayName: string | null;
     email: string | null;
     notes: string | null;
+    intro: string | null;
+    matchScore: number | null;
+    systemRecommendedAt: Date | null;
     pipelineStage: string;
     createdAt: Date;
     updatedAt: Date;
@@ -127,16 +194,7 @@ function serializeJd(row: {
     backlogRecommendCount: parsePendingRecommendHits(row.recommendBacklogHits).length,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    candidates: (row.candidates || []).map((c) => ({
-      id: c.id,
-      githubUsername: c.githubUsername,
-      displayName: c.displayName,
-      email: c.email,
-      notes: c.notes,
-      pipelineStage: c.pipelineStage,
-      createdAt: c.createdAt.toISOString(),
-      updatedAt: c.updatedAt.toISOString(),
-    })),
+    candidates: (row.candidates || []).map((c) => serializeCandidate(c)),
   };
 }
 
@@ -436,6 +494,9 @@ export function recruitmentRoutes(): Router {
             email,
             notes,
             pipelineStage,
+            intro: parseIntroFromCreateBody(req.body),
+            matchScore: parseMatchScoreFromBody(req.body),
+            systemRecommendedAt: parseSystemRecommendedAtFromBody(req.body),
           },
         });
         const pending = parsePendingRecommendHits(jd.pendingRecommendHits).filter(
@@ -451,16 +512,7 @@ export function recruitmentRoutes(): Router {
         return created;
       });
       res.status(201).json({
-        candidate: {
-          id: row.id,
-          githubUsername: row.githubUsername,
-          displayName: row.displayName,
-          email: row.email,
-          notes: row.notes,
-          pipelineStage: row.pipelineStage,
-          createdAt: row.createdAt.toISOString(),
-          updatedAt: row.updatedAt.toISOString(),
-        },
+        candidate: serializeCandidate(row),
       });
     } catch (e: unknown) {
       if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2002") {
@@ -493,11 +545,20 @@ export function recruitmentRoutes(): Router {
         displayName?: string | null;
         email?: string | null;
         notes?: string | null;
+        intro?: string | null;
         pipelineStage?: string;
       } = {};
       if (typeof req.body?.displayName === "string") data.displayName = req.body.displayName.trim() || null;
       if (typeof req.body?.email === "string") data.email = req.body.email.trim() || null;
       if (typeof req.body?.notes === "string") data.notes = req.body.notes.trim() || null;
+      if (typeof req.body?.intro === "string") {
+        const t = req.body.intro.trim();
+        data.intro = t
+          ? t.length > MAX_CANDIDATE_INTRO
+            ? t.slice(0, MAX_CANDIDATE_INTRO)
+            : t
+          : null;
+      }
       if (typeof req.body?.pipelineStage === "string") {
         const s = req.body.pipelineStage.trim();
         if (PIPELINE_STAGES.includes(s as (typeof PIPELINE_STAGES)[number])) {
@@ -510,16 +571,7 @@ export function recruitmentRoutes(): Router {
         data,
       });
       res.json({
-        candidate: {
-          id: row.id,
-          githubUsername: row.githubUsername,
-          displayName: row.displayName,
-          email: row.email,
-          notes: row.notes,
-          pipelineStage: row.pipelineStage,
-          createdAt: row.createdAt.toISOString(),
-          updatedAt: row.updatedAt.toISOString(),
-        },
+        candidate: serializeCandidate(row),
       });
     } catch (e) {
       console.error("[recruitment] patch candidate", e);
@@ -583,16 +635,7 @@ export function recruitmentRoutes(): Router {
       res.json({
         updated,
         attempted,
-        candidates: rows.map((row) => ({
-          id: row.id,
-          githubUsername: row.githubUsername,
-          displayName: row.displayName,
-          email: row.email,
-          notes: row.notes,
-          pipelineStage: row.pipelineStage,
-          createdAt: row.createdAt.toISOString(),
-          updatedAt: row.updatedAt.toISOString(),
-        })),
+        candidates: rows.map((row) => serializeCandidate(row)),
       });
     } catch (e) {
       console.error("[recruitment] resolve-emails", e);
@@ -637,6 +680,7 @@ export function recruitmentRoutes(): Router {
         candidateDisplayName: cand.displayName,
         candidateEmail: cand.email,
         candidateNotes: cand.notes,
+        candidateIntro: cand.intro,
         recruiterContactEmail,
       });
       res.json({ subject: out.subject, body: out.body });

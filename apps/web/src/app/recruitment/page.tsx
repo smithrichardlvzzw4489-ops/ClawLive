@@ -14,6 +14,9 @@ type CandidateRow = {
   displayName: string | null;
   email: string | null;
   notes: string | null;
+  intro: string | null;
+  matchScore: number | null;
+  systemRecommendedAt: string | null;
   pipelineStage: string;
   createdAt: string;
   updatedAt: string;
@@ -54,6 +57,28 @@ type RecommendHit = {
   /** ISO 8601，服务端写入待查看池时间 */
   addedAt?: string;
 };
+
+function recommendAddBody(gh: string, pool: RecommendHit[] | null | undefined) {
+  const key = gh.trim().toLowerCase();
+  const hit = pool?.find((h) => h.githubUsername.trim().toLowerCase() === key);
+  if (!hit) return { githubUsername: gh };
+  const intro = hit.oneLiner?.trim() || null;
+  const matchScore = typeof hit.score === 'number' && Number.isFinite(hit.score) ? hit.score : null;
+  const systemRecommendedAt = hit.addedAt?.trim() || new Date().toISOString();
+  return {
+    githubUsername: gh,
+    intro,
+    matchScore,
+    systemRecommendedAt,
+  };
+}
+
+function formatSystemRecommendedAt(iso: string | null | undefined): string {
+  if (!iso?.trim()) return '—';
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '—';
+  return d.toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' });
+}
 
 function RecruitmentPageContent() {
   const router = useRouter();
@@ -324,7 +349,13 @@ function RecruitmentPageContent() {
 
   const patchCandidate = async (
     cid: string,
-    patch: { displayName?: string | null; email?: string | null; notes?: string | null; pipelineStage?: string },
+    patch: {
+      displayName?: string | null;
+      email?: string | null;
+      notes?: string | null;
+      intro?: string | null;
+      pipelineStage?: string;
+    },
   ) => {
     if (!selectedId) return;
     try {
@@ -433,7 +464,7 @@ function RecruitmentPageContent() {
   const addFromRecommend = async (gh: string) => {
     if (!selectedId) return;
     try {
-      const data = (await api.recruitment.addCandidate(selectedId, { githubUsername: gh })) as {
+      const data = (await api.recruitment.addCandidate(selectedId, recommendAddBody(gh, poolPending))) as {
         candidate?: CandidateRow;
       };
       if (data.candidate) {
@@ -497,7 +528,7 @@ function RecruitmentPageContent() {
     try {
       for (const gh of toAdd) {
         try {
-          const data = (await api.recruitment.addCandidate(selectedId, { githubUsername: gh })) as {
+          const data = (await api.recruitment.addCandidate(selectedId, recommendAddBody(gh, poolPending))) as {
             candidate?: CandidateRow;
           };
           if (data.candidate) {
@@ -852,6 +883,9 @@ function RecruitmentPageContent() {
                             />
                           </th>
                           <th className="py-2 pr-3">GitHub</th>
+                          <th className="py-2 pr-3 min-w-[10rem]">简介</th>
+                          <th className="py-2 pr-3 whitespace-nowrap">匹配度</th>
+                          <th className="py-2 pr-3 whitespace-nowrap">系统推荐时间</th>
                           <th className="py-2 pr-3 min-w-[11rem] align-bottom">
                             <span className="block">联系方式</span>
                             <span className="block text-[10px] font-normal text-slate-600 mt-0.5 leading-snug max-w-[10rem]">
@@ -882,6 +916,25 @@ function RecruitmentPageContent() {
                               >
                                 @{c.githubUsername}
                               </Link>
+                            </td>
+                            <td className="py-2 pr-3 max-w-[14rem]">
+                              <textarea
+                                key={`intro-${c.id}-${c.updatedAt}`}
+                                defaultValue={c.intro ?? ''}
+                                rows={2}
+                                placeholder="—"
+                                className="w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-slate-200 resize-y min-h-[2.5rem]"
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim();
+                                  if (v !== (c.intro ?? '')) void patchCandidate(c.id, { intro: v || null });
+                                }}
+                              />
+                            </td>
+                            <td className="py-2 pr-3 tabular-nums text-slate-300">
+                              {c.matchScore != null && Number.isFinite(c.matchScore) ? c.matchScore.toFixed(1) : '—'}
+                            </td>
+                            <td className="py-2 pr-3 text-xs text-slate-400 whitespace-nowrap">
+                              {formatSystemRecommendedAt(c.systemRecommendedAt)}
                             </td>
                             <td className="py-2 pr-3">
                               <input
