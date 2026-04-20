@@ -26,6 +26,7 @@ export type TokenFeature =
   | 'github_graph_blurb'
   | 'attachment_image_ocr'
   | 'jd_resume_match'
+  | 'recruitment_outreach_email'
   | 'llm_test'
   | 'other';
 

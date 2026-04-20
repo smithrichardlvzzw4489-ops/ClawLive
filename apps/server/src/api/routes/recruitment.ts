@@ -21,6 +21,7 @@ import {
   RECRUIT_FIRST_RECOMMEND_QUOTA_COST,
   RECRUIT_MANUAL_RECOMMEND_QUOTA_COST,
 } from "../../services/recruitment-recommend";
+import { generateRecruitmentOutreachEmail } from "../../services/recruitment-outreach-email";
 
 const MAX_TITLE = 200;
 const MAX_BODY = 50_000;
@@ -522,6 +523,47 @@ export function recruitmentRoutes(): Router {
     } catch (e) {
       console.error("[recruitment] patch candidate", e);
       res.status(500).json({ error: "更新失败" });
+    }
+  });
+
+  /** 根据当前 JD 与候选人信息生成智能邮件主题与正文（LLM） */
+  router.post("/jds/:id/candidates/:cid/smart-email", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { id: jobPostingId, cid } = req.params;
+      const jd = await prisma.jobPosting.findFirst({
+        where: { id: jobPostingId, authorId: userId },
+      });
+      if (!jd) {
+        res.status(404).json({ error: "未找到 JD" });
+        return;
+      }
+      const cand = await prisma.jobPostingCandidate.findFirst({
+        where: { id: cid, jobPostingId },
+      });
+      if (!cand) {
+        res.status(404).json({ error: "未找到候选人" });
+        return;
+      }
+      const out = await generateRecruitmentOutreachEmail({
+        jdTitle: jd.title,
+        jdCompany: jd.companyName,
+        jdLocation: jd.location,
+        jdBody: jd.body,
+        candidateGithub: cand.githubUsername,
+        candidateDisplayName: cand.displayName,
+        candidateEmail: cand.email,
+        candidateNotes: cand.notes,
+      });
+      res.json({ subject: out.subject, body: out.body });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("未配置 LLM")) {
+        res.status(503).json({ error: "智能邮件需要服务端配置 LLM（LiteLLM 或 OpenRouter）" });
+        return;
+      }
+      console.error("[recruitment] smart-email", e);
+      res.status(500).json({ error: msg.length > 200 ? `${msg.slice(0, 200)}…` : msg || "生成失败" });
     }
   });
 

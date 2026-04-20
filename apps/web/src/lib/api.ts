@@ -950,6 +950,12 @@ export const api = {
         `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}`,
         { method: 'DELETE' },
       ),
+    /** 根据 JD 与候选人信息生成沟通邮件主题与正文（LLM） */
+    smartEmail: (jdId: string, candidateId: string) =>
+      fetchAPI(
+        `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}/smart-email`,
+        { method: 'POST', body: JSON.stringify({}) },
+      ) as Promise<{ subject?: string; body?: string }>,
     recommend: (jdId: string, body?: { limit?: number }) =>
       fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/recommend`, {
         method: 'POST',

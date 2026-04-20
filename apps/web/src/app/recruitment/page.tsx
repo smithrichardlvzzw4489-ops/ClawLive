@@ -75,6 +75,10 @@ function RecruitmentPageContent() {
   const [recommendSelected, setRecommendSelected] = useState<Set<string>>(() => new Set());
   const [bulkAdding, setBulkAdding] = useState(false);
   const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+  const [smartEmailCandidate, setSmartEmailCandidate] = useState<CandidateRow | null>(null);
+  const [smartEmailLoading, setSmartEmailLoading] = useState(false);
+  const [smartEmailResult, setSmartEmailResult] = useState<{ subject: string; body: string } | null>(null);
+  const [smartEmailErr, setSmartEmailErr] = useState<string | null>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -405,6 +409,41 @@ function RecruitmentPageContent() {
     }
   };
 
+  const loadSmartEmail = useCallback(
+    async (c: CandidateRow) => {
+      if (!selectedId) return;
+      setSmartEmailLoading(true);
+      setSmartEmailErr(null);
+      setSmartEmailResult(null);
+      try {
+        const data = (await api.recruitment.smartEmail(selectedId, c.id)) as {
+          subject?: string;
+          body?: string;
+        };
+        if (data.subject && data.body) {
+          setSmartEmailResult({ subject: data.subject, body: data.body });
+        } else {
+          setSmartEmailErr('未返回完整内容');
+        }
+      } catch (e: unknown) {
+        setSmartEmailErr(e instanceof APIError ? e.message : '生成失败');
+      } finally {
+        setSmartEmailLoading(false);
+      }
+    },
+    [selectedId],
+  );
+
+  const openSmartEmail = useCallback(
+    (c: CandidateRow) => {
+      setSmartEmailCandidate(c);
+      setSmartEmailErr(null);
+      setSmartEmailResult(null);
+      void loadSmartEmail(c);
+    },
+    [loadSmartEmail],
+  );
+
   if (authLoading || loading) {
     return (
       <MainLayout flatBackground>
@@ -419,6 +458,7 @@ function RecruitmentPageContent() {
 
   return (
     <MainLayout flatBackground>
+      <>
       <div className="mx-auto max-w-7xl px-4 py-8 text-slate-200">
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-2xl font-bold text-white">招聘管理</h1>
@@ -641,9 +681,10 @@ function RecruitmentPageContent() {
                       <thead>
                         <tr className="text-xs text-slate-500 border-b border-white/10">
                           <th className="py-2 pr-3">GitHub</th>
+                          <th className="py-2 pr-3 min-w-[11rem]">联系方式</th>
                           <th className="py-2 pr-3">状态</th>
                           <th className="py-2 pr-3">备注</th>
-                          <th className="py-2 w-24">操作</th>
+                          <th className="py-2 min-w-[9rem]">操作</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -656,6 +697,21 @@ function RecruitmentPageContent() {
                               >
                                 @{c.githubUsername}
                               </Link>
+                            </td>
+                            <td className="py-2 pr-3">
+                              <input
+                                type="email"
+                                inputMode="email"
+                                autoComplete="email"
+                                key={`email-${c.id}-${c.updatedAt}`}
+                                defaultValue={c.email ?? ''}
+                                placeholder="邮箱"
+                                className="w-full min-w-[10rem] max-w-[14rem] rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-slate-200"
+                                onBlur={(e) => {
+                                  const v = e.target.value.trim();
+                                  if (v !== (c.email ?? '')) void patchCandidate(c.id, { email: v || null });
+                                }}
+                              />
                             </td>
                             <td className="py-2 pr-3">
                               <select
@@ -683,13 +739,22 @@ function RecruitmentPageContent() {
                               />
                             </td>
                             <td className="py-2">
-                              <button
-                                type="button"
-                                onClick={() => void handleDeleteCandidate(c.id)}
-                                className="text-xs text-red-400 hover:underline"
-                              >
-                                移除
-                              </button>
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openSmartEmail(c)}
+                                  className="text-xs text-cyan-400 hover:underline"
+                                >
+                                  智能邮件
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteCandidate(c.id)}
+                                  className="text-xs text-red-400 hover:underline"
+                                >
+                                  移除
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -711,6 +776,102 @@ function RecruitmentPageContent() {
           </main>
         </div>
       </div>
+
+      {smartEmailCandidate ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="smart-email-title"
+          onClick={() => setSmartEmailCandidate(null)}
+        >
+          <div
+            className="w-full max-w-2xl max-h-[min(90dvh,720px)] overflow-hidden rounded-2xl border border-white/10 bg-[#0c0f16] shadow-xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 shrink-0">
+              <h3 id="smart-email-title" className="text-sm font-semibold text-white">
+                智能邮件 · @{smartEmailCandidate.githubUsername}
+              </h3>
+              <button
+                type="button"
+                className="rounded-lg px-2 py-1 text-slate-400 hover:bg-white/10 hover:text-white text-lg leading-none"
+                onClick={() => setSmartEmailCandidate(null)}
+                aria-label="关闭"
+              >
+                ×
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-4 py-3 space-y-3">
+              {smartEmailLoading ? (
+                <p className="text-sm text-slate-400">正在生成邮件内容…</p>
+              ) : null}
+              {smartEmailErr ? (
+                <p className="text-sm text-red-300 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
+                  {smartEmailErr}
+                </p>
+              ) : null}
+              {smartEmailResult ? (
+                <>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500">主题</span>
+                    <input
+                      readOnly
+                      value={smartEmailResult.subject}
+                      className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-slate-100"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase tracking-wider text-slate-500">正文</span>
+                    <textarea
+                      readOnly
+                      rows={14}
+                      value={smartEmailResult.body}
+                      className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-slate-200 font-mono leading-relaxed min-h-[200px]"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2 pb-1">
+                    <button
+                      type="button"
+                      className="rounded-lg bg-white/10 hover:bg-white/15 px-3 py-1.5 text-xs"
+                      onClick={() => void navigator.clipboard.writeText(smartEmailResult.subject)}
+                    >
+                      复制主题
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-white/10 hover:bg-white/15 px-3 py-1.5 text-xs"
+                      onClick={() => void navigator.clipboard.writeText(smartEmailResult.body)}
+                    >
+                      复制正文
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg bg-violet-600 hover:bg-violet-500 px-3 py-1.5 text-xs font-medium text-white"
+                      onClick={() =>
+                        void navigator.clipboard.writeText(
+                          `主题：${smartEmailResult.subject}\n\n${smartEmailResult.body}`,
+                        )
+                      }
+                    >
+                      复制全部
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
+                      onClick={() => smartEmailCandidate && void loadSmartEmail(smartEmailCandidate)}
+                      disabled={smartEmailLoading}
+                    >
+                      重新生成
+                    </button>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      </>
     </MainLayout>
   );
 }
