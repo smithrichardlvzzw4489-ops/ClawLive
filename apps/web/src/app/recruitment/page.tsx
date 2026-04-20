@@ -81,8 +81,32 @@ function RecruitmentPageContent() {
   const [smartEmailErr, setSmartEmailErr] = useState<string | null>(null);
   /** 编辑 JD：职位描述长文折叠 */
   const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
+  /** 候选人表格：待批量移除的 id */
+  const [candidateRemoveSelected, setCandidateRemoveSelected] = useState<Set<string>>(() => new Set());
+  const candidateSelectAllRef = useRef<HTMLInputElement>(null);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
+
+  const candidateIdsOnPage = useMemo(
+    () => (selected?.candidates ?? []).map((c) => c.id),
+    [selected],
+  );
+
+  const allCandidatesSelected = useMemo(
+    () => candidateIdsOnPage.length > 0 && candidateIdsOnPage.every((id) => candidateRemoveSelected.has(id)),
+    [candidateIdsOnPage, candidateRemoveSelected],
+  );
+
+  const someCandidatesSelected = useMemo(
+    () => candidateIdsOnPage.some((id) => candidateRemoveSelected.has(id)),
+    [candidateIdsOnPage, candidateRemoveSelected],
+  );
+
+  useEffect(() => {
+    const el = candidateSelectAllRef.current;
+    if (!el) return;
+    el.indeterminate = someCandidatesSelected && !allCandidatesSelected;
+  }, [someCandidatesSelected, allCandidatesSelected]);
 
   const loadRecommendQueue = useCallback(async (jid: string) => {
     try {
@@ -167,6 +191,10 @@ function RecruitmentPageContent() {
 
   useEffect(() => {
     setRecommendSelected(new Set());
+  }, [selectedId]);
+
+  useEffect(() => {
+    setCandidateRemoveSelected(new Set());
   }, [selectedId]);
 
   useEffect(() => {
@@ -312,8 +340,56 @@ function RecruitmentPageContent() {
           jd.id !== selectedId ? jd : { ...jd, candidates: jd.candidates.filter((c) => c.id !== cid) },
         ),
       );
+      setCandidateRemoveSelected((prev) => {
+        const n = new Set(prev);
+        n.delete(cid);
+        return n;
+      });
     } catch (e: unknown) {
       setErr(e instanceof APIError ? e.message : '删除失败');
+    }
+  };
+
+  const toggleCandidateRowSelect = (cid: string) => {
+    setCandidateRemoveSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(cid)) n.delete(cid);
+      else n.add(cid);
+      return n;
+    });
+  };
+
+  const toggleSelectAllCandidates = () => {
+    if (!selected?.candidates.length) return;
+    if (allCandidatesSelected) {
+      setCandidateRemoveSelected(new Set());
+    } else {
+      setCandidateRemoveSelected(new Set(candidateIdsOnPage));
+    }
+  };
+
+  const bulkDeleteCandidates = async () => {
+    if (!selectedId || candidateRemoveSelected.size === 0) return;
+    const n = candidateRemoveSelected.size;
+    if (!confirm(`确定从该 JD 移除选中的 ${n} 名候选人？`)) return;
+    const ids = [...candidateRemoveSelected];
+    setErr(null);
+    try {
+      for (const cid of ids) {
+        await api.recruitment.deleteCandidate(selectedId, cid);
+      }
+      const removeSet = new Set(ids);
+      setItems((prev) =>
+        prev.map((jd) =>
+          jd.id !== selectedId
+            ? jd
+            : { ...jd, candidates: jd.candidates.filter((c) => !removeSet.has(c.id)) },
+        ),
+      );
+      setCandidateRemoveSelected(new Set());
+    } catch (e: unknown) {
+      setErr(e instanceof APIError ? e.message : '批量移除失败');
+      void loadAll();
     }
   };
 
@@ -686,7 +762,22 @@ function RecruitmentPageContent() {
                 </section>
 
                 <section className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6">
-                  <h2 className="text-lg font-semibold text-white mb-4">候选人</h2>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h2 className="text-lg font-semibold text-white">候选人</h2>
+                    {selected.candidates.length > 0 ? (
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <button
+                          type="button"
+                          disabled={candidateRemoveSelected.size === 0}
+                          onClick={() => void bulkDeleteCandidates()}
+                          className="rounded-lg border border-red-500/40 text-red-300 hover:bg-red-500/10 disabled:opacity-40 disabled:pointer-events-none px-3 py-1.5 text-xs font-medium"
+                        >
+                          移除所选
+                          {candidateRemoveSelected.size > 0 ? `（${candidateRemoveSelected.size}）` : ''}
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="flex flex-wrap gap-2 mb-4">
                     <input
                       value={newGh}
@@ -706,6 +797,17 @@ function RecruitmentPageContent() {
                     <table className="w-full text-left text-sm border-collapse">
                       <thead>
                         <tr className="text-xs text-slate-500 border-b border-white/10">
+                          <th className="w-10 py-2 pr-1 align-middle">
+                            <input
+                              ref={candidateSelectAllRef}
+                              type="checkbox"
+                              className="rounded border-white/30 bg-black/40"
+                              checked={allCandidatesSelected}
+                              onChange={toggleSelectAllCandidates}
+                              disabled={selected.candidates.length === 0}
+                              aria-label="全选候选人"
+                            />
+                          </th>
                           <th className="py-2 pr-3">GitHub</th>
                           <th className="py-2 pr-3 min-w-[11rem]">联系方式</th>
                           <th className="py-2 pr-3">状态</th>
@@ -716,6 +818,15 @@ function RecruitmentPageContent() {
                       <tbody>
                         {selected.candidates.map((c) => (
                           <tr key={c.id} className="border-b border-white/[0.06] align-top">
+                            <td className="py-2 pr-1 align-top">
+                              <input
+                                type="checkbox"
+                                className="mt-1 rounded border-white/30 bg-black/40"
+                                checked={candidateRemoveSelected.has(c.id)}
+                                onChange={() => toggleCandidateRowSelect(c.id)}
+                                aria-label={`选择 ${c.githubUsername}`}
+                              />
+                            </td>
                             <td className="py-2 pr-3">
                               <Link
                                 href={`/codernet/github/${encodeURIComponent(c.githubUsername)}`}
