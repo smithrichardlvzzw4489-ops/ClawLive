@@ -3,6 +3,76 @@ import type { TokenFeature } from './token-tracker';
 
 const FEATURE: TokenFeature = 'recruitment_outreach_email';
 
+/** 与前端「Gmail 单标签打开」href 上限一致；超出则用户依赖剪贴板分层，生成阶段尽量一次塞满 */
+const GMAIL_COMPOSE_HREF_MAX_LEN = 1950;
+
+/** 提示词软上限（模型可能略超，解析后按 Gmail 链接长度做二进制截断） */
+const PROMPT_SUBJECT_MAX_CHARS = 80;
+const PROMPT_BODY_MAX_CHARS = 1800;
+
+const GMAIL_COMPOSE_PREFIX = 'https://mail.google.com/mail/u/0/?';
+
+function gmailComposeHrefLength(to: string, subject: string, body: string): number {
+  const p = new URLSearchParams();
+  p.set('view', 'cm');
+  p.set('fs', '1');
+  p.set('to', to);
+  p.set('su', subject);
+  p.set('body', body);
+  return GMAIL_COMPOSE_PREFIX.length + p.toString().length;
+}
+
+/**
+ * 按真实收件人邮箱估算 Gmail 撰写链接长度，截断主题/正文，使「在 Gmail 中打开」能一次带上主题+正文。
+ * 若模型忽略字数提示产生超长主题，先压缩主题再压缩正文。
+ */
+function fitSmartEmailToGmailHref(
+  candidateEmail: string | null | undefined,
+  subject: string,
+  body: string,
+): { subject: string; body: string } {
+  const to = (candidateEmail && candidateEmail.trim()) || 'user@email.invalid';
+  const origS = subject.trim();
+  const origB = body.trim();
+  let s = origS;
+  let b = origB;
+
+  if (gmailComposeHrefLength(to, s, b) <= GMAIL_COMPOSE_HREF_MAX_LEN) {
+    return { subject: s, body: b };
+  }
+
+  let guard = 0;
+  while (s.length > 4 && gmailComposeHrefLength(to, s, '') > GMAIL_COMPOSE_HREF_MAX_LEN && guard++ < 48) {
+    s = `${s.slice(0, Math.max(4, Math.floor(s.length * 0.88))).trimEnd()}…`;
+  }
+
+  let lo = 0;
+  let hi = origB.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi + 1) / 2);
+    const tryB = origB.slice(0, mid);
+    if (gmailComposeHrefLength(to, s, tryB) <= GMAIL_COMPOSE_HREF_MAX_LEN) lo = mid;
+    else hi = mid - 1;
+  }
+  b = lo < origB.length ? `${origB.slice(0, lo).trimEnd()}${lo < origB.length ? '…' : ''}` : origB;
+
+  if (gmailComposeHrefLength(to, s, b) <= GMAIL_COMPOSE_HREF_MAX_LEN) {
+    return { subject: s, body: b };
+  }
+
+  guard = 0;
+  while (s.length > 4 && gmailComposeHrefLength(to, s, b) > GMAIL_COMPOSE_HREF_MAX_LEN && guard++ < 48) {
+    s = `${s.slice(0, Math.max(4, Math.floor(s.length * 0.88))).trimEnd()}…`;
+  }
+
+  guard = 0;
+  while (b.length > 20 && gmailComposeHrefLength(to, s, b) > GMAIL_COMPOSE_HREF_MAX_LEN && guard++ < 120) {
+    b = `${b.slice(0, Math.max(20, Math.floor(b.length * 0.92))).trimEnd()}…`;
+  }
+
+  return { subject: s.trim(), body: b.trim() };
+}
+
 function stripJsonFence(raw: string): string {
   const t = raw.trim();
   const m = t.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -48,6 +118,7 @@ GitHub：@${params.candidateGithub}
 ${params.recruiterContactEmail ? `建议使用署名与回复邮箱：${params.recruiterContactEmail}（请在邮件末尾签名中体现，并说明候选人可回复至此邮箱）` : '（用户尚未在「我的」填写招聘沟通邮箱；正文可写公司或团队邮箱，或邀请候选人回复讨论）'}
 
 请写一封简短、专业、真诚的中文 cold outreach 邮件（技术招聘场景）。
+硬性字数（超出会导致无法保存）：主题不超过 ${PROMPT_SUBJECT_MAX_CHARS} 个字符；正文不超过 ${PROMPT_BODY_MAX_CHARS} 个字符（含换行与标点）。宁可略短，不要超长。
 只输出一个 JSON 对象，不要其它文字。格式严格为：
 {"subject":"邮件主题一行","body":"邮件正文，换行用 \\n 表示"}
 body 内不要使用 markdown 标题符号。`;
@@ -59,12 +130,13 @@ body 内不要使用 markdown 标题符号。`;
         {
           role: 'system',
           content:
-            '你是资深技术招聘顾问，帮助 HR 给开发者写首封沟通邮件。若已提供招聘方联系邮箱，请在正文末自然附上签名与回复方式。只输出合法 JSON 对象，键为 subject 与 body，字符串内使用 \\n 表示换行。',
+            `你是资深技术招聘顾问，帮助 HR 给开发者写首封沟通邮件。主题≤${PROMPT_SUBJECT_MAX_CHARS}字、正文≤${PROMPT_BODY_MAX_CHARS}字（硬性上限）。若已提供招聘方联系邮箱，请在正文末自然附上签名与回复方式。只输出合法 JSON 对象，键为 subject 与 body，字符串内使用 \\n 表示换行。`,
         },
         { role: 'user', content: user },
       ],
       temperature: 0.55,
-      max_tokens: 2500,
+      /** 中文长正文需足够 completion；过高会增加费用，与 PROMPT_BODY_MAX 匹配 */
+      max_tokens: 3200,
     },
     FEATURE,
     {
@@ -99,5 +171,6 @@ body 内不要使用 markdown 标题符号。`;
     throw new Error('模型未生成完整的主题或正文');
   }
 
-  return { subject, body };
+  const fitted = fitSmartEmailToGmailHref(params.candidateEmail, subject, body);
+  return { subject: fitted.subject, body: fitted.body };
 }
