@@ -50,6 +50,8 @@ type RecommendHit = {
   stats: { totalPublicRepos: number; totalStars: number; followers: number };
   location: string | null;
   source?: string;
+  /** ISO 8601，服务端写入待查看池时间 */
+  addedAt?: string;
 };
 
 function RecruitmentPageContent() {
@@ -93,6 +95,7 @@ function RecruitmentPageContent() {
               },
               location: typeof o.location === 'string' ? o.location : null,
               source: typeof o.source === 'string' ? o.source : undefined,
+              addedAt: typeof o.addedAt === 'string' ? o.addedAt : undefined,
             }))
             .filter((h) => h.githubUsername)
         : [];
@@ -434,6 +437,7 @@ function RecruitmentPageContent() {
                             <span className="font-mono text-white">@{h.githubUsername}</span>
                             <span className="text-amber-200/80 text-[10px] ml-2">
                               {h.source === 'daily' ? '每日' : h.source === 'weekly' ? '周更' : '推荐'}
+                              {h.addedAt ? ` · ${new Date(h.addedAt).toLocaleDateString('zh-CN')}` : ''}
                             </span>
                             <p className="text-[11px] text-slate-500 line-clamp-1">{h.reason}</p>
                           </div>

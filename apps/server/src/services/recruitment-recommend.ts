@@ -44,6 +44,8 @@ export type RecruitmentRecommendHit = {
   stats: { totalPublicRepos: number; totalStars: number; followers: number };
   location: string | null;
   source?: 'sync' | 'weekly' | 'daily';
+  /** ISO 8601：进入「待查看池」的时间（用于前端展示） */
+  addedAt?: string;
 };
 
 export function buildCombinedQueryFromJd(jd: {
@@ -113,6 +115,7 @@ export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit
           : { totalPublicRepos: 0, totalStars: 0, followers: 0 },
       location: typeof o.location === 'string' ? o.location : null,
       source,
+      addedAt: typeof o.addedAt === 'string' ? o.addedAt : undefined,
     });
   }
   return out;
@@ -407,8 +410,9 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
     }
 
     const take = RECRUIT_INITIAL_PENDING_TAKE();
-    const pending = allHits.slice(0, take);
-    const backlog = allHits.slice(take);
+    const bootstrapStamp = new Date().toISOString();
+    const pending = allHits.slice(0, take).map((h) => ({ ...h, addedAt: bootstrapStamp }));
+    const backlog = allHits.slice(take).map((h) => ({ ...h, addedAt: bootstrapStamp }));
 
     await appendRecruitmentBootstrapTrace(jobPostingId, {
       phase: 'persisting',
@@ -526,7 +530,7 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
           }
           if (moved.length < n) {
             excludePick.add(login);
-            moved.push({ ...h, source: 'daily' });
+            moved.push({ ...h, source: 'daily', addedAt: new Date().toISOString() });
           } else {
             rest.push(h);
           }
