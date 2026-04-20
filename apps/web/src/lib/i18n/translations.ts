@@ -102,8 +102,7 @@ export const translations = {
     },
 
     messagesInbox: {
-      developerIntro:
-        '求职者模式下：这里用来接收招聘方发来的职位沟通、跟进与面试说明，以及平台或职位相关的系统提醒。你也可以从用户公开主页向对方发起站内信。',
+      developerIntro: '接收招聘方发来的职位沟通、跟进与面试说明，以及平台或职位相关的系统提醒。',
     },
 
     evolutionNetwork: {
@@ -986,7 +985,7 @@ export const translations = {
 
     messagesInbox: {
       developerIntro:
-        'As a job seeker, this inbox is where you get messages from employers (role discussions, follow-ups, interview notes) plus platform or job-related notices. You can also start a message to another user from their public profile.',
+        'Receive messages from employers about roles, follow-ups, and interviews, plus platform or job-related notices.',
     },
 
     evolutionNetwork: {
