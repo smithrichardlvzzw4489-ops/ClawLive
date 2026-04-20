@@ -7,10 +7,12 @@ import { CodernetCardPageClient } from '@/components/codernet/CodernetCardPageCl
 import { PersonalResumeSection } from '@/components/my/PersonalResumeSection';
 import { RecruiterOutboundEmailSection } from '@/components/my/RecruiterOutboundEmailSection';
 import { API_BASE_URL } from '@/lib/api';
+import { usePrimaryPersona } from '@/contexts/PrimaryPersonaContext';
 
 /** 「我的」开发者名片：上方为自行维护的个人简历，下方为 GITLINK 技术画像（与公开 /codernet/card/:user 同源）。 */
 export default function MyProfilePage() {
   const router = useRouter();
+  const { persona, personaReady } = usePrimaryPersona();
   const [username, setUsername] = useState<string | null>(null);
   const [personalResume, setPersonalResume] = useState<string | null>(null);
   const [recruiterOutboundEmail, setRecruiterOutboundEmail] = useState<string | null>(null);
@@ -62,11 +64,13 @@ export default function MyProfilePage() {
             initialText={personalResume ?? ''}
             onSaved={handleResumeSaved}
           />
-          <RecruiterOutboundEmailSection
-            initialEmail={recruiterOutboundEmail}
-            onSaved={(e) => setRecruiterOutboundEmail(e)}
-            variant="dark"
-          />
+          {personaReady && persona === 'recruiter' ? (
+            <RecruiterOutboundEmailSection
+              initialEmail={recruiterOutboundEmail}
+              onSaved={(e) => setRecruiterOutboundEmail(e)}
+              variant="dark"
+            />
+          ) : null}
         </div>
       </div>
       <CodernetCardPageClient

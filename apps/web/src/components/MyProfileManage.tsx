@@ -8,6 +8,7 @@ import { useLocale } from '@/lib/i18n/LocaleContext';
 import { API_BASE_URL, APIError, api, resolveMediaUrl } from '@/lib/api';
 import { RecruiterOutboundEmailSection } from '@/components/my/RecruiterOutboundEmailSection';
 import { SHOW_LIVE_FEATURES } from '@/lib/feature-flags';
+import { usePrimaryPersona } from '@/contexts/PrimaryPersonaContext';
 
 interface MeUser {
   id: string;
@@ -34,6 +35,7 @@ interface WorksStats {
 export function MyProfileManage() {
   const router = useRouter();
   const { t } = useLocale();
+  const { persona, personaReady } = usePrimaryPersona();
   const [user, setUser] = useState<MeUser | null>(null);
   const [hostMetrics, setHostMetrics] = useState<HostMetrics | null>(null);
   const [worksStats, setWorksStats] = useState<WorksStats | null>(null);
@@ -225,7 +227,7 @@ export function MyProfileManage() {
                     className="mt-1 w-full max-w-xl resize-y rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-lobster/40 focus:ring-2 focus:ring-lobster/15"
                   />
                 </div>
-                {user ? (
+                {user && personaReady && persona === 'recruiter' ? (
                   <RecruiterOutboundEmailSection
                     initialEmail={user.recruiterOutboundEmail ?? null}
                     onSaved={(email) => setUser((prev) => (prev ? { ...prev, recruiterOutboundEmail: email } : prev))}
