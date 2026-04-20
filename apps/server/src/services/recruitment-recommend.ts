@@ -87,6 +87,27 @@ export function mapDeveloperToRecommendHit(
   };
 }
 
+/** 单 JD 最多持久化多少条「忽略」记录（防止 JSON 无限增长） */
+export const RECOMMEND_IGNORED_STORAGE_MAX = 3000;
+
+/** 招聘方忽略的 GitHub login（小写），用于检索与入池去重 */
+export function parseRecommendIgnoredGithubUsernames(raw: unknown): Set<string> {
+  if (!Array.isArray(raw)) return new Set();
+  const s = new Set<string>();
+  for (const x of raw) {
+    if (typeof x !== 'string') continue;
+    const u = x.trim().replace(/^@/, '').toLowerCase();
+    if (u) s.add(u);
+  }
+  return s;
+}
+
+export function capIgnoredUsernamesArray(ignored: Set<string>): string[] {
+  const arr = [...ignored];
+  if (arr.length <= RECOMMEND_IGNORED_STORAGE_MAX) return arr;
+  return arr.slice(arr.length - RECOMMEND_IGNORED_STORAGE_MAX);
+}
+
 export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit[] {
   if (!Array.isArray(raw)) return [];
   const out: RecruitmentRecommendHit[] = [];
@@ -121,10 +142,11 @@ export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit
   return out;
 }
 
-/** 已在候选人表或待查看池中的 GitHub login（从 backlog 取数时不应再排除 backlog 自身） */
+/** 已在候选人表或待查看池中的 GitHub login（从 backlog 取数时不应再排除 backlog 自身）；含招聘方忽略的 login */
 function excludeCandidatesAndPending(
   candidates: JobPostingCandidate[],
   pendingHits: RecruitmentRecommendHit[],
+  ignoredUsernames?: Set<string>,
 ): Set<string> {
   const s = new Set<string>();
   for (const c of candidates) {
@@ -132,6 +154,11 @@ function excludeCandidatesAndPending(
   }
   for (const h of pendingHits) {
     s.add(h.githubUsername.trim().toLowerCase());
+  }
+  if (ignoredUsernames) {
+    for (const u of ignoredUsernames) {
+      s.add(u);
+    }
   }
   return s;
 }
@@ -141,8 +168,9 @@ function excludeCandidatesPendingAndBacklog(
   candidates: JobPostingCandidate[],
   pendingHits: RecruitmentRecommendHit[],
   backlogHits: RecruitmentRecommendHit[],
+  ignoredUsernames?: Set<string>,
 ): Set<string> {
-  const s = excludeCandidatesAndPending(candidates, pendingHits);
+  const s = excludeCandidatesAndPending(candidates, pendingHits, ignoredUsernames);
   for (const h of backlogHits) {
     s.add(h.githubUsername.trim().toLowerCase());
   }
@@ -399,7 +427,12 @@ export async function kickoffRecruitmentRecommendAfterJdCreate(jobPostingId: str
       elapsedMs: Date.now() - t0,
     });
 
-    const exclude = excludeCandidatesAndPending(jd.candidates, parsePendingRecommendHits(jd.pendingRecommendHits));
+    const ignored = parseRecommendIgnoredGithubUsernames(jd.recommendIgnoredGithubUsernames);
+    const exclude = excludeCandidatesAndPending(
+      jd.candidates,
+      parsePendingRecommendHits(jd.pendingRecommendHits),
+      ignored,
+    );
 
     const allHits: RecruitmentRecommendHit[] = [];
     for (const r of pack.results) {
@@ -517,8 +550,13 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
   for (const jd of rows) {
     const authorId = jd.authorId;
     try {
-      let pending = parsePendingRecommendHits(jd.pendingRecommendHits);
-      let backlog = parsePendingRecommendHits(jd.recommendBacklogHits);
+      const ignored = parseRecommendIgnoredGithubUsernames(jd.recommendIgnoredGithubUsernames);
+      let pending = parsePendingRecommendHits(jd.pendingRecommendHits).filter(
+        (h) => !ignored.has(h.githubUsername.trim().toLowerCase()),
+      );
+      let backlog = parsePendingRecommendHits(jd.recommendBacklogHits).filter(
+        (h) => !ignored.has(h.githubUsername.trim().toLowerCase()),
+      );
 
       const pickFromBacklog = (n: number, excludePick: Set<string>): { moved: RecruitmentRecommendHit[]; backlog: RecruitmentRecommendHit[] } => {
         const moved: RecruitmentRecommendHit[] = [];
@@ -538,7 +576,7 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
         return { moved, backlog: rest };
       };
 
-      let excludePick = excludeCandidatesAndPending(jd.candidates, pending);
+      let excludePick = excludeCandidatesAndPending(jd.candidates, pending, ignored);
       let { moved: fresh, backlog: backlogAfterPick } = pickFromBacklog(dailyAdd, excludePick);
       backlog = backlogAfterPick;
 
@@ -551,7 +589,7 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
           continue;
         }
 
-        const excludeSearch = excludeCandidatesPendingAndBacklog(jd.candidates, pending, backlog);
+        const excludeSearch = excludeCandidatesPendingAndBacklog(jd.candidates, pending, backlog, ignored);
         for (const h of fresh) {
           excludeSearch.add(h.githubUsername.trim().toLowerCase());
         }
@@ -594,7 +632,7 @@ export async function runRecruitmentDailyRecommendJobs(): Promise<void> {
         backlog = [...backlog, ...newBacklogPieces];
 
         const pendingPlusFresh = [...pending, ...fresh];
-        excludePick = excludeCandidatesAndPending(jd.candidates, pendingPlusFresh);
+        excludePick = excludeCandidatesAndPending(jd.candidates, pendingPlusFresh, ignored);
         const second = pickFromBacklog(dailyAdd - fresh.length, excludePick);
         fresh = [...fresh, ...second.moved];
         backlog = second.backlog;

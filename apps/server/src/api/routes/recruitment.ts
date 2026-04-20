@@ -16,6 +16,8 @@ import {
   isRecruitmentBootstrapBlocking,
   mapDeveloperToRecommendHit,
   parsePendingRecommendHits,
+  parseRecommendIgnoredGithubUsernames,
+  capIgnoredUsernamesArray,
   RECRUIT_FIRST_RECOMMEND_QUOTA_COST,
   RECRUIT_MANUAL_RECOMMEND_QUOTA_COST,
 } from "../../services/recruitment-recommend";
@@ -557,7 +559,10 @@ export function recruitmentRoutes(): Router {
         res.status(404).json({ error: "未找到 JD" });
         return;
       }
-      const pending = parsePendingRecommendHits(jd.pendingRecommendHits);
+      const ignored = parseRecommendIgnoredGithubUsernames(jd.recommendIgnoredGithubUsernames);
+      const pending = parsePendingRecommendHits(jd.pendingRecommendHits).filter(
+        (h) => !ignored.has(h.githubUsername.trim().toLowerCase()),
+      );
       const backlog = parsePendingRecommendHits(jd.recommendBacklogHits);
       const bootstrapDiag = diagnoseRecruitmentBootstrapQueue({
         firstRecommendAt: jd.firstRecommendAt ?? null,
@@ -591,6 +596,45 @@ export function recruitmentRoutes(): Router {
       });
       console.error("[recruitment] recommend-queue", e);
       res.status(500).json({ error: "加载失败" });
+    }
+  });
+
+  /** 忽略推荐：从待查看池与 backlog 移除该用户，并记入本 JD 排除名单，后续检索与入池不再出现 */
+  router.post("/jds/:id/recommend-ignore", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const jobPostingId = req.params.id;
+      const githubUsername = normGh(typeof req.body?.githubUsername === "string" ? req.body.githubUsername : "");
+      if (!githubUsername) {
+        res.status(400).json({ error: "请填写 GitHub 用户名" });
+        return;
+      }
+      const jd = await prisma.jobPosting.findFirst({ where: { id: jobPostingId, authorId: userId } });
+      if (!jd) {
+        res.status(404).json({ error: "未找到 JD" });
+        return;
+      }
+      const pending = parsePendingRecommendHits(jd.pendingRecommendHits).filter(
+        (h) => h.githubUsername.trim().toLowerCase() !== githubUsername,
+      );
+      const backlog = parsePendingRecommendHits(jd.recommendBacklogHits).filter(
+        (h) => h.githubUsername.trim().toLowerCase() !== githubUsername,
+      );
+      const nextIgnored = new Set(parseRecommendIgnoredGithubUsernames(jd.recommendIgnoredGithubUsernames));
+      nextIgnored.add(githubUsername);
+
+      await prisma.jobPosting.update({
+        where: { id: jobPostingId },
+        data: {
+          pendingRecommendHits: pending as object[],
+          recommendBacklogHits: backlog as object[],
+          recommendIgnoredGithubUsernames: capIgnoredUsernamesArray(nextIgnored),
+        },
+      });
+      res.json({ ok: true });
+    } catch (e) {
+      console.error("[recruitment] recommend-ignore", e);
+      res.status(500).json({ error: "操作失败" });
     }
   });
 

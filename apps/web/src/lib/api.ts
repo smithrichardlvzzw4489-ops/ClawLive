@@ -955,6 +955,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body ?? {}),
       }),
+    recommendIgnore: (jdId: string, body: { githubUsername: string }) =>
+      fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/recommend-ignore`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }) as Promise<{ ok?: boolean }>,
     recommendQueue: (jdId: string) =>
       fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/recommend-queue`) as Promise<{
         pending?: unknown[];

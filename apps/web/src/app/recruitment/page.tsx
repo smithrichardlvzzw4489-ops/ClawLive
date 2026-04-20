@@ -334,6 +334,22 @@ function RecruitmentPageContent() {
     }
   };
 
+  const ignoreFromRecommend = async (gh: string) => {
+    if (!selectedId) return;
+    setErr(null);
+    try {
+      await api.recruitment.recommendIgnore(selectedId, { githubUsername: gh });
+      setRecommendSelected((prev) => {
+        const n = new Set(prev);
+        n.delete(gh);
+        return n;
+      });
+      void loadRecommendQueue(selectedId);
+    } catch (e: unknown) {
+      setErr(e instanceof APIError ? e.message : '忽略失败');
+    }
+  };
+
   const toggleRecommendSelect = (gh: string) => {
     setRecommendSelected((prev) => {
       const n = new Set(prev);
@@ -587,6 +603,14 @@ function RecruitmentPageContent() {
                               className="text-xs rounded bg-white/10 hover:bg-white/15 disabled:opacity-40 px-2 py-1"
                             >
                               加入候选人
+                            </button>
+                            <button
+                              type="button"
+                              disabled={bulkAdding}
+                              onClick={() => void ignoreFromRecommend(h.githubUsername)}
+                              className="text-xs rounded border border-white/15 text-slate-400 hover:bg-white/10 hover:text-slate-200 disabled:opacity-40 px-2 py-1"
+                            >
+                              忽略
                             </button>
                           </div>
                         </li>

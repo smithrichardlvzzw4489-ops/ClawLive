@@ -578,6 +578,8 @@ model JobPosting {
   pendingRecommendHits Json @default("[]")
   /// 已检索尚未进入待查看池的候选人（结构同 pendingRecommendHits）
   recommendBacklogHits Json @default("[]")
+  /// 招聘方点击「忽略」的 GitHub 用户名（小写），后续检索与入池均不再推荐该人
+  recommendIgnoredGithubUsernames Json @default("[]")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
