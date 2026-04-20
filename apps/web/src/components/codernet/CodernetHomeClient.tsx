@@ -247,16 +247,9 @@ export function CodernetHomeClient() {
           }`}
         >
         <div className="text-center max-w-2xl w-full mx-auto">
-          <h1 className="mb-4 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-snug text-balance text-white">
+          <h1 className="mb-8 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-snug text-balance text-white">
             {t('codernetHome.titleRecruiter')}
           </h1>
-
-          <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8 text-balance">
-            <span>30 秒 × 1.8 亿开发者画像 = </span>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400 font-semibold">
-              招聘无忧
-            </span>
-          </p>
 
           {/* Tab Switcher：GitHub 画像 · LINK · MATH */}
           <div className="grid grid-cols-3 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-xl mx-auto w-full">
