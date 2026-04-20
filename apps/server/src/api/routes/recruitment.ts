@@ -22,7 +22,7 @@ import {
   RECRUIT_MANUAL_RECOMMEND_QUOTA_COST,
 } from "../../services/recruitment-recommend";
 import { generateRecruitmentOutreachEmail } from "../../services/recruitment-outreach-email";
-import { extractContactInfo } from "../../services/codernet-outreach";
+import { extractContactInfo, sendOutreachHtmlToDeveloper } from "../../services/codernet-outreach";
 
 const MAX_TITLE = 200;
 const MAX_BODY = 50_000;
@@ -101,6 +101,16 @@ function parseSystemRecommendedAtFromBody(body: unknown): Date | null {
   if (typeof raw !== "string") return null;
   const d = new Date(raw.trim());
   return Number.isFinite(d.getTime()) ? d : null;
+}
+
+function looksLikeEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+}
+
+function publicAppBaseUrl(): string {
+  return (process.env.SERVER_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || "https://clawlab.live")
+    .trim()
+    .replace(/\/$/, "");
 }
 
 function serializeCandidate(row: {
@@ -692,6 +702,108 @@ export function recruitmentRoutes(): Router {
       }
       console.error("[recruitment] smart-email", e);
       res.status(500).json({ error: msg.length > 200 ? `${msg.slice(0, 200)}…` : msg || "生成失败" });
+    }
+  });
+
+  /**
+   * 发送当前弹窗中的主题与正文（由客户端传入，与 LLM 生成结果一致）。
+   * 使用 Resend/SMTP；发件人须为已验证域名（RECRUITMENT_SMART_EMAIL_FROM），Reply-To 为招聘方联系邮箱。
+   */
+  router.post("/jds/:id/candidates/:cid/smart-email/send", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      const userId = req.user!.id;
+      const { id: jobPostingId, cid } = req.params;
+      const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+      const bodyText = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+      if (!subject || !bodyText) {
+        res.status(400).json({ error: "请提供 subject 与 body" });
+        return;
+      }
+      if (subject.length > 900) {
+        res.status(400).json({ error: "主题过长" });
+        return;
+      }
+      if (bodyText.length > 48_000) {
+        res.status(400).json({ error: "正文过长" });
+        return;
+      }
+
+      const hasProvider = !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
+      if (!hasProvider) {
+        res.status(503).json({
+          error: "服务端未配置邮件发送（如 RESEND_API_KEY），请使用「用邮件客户端打开」",
+          code: "NO_EMAIL_PROVIDER",
+        });
+        return;
+      }
+
+      const fromAddr = (process.env.RECRUITMENT_SMART_EMAIL_FROM || "").trim();
+      if (!fromAddr) {
+        res.status(503).json({
+          error:
+            "请配置环境变量 RECRUITMENT_SMART_EMAIL_FROM（在 Resend 已验证的发件地址），或改用邮件客户端发送",
+          code: "NO_SMART_EMAIL_FROM",
+        });
+        return;
+      }
+
+      const jd = await prisma.jobPosting.findFirst({
+        where: { id: jobPostingId, authorId: userId },
+      });
+      if (!jd) {
+        res.status(404).json({ error: "未找到 JD" });
+        return;
+      }
+      const cand = await prisma.jobPostingCandidate.findFirst({
+        where: { id: cid, jobPostingId },
+      });
+      if (!cand) {
+        res.status(404).json({ error: "未找到候选人" });
+        return;
+      }
+      const toAddr = cand.email && String(cand.email).trim();
+      if (!toAddr || !looksLikeEmail(toAddr)) {
+        res.status(400).json({ error: "候选人联系方式中无有效邮箱，无法发送" });
+        return;
+      }
+
+      const author = await prisma.user.findUnique({
+        where: { id: jd.authorId },
+        select: { email: true, recruiterOutboundEmail: true, username: true },
+      });
+      const replyTo =
+        (author?.recruiterOutboundEmail && String(author.recruiterOutboundEmail).trim()) ||
+        (author?.email && String(author.email).trim()) ||
+        null;
+      if (!replyTo || !looksLikeEmail(replyTo)) {
+        res.status(400).json({
+          error: "请先在资料中填写招聘沟通邮箱或绑定账号邮箱，以便候选人回复",
+        });
+        return;
+      }
+
+      const profileUrl = `${publicAppBaseUrl()}/codernet/github/${encodeURIComponent(cand.githubUsername)}`;
+      const fromName = author?.username ? `${author.username} · GITLINK` : "GITLINK";
+
+      const result = await sendOutreachHtmlToDeveloper(
+        toAddr,
+        subject,
+        bodyText,
+        profileUrl,
+        fromAddr,
+        fromName,
+        { replyTo },
+      );
+
+      if (!result.success) {
+        res.status(502).json({ error: result.error || "发送失败" });
+        return;
+      }
+      res.json({ ok: true, messageId: result.messageId ?? null });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[recruitment] smart-email send", e);
+      res.status(500).json({ error: msg.length > 200 ? `${msg.slice(0, 200)}…` : msg || "发送失败" });
     }
   });
 

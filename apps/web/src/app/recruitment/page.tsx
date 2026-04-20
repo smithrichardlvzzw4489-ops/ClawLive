@@ -80,6 +80,10 @@ function formatSystemRecommendedAt(iso: string | null | undefined): string {
   return d.toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+function looksLikeEmail(s: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+}
+
 function RecruitmentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -105,6 +109,9 @@ function RecruitmentPageContent() {
   const [smartEmailLoading, setSmartEmailLoading] = useState(false);
   const [smartEmailResult, setSmartEmailResult] = useState<{ subject: string; body: string } | null>(null);
   const [smartEmailErr, setSmartEmailErr] = useState<string | null>(null);
+  const [smartEmailSending, setSmartEmailSending] = useState(false);
+  const [smartEmailSendErr, setSmartEmailSendErr] = useState<string | null>(null);
+  const [smartEmailSendOk, setSmartEmailSendOk] = useState(false);
   /** 编辑 JD：职位描述长文折叠 */
   const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
   /** 候选人表格：待批量移除的 id */
@@ -113,6 +120,13 @@ function RecruitmentPageContent() {
   /** 当前 JD 是否已尝试过自动拉取 GitHub 邮箱（避免重复请求） */
   const candidateEmailsResolvedJdRef = useRef<string | null>(null);
   const [recruiterOutboundEmail, setRecruiterOutboundEmail] = useState<string | null>(null);
+
+  const recruiterContactEmail = useMemo(() => {
+    if (!user) return null;
+    const o = user.recruiterOutboundEmail && String(user.recruiterOutboundEmail).trim();
+    const e = user.email && String(user.email).trim();
+    return o || e || null;
+  }, [user]);
 
   const selected = useMemo(() => items.find((x) => x.id === selectedId) ?? null, [items, selectedId]);
 
@@ -561,6 +575,8 @@ function RecruitmentPageContent() {
       if (!selectedId) return;
       setSmartEmailLoading(true);
       setSmartEmailErr(null);
+      setSmartEmailSendErr(null);
+      setSmartEmailSendOk(false);
       setSmartEmailResult(null);
       try {
         const data = (await api.recruitment.smartEmail(selectedId, c.id)) as {
@@ -585,11 +601,55 @@ function RecruitmentPageContent() {
     (c: CandidateRow) => {
       setSmartEmailCandidate(c);
       setSmartEmailErr(null);
+      setSmartEmailSendErr(null);
+      setSmartEmailSendOk(false);
       setSmartEmailResult(null);
       void loadSmartEmail(c);
     },
     [loadSmartEmail],
   );
+
+  const smartEmailCanSend = useMemo(() => {
+    if (!smartEmailResult || !smartEmailCandidate) return false;
+    const to = smartEmailCandidate.email?.trim() || '';
+    const rt = recruiterContactEmail || '';
+    return !!(to && looksLikeEmail(to) && rt && looksLikeEmail(rt));
+  }, [smartEmailResult, smartEmailCandidate, recruiterContactEmail]);
+
+  const handleMailtoSmartEmail = useCallback(() => {
+    if (!smartEmailResult || !smartEmailCandidate?.email?.trim()) return;
+    const to = smartEmailCandidate.email.trim();
+    const { subject, body } = smartEmailResult;
+    const q = new URLSearchParams();
+    q.set('subject', subject);
+    q.set('body', body);
+    let href = `mailto:${encodeURIComponent(to)}?${q.toString()}`;
+    if (href.length > 1950) {
+      void navigator.clipboard.writeText(body);
+      q.set('body', '（完整正文较长，已复制到剪贴板，请将光标放入正文区域后粘贴 Ctrl+V / ⌘V。）');
+      href = `mailto:${encodeURIComponent(to)}?${q.toString()}`;
+    }
+    window.location.href = href;
+  }, [smartEmailResult, smartEmailCandidate]);
+
+  const handleSendSmartEmailServer = useCallback(async () => {
+    if (!selectedId || !smartEmailCandidate || !smartEmailResult || !smartEmailCanSend) return;
+    setSmartEmailSending(true);
+    setSmartEmailSendErr(null);
+    setSmartEmailSendOk(false);
+    try {
+      await api.recruitment.sendSmartEmail(selectedId, smartEmailCandidate.id, {
+        subject: smartEmailResult.subject,
+        body: smartEmailResult.body,
+      });
+      setSmartEmailSendOk(true);
+    } catch (e: unknown) {
+      setSmartEmailSendOk(false);
+      setSmartEmailSendErr(e instanceof APIError ? e.message : '发送失败');
+    } finally {
+      setSmartEmailSending(false);
+    }
+  }, [selectedId, smartEmailCandidate, smartEmailResult, smartEmailCanSend]);
 
   if (authLoading || loading) {
     return (
@@ -1021,7 +1081,11 @@ function RecruitmentPageContent() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="smart-email-title"
-          onClick={() => setSmartEmailCandidate(null)}
+          onClick={() => {
+            setSmartEmailCandidate(null);
+            setSmartEmailSendErr(null);
+            setSmartEmailSendOk(false);
+          }}
         >
           <div
             className="w-full max-w-2xl max-h-[min(90dvh,720px)] overflow-hidden rounded-2xl border border-white/10 bg-[#0c0f16] shadow-xl flex flex-col"
@@ -1034,7 +1098,11 @@ function RecruitmentPageContent() {
               <button
                 type="button"
                 className="rounded-lg px-2 py-1 text-slate-400 hover:bg-white/10 hover:text-white text-lg leading-none"
-                onClick={() => setSmartEmailCandidate(null)}
+                onClick={() => {
+                  setSmartEmailCandidate(null);
+                  setSmartEmailSendErr(null);
+                  setSmartEmailSendOk(false);
+                }}
                 aria-label="关闭"
               >
                 ×
@@ -1051,6 +1119,24 @@ function RecruitmentPageContent() {
               ) : null}
               {smartEmailResult ? (
                 <>
+                  <div className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-xs text-slate-400 space-y-1.5">
+                    <p>
+                      <span className="text-slate-500">收件人（候选人）</span>{' '}
+                      {smartEmailCandidate.email?.trim() && looksLikeEmail(smartEmailCandidate.email.trim()) ? (
+                        <span className="font-mono text-slate-200">{smartEmailCandidate.email.trim()}</span>
+                      ) : (
+                        <span className="text-amber-400/95">请先在表格「联系方式」中填写或解析有效邮箱</span>
+                      )}
+                    </p>
+                    <p>
+                      <span className="text-slate-500">回复/联系（招聘方）</span>{' '}
+                      {recruiterContactEmail && looksLikeEmail(recruiterContactEmail) ? (
+                        <span className="font-mono text-slate-200">{recruiterContactEmail}</span>
+                      ) : (
+                        <span className="text-amber-400/95">请在资料中填写招聘沟通邮箱或绑定账号邮箱</span>
+                      )}
+                    </p>
+                  </div>
                   <div>
                     <span className="text-[10px] uppercase tracking-wider text-slate-500">主题</span>
                     <input
@@ -1096,6 +1182,28 @@ function RecruitmentPageContent() {
                     </button>
                     <button
                       type="button"
+                      disabled={!smartEmailCanSend}
+                      className="rounded-lg bg-emerald-700/90 hover:bg-emerald-600 disabled:opacity-35 disabled:pointer-events-none px-3 py-1.5 text-xs font-medium text-white"
+                      onClick={() => handleMailtoSmartEmail()}
+                      title={
+                        smartEmailCanSend
+                          ? '使用本机默认邮件客户端撰写并发送'
+                          : '需候选人邮箱与招聘方联系邮箱均有效'
+                      }
+                    >
+                      用邮件客户端打开
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!smartEmailCanSend || smartEmailSending}
+                      className="rounded-lg border border-violet-500/50 bg-violet-950/40 hover:bg-violet-900/50 disabled:opacity-35 disabled:pointer-events-none px-3 py-1.5 text-xs text-violet-100"
+                      onClick={() => void handleSendSmartEmailServer()}
+                      title="需服务端配置 RESEND_API_KEY 与 RECRUITMENT_SMART_EMAIL_FROM"
+                    >
+                      {smartEmailSending ? '发送中…' : '通过服务器发送'}
+                    </button>
+                    <button
+                      type="button"
                       className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
                       onClick={() => smartEmailCandidate && void loadSmartEmail(smartEmailCandidate)}
                       disabled={smartEmailLoading}
@@ -1103,6 +1211,17 @@ function RecruitmentPageContent() {
                       重新生成
                     </button>
                   </div>
+                  {smartEmailSendOk ? (
+                    <p className="text-xs text-emerald-400/95">已通过服务器发送（候选人将收到邮件，回复会到您填写的联系邮箱）。</p>
+                  ) : null}
+                  {smartEmailSendErr ? (
+                    <p className="text-xs text-amber-300/95 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1.5">
+                      {smartEmailSendErr}
+                      {smartEmailSendErr.includes('未配置') || smartEmailSendErr.includes('RECRUITMENT')
+                        ? ' 可改用「用邮件客户端打开」。'
+                        : ''}
+                    </p>
+                  ) : null}
                 </>
               ) : null}
             </div>

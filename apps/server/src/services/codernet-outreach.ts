@@ -375,15 +375,16 @@ async function sendEmail(
   htmlBody: string,
   fromEmail: string,
   fromName: string,
+  opts?: { replyTo?: string | null },
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const provider = getEmailProvider();
 
   if (provider === 'resend') {
-    return sendViaResend(to, subject, htmlBody, fromEmail, fromName);
+    return sendViaResend(to, subject, htmlBody, fromEmail, fromName, opts);
   }
 
   if (provider === 'smtp') {
-    return sendViaSMTP(to, subject, htmlBody, fromEmail, fromName);
+    return sendViaSMTP(to, subject, htmlBody, fromEmail, fromName, opts);
   }
 
   return { success: false, error: 'No email provider configured. Set RESEND_API_KEY or SMTP_HOST.' };
@@ -395,23 +396,28 @@ async function sendViaResend(
   htmlBody: string,
   fromEmail: string,
   fromName: string,
+  opts?: { replyTo?: string | null },
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { success: false, error: 'RESEND_API_KEY not set' };
 
   try {
+    const payload: Record<string, unknown> = {
+      from: `${fromName} <${fromEmail}>`,
+      to: [to],
+      subject,
+      html: htmlBody,
+    };
+    const rt = opts?.replyTo?.trim();
+    if (rt) payload.reply_to = rt;
+
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: `${fromName} <${fromEmail}>`,
-        to: [to],
-        subject,
-        html: htmlBody,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
@@ -428,6 +434,7 @@ async function sendViaSMTP(
   _htmlBody: string,
   _fromEmail: string,
   _fromName: string,
+  _opts?: { replyTo?: string | null },
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   return { success: false, error: 'SMTP sending not yet implemented. Use Resend for now.' };
 }
@@ -666,13 +673,7 @@ export async function sendCampaign(
     const profileUrl = `${campaign.profileBaseUrl}/codernet/github/${recipient.githubUsername}`;
     const html = messageToHtml(body, profileUrl);
 
-    const result = await sendEmail(
-      recipient.contact.bestEmail!,
-      subject,
-      html,
-      fromEmail,
-      campaign.senderName,
-    );
+    const result = await sendEmail(recipient.contact.bestEmail!, subject, html, fromEmail, campaign.senderName);
 
     if (result.success) {
       recipient.status = 'sent';
@@ -784,7 +785,8 @@ export async function sendOutreachHtmlToDeveloper(
   profileUrl: string,
   fromEmail: string,
   fromName: string,
+  opts?: { replyTo?: string | null },
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   const html = messageToHtml(plainBody, profileUrl);
-  return sendEmail(to, subject, html, fromEmail, fromName);
+  return sendEmail(to, subject, html, fromEmail, fromName, opts);
 }

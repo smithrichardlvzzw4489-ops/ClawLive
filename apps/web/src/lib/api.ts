@@ -994,6 +994,12 @@ export const api = {
         `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}/smart-email`,
         { method: 'POST', body: JSON.stringify({}) },
       ) as Promise<{ subject?: string; body?: string }>,
+    /** 服务端代发（需 RESEND + RECRUITMENT_SMART_EMAIL_FROM）；Reply-To 为招聘方邮箱 */
+    sendSmartEmail: (jdId: string, candidateId: string, body: { subject: string; body: string }) =>
+      fetchAPI(
+        `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}/smart-email/send`,
+        { method: 'POST', body: JSON.stringify(body) },
+      ) as Promise<{ ok?: boolean; messageId?: string | null }>,
     recommend: (jdId: string, body?: { limit?: number }) =>
       fetchAPI(`/api/recruitment/jds/${encodeURIComponent(jdId)}/recommend`, {
         method: 'POST',

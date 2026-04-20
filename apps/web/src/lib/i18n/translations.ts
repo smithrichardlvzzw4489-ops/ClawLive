@@ -648,7 +648,7 @@ export const translations = {
       profileBioTooLong: '简介过长（最多 500 字）',
       profileRecruiterEmail: '招聘沟通邮箱',
       profileRecruiterEmailHint:
-        'GitHub 登录后也可填写 Gmail 等工作邮箱，用于招聘「智能邮件」中的署名与回复说明（系统不代发邮件，请复制到邮箱客户端发送）。留空则智能邮件中优先使用账号邮箱（若有）。',
+        'GitHub 登录后也可填写 Gmail 等工作邮箱，用于智能邮件署名、Reply-To 与候选人回复；招聘管理弹窗支持「用邮件客户端打开」或（服务端已配置时）代发。留空则优先使用账号邮箱（若有）。',
       profileRecruiterEmailInvalid: '邮箱格式不正确',
     },
 
@@ -1471,7 +1471,7 @@ export const translations = {
       profileBioTooLong: 'Bio is too long (max 500 characters)',
       profileRecruiterEmail: 'Recruiting contact email',
       profileRecruiterEmailHint:
-        'After GitHub sign-in, add a work email (e.g. Gmail) for signatures and reply hints in recruitment smart-email drafts. We do not send mail for you—copy into your mail client. If empty, your account email is used when present.',
+        'After GitHub sign-in, add a work email (e.g. Gmail) for signatures, Reply-To, and candidate replies. The recruitment modal can open your mail app or (if the server is configured) send on your behalf. If empty, your account email is used when present.',
       profileRecruiterEmailInvalid: 'Invalid email format',
     },
 
