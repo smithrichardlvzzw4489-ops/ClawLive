@@ -84,33 +84,30 @@ function looksLikeEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 }
 
-/** 网页版邮箱撰写链接过长时部分浏览器会截断；超过则只打开「仅收件人」页并依赖剪贴板 */
-const WEB_COMPOSE_URL_MAX = 1850;
+/** 浏览器对 GET 链接长度有限；超长时分层：尽量保留主题进 URL，正文用剪贴板 */
+const WEB_COMPOSE_URL_MAX = 2000;
 
-function buildGmailComposeUrl(to: string, subject: string, body: string): string {
-  return `https://mail.google.com/mail/?${new URLSearchParams({
-    view: 'cm',
-    fs: '1',
-    to,
-    su: subject,
-    body,
-  }).toString()}`;
+/** 使用 /u/0/ 后 Gmail 对 view=cm&su&body 的识别更稳定 */
+const GMAIL_COMPOSE_BASE = 'https://mail.google.com/mail/u/0/?';
+
+function buildGmailComposeQuery(to: string, opts: { su?: string; body?: string } = {}): string {
+  const p = new URLSearchParams();
+  p.set('view', 'cm');
+  p.set('fs', '1');
+  p.set('to', to);
+  if (opts.su !== undefined) p.set('su', opts.su);
+  if (opts.body !== undefined) p.set('body', opts.body);
+  return p.toString();
 }
 
-function buildGmailComposeUrlMinimal(to: string): string {
-  return `https://mail.google.com/mail/?${new URLSearchParams({ view: 'cm', fs: '1', to }).toString()}`;
-}
+const OUTLOOK_COMPOSE_BASE = 'https://outlook.live.com/mail/0/deeplink/compose?';
 
-function buildOutlookWebComposeUrl(to: string, subject: string, body: string): string {
-  return `https://outlook.live.com/mail/0/deeplink/compose?${new URLSearchParams({
-    to,
-    subject,
-    body,
-  }).toString()}`;
-}
-
-function buildOutlookWebComposeUrlMinimal(to: string): string {
-  return `https://outlook.live.com/mail/0/deeplink/compose?${new URLSearchParams({ to }).toString()}`;
+function buildOutlookComposeQuery(to: string, opts: { subject?: string; body?: string } = {}): string {
+  const p = new URLSearchParams();
+  p.set('to', to);
+  if (opts.subject !== undefined) p.set('subject', opts.subject);
+  if (opts.body !== undefined) p.set('body', opts.body);
+  return p.toString();
 }
 
 function RecruitmentPageContent() {
@@ -662,30 +659,100 @@ function RecruitmentPageContent() {
       const { subject, body } = smartEmailResult;
       const fullPlain = `主题：${subject}\n\n${body}`;
 
-      const fullUrl =
-        provider === 'gmail'
-          ? buildGmailComposeUrl(to, subject, body)
-          : buildOutlookWebComposeUrl(to, subject, body);
-      const minimalUrl =
-        provider === 'gmail' ? buildGmailComposeUrlMinimal(to) : buildOutlookWebComposeUrlMinimal(to);
+      const open = (url: string) => {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      };
 
-      if (fullUrl.length <= WEB_COMPOSE_URL_MAX) {
-        window.open(fullUrl, '_blank', 'noopener,noreferrer');
-        setSmartEmailComposeHint(null);
+      if (provider === 'gmail') {
+        const full = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject, body })}`;
+        if (full.length <= WEB_COMPOSE_URL_MAX) {
+          open(full);
+          setSmartEmailComposeHint(null);
+          return;
+        }
+        const subjOnly = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject })}`;
+        if (subjOnly.length <= WEB_COMPOSE_URL_MAX) {
+          void navigator.clipboard.writeText(body).then(
+            () => {
+              open(subjOnly);
+              setSmartEmailComposeHint(
+                '正文较长：已将正文复制到剪贴板，请在「正文」区域粘贴（主题已自动填入）。',
+              );
+            },
+            () => {
+              open(subjOnly);
+              setSmartEmailComposeHint('无法写入剪贴板：请点「复制全部」后手动粘贴正文（主题已填入）。',
+              );
+            },
+          );
+          return;
+        }
+        let su = subject;
+        let truncated = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su })}`;
+        for (let i = 0; i < 40 && su.length > 12 && truncated.length > WEB_COMPOSE_URL_MAX; i++) {
+          su = su.slice(0, Math.max(12, su.length - 48)) + '…';
+          truncated = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su })}`;
+        }
+        if (truncated.length <= WEB_COMPOSE_URL_MAX) {
+          void navigator.clipboard.writeText(fullPlain).then(
+            () => {
+              open(truncated);
+              setSmartEmailComposeHint(
+                '主题过长已截断显示；完整主题与正文已复制到剪贴板，请核对后粘贴正文。',
+              );
+            },
+            () => {
+              open(truncated);
+              setSmartEmailComposeHint('请使用「复制全部」后手动粘贴（主题可能已截断）。');
+            },
+          );
+          return;
+        }
+        const toOnly = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to)}`;
+        void navigator.clipboard.writeText(fullPlain).then(
+          () => {
+            open(toOnly);
+            setSmartEmailComposeHint('链接过长：已将完整主题与正文复制到剪贴板，请粘贴到主题与正文。');
+          },
+          () => {
+            open(toOnly);
+            setSmartEmailComposeHint('请先点「复制全部」，再在已打开的窗口中粘贴。');
+          },
+        );
         return;
       }
 
+      /* Outlook 网页版：同样分层 */
+      const fullOl = `${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to, { subject, body })}`;
+      if (fullOl.length <= WEB_COMPOSE_URL_MAX) {
+        open(fullOl);
+        setSmartEmailComposeHint(null);
+        return;
+      }
+      const subjOl = `${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to, { subject })}`;
+      if (subjOl.length <= WEB_COMPOSE_URL_MAX) {
+        void navigator.clipboard.writeText(body).then(
+          () => {
+            open(subjOl);
+            setSmartEmailComposeHint(
+              '正文较长：已将正文复制到剪贴板，请粘贴到正文（主题已自动填入）。',
+            );
+          },
+          () => {
+            open(subjOl);
+            setSmartEmailComposeHint('无法写入剪贴板：请点「复制全部」后粘贴正文（主题已填入）。');
+          },
+        );
+        return;
+      }
       void navigator.clipboard.writeText(fullPlain).then(
         () => {
-          window.open(minimalUrl, '_blank', 'noopener,noreferrer');
-          setSmartEmailComposeHint(
-            '正文较长：已将完整主题与正文复制到剪贴板；已打开邮箱撰写页，请粘贴后再发送。',
-          );
+          open(`${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to)}`);
+          setSmartEmailComposeHint('链接过长：已将完整主题与正文复制到剪贴板，请粘贴到邮件中。');
         },
         () => {
-          window.open(minimalUrl, '_blank', 'noopener,noreferrer');
-          setSmartEmailComposeHint('正文较长且无法自动复制：请先点「复制全部」，再在已打开的邮箱窗口中粘贴。',
-          );
+          open(`${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to)}`);
+          setSmartEmailComposeHint('请先点「复制全部」，再在 Outlook 窗口中粘贴。');
         },
       );
     },
