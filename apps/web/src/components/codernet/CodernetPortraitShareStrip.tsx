@@ -31,7 +31,7 @@ async function readFetchError(res: Response): Promise<{ detail: string; traceId?
   }
 }
 
-function reportPortraitShare(action: 'copyLink' | 'downloadPng' | 'nativeShare') {
+function reportPortraitShare(action: 'copyLink' | 'downloadPng') {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   if (!token) return;
   const base = API_BASE_URL || '';
@@ -168,60 +168,6 @@ export function CodernetPortraitShareStrip({ ghUsername }: Props) {
     }
   }, [ghUsername, shareImageUrl]);
 
-  const systemShare = useCallback(() => {
-    setMsg(null);
-    const pageUrl = fullPageUrl();
-    const cache = pngRef.current;
-    if (cache.status !== 'ready' || !cache.blob) {
-      setMsg(
-        cache.status === 'loading'
-          ? '分享图加载中，请稍后再点「系统分享」。'
-          : '分享图尚未就绪，请稍后重试或使用「下载分享长图」。',
-      );
-      return;
-    }
-    const file = new File([cache.blob], `${BRAND_ZH}-${ghUsername}-portrait.png`, { type: 'image/png' });
-    const withFiles = {
-      files: [file],
-      title: `@${ghUsername} · ${BRAND_ZH} 开发者画像`,
-      text: `查看 @${ghUsername} 的技术画像`,
-      url: pageUrl,
-    };
-    try {
-      if (navigator.canShare?.(withFiles)) {
-        void navigator
-          .share(withFiles)
-          .then(() => {
-            reportPortraitShare('nativeShare');
-          })
-          .catch((e: Error) => {
-            if (e?.name === 'AbortError') return;
-            setMsg(`分享失败：${e?.message || '未知错误'}`);
-          });
-        return;
-      }
-      const linkOnly = { title: withFiles.title, text: withFiles.text, url: pageUrl };
-      if (navigator.canShare?.(linkOnly)) {
-        void navigator
-          .share(linkOnly)
-          .then(() => {
-            reportPortraitShare('nativeShare');
-          })
-          .catch((e: Error) => {
-            if (e?.name === 'AbortError') return;
-            setMsg(`分享失败：${e?.message || '未知错误'}`);
-          });
-        return;
-      }
-      setMsg('当前环境不支持带图分享，请使用「下载分享长图」。');
-    } catch (e) {
-      const t = e instanceof Error ? e.message : '未知错误';
-      setMsg(`分享失败：${t}`);
-    }
-  }, [fullPageUrl, ghUsername]);
-
-  const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-
   return (
     <div className="flex flex-wrap items-center gap-2 mb-4">
       <button
@@ -239,15 +185,6 @@ export function CodernetPortraitShareStrip({ ghUsername }: Props) {
       >
         {busy === 'dl' ? '生成中…' : '下载分享长图'}
       </button>
-      {canNativeShare ? (
-        <button
-          type="button"
-          onClick={systemShare}
-          className="px-3 py-1.5 rounded-lg bg-indigo-600/70 hover:bg-indigo-500 text-xs font-medium text-white transition border border-indigo-400/25"
-        >
-          系统分享
-        </button>
-      ) : null}
       {msg ? <span className="text-[11px] text-violet-300/90 w-full sm:w-auto">{msg}</span> : null}
     </div>
   );
