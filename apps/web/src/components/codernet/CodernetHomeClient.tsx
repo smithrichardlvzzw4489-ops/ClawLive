@@ -86,10 +86,14 @@ export function CodernetHomeClient() {
     if (searchParams.get('tab') === 'math') setTab('math');
   }, [searchParams]);
 
-  /** 求职者 / 招聘方：根路径默认进职位；`?view=hub` 或 `?tab=math` 进入开发者360画像 */
+  /** 求职者：首页始终回职位广场；招聘方：根路径默认进职位，`?view=hub` / `?tab=math` 进入开发者360画像 */
   useEffect(() => {
     if (!personaReady || pathname !== '/') return;
-    if (persona !== 'recruiter' && persona !== 'developer') return;
+    if (persona === 'developer') {
+      router.replace('/job-plaza');
+      return;
+    }
+    if (persona !== 'recruiter') return;
     const tab = searchParams.get('tab');
     const view = searchParams.get('view');
     if (tab === 'math' || view === 'hub') return;
@@ -98,7 +102,7 @@ export function CodernetHomeClient() {
 
   const selectTab = (next: TabId) => {
     setTab(next);
-    if (persona === 'recruiter' || persona === 'developer') {
+    if (persona === 'recruiter') {
       if (next === 'math') {
         router.replace('/?view=hub&tab=math', { scroll: false });
       } else {
@@ -215,6 +219,10 @@ export function CodernetHomeClient() {
         <div className="relative z-10 flex min-h-[calc(100dvh-4rem)] items-center justify-center text-sm text-slate-500">
           {t('loading')}
         </div>
+      ) : persona === 'developer' ? (
+        <div className="relative z-10 flex min-h-[calc(100dvh-4rem)] items-center justify-center text-sm text-slate-500">
+          {t('loading')}
+        </div>
       ) : persona === 'unset' ? (
         <HomePersonaGate
           onSelect={(role) => {
@@ -239,24 +247,16 @@ export function CodernetHomeClient() {
           }`}
         >
         <div className="text-center max-w-2xl w-full mx-auto">
-          <h1
-            className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-snug text-balance text-white ${
-              persona === 'developer' ? 'mb-8' : 'mb-4'
-            }`}
-          >
-            {persona === 'developer'
-              ? t('codernetHome.titleDeveloper')
-              : t('codernetHome.titleRecruiter')}
+          <h1 className="mb-4 text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-snug text-balance text-white">
+            {t('codernetHome.titleRecruiter')}
           </h1>
 
-          {persona !== 'developer' && (
-            <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8 text-balance">
-              <span>30 秒 × 1.8 亿开发者画像 = </span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400 font-semibold">
-                招聘无忧
-              </span>
-            </p>
-          )}
+          <p className="text-slate-400 text-sm sm:text-base leading-relaxed mb-8 text-balance">
+            <span>30 秒 × 1.8 亿开发者画像 = </span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-400 font-semibold">
+              招聘无忧
+            </span>
+          </p>
 
           {/* Tab Switcher：GitHub 画像 · LINK · MATH */}
           <div className="grid grid-cols-3 gap-1 mb-6 bg-white/[0.04] rounded-xl p-1 max-w-xl mx-auto w-full">

@@ -50,15 +50,18 @@ export function Header({}: HeaderProps) {
   const searchParams = useSearchParams();
   const { persona, personaReady } = usePrimaryPersona();
 
-  /** 求职者 / 招聘方：职位为默认首页，三入口在「开发者360画像」 */
+  /** 求职者：仅职位广场；招聘方：职位广场 + 开发者360画像 hub */
   const isHubPersona = personaReady && (persona === 'developer' || persona === 'recruiter');
   const viewHub = searchParams.get('view') === 'hub';
   const tabMath = searchParams.get('tab') === 'math';
 
   const jobPlazaActive = pathname.startsWith('/job-plaza');
-  const portraitHubActive = isHubPersona
-    ? (pathname === '/' && (viewHub || tabMath)) || pathname.startsWith('/codernet')
-    : pathname === '/' || pathname.startsWith('/codernet');
+  const portraitHubActive =
+    persona === 'developer' && personaReady
+      ? false
+      : isHubPersona
+        ? (pathname === '/' && (viewHub || tabMath)) || pathname.startsWith('/codernet')
+        : pathname === '/' || pathname.startsWith('/codernet');
 
   const isHome = false;
 
@@ -89,7 +92,9 @@ export function Header({}: HeaderProps) {
             {isHubPersona ? (
               <>
                 <NavItem href="/job-plaza" label={t('nav.jobPlaza')} icon="🏢" active={jobPlazaActive} />
-                <NavItem href="/?view=hub" label={t('nav.developer360')} icon="🔭" active={portraitHubActive} />
+                {persona === 'recruiter' && (
+                  <NavItem href="/?view=hub" label={t('nav.developer360')} icon="🔭" active={portraitHubActive} />
+                )}
               </>
             ) : (
               <>

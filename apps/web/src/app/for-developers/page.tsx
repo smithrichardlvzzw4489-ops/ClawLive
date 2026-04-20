@@ -31,13 +31,6 @@ export default function ForDevelopersPage() {
           >
             {t('personaEntry.ctaDevelopers')} · {t('personaEntry.enterJobPlaza')}
           </button>
-          <button
-            type="button"
-            onClick={() => go('/?view=hub')}
-            className="rounded-xl border border-white/15 bg-white/[0.04] px-5 py-3 text-center text-sm font-medium text-slate-200 transition hover:bg-white/[0.08]"
-          >
-            {t('personaEntry.enterDeveloper360Hub')}
-          </button>
         </div>
         <Link href="/" className="mt-8 inline-block text-sm text-slate-500 underline-offset-4 hover:text-slate-300 hover:underline">
           ← {t('back')}

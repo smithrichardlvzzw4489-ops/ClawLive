@@ -81,9 +81,11 @@ export function MathMatchPanel() {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) {
       const back =
-        personaReady && (persona === 'recruiter' || persona === 'developer')
+        personaReady && persona === 'recruiter'
           ? '/?view=hub&tab=math'
-          : '/?tab=math';
+          : personaReady && persona === 'developer'
+            ? '/math'
+            : '/?tab=math';
       router.push(`/login?redirect=${encodeURIComponent(back)}`);
       return;
     }
