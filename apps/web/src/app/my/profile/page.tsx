@@ -51,7 +51,6 @@ export default function MyProfilePage() {
     <MainLayout flatBackground>
       <div className="bg-[#06080f] px-4 pt-6 pb-2">
         <div className="mx-auto max-w-4xl">
-          <h1 className="text-lg font-bold text-white">My card · 完整简历</h1>
           <PersonalResumeSection
             initialText={personalResume ?? ''}
             onSaved={handleResumeSaved}

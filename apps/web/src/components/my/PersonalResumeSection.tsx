@@ -89,14 +89,8 @@ export function PersonalResumeSection({ initialText, onSaved }: Props) {
 
   return (
     <section className="rounded-2xl border border-violet-500/20 bg-violet-950/20 p-5 mb-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-violet-200">个人简历（自行填写）</h2>
-          <p className="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-xl">
-            支持导入 .txt / .md / .pdf / .docx 或<strong className="text-slate-400"> 简历截图（图片 OCR）</strong>
-            ，内容会追加到正文；保存前可随意编辑。
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-violet-200">个人简历</h2>
         <div className="flex shrink-0 items-center gap-2">
           <input
             ref={fileRef}
