@@ -1143,7 +1143,7 @@ function RecruitmentPageContent() {
           >
             <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 shrink-0">
               <h3 id="smart-email-title" className="text-sm font-semibold text-white">
-                智能邮件 · @{smartEmailCandidate.githubUsername}
+                智能邮件
               </h3>
               <button
                 type="button"
