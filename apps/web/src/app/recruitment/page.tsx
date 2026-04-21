@@ -127,7 +127,6 @@ function RecruitmentPageContent() {
   const [smartEmailLoading, setSmartEmailLoading] = useState(false);
   const [smartEmailResult, setSmartEmailResult] = useState<{ subject: string; body: string } | null>(null);
   const [smartEmailErr, setSmartEmailErr] = useState<string | null>(null);
-  const [smartEmailComposeHint, setSmartEmailComposeHint] = useState<string | null>(null);
   /** 编辑 JD：职位描述长文折叠 */
   const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
   /** 候选人表格：待批量移除的 id */
@@ -591,7 +590,6 @@ function RecruitmentPageContent() {
       if (!selectedId) return;
       setSmartEmailLoading(true);
       setSmartEmailErr(null);
-      setSmartEmailComposeHint(null);
       setSmartEmailResult(null);
       try {
         const data = (await api.recruitment.smartEmail(selectedId, c.id)) as {
@@ -616,7 +614,6 @@ function RecruitmentPageContent() {
     (c: CandidateRow) => {
       setSmartEmailCandidate(c);
       setSmartEmailErr(null);
-      setSmartEmailComposeHint(null);
       setSmartEmailResult(null);
       void loadSmartEmail(c);
     },
@@ -643,7 +640,6 @@ function RecruitmentPageContent() {
     const full = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject, body })}`;
     if (full.length <= WEB_COMPOSE_URL_MAX) {
       open(full);
-      setSmartEmailComposeHint(null);
       return;
     }
     const subjOnly = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject })}`;
@@ -651,13 +647,9 @@ function RecruitmentPageContent() {
       void navigator.clipboard.writeText(body).then(
         () => {
           open(subjOnly);
-          setSmartEmailComposeHint(
-            '正文较长：已将正文复制到剪贴板，请在「正文」区域粘贴（主题已自动填入）。',
-          );
         },
         () => {
           open(subjOnly);
-          setSmartEmailComposeHint('无法写入剪贴板：请先复制「正文」后再粘贴（主题已填入）。');
         },
       );
       return;
@@ -672,13 +664,9 @@ function RecruitmentPageContent() {
       void navigator.clipboard.writeText(fullPlain).then(
         () => {
           open(truncated);
-          setSmartEmailComposeHint(
-            '主题过长已截断显示；完整主题与正文已复制到剪贴板，请核对后粘贴正文。',
-          );
         },
         () => {
           open(truncated);
-          setSmartEmailComposeHint('请使用下方「复制主题」「复制正文」手动粘贴（主题可能已截断）。');
         },
       );
       return;
@@ -687,11 +675,9 @@ function RecruitmentPageContent() {
     void navigator.clipboard.writeText(fullPlain).then(
       () => {
         open(toOnly);
-        setSmartEmailComposeHint('链接过长：已将完整主题与正文复制到剪贴板，请粘贴到主题与正文。');
       },
       () => {
         open(toOnly);
-        setSmartEmailComposeHint('请先复制主题与正文，再在已打开的窗口中粘贴。');
       },
     );
   }, [smartEmailResult, smartEmailCandidate]);
@@ -1149,7 +1135,6 @@ function RecruitmentPageContent() {
           aria-labelledby="smart-email-title"
           onClick={() => {
             setSmartEmailCandidate(null);
-            setSmartEmailComposeHint(null);
           }}
         >
           <div
@@ -1165,7 +1150,6 @@ function RecruitmentPageContent() {
                 className="rounded-lg px-2 py-1 text-slate-400 hover:bg-white/10 hover:text-white text-lg leading-none"
                 onClick={() => {
                   setSmartEmailCandidate(null);
-                  setSmartEmailComposeHint(null);
                 }}
                 aria-label="关闭"
               >
@@ -1258,11 +1242,6 @@ function RecruitmentPageContent() {
                       重新生成
                     </button>
                   </div>
-                  {smartEmailComposeHint ? (
-                    <p className="text-xs text-slate-300/95 leading-relaxed rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5">
-                      {smartEmailComposeHint}
-                    </p>
-                  ) : null}
                 </>
               ) : null}
             </div>

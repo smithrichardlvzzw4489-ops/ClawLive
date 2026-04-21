@@ -874,7 +874,7 @@ export function recruitmentRoutes(): Router {
       const hasProvider = !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
       if (!hasProvider) {
         res.status(503).json({
-          error: "服务端未配置邮件发送（如 RESEND_API_KEY），请使用「用邮件客户端打开」",
+          error: "邮件服务未配置",
           code: "NO_EMAIL_PROVIDER",
         });
         return;
@@ -883,8 +883,7 @@ export function recruitmentRoutes(): Router {
       const fromAddr = (process.env.RECRUITMENT_SMART_EMAIL_FROM || "").trim();
       if (!fromAddr) {
         res.status(503).json({
-          error:
-            "请配置环境变量 RECRUITMENT_SMART_EMAIL_FROM（在 Resend 已验证的发件地址），或改用邮件客户端发送",
+          error: "发件地址未配置",
           code: "NO_SMART_EMAIL_FROM",
         });
         return;
