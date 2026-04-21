@@ -114,8 +114,13 @@ function buildYearActivityFallback(
   return { year, narrative, highlights: highlights.slice(0, 4) };
 }
 
+/** 控制提示大小与 LLM 生成长度；过大时画像步骤会明显变慢（尤其默认 OpenRouter 大模型）。 */
+const ANALYSIS_PROMPT_TOP_REPOS = 20;
+const ANALYSIS_PROMPT_MAX_COMMITS = 200;
+const ANALYSIS_TIMELINE_MAX_YEARS = 10;
+
 function buildAnalysisPrompt(data: GitHubCrawlResult, multiPlatform?: MultiPlatformProfile | null): string {
-  const topRepos = data.repos.slice(0, 28).map((r) => {
+  const topRepos = data.repos.slice(0, ANALYSIS_PROMPT_TOP_REPOS).map((r) => {
     const topics = r.topics.length ? ` [${r.topics.join(', ')}]` : '';
     const created = r.created_at ? r.created_at.slice(0, 10) : '';
     const pushed = r.pushed_at ? r.pushed_at.slice(0, 10) : '';
@@ -131,12 +136,12 @@ function buildAnalysisPrompt(data: GitHubCrawlResult, multiPlatform?: MultiPlatf
     .join(', ');
 
   const commitLinesForPrompt = data.recentCommits
-    .slice(0, 400)
+    .slice(0, ANALYSIS_PROMPT_MAX_COMMITS)
     .map((c) => `${c.date.slice(0, 10)} [${c.repo}] ${c.message}`)
     .join('\n');
 
   const timelineBlock = data.portfolioDepth
-    ? formatPortfolioDepthForPrompt(data.portfolioDepth, 12)
+    ? formatPortfolioDepthForPrompt(data.portfolioDepth, ANALYSIS_TIMELINE_MAX_YEARS)
     : '（无派生时间线：请仅根据仓库创建日与提交日期推断）';
 
   let multiPlatformSection = '';
@@ -286,7 +291,7 @@ ${topRepos || '（无仓库数据）'}
 === 语言分布 ===
 ${langSummary || '（无语言数据）'}
 
-=== 近期 commits（含日期，供归纳工作节奏与提交风格；至多 400 条写入本提示） ===
+=== 近期 commits（含日期，供归纳工作节奏与提交风格；至多 ${ANALYSIS_PROMPT_MAX_COMMITS} 条写入本提示） ===
 ${commitLinesForPrompt || '（无 commit 数据）'}
 
 === 按年的时间线摘要（由系统从仓库创建日与 commits 聚合，须与叙述一致） ===
@@ -309,7 +314,7 @@ ${timelineBlock}${multiPlatformSection}
 - sharpCommentary 必须中文，120字以内，要综合多平台数据形成洞察
 - oneLiner 必须中文，10字以内
 - activityByYear：**须覆盖下方「按年的时间线摘要」中出现的每一个年份**（每年一条，按年份降序亦可）；每年 narrative 60 字内，highlights 每条 40 字内、最多 4 条；漏掉的年份系统会用数据统计自动补一条（质量较差），请尽量避免遗漏
-- repoDeepDives：覆盖最有代表性的公开仓库，最多 12 条，repo 字段必须与上文仓库列表中的名称一致；不得编造未出现的仓库名；每条必须含 repoContentDeepDive 与 personContributionDeepDive，各 180–420 个汉字（约 3–6 句），信息密度高、避免空话套话
+- repoDeepDives：覆盖最有代表性的公开仓库，最多 12 条，repo 字段必须与上文仓库列表中的名称一致；不得编造未出现的仓库名；每条必须含 repoContentDeepDive 与 personContributionDeepDive，各 80–220 个汉字（约 2–4 句），信息密度高、避免空话套话；勿为凑字数重复上文
 - commitPatterns：严格根据上文 commits 归纳，禁止臆测私有或未列出仓库`;
 }
 
@@ -426,11 +431,15 @@ function parseLlmJsonObject(blob: string): unknown {
   }
 }
 
+/** 与提示词中两段 deep dive 上限匹配；过大会拖慢推理且易触发截断。 */
+const PROFILE_ANALYSIS_MAX_TOKENS = 5600;
+
 export async function analyzeGitHubProfile(
   crawlData: GitHubCrawlResult,
   multiPlatform?: MultiPlatformProfile | null,
 ): Promise<CodernetAnalysis> {
-  const { model } = getPublishingLlmClient();
+  const { client, model: publishingModel } = getPublishingLlmClient();
+  const profileModel = process.env.LLM_PROFILE_ANALYSIS_MODEL?.trim() || publishingModel;
 
   const prompt = buildAnalysisPrompt(crawlData, multiPlatform);
   const meta = { username: crawlData.username };
@@ -438,15 +447,28 @@ export async function analyzeGitHubProfile(
   let response;
   try {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 7200, temperature: 0.65, response_format: { type: 'json_object' } },
+      {
+        model: profileModel,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: PROFILE_ANALYSIS_MAX_TOKENS,
+        temperature: 0.65,
+        response_format: { type: 'json_object' },
+      },
       'profile_analysis',
       meta,
+      client,
     );
   } catch {
     response = await trackedChatCompletion(
-      { model, messages: [{ role: 'user', content: prompt }], max_tokens: 7200, temperature: 0.65 },
+      {
+        model: profileModel,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: PROFILE_ANALYSIS_MAX_TOKENS,
+        temperature: 0.65,
+      },
       'profile_analysis',
       meta,
+      client,
     );
   }
 

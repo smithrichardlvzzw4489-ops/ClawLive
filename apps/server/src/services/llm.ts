@@ -7,6 +7,9 @@
  *
  * 「发布/摘要」类服务端调用（作品一句话摘要、帖子 excerpt、GITLINK 进化器评估等）共用
  * {@link getPublishingLlmClient}。
+ *
+ * GITLINK 开发者画像 `analyzeGitHubProfile` 可单独指定更快模型（仍用同一 API 端点与 key）：
+ * `LLM_PROFILE_ANALYSIS_MODEL`，例如与 `LLM_SUMMARY_MODEL` 同为 `gpt-4o-mini`，避免默认 OpenRouter 大模型耗时过长。
  */
 
 import OpenAI from 'openai';
