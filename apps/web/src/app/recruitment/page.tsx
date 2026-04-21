@@ -996,12 +996,27 @@ function RecruitmentPageContent() {
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={h.avatarUrl} alt="" className="h-9 w-9 rounded-lg border border-white/10" />
                           <div className="min-w-0 flex-1">
-                            <span className="font-mono text-white">@{h.githubUsername}</span>
-                            <span className="text-amber-200/80 text-[10px] ml-2">
-                              {h.source === 'daily' ? '每日' : h.source === 'weekly' ? '周更' : '推荐'}
-                              {h.addedAt ? ` · ${new Date(h.addedAt).toLocaleDateString('zh-CN')}` : ''}
-                            </span>
-                            <p className="text-[11px] text-slate-500 line-clamp-1">{h.reason}</p>
+                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                              <span className="font-mono text-white">@{h.githubUsername}</span>
+                              <span className="text-amber-200/80 text-[10px]">
+                                {h.source === 'daily' ? '每日' : h.source === 'weekly' ? '周更' : '推荐'}
+                                {h.addedAt ? ` · ${new Date(h.addedAt).toLocaleDateString('zh-CN')}` : ''}
+                              </span>
+                            </div>
+                            <div className="mt-1 space-y-0.5 text-[11px] leading-snug">
+                              <p className="text-slate-300">
+                                <span className="text-slate-600">简介</span>{' '}
+                                <span className="line-clamp-2">{h.oneLiner?.trim() ? h.oneLiner.trim() : '—'}</span>
+                              </p>
+                              <p className="text-slate-300">
+                                <span className="text-slate-600">匹配度</span>{' '}
+                                <span className="tabular-nums text-cyan-200/95">
+                                  {typeof h.score === 'number' && Number.isFinite(h.score)
+                                    ? h.score.toFixed(1)
+                                    : '—'}
+                                </span>
+                              </p>
+                            </div>
                           </div>
                           <div className="flex gap-2 shrink-0">
                             <Link
