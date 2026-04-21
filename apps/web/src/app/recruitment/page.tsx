@@ -102,16 +102,6 @@ function buildGmailComposeQuery(to: string, opts: { su?: string; body?: string }
   return p.toString();
 }
 
-const OUTLOOK_COMPOSE_BASE = 'https://outlook.live.com/mail/0/deeplink/compose?';
-
-function buildOutlookComposeQuery(to: string, opts: { subject?: string; body?: string } = {}): string {
-  const p = new URLSearchParams();
-  p.set('to', to);
-  if (opts.subject !== undefined) p.set('subject', opts.subject);
-  if (opts.body !== undefined) p.set('body', opts.body);
-  return p.toString();
-}
-
 function RecruitmentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -137,12 +127,7 @@ function RecruitmentPageContent() {
   const [smartEmailLoading, setSmartEmailLoading] = useState(false);
   const [smartEmailResult, setSmartEmailResult] = useState<{ subject: string; body: string } | null>(null);
   const [smartEmailErr, setSmartEmailErr] = useState<string | null>(null);
-  const [smartEmailSending, setSmartEmailSending] = useState(false);
-  const [smartEmailSendErr, setSmartEmailSendErr] = useState<string | null>(null);
-  const [smartEmailSendOk, setSmartEmailSendOk] = useState(false);
   const [smartEmailComposeHint, setSmartEmailComposeHint] = useState<string | null>(null);
-  /** 是否已配置服务端代发（RESEND + 发件域），用于突出「一键发送」 */
-  const [serverSendConfigured, setServerSendConfigured] = useState<boolean | null>(null);
   /** 编辑 JD：职位描述长文折叠 */
   const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
   /** 候选人表格：待批量移除的 id */
@@ -606,8 +591,6 @@ function RecruitmentPageContent() {
       if (!selectedId) return;
       setSmartEmailLoading(true);
       setSmartEmailErr(null);
-      setSmartEmailSendErr(null);
-      setSmartEmailSendOk(false);
       setSmartEmailComposeHint(null);
       setSmartEmailResult(null);
       try {
@@ -633,30 +616,12 @@ function RecruitmentPageContent() {
     (c: CandidateRow) => {
       setSmartEmailCandidate(c);
       setSmartEmailErr(null);
-      setSmartEmailSendErr(null);
-      setSmartEmailSendOk(false);
       setSmartEmailComposeHint(null);
-      setServerSendConfigured(null);
       setSmartEmailResult(null);
       void loadSmartEmail(c);
     },
     [loadSmartEmail],
   );
-
-  useEffect(() => {
-    if (!smartEmailCandidate) return;
-    void api.recruitment
-      .emailSendCapabilities()
-      .then((d) => setServerSendConfigured(!!d.serverSendConfigured))
-      .catch(() => setServerSendConfigured(false));
-  }, [smartEmailCandidate]);
-
-  const smartEmailCanSend = useMemo(() => {
-    if (!smartEmailResult || !smartEmailCandidate) return false;
-    const to = smartEmailCandidate.email?.trim() || '';
-    const rt = recruiterContactEmail || '';
-    return !!(to && looksLikeEmail(to) && rt && looksLikeEmail(rt));
-  }, [smartEmailResult, smartEmailCandidate, recruiterContactEmail]);
 
   /** 网页版撰写只需候选人邮箱；不依赖 mailto / 系统默认邮件客户端 */
   const smartEmailHasCandidateMail = useMemo(() => {
@@ -664,132 +629,72 @@ function RecruitmentPageContent() {
     return !!(em && looksLikeEmail(em));
   }, [smartEmailCandidate]);
 
-  const openWebMailCompose = useCallback(
-    (provider: 'gmail' | 'outlook') => {
-      if (!smartEmailResult || !smartEmailCandidate?.email?.trim()) return;
-      const to = smartEmailCandidate.email.trim();
-      if (!looksLikeEmail(to)) return;
-      const { subject, body } = smartEmailResult;
-      const fullPlain = `主题：${subject}\n\n${body}`;
+  const openGmailCompose = useCallback(() => {
+    if (!smartEmailResult || !smartEmailCandidate?.email?.trim()) return;
+    const to = smartEmailCandidate.email.trim();
+    if (!looksLikeEmail(to)) return;
+    const { subject, body } = smartEmailResult;
+    const fullPlain = `主题：${subject}\n\n${body}`;
 
-      const open = (url: string) => {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      };
+    const open = (url: string) => {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    };
 
-      if (provider === 'gmail') {
-        const full = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject, body })}`;
-        if (full.length <= WEB_COMPOSE_URL_MAX) {
-          open(full);
-          setSmartEmailComposeHint(null);
-          return;
-        }
-        const subjOnly = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject })}`;
-        if (subjOnly.length <= WEB_COMPOSE_URL_MAX) {
-          void navigator.clipboard.writeText(body).then(
-            () => {
-              open(subjOnly);
-              setSmartEmailComposeHint(
-                '正文较长：已将正文复制到剪贴板，请在「正文」区域粘贴（主题已自动填入）。',
-              );
-            },
-            () => {
-              open(subjOnly);
-              setSmartEmailComposeHint('无法写入剪贴板：请点「复制全部」后手动粘贴正文（主题已填入）。',
-              );
-            },
-          );
-          return;
-        }
-        let su = subject;
-        let truncated = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su })}`;
-        for (let i = 0; i < 40 && su.length > 12 && truncated.length > WEB_COMPOSE_URL_MAX; i++) {
-          su = su.slice(0, Math.max(12, su.length - 48)) + '…';
-          truncated = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su })}`;
-        }
-        if (truncated.length <= WEB_COMPOSE_URL_MAX) {
-          void navigator.clipboard.writeText(fullPlain).then(
-            () => {
-              open(truncated);
-              setSmartEmailComposeHint(
-                '主题过长已截断显示；完整主题与正文已复制到剪贴板，请核对后粘贴正文。',
-              );
-            },
-            () => {
-              open(truncated);
-              setSmartEmailComposeHint('请使用「复制全部」后手动粘贴（主题可能已截断）。');
-            },
-          );
-          return;
-        }
-        const toOnly = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to)}`;
-        void navigator.clipboard.writeText(fullPlain).then(
-          () => {
-            open(toOnly);
-            setSmartEmailComposeHint('链接过长：已将完整主题与正文复制到剪贴板，请粘贴到主题与正文。');
-          },
-          () => {
-            open(toOnly);
-            setSmartEmailComposeHint('请先点「复制全部」，再在已打开的窗口中粘贴。');
-          },
-        );
-        return;
-      }
-
-      /* Outlook 网页版：同样分层 */
-      const fullOl = `${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to, { subject, body })}`;
-      if (fullOl.length <= WEB_COMPOSE_URL_MAX) {
-        open(fullOl);
-        setSmartEmailComposeHint(null);
-        return;
-      }
-      const subjOl = `${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to, { subject })}`;
-      if (subjOl.length <= WEB_COMPOSE_URL_MAX) {
-        void navigator.clipboard.writeText(body).then(
-          () => {
-            open(subjOl);
-            setSmartEmailComposeHint(
-              '正文较长：已将正文复制到剪贴板，请粘贴到正文（主题已自动填入）。',
-            );
-          },
-          () => {
-            open(subjOl);
-            setSmartEmailComposeHint('无法写入剪贴板：请点「复制全部」后粘贴正文（主题已填入）。');
-          },
-        );
-        return;
-      }
-      void navigator.clipboard.writeText(fullPlain).then(
+    const full = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject, body })}`;
+    if (full.length <= WEB_COMPOSE_URL_MAX) {
+      open(full);
+      setSmartEmailComposeHint(null);
+      return;
+    }
+    const subjOnly = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su: subject })}`;
+    if (subjOnly.length <= WEB_COMPOSE_URL_MAX) {
+      void navigator.clipboard.writeText(body).then(
         () => {
-          open(`${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to)}`);
-          setSmartEmailComposeHint('链接过长：已将完整主题与正文复制到剪贴板，请粘贴到邮件中。');
+          open(subjOnly);
+          setSmartEmailComposeHint(
+            '正文较长：已将正文复制到剪贴板，请在「正文」区域粘贴（主题已自动填入）。',
+          );
         },
         () => {
-          open(`${OUTLOOK_COMPOSE_BASE}${buildOutlookComposeQuery(to)}`);
-          setSmartEmailComposeHint('请先点「复制全部」，再在 Outlook 窗口中粘贴。');
+          open(subjOnly);
+          setSmartEmailComposeHint('无法写入剪贴板：请先复制「正文」后再粘贴（主题已填入）。');
         },
       );
-    },
-    [smartEmailResult, smartEmailCandidate],
-  );
-
-  const handleSendSmartEmailServer = useCallback(async () => {
-    if (!selectedId || !smartEmailCandidate || !smartEmailResult || !smartEmailCanSend) return;
-    setSmartEmailSending(true);
-    setSmartEmailSendErr(null);
-    setSmartEmailSendOk(false);
-    try {
-      await api.recruitment.sendSmartEmail(selectedId, smartEmailCandidate.id, {
-        subject: smartEmailResult.subject,
-        body: smartEmailResult.body,
-      });
-      setSmartEmailSendOk(true);
-    } catch (e: unknown) {
-      setSmartEmailSendOk(false);
-      setSmartEmailSendErr(e instanceof APIError ? e.message : '发送失败');
-    } finally {
-      setSmartEmailSending(false);
+      return;
     }
-  }, [selectedId, smartEmailCandidate, smartEmailResult, smartEmailCanSend]);
+    let su = subject;
+    let truncated = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su })}`;
+    for (let i = 0; i < 40 && su.length > 12 && truncated.length > WEB_COMPOSE_URL_MAX; i++) {
+      su = su.slice(0, Math.max(12, su.length - 48)) + '…';
+      truncated = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to, { su })}`;
+    }
+    if (truncated.length <= WEB_COMPOSE_URL_MAX) {
+      void navigator.clipboard.writeText(fullPlain).then(
+        () => {
+          open(truncated);
+          setSmartEmailComposeHint(
+            '主题过长已截断显示；完整主题与正文已复制到剪贴板，请核对后粘贴正文。',
+          );
+        },
+        () => {
+          open(truncated);
+          setSmartEmailComposeHint('请使用下方「复制主题」「复制正文」手动粘贴（主题可能已截断）。');
+        },
+      );
+      return;
+    }
+    const toOnly = `${GMAIL_COMPOSE_BASE}${buildGmailComposeQuery(to)}`;
+    void navigator.clipboard.writeText(fullPlain).then(
+      () => {
+        open(toOnly);
+        setSmartEmailComposeHint('链接过长：已将完整主题与正文复制到剪贴板，请粘贴到主题与正文。');
+      },
+      () => {
+        open(toOnly);
+        setSmartEmailComposeHint('请先复制主题与正文，再在已打开的窗口中粘贴。');
+      },
+    );
+  }, [smartEmailResult, smartEmailCandidate]);
 
   if (authLoading || loading) {
     return (
@@ -1244,8 +1149,6 @@ function RecruitmentPageContent() {
           aria-labelledby="smart-email-title"
           onClick={() => {
             setSmartEmailCandidate(null);
-            setSmartEmailSendErr(null);
-            setSmartEmailSendOk(false);
             setSmartEmailComposeHint(null);
           }}
         >
@@ -1262,8 +1165,6 @@ function RecruitmentPageContent() {
                 className="rounded-lg px-2 py-1 text-slate-400 hover:bg-white/10 hover:text-white text-lg leading-none"
                 onClick={() => {
                   setSmartEmailCandidate(null);
-                  setSmartEmailSendErr(null);
-                  setSmartEmailSendOk(false);
                   setSmartEmailComposeHint(null);
                 }}
                 aria-label="关闭"
@@ -1323,19 +1224,6 @@ function RecruitmentPageContent() {
                   <div className="flex flex-wrap gap-2 pb-1 items-center">
                     <button
                       type="button"
-                      disabled={!smartEmailCanSend || smartEmailSending}
-                      className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-35 disabled:pointer-events-none ${
-                        serverSendConfigured
-                          ? 'bg-violet-600 hover:bg-violet-500 ring-2 ring-violet-400/35 shadow-lg shadow-violet-900/30'
-                          : 'border border-violet-500/50 bg-violet-950/50 hover:bg-violet-900/60'
-                      }`}
-                      onClick={() => void handleSendSmartEmailServer()}
-                      title="从服务端投递完整 HTML 邮件（需 RESEND + RECRUITMENT_SMART_EMAIL_FROM）；无 URL 截断"
-                    >
-                      {smartEmailSending ? '发送中…' : '一键发送（完整邮件）'}
-                    </button>
-                    <button
-                      type="button"
                       className="rounded-lg bg-white/10 hover:bg-white/15 px-3 py-1.5 text-xs"
                       onClick={() => void navigator.clipboard.writeText(smartEmailResult.subject)}
                     >
@@ -1350,20 +1238,9 @@ function RecruitmentPageContent() {
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg bg-violet-600/80 hover:bg-violet-500/90 px-3 py-1.5 text-xs font-medium text-white"
-                      onClick={() =>
-                        void navigator.clipboard.writeText(
-                          `主题：${smartEmailResult.subject}\n\n${smartEmailResult.body}`,
-                        )
-                      }
-                    >
-                      复制全部
-                    </button>
-                    <button
-                      type="button"
                       disabled={!smartEmailHasCandidateMail}
                       className="rounded-lg bg-emerald-700/90 hover:bg-emerald-600 disabled:opacity-35 disabled:pointer-events-none px-3 py-1.5 text-xs font-medium text-white"
-                      onClick={() => openWebMailCompose('gmail')}
+                      onClick={() => openGmailCompose()}
                       title={
                         smartEmailHasCandidateMail
                           ? '在浏览器新标签打开 Gmail 撰写（需已登录 Google 账号）'
@@ -1374,19 +1251,6 @@ function RecruitmentPageContent() {
                     </button>
                     <button
                       type="button"
-                      disabled={!smartEmailHasCandidateMail}
-                      className="rounded-lg bg-sky-800/90 hover:bg-sky-700 disabled:opacity-35 disabled:pointer-events-none px-3 py-1.5 text-xs font-medium text-white"
-                      onClick={() => openWebMailCompose('outlook')}
-                      title={
-                        smartEmailHasCandidateMail
-                          ? '在浏览器新标签打开 Outlook 网页版撰写（需已登录微软账号）'
-                          : '请先在表格中填写候选人有效邮箱'
-                      }
-                    >
-                      在 Outlook 网页中打开
-                    </button>
-                    <button
-                      type="button"
                       className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
                       onClick={() => smartEmailCandidate && void loadSmartEmail(smartEmailCandidate)}
                       disabled={smartEmailLoading}
@@ -1394,25 +1258,9 @@ function RecruitmentPageContent() {
                       重新生成
                     </button>
                   </div>
-                  {smartEmailResult && serverSendConfigured === false ? (
-                    <p className="text-[10px] text-amber-400/90">
-                      未检测到服务端发信配置（RESEND + RECRUITMENT_SMART_EMAIL_FROM），「一键发送」不可用；可复制全文或使用 Gmail / Outlook 网页。
-                    </p>
-                  ) : null}
                   {smartEmailComposeHint ? (
                     <p className="text-xs text-slate-300/95 leading-relaxed rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5">
                       {smartEmailComposeHint}
-                    </p>
-                  ) : null}
-                  {smartEmailSendOk ? (
-                    <p className="text-xs text-emerald-400/95">已通过服务器发送（候选人将收到邮件，回复会到您填写的联系邮箱）。</p>
-                  ) : null}
-                  {smartEmailSendErr ? (
-                    <p className="text-xs text-amber-300/95 rounded-lg border border-amber-500/25 bg-amber-500/10 px-2 py-1.5">
-                      {smartEmailSendErr}
-                      {smartEmailSendErr.includes('未配置') || smartEmailSendErr.includes('RECRUITMENT')
-                        ? ' 可改用「在 Gmail 中打开」或「在 Outlook 网页中打开」。'
-                        : ''}
                     </p>
                   ) : null}
                 </>
