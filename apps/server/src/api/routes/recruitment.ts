@@ -301,6 +301,7 @@ function serializeJd(row: {
     publishedAt: row.publishedAt?.toISOString() ?? null,
     firstRecommendAt: row.firstRecommendAt?.toISOString() ?? null,
     lastDailyRecommendAt: row.lastDailyRecommendAt?.toISOString() ?? null,
+    recommendBootstrapStartedAt: row.recommendBootstrapStartedAt?.toISOString() ?? null,
     recommendBootstrapPending: isRecruitmentBootstrapBlocking({
       firstRecommendAt: row.firstRecommendAt ?? null,
       recommendBootstrapStartedAt: row.recommendBootstrapStartedAt ?? null,
@@ -992,6 +993,7 @@ export function recruitmentRoutes(): Router {
         backlogCount: backlog.length,
         firstRecommendAt: jd.firstRecommendAt?.toISOString() ?? null,
         lastDailyRecommendAt: jd.lastDailyRecommendAt?.toISOString() ?? null,
+        recommendBootstrapStartedAt: jd.recommendBootstrapStartedAt?.toISOString() ?? null,
         recommendBootstrapPending: isRecruitmentBootstrapBlocking({
           firstRecommendAt: jd.firstRecommendAt ?? null,
           recommendBootstrapStartedAt: jd.recommendBootstrapStartedAt ?? null,

@@ -33,6 +33,8 @@ type JdRow = {
   publishedAt: string | null;
   firstRecommendAt?: string | null;
   lastDailyRecommendAt?: string | null;
+  /** 首轮后台推荐开始时间（用于展示已等待时长） */
+  recommendBootstrapStartedAt?: string | null;
   recommendBootstrapPending?: boolean;
   recommendBootstrapOutcome?: string;
   recommendBootstrapLastPhase?: string | null;
@@ -79,6 +81,46 @@ function formatSystemRecommendedAt(iso: string | null | undefined): string {
   return d.toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' });
 }
 
+/** 与 recruitment-recommend 后台 bootstrap trace 的 phase 对齐 */
+function bootstrapPhaseLabel(phase: string | null | undefined): string {
+  const p = (phase ?? '').trim();
+  const map: Record<string, string> = {
+    claimed: '已排队，等待检索',
+    search_started: '正在全库检索候选人（GitHub 合并检索，可能需数十秒至数分钟）',
+    search_done: '检索完成，正在整理结果',
+    persisting: '正在写入待查看池',
+    complete: '首轮推荐已就绪',
+    error: '处理过程出错',
+    abort_jd_missing_or_closed: '已中止（职位不可用）',
+    abort_quota: '已中止（智能推荐额度不足）',
+    abort_no_github_token: '已中止（服务器未配置 GitHub Token）',
+  };
+  return map[p] || (p ? `进行中：${p}` : '正在准备首轮推荐…');
+}
+
+function formatElapsedCn(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  if (m >= 60) {
+    const h = Math.floor(m / 60);
+    return `${h} 小时 ${m % 60} 分`;
+  }
+  if (m > 0) return `${m} 分 ${sec} 秒`;
+  return `${sec} 秒`;
+}
+
+/** 粗略进度条百分比，仅作视觉反馈 */
+function bootstrapPhaseProgress(phase: string | null | undefined): number {
+  const p = (phase ?? '').trim();
+  if (p === 'complete' || p === 'persisting') return 95;
+  if (p === 'search_done') return 78;
+  if (p === 'search_started') return 45;
+  if (p === 'claimed') return 18;
+  return 33;
+}
+
 function looksLikeEmail(s: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 }
@@ -116,6 +158,8 @@ function RecruitmentPageContent() {
   const [err, setErr] = useState<string | null>(null);
   const [newGh, setNewGh] = useState('');
   const [poolPending, setPoolPending] = useState<RecommendHit[] | null>(null);
+  /** 首轮推荐进行中时每秒递增，用于刷新「已等待」文案 */
+  const [bootstrapElapsedTick, setBootstrapElapsedTick] = useState(0);
   /** 岗位智能推荐列表多选：GitHub 用户名 */
   const [recommendSelected, setRecommendSelected] = useState<Set<string>>(() => new Set());
   const [bulkAdding, setBulkAdding] = useState(false);
@@ -189,6 +233,39 @@ function RecruitmentPageContent() {
             .filter((h) => h.githubUsername)
         : [];
       setPoolPending(hits);
+      setItems((prev) =>
+        prev.map((jd) =>
+          jd.id !== jid
+            ? jd
+            : {
+                ...jd,
+                recommendBootstrapPending: !!data.recommendBootstrapPending,
+                recommendBootstrapStartedAt:
+                  data.recommendBootstrapStartedAt !== undefined
+                    ? data.recommendBootstrapStartedAt
+                    : jd.recommendBootstrapStartedAt,
+                recommendBootstrapOutcome:
+                  data.recommendBootstrapOutcome !== undefined
+                    ? data.recommendBootstrapOutcome
+                    : jd.recommendBootstrapOutcome,
+                recommendBootstrapLastPhase:
+                  data.recommendBootstrapLastPhase !== undefined
+                    ? data.recommendBootstrapLastPhase
+                    : jd.recommendBootstrapLastPhase,
+                recommendBootstrapLastOk:
+                  data.recommendBootstrapLastOk !== undefined
+                    ? data.recommendBootstrapLastOk
+                    : jd.recommendBootstrapLastOk,
+                firstRecommendAt:
+                  data.firstRecommendAt !== undefined ? data.firstRecommendAt : jd.firstRecommendAt,
+                lastDailyRecommendAt:
+                  data.lastDailyRecommendAt !== undefined ? data.lastDailyRecommendAt : jd.lastDailyRecommendAt,
+                pendingRecommendCount: hits.length,
+                backlogRecommendCount:
+                  typeof data.backlogCount === 'number' ? data.backlogCount : jd.backlogRecommendCount,
+              },
+        ),
+      );
     } catch {
       setPoolPending(null);
     }
@@ -324,6 +401,13 @@ function RecruitmentPageContent() {
     }, 5_000);
     return () => clearInterval(timer);
   }, [selected?.recommendBootstrapPending, selectedId, loadAll, loadRecommendQueue]);
+
+  useEffect(() => {
+    if (!selected?.recommendBootstrapPending) return;
+    setBootstrapElapsedTick(0);
+    const t = setInterval(() => setBootstrapElapsedTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, [selected?.recommendBootstrapPending, selectedId]);
 
   const syncItem = (jd: JdRow) => {
     setItems((prev) => prev.map((x) => (x.id === jd.id ? jd : x)));
@@ -868,6 +952,75 @@ function RecruitmentPageContent() {
                       </div>
                     )}
                   </div>
+
+                  {selected.recommendBootstrapPending ? (
+                    <div
+                      className="mb-4 rounded-xl border border-cyan-400/35 bg-cyan-950/50 px-4 py-3 text-sm shadow-inner shadow-black/20"
+                      role="status"
+                      aria-live="polite"
+                      data-bootstrap-tick={bootstrapElapsedTick}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-cyan-50">
+                        <span
+                          className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-cyan-400/25 border-t-cyan-300 shrink-0"
+                          aria-hidden
+                        />
+                        <span className="font-medium">首轮智能推荐进行中</span>
+                        {selected.recommendBootstrapStartedAt ? (
+                          <span className="text-cyan-200/85 tabular-nums text-xs">
+                            已等待{' '}
+                            {formatElapsedCn(
+                              Date.now() - new Date(selected.recommendBootstrapStartedAt).getTime(),
+                            )}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-xs text-cyan-100/85 leading-relaxed">
+                        {bootstrapPhaseLabel(selected.recommendBootstrapLastPhase)}
+                      </p>
+                      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-black/45">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-600/95 to-teal-400/90 transition-[width] duration-700 ease-out"
+                          style={{
+                            width: `${bootstrapPhaseProgress(selected.recommendBootstrapLastPhase)}%`,
+                          }}
+                        />
+                      </div>
+                      <p className="mt-2 text-[10px] text-slate-500">
+                        推荐结果将出现在下方列表；本页约每 5 秒自动同步进度与候选人。
+                      </p>
+                    </div>
+                  ) : null}
+
+                  {!selected.recommendBootstrapPending &&
+                  selected.recommendBootstrapOutcome &&
+                  ['failed', 'stuck', 'aborted'].includes(selected.recommendBootstrapOutcome) &&
+                  (!poolPending || poolPending.length === 0) ? (
+                    <div
+                      className="mb-4 rounded-xl border border-amber-500/35 bg-amber-950/25 px-4 py-3 text-xs text-amber-100/90"
+                      role="alert"
+                    >
+                      {selected.recommendBootstrapOutcome === 'stuck' ? (
+                        <p>
+                          首轮推荐状态异常（长时间未完成）。请刷新页面或稍后重试；若仍无候选人，请联系管理员查看服务日志。
+                        </p>
+                      ) : selected.recommendBootstrapOutcome === 'aborted' ? (
+                        <p>
+                          首轮推荐已中止（额度不足、未配置 GitHub Token 或职位不可用等）。请检查额度与后台配置后新建或重新保存
+                          JD。
+                        </p>
+                      ) : (
+                        <p>
+                          首轮推荐失败
+                          {selected.recommendBootstrapLastPhase === 'error'
+                            ? '（处理过程出错）'
+                            : ''}
+                          。请稍后重试或联系管理员。
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+
                   {poolPending && poolPending.length > 0 && (
                     <ul className="space-y-2 max-h-56 overflow-y-auto mb-4">
                       {poolPending.map((h) => (

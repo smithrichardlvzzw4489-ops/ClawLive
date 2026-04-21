@@ -1018,6 +1018,7 @@ export const api = {
         backlogCount?: number;
         firstRecommendAt?: string | null;
         lastDailyRecommendAt?: string | null;
+        recommendBootstrapStartedAt?: string | null;
         recommendBootstrapPending?: boolean;
         recommendBootstrapTrace?: Array<{
           at: string;
