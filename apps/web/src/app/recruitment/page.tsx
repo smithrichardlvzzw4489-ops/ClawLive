@@ -58,18 +58,15 @@ type RecommendHit = {
   addedAt?: string;
 };
 
+/** 简介由服务端两段式生成；加入候选人时由 POST 从池中写入 DB */
 function recommendAddBody(gh: string, pool: RecommendHit[] | null | undefined) {
   const key = gh.trim().toLowerCase();
   const hit = pool?.find((h) => h.githubUsername.trim().toLowerCase() === key);
   if (!hit) return { githubUsername: gh };
-  const one = hit.oneLiner?.trim();
-  const reason = hit.reason?.trim();
-  const intro = one || (reason ? reason.slice(0, 2000) : '') || null;
   const matchScore = typeof hit.score === 'number' && Number.isFinite(hit.score) ? hit.score : null;
   const systemRecommendedAt = hit.addedAt?.trim() || new Date().toISOString();
   return {
     githubUsername: gh,
-    intro,
     matchScore,
     systemRecommendedAt,
   };
@@ -899,7 +896,7 @@ function RecruitmentPageContent() {
                             <div className="mt-1 space-y-0.5 text-[11px] leading-snug">
                               <p className="text-slate-300">
                                 <span className="text-slate-600">简介</span>{' '}
-                                <span className="line-clamp-2">
+                                <span className="line-clamp-6 whitespace-pre-line break-words">
                                   {h.oneLiner?.trim()
                                     ? h.oneLiner.trim()
                                     : h.reason?.trim()

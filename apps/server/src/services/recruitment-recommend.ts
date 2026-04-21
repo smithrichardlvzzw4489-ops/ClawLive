@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import type { JobPosting, JobPostingCandidate } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { railwayDiag } from '../lib/railway-diag';
-import { searchDevelopers, type DeveloperSearchResult } from './codernet-search';
+import { searchDevelopers, type DeveloperSearchResult, type LinkSearchBucketKey } from './codernet-search';
 import { getServerGitHubToken } from './github-crawler';
 import { checkQuotaHasRemaining, consumeQuota } from './quota-manager';
 
@@ -46,7 +46,101 @@ export type RecruitmentRecommendHit = {
   source?: 'sync' | 'weekly' | 'daily';
   /** ISO 8601：进入「待查看池」的时间（用于前端展示） */
   addedAt?: string;
+  /** LINK 检索分桶（可选，用于简介「匹配度」段落） */
+  linkBucket?: LinkSearchBucketKey;
+  hasContact?: boolean;
+  hasJobSeekingIntent?: boolean;
 };
+
+/** 与 routes 中 MAX_CANDIDATE_INTRO 对齐 */
+export const RECRUIT_CANDIDATE_INTRO_MAX = 8_000;
+
+const SECTION_GH = '【1｜GitHub 画像】';
+const SECTION_JOB = '【2｜与岗位匹配度分析】';
+
+function truncateIntro(s: string): string {
+  return s.length > RECRUIT_CANDIDATE_INTRO_MAX ? s.slice(0, RECRUIT_CANDIDATE_INTRO_MAX) : s;
+}
+
+function bucketLineCn(hit: {
+  linkBucket?: LinkSearchBucketKey;
+  hasContact?: boolean;
+  hasJobSeekingIntent?: boolean;
+}): string | null {
+  const b = hit.linkBucket;
+  if (b === 'jobSeekingAndContact') return '分桶：同时可见求职信号与可触达联系方式线索，可优先跟进。';
+  if (b === 'jobSeekingOnly') return '分桶：可见求职相关公开信号。';
+  if (b === 'contactOnly') return '分桶：可见公开可触达联系方式线索。';
+  if (b === 'neither') return '分桶：其余公开档案（可结合「画像」进一步判断）。';
+  if (hit.hasContact === true) return '线索：资料中含邮箱/主页等可触达信息。';
+  if (hit.hasContact === false) return '线索：未发现明显公开联系方式。';
+  return null;
+}
+
+/** 岗位智能推荐 / 候选人简介：两段式（GitHub 公开元数据 + 与本 JD 检索相关的匹配说明） */
+export function formatIntroTwoPartsFromDeveloper(r: DeveloperSearchResult): string {
+  const portrait: string[] = [];
+  portrait.push(`账号 @${r.githubUsername}`);
+  if (r.location?.trim()) portrait.push(`地区：${r.location.trim()}`);
+  if (r.bio?.trim()) portrait.push(`GitHub 简介：${r.bio.trim()}`);
+  portrait.push(
+    `公开数据：仓库约 ${r.stats.totalPublicRepos}，获星约 ${r.stats.totalStars}，关注者 ${r.stats.followers}。`,
+  );
+  if (r.techTags?.length)
+    portrait.push(`技术标签：${r.techTags.slice(0, 20).join('、')}`);
+  if (r.oneLiner?.trim()) portrait.push(`一句话摘要：${r.oneLiner.trim().slice(0, 400)}`);
+
+  const scoreStr =
+    typeof r.score === 'number' && Number.isFinite(r.score) ? r.score.toFixed(1) : '—';
+  const job: string[] = [];
+  job.push(
+    `系统匹配度 ${scoreStr}：由当前岗位 JD 触发的 GitHub 检索与粗排得分，用于同批候选人横向对比，不代表录用结论。`,
+  );
+  const bl = bucketLineCn(r);
+  if (bl) job.push(bl);
+  if (r.reason?.trim()) {
+    const rr = r.reason.trim();
+    if (!rr.includes('未做深度画像')) job.push(`补充：${rr.slice(0, 700)}`);
+  }
+
+  const text = `${SECTION_GH}\n${portrait.join('\n')}\n\n${SECTION_JOB}\n${job.join('\n')}`;
+  return truncateIntro(text);
+}
+
+/** 从已持久化的推荐条重建两段式简介（兼容旧数据：无分段标记则整体重写） */
+export function formatIntroTwoPartsFromStoredHit(h: RecruitmentRecommendHit): string {
+  const ol = h.oneLiner?.trim() ?? '';
+  if (ol.includes(SECTION_GH) && ol.includes(SECTION_JOB)) return truncateIntro(ol);
+
+  const portrait: string[] = [];
+  portrait.push(`账号 @${h.githubUsername}`);
+  if (h.location?.trim()) portrait.push(`地区：${h.location.trim()}`);
+  portrait.push(
+    `公开数据：仓库约 ${h.stats.totalPublicRepos}，获星约 ${h.stats.totalStars}，关注者 ${h.stats.followers}。`,
+  );
+  if (h.techTags?.length) portrait.push(`技术标签：${h.techTags.join('、')}`);
+  if (ol && !ol.includes('【')) portrait.push(`摘要：${ol.slice(0, 500)}`);
+
+  const scoreStr =
+    typeof h.score === 'number' && Number.isFinite(h.score) ? h.score.toFixed(1) : '—';
+  const job: string[] = [];
+  job.push(
+    `系统匹配度 ${scoreStr}：由当前岗位 JD 触发的 GitHub 检索与粗排得分，用于同批候选人横向对比，不代表录用结论。`,
+  );
+  const bl = bucketLineCn(h);
+  if (bl) job.push(bl);
+  if (h.reason?.trim()) {
+    const rr = h.reason.trim();
+    if (rr.includes('未做深度画像'))
+      job.push(
+        '检索说明：基于本岗位 JD 在 GitHub 的公开检索命中；未做单独深度画像时，可点击「画像」查看技术页。',
+      );
+    else job.push(`补充：${rr.slice(0, 700)}`);
+  }
+
+  const text = `${SECTION_GH}\n${portrait.join('\n')}\n\n${SECTION_JOB}\n${job.join('\n')}`;
+  return truncateIntro(text);
+}
 
 export function buildCombinedQueryFromJd(jd: {
   title: string;
@@ -70,17 +164,6 @@ export function buildCombinedQueryFromJd(jd: {
     .join('\n\n');
 }
 
-/** 招聘推荐卡片「简介」：优先 AI 一句话；否则 GitHub bio；否则检索说明 reason（LINK 流水线常无画像，仅填 reason） */
-function oneLinerForRecommendHit(r: DeveloperSearchResult): string {
-  const a = r.oneLiner?.trim();
-  if (a) return a.length > 500 ? a.slice(0, 500) : a;
-  const bio = r.bio?.trim();
-  if (bio) return bio.length > 500 ? bio.slice(0, 500) : bio;
-  const reason = r.reason?.trim();
-  if (reason) return reason.length > 500 ? reason.slice(0, 500) : reason;
-  return '';
-}
-
 export function mapDeveloperToRecommendHit(
   r: DeveloperSearchResult,
   source: RecruitmentRecommendHit['source'],
@@ -88,13 +171,16 @@ export function mapDeveloperToRecommendHit(
   return {
     githubUsername: r.githubUsername,
     avatarUrl: r.avatarUrl,
-    oneLiner: oneLinerForRecommendHit(r),
+    oneLiner: formatIntroTwoPartsFromDeveloper(r),
     techTags: r.techTags,
     score: r.score,
     reason: r.reason,
     stats: r.stats,
     location: r.location,
     source,
+    linkBucket: r.linkBucket,
+    hasContact: r.hasContact,
+    hasJobSeekingIntent: r.hasJobSeekingIntent,
   };
 }
 
@@ -133,7 +219,22 @@ export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit
     let oneLiner = typeof o.oneLiner === 'string' ? o.oneLiner.trim() : '';
     const reasonStr = typeof o.reason === 'string' ? o.reason.trim() : '';
     if (!oneLiner && reasonStr) oneLiner = reasonStr.length > 500 ? reasonStr.slice(0, 500) : reasonStr;
-    out.push({
+    const lb = (o as { linkBucket?: unknown }).linkBucket;
+    const linkBucket: LinkSearchBucketKey | undefined =
+      lb === 'jobSeekingAndContact' ||
+      lb === 'jobSeekingOnly' ||
+      lb === 'contactOnly' ||
+      lb === 'neither'
+        ? lb
+        : undefined;
+    const hasContact = typeof (o as { hasContact?: unknown }).hasContact === 'boolean'
+      ? (o as { hasContact: boolean }).hasContact
+      : undefined;
+    const hasJobSeekingIntent =
+      typeof (o as { hasJobSeekingIntent?: unknown }).hasJobSeekingIntent === 'boolean'
+        ? (o as { hasJobSeekingIntent: boolean }).hasJobSeekingIntent
+        : undefined;
+    const hit: RecruitmentRecommendHit = {
       githubUsername: gh,
       avatarUrl: typeof o.avatarUrl === 'string' ? o.avatarUrl : '',
       oneLiner,
@@ -151,7 +252,12 @@ export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit
       location: typeof o.location === 'string' ? o.location : null,
       source,
       addedAt: typeof o.addedAt === 'string' ? o.addedAt : undefined,
-    });
+      linkBucket,
+      hasContact,
+      hasJobSeekingIntent,
+    };
+    hit.oneLiner = formatIntroTwoPartsFromStoredHit(hit);
+    out.push(hit);
   }
   return out;
 }

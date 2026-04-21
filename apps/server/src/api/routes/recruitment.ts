@@ -15,6 +15,7 @@ import {
   kickoffRecruitmentRecommendAfterJdCreate,
   isRecruitmentBootstrapBlocking,
   mapDeveloperToRecommendHit,
+  formatIntroTwoPartsFromStoredHit,
   parsePendingRecommendHits,
   parseRecommendIgnoredGithubUsernames,
   capIgnoredUsernamesArray,
@@ -165,16 +166,9 @@ function effectiveCandidateFieldsFromCreateBody(
   body: unknown,
   poolHit: RecruitmentRecommendHit | undefined,
 ): { intro: string | null; matchScore: number | null; systemRecommendedAt: Date | null } {
-  let intro = parseIntroFromCreateBody(body);
-  if (intro == null && poolHit) {
-    const ol = poolHit.oneLiner?.trim();
-    const re = poolHit.reason?.trim()
-      ? poolHit.reason.trim().slice(0, Math.min(2000, MAX_CANDIDATE_INTRO))
-      : "";
-    const combined = ol || re;
-    intro =
-      combined.length > MAX_CANDIDATE_INTRO ? combined.slice(0, MAX_CANDIDATE_INTRO) : combined || null;
-  }
+  let intro: string | null = poolHit
+    ? formatIntroTwoPartsFromStoredHit(poolHit)
+    : parseIntroFromCreateBody(body);
 
   let matchScore = parseMatchScoreFromBody(body);
   if (
@@ -216,14 +210,14 @@ function serializeCandidateMerged(
   jdFirstRecommendAt: Date | null,
 ) {
   const introDb = c.intro && String(c.intro).trim() ? String(c.intro).trim() : "";
-  let intro =
-    introDb ||
-    (hit?.oneLiner?.trim() ? hit.oneLiner.trim() : "") ||
-    (hit?.reason?.trim() ? hit.reason.trim().slice(0, Math.min(2000, MAX_CANDIDATE_INTRO)) : "");
+  let intro = introDb;
+  if (!intro && hit) {
+    intro = formatIntroTwoPartsFromStoredHit(hit);
+  }
   if (!intro) {
     intro = c.displayName?.trim()
-      ? `${c.displayName.trim()} — 已加入本 JD，可点击「画像」查看 GitHub 公开贡献与标签。`
-      : `GitHub @${c.githubUsername} — 已加入本 JD，可点击「画像」查看技术画像与仓库。`;
+      ? `【1｜GitHub 画像】\n${c.displayName.trim()} — 已加入本 JD；完整 GitHub 画像可点击「画像」查看。\n\n【2｜与岗位匹配度分析】\n暂无来自推荐池的系统匹配记录；若从岗位智能推荐加入，将显示检索粗排得分与说明。`
+      : `【1｜GitHub 画像】\n@${c.githubUsername} — 已加入本 JD；完整 GitHub 画像可点击「画像」查看。\n\n【2｜与岗位匹配度分析】\n暂无来自推荐池的系统匹配记录；若从岗位智能推荐加入，将显示检索粗排得分与说明。`;
   }
   if (intro.length > MAX_CANDIDATE_INTRO) intro = intro.slice(0, MAX_CANDIDATE_INTRO);
 
