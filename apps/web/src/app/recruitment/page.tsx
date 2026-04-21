@@ -1006,7 +1006,13 @@ function RecruitmentPageContent() {
                             <div className="mt-1 space-y-0.5 text-[11px] leading-snug">
                               <p className="text-slate-300">
                                 <span className="text-slate-600">简介</span>{' '}
-                                <span className="line-clamp-2">{h.oneLiner?.trim() ? h.oneLiner.trim() : '—'}</span>
+                                <span className="line-clamp-2">
+                                  {h.oneLiner?.trim()
+                                    ? h.oneLiner.trim()
+                                    : h.reason?.trim()
+                                      ? h.reason.trim().slice(0, 400)
+                                      : '—'}
+                                </span>
                               </p>
                               <p className="text-slate-300">
                                 <span className="text-slate-600">匹配度</span>{' '}

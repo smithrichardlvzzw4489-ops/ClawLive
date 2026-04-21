@@ -70,6 +70,17 @@ export function buildCombinedQueryFromJd(jd: {
     .join('\n\n');
 }
 
+/** 招聘推荐卡片「简介」：优先 AI 一句话；否则 GitHub bio；否则检索说明 reason（LINK 流水线常无画像，仅填 reason） */
+function oneLinerForRecommendHit(r: DeveloperSearchResult): string {
+  const a = r.oneLiner?.trim();
+  if (a) return a.length > 500 ? a.slice(0, 500) : a;
+  const bio = r.bio?.trim();
+  if (bio) return bio.length > 500 ? bio.slice(0, 500) : bio;
+  const reason = r.reason?.trim();
+  if (reason) return reason.length > 500 ? reason.slice(0, 500) : reason;
+  return '';
+}
+
 export function mapDeveloperToRecommendHit(
   r: DeveloperSearchResult,
   source: RecruitmentRecommendHit['source'],
@@ -77,7 +88,7 @@ export function mapDeveloperToRecommendHit(
   return {
     githubUsername: r.githubUsername,
     avatarUrl: r.avatarUrl,
-    oneLiner: r.oneLiner,
+    oneLiner: oneLinerForRecommendHit(r),
     techTags: r.techTags,
     score: r.score,
     reason: r.reason,
@@ -119,10 +130,13 @@ export function parsePendingRecommendHits(raw: unknown): RecruitmentRecommendHit
     const src = o.source;
     const source: RecruitmentRecommendHit['source'] =
       src === 'weekly' || src === 'sync' || src === 'daily' ? src : 'sync';
+    let oneLiner = typeof o.oneLiner === 'string' ? o.oneLiner.trim() : '';
+    const reasonStr = typeof o.reason === 'string' ? o.reason.trim() : '';
+    if (!oneLiner && reasonStr) oneLiner = reasonStr.length > 500 ? reasonStr.slice(0, 500) : reasonStr;
     out.push({
       githubUsername: gh,
       avatarUrl: typeof o.avatarUrl === 'string' ? o.avatarUrl : '',
-      oneLiner: typeof o.oneLiner === 'string' ? o.oneLiner : '',
+      oneLiner,
       techTags: Array.isArray(o.techTags) ? o.techTags.filter((t): t is string => typeof t === 'string') : [],
       score: typeof o.score === 'number' ? o.score : 0,
       reason: typeof o.reason === 'string' ? o.reason : '',
