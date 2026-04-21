@@ -1299,10 +1299,6 @@ function RecruitmentPageContent() {
                         <span className="text-amber-400/95">请在资料中填写招聘沟通邮箱或绑定账号邮箱</span>
                       )}
                     </p>
-                    <p className="text-[10px] text-slate-600 leading-snug pt-0.5">
-                      推荐「通过服务器发送」：投递<strong className="text-slate-400">完整</strong>主题与正文，无浏览器链接长度截断。Gmail / Outlook
-                      网页打开仅作备选，正文过长时可能需在提示下从剪贴板粘贴。
-                    </p>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase tracking-wider text-slate-500">主题</span>
