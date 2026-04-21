@@ -139,6 +139,8 @@ function RecruitmentPageContent() {
   const [smartEmailSendErr, setSmartEmailSendErr] = useState<string | null>(null);
   const [smartEmailSendOk, setSmartEmailSendOk] = useState(false);
   const [smartEmailComposeHint, setSmartEmailComposeHint] = useState<string | null>(null);
+  /** 是否已配置服务端代发（RESEND + 发件域），用于突出「一键发送」 */
+  const [serverSendConfigured, setServerSendConfigured] = useState<boolean | null>(null);
   /** 编辑 JD：职位描述长文折叠 */
   const [jdDescriptionOpen, setJdDescriptionOpen] = useState(false);
   /** 候选人表格：待批量移除的 id */
@@ -632,11 +634,20 @@ function RecruitmentPageContent() {
       setSmartEmailSendErr(null);
       setSmartEmailSendOk(false);
       setSmartEmailComposeHint(null);
+      setServerSendConfigured(null);
       setSmartEmailResult(null);
       void loadSmartEmail(c);
     },
     [loadSmartEmail],
   );
+
+  useEffect(() => {
+    if (!smartEmailCandidate) return;
+    void api.recruitment
+      .emailSendCapabilities()
+      .then((d) => setServerSendConfigured(!!d.serverSendConfigured))
+      .catch(() => setServerSendConfigured(false));
+  }, [smartEmailCandidate]);
 
   const smartEmailCanSend = useMemo(() => {
     if (!smartEmailResult || !smartEmailCandidate) return false;
@@ -1266,7 +1277,8 @@ function RecruitmentPageContent() {
                       )}
                     </p>
                     <p className="text-[10px] text-slate-600 leading-snug pt-0.5">
-                      「在 Gmail / Outlook 网页中打开」会在浏览器新标签打开撰写页（需已在对应网站登录），无需配置系统默认邮件应用。
+                      推荐「通过服务器发送」：投递<strong className="text-slate-400">完整</strong>主题与正文，无浏览器链接长度截断。Gmail / Outlook
+                      网页打开仅作备选，正文过长时可能需在提示下从剪贴板粘贴。
                     </p>
                   </div>
                   <div>
@@ -1281,12 +1293,28 @@ function RecruitmentPageContent() {
                     <span className="text-[10px] uppercase tracking-wider text-slate-500">正文</span>
                     <textarea
                       readOnly
-                      rows={14}
+                      rows={16}
                       value={smartEmailResult.body}
-                      className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-slate-200 font-mono leading-relaxed min-h-[200px]"
+                      className="mt-1 w-full resize-y rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-slate-200 font-mono leading-relaxed min-h-[240px]"
                     />
+                    <p className="mt-1 text-[11px] text-slate-500 tabular-nums">
+                      主题 {smartEmailResult.subject.length} 字 · 正文 {smartEmailResult.body.length} 字 · 生成目标正文约 650～4500 字
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2 pb-1">
+                  <div className="flex flex-wrap gap-2 pb-1 items-center">
+                    <button
+                      type="button"
+                      disabled={!smartEmailCanSend || smartEmailSending}
+                      className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:opacity-35 disabled:pointer-events-none ${
+                        serverSendConfigured
+                          ? 'bg-violet-600 hover:bg-violet-500 ring-2 ring-violet-400/35 shadow-lg shadow-violet-900/30'
+                          : 'border border-violet-500/50 bg-violet-950/50 hover:bg-violet-900/60'
+                      }`}
+                      onClick={() => void handleSendSmartEmailServer()}
+                      title="从服务端投递完整 HTML 邮件（需 RESEND + RECRUITMENT_SMART_EMAIL_FROM）；无 URL 截断"
+                    >
+                      {smartEmailSending ? '发送中…' : '一键发送（完整邮件）'}
+                    </button>
                     <button
                       type="button"
                       className="rounded-lg bg-white/10 hover:bg-white/15 px-3 py-1.5 text-xs"
@@ -1303,7 +1331,7 @@ function RecruitmentPageContent() {
                     </button>
                     <button
                       type="button"
-                      className="rounded-lg bg-violet-600 hover:bg-violet-500 px-3 py-1.5 text-xs font-medium text-white"
+                      className="rounded-lg bg-violet-600/80 hover:bg-violet-500/90 px-3 py-1.5 text-xs font-medium text-white"
                       onClick={() =>
                         void navigator.clipboard.writeText(
                           `主题：${smartEmailResult.subject}\n\n${smartEmailResult.body}`,
@@ -1340,15 +1368,6 @@ function RecruitmentPageContent() {
                     </button>
                     <button
                       type="button"
-                      disabled={!smartEmailCanSend || smartEmailSending}
-                      className="rounded-lg border border-violet-500/50 bg-violet-950/40 hover:bg-violet-900/50 disabled:opacity-35 disabled:pointer-events-none px-3 py-1.5 text-xs text-violet-100"
-                      onClick={() => void handleSendSmartEmailServer()}
-                      title="需服务端配置 RESEND_API_KEY 与 RECRUITMENT_SMART_EMAIL_FROM"
-                    >
-                      {smartEmailSending ? '发送中…' : '通过服务器发送'}
-                    </button>
-                    <button
-                      type="button"
                       className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5"
                       onClick={() => smartEmailCandidate && void loadSmartEmail(smartEmailCandidate)}
                       disabled={smartEmailLoading}
@@ -1356,6 +1375,11 @@ function RecruitmentPageContent() {
                       重新生成
                     </button>
                   </div>
+                  {smartEmailResult && serverSendConfigured === false ? (
+                    <p className="text-[10px] text-amber-400/90">
+                      未检测到服务端发信配置（RESEND + RECRUITMENT_SMART_EMAIL_FROM），「一键发送」不可用；可复制全文或使用 Gmail / Outlook 网页。
+                    </p>
+                  ) : null}
                   {smartEmailComposeHint ? (
                     <p className="text-xs text-slate-300/95 leading-relaxed rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5">
                       {smartEmailComposeHint}

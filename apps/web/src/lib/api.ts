@@ -989,6 +989,8 @@ export const api = {
         }>;
       }>,
     /** 根据 JD 与候选人信息生成沟通邮件主题与正文（LLM） */
+    emailSendCapabilities: () =>
+      fetchAPI('/api/recruitment/email-send-capabilities') as Promise<{ serverSendConfigured?: boolean }>,
     smartEmail: (jdId: string, candidateId: string) =>
       fetchAPI(
         `/api/recruitment/jds/${encodeURIComponent(jdId)}/candidates/${encodeURIComponent(candidateId)}/smart-email`,

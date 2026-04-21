@@ -1,16 +1,18 @@
 import { getPublishingLlmClient, trackedChatCompletion } from './llm';
 import type { TokenFeature } from './token-tracker';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 const FEATURE: TokenFeature = 'recruitment_outreach_email';
 
-/**
- * 提示词中的建议上限（模型应尽量遵守；Gmail/Outlook 打开方式由前端分层处理，服务端不再为缩短 URL 而裁正文）。
- * 当前约定：主题约 100 字内；正文约 4000 字内（含换行），足以写完整 cold outreach。
- */
+/** 模型目标：正文充实；低于此则触发一次补写重试 */
+const PROMPT_BODY_MIN_CHARS = 650;
+const PROMPT_BODY_MAX_CHARS = 4500;
 const PROMPT_SUBJECT_MAX_CHARS = 100;
-const PROMPT_BODY_MAX_CHARS = 4000;
 
-/** 防止异常超长响应占满存储/传输；与 API 路由 smart-email/send 的 48k 正文上限错开层级 */
+/** 首次生成若正文仍短于此（约半屏），自动多轮补写一次 */
+const BODY_LENGTH_RETRY_THRESHOLD = 520;
+
+/** 防止异常超长响应；与 send 接口 48k 上限分层 */
 const HARD_CAP_SUBJECT_CHARS = 400;
 const HARD_CAP_BODY_CHARS = 12_000;
 
@@ -26,8 +28,29 @@ function clampWithEllipsis(s: string, max: number): string {
   return `${t.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
 }
 
+function parseSubjectBodyFromModelJson(raw: string): { subject: string; body: string } {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripJsonFence(raw));
+  } catch {
+    throw new Error('模型返回格式无法解析为 JSON，请重试');
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('模型返回无效 JSON');
+  }
+  const o = parsed as { subject?: unknown; body?: unknown };
+  const subject = typeof o.subject === 'string' ? o.subject.trim() : '';
+  let body = typeof o.body === 'string' ? o.body.trim() : '';
+  body = body.replace(/\\n/g, '\n');
+  if (!subject || !body) {
+    throw new Error('模型未生成完整的主题或正文');
+  }
+  return { subject, body };
+}
+
 /**
  * 根据 JD 与候选人信息生成首封沟通邮件（中文）。
+ * 不以 Gmail 链接长度为理由截断：完整内容用于弹窗展示与「通过服务器发送」。
  */
 export async function generateRecruitmentOutreachEmail(params: {
   jdTitle: string;
@@ -38,16 +61,14 @@ export async function generateRecruitmentOutreachEmail(params: {
   candidateDisplayName: string | null;
   candidateEmail: string | null;
   candidateNotes: string | null;
-  /** 候选人简介（如智能推荐 oneLiner） */
   candidateIntro: string | null;
-  /** 招聘方在资料中填写的沟通邮箱（如 Gmail），用于正文署名与回复指引 */
   recruiterContactEmail: string | null;
 }): Promise<{ subject: string; body: string }> {
   const { client, model } = getPublishingLlmClient();
   const jdSnippet =
     params.jdBody.length > 12_000 ? `${params.jdBody.slice(0, 12_000)}…` : params.jdBody;
 
-  const user = `【职位】
+  const userContent = `【职位】
 标题：${params.jdTitle}
 公司：${params.jdCompany ?? '（未填写）'}
 地点：${params.jdLocation ?? '（未填写）'}
@@ -64,24 +85,32 @@ GitHub：@${params.candidateGithub}
 【招聘方联系/回复】
 ${params.recruiterContactEmail ? `建议使用署名与回复邮箱：${params.recruiterContactEmail}（请在邮件末尾签名中体现，并说明候选人可回复至此邮箱）` : '（用户尚未在「我的」填写招聘沟通邮箱；正文可写公司或团队邮箱，或邀请候选人回复讨论）'}
 
-请写一封专业、真诚的中文 cold outreach 邮件（技术招聘场景）。段落写完整，结尾有明确下一步（如欢迎回复、约聊）；不要用 markdown 标题符号。
-建议长度：主题不超过 ${PROMPT_SUBJECT_MAX_CHARS} 个字符；正文不超过 ${PROMPT_BODY_MAX_CHARS} 个字符（含换行与标点）。在建议范围内尽量写充分，不要无故过短。
+请写一封**信息充分**的中文 cold outreach 邮件（技术招聘场景）。
+**硬性要求（必须同时满足）：**
+1. 主题：完整一行，建议 ${Math.floor(PROMPT_SUBJECT_MAX_CHARS * 0.2)}～${PROMPT_SUBJECT_MAX_CHARS} 字，突出公司与岗位价值，不要用「……」敷衍截断。
+2. 正文：**不少于 ${PROMPT_BODY_MIN_CHARS} 字、不超过 ${PROMPT_BODY_MAX_CHARS} 字**（含换行与标点）。须包含：得体称呼、为何联系对方、岗位与团队说明、与对方经历的匹配点、工作方式/技术栈亮点、明确的下一步（欢迎回复/约聊）、结尾署名或回复指引。**禁止**只写两三段空话或明显过短的应付内容。
+3. 不要用 markdown 标题符号（#）；换行在 JSON 里用 \\n 表示。
+
 只输出一个 JSON 对象，不要其它文字。格式严格为：
 {"subject":"邮件主题一行","body":"邮件正文，换行用 \\n 表示"}`;
 
-  const res = await trackedChatCompletion(
+  const systemContent = `你是资深技术招聘顾问。你必须写出**足够长且具体**的首封邮件：正文至少 ${PROMPT_BODY_MIN_CHARS} 字、至多 ${PROMPT_BODY_MAX_CHARS} 字；分段清晰，禁止敷衍短文。若已提供招聘方联系邮箱，正文末须自然附上签名与回复方式。只输出合法 JSON，键为 subject 与 body，字符串内用 \\n 表示换行。`;
+
+  const completionOpts = {
+    model,
+    temperature: 0.58,
+    max_tokens: 7200,
+  };
+
+  const baseMessages: ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemContent },
+    { role: 'user', content: userContent },
+  ];
+
+  const res1 = await trackedChatCompletion(
     {
-      model,
-      messages: [
-        {
-          role: 'system',
-          content:
-            `你是资深技术招聘顾问，帮助 HR 给开发者写首封沟通邮件。主题建议≤${PROMPT_SUBJECT_MAX_CHARS}字、正文建议≤${PROMPT_BODY_MAX_CHARS}字；段落完整、结尾可落款。若已提供招聘方联系邮箱，请在正文末自然附上签名与回复方式。只输出合法 JSON 对象，键为 subject 与 body，字符串内使用 \\n 表示换行。`,
-        },
-        { role: 'user', content: user },
-      ],
-      temperature: 0.55,
-      max_tokens: 6000,
+      ...completionOpts,
+      messages: baseMessages,
     },
     FEATURE,
     {
@@ -91,29 +120,41 @@ ${params.recruiterContactEmail ? `建议使用署名与回复邮箱：${params.r
     client,
   );
 
-  const raw = res.choices[0]?.message?.content?.trim();
-  if (!raw) {
+  const raw1 = res1.choices[0]?.message?.content?.trim();
+  if (!raw1) {
     throw new Error('模型未返回内容');
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stripJsonFence(raw));
-  } catch {
-    throw new Error('模型返回格式无法解析为 JSON，请重试');
-  }
+  let { subject, body } = parseSubjectBodyFromModelJson(raw1);
 
-  if (!parsed || typeof parsed !== 'object') {
-    throw new Error('模型返回无效 JSON');
-  }
+  if (body.length < BODY_LENGTH_RETRY_THRESHOLD) {
+    const fixMessages: ChatCompletionMessageParam[] = [
+      ...baseMessages,
+      { role: 'assistant', content: raw1 },
+      {
+        role: 'user',
+        content: `上一版正文字数仅约 ${body.length} 字，**未达到**不少于 ${PROMPT_BODY_MIN_CHARS} 字的要求。请重新输出**一整份**合法 JSON（替换 subject 与 body），正文必须写满至少 ${PROMPT_BODY_MIN_CHARS} 字、不超过 ${PROMPT_BODY_MAX_CHARS} 字，分段充实，禁止再敷衍。`,
+      },
+    ];
 
-  const o = parsed as { subject?: unknown; body?: unknown };
-  let subject = typeof o.subject === 'string' ? o.subject.trim() : '';
-  let body = typeof o.body === 'string' ? o.body.trim() : '';
-  body = body.replace(/\\n/g, '\n');
+    const res2 = await trackedChatCompletion(
+      {
+        ...completionOpts,
+        messages: fixMessages,
+      },
+      FEATURE,
+      {
+        jdTitle: params.jdTitle.slice(0, 120),
+        gh: `${params.candidateGithub.slice(0, 80)}:retry`,
+      },
+      client,
+    );
 
-  if (!subject || !body) {
-    throw new Error('模型未生成完整的主题或正文');
+    const raw2 = res2.choices[0]?.message?.content?.trim();
+    if (!raw2) {
+      throw new Error('补写邮件时模型未返回内容');
+    }
+    ({ subject, body } = parseSubjectBodyFromModelJson(raw2));
   }
 
   subject = clampWithEllipsis(subject, HARD_CAP_SUBJECT_CHARS);

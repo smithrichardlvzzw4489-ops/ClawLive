@@ -215,6 +215,14 @@ export function recruitmentRoutes(): Router {
     res.json({ stages: [...PIPELINE_STAGES] });
   });
 
+  /** 前端用于突出「一键发送」：是否已配置 Resend 发件域 */
+  router.get("/email-send-capabilities", authenticateToken, (_req: AuthRequest, res: Response) => {
+    const serverSendConfigured = !!(
+      process.env.RESEND_API_KEY?.trim() && process.env.RECRUITMENT_SMART_EMAIL_FROM?.trim()
+    );
+    res.json({ serverSendConfigured });
+  });
+
   router.get("/jds", authenticateToken, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
