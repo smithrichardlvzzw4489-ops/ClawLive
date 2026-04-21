@@ -34,7 +34,7 @@ const zcoolXiaoWei = ZCOOL_XiaoWei({
 const metadataBase =
   process.env.NEXT_PUBLIC_APP_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-  'https://www.clawlab.live';
+  'https://www.gitlink.top';
 
 export const metadata: Metadata = {
   metadataBase: new URL(metadataBase),

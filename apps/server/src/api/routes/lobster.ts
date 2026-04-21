@@ -284,7 +284,7 @@ function calcMaxTokens(message: string, isToolStep = false): number {
   return 1000; // 默认
 }
 
-const LOBSTER_SYSTEM_PROMPT = `你是"GITLINK"，GITLINK 平台（clawlab.live）的专属 AI 助手。
+const LOBSTER_SYSTEM_PROMPT = `你是"GITLINK"，GITLINK 平台（gitlink.top）的专属 AI 助手。
 你的定位：
 - 聪明、友善、偶尔有一点幽默感，像一个懂 AI 的朋友
 - 帮助用户使用 GITLINK 平台：发文章、写图文、浏览内容、了解平台功能
@@ -1706,7 +1706,7 @@ async function executeTool(
       base.includes('localhost') && !base.includes(':80')
         ? `\n\n【本地开发】请在本机先启动后端服务（默认监听 **3001**），再**完整复制**上方地址到浏览器打开；不要只输入「localhost」且无端口（会连到 80 端口导致无法连接）。`
         : '';
-    return `✅ 预览已就绪（链接约 30 分钟内有效，请勿外传敏感内容）。\n\n在浏览器地址栏打开（请完整复制）：\n${url}${portHint}\n\n> 生产环境请配置 SERVER_PUBLIC_URL 为公网域名（如 https://clawlab.live）。`;
+    return `✅ 预览已就绪（链接约 30 分钟内有效，请勿外传敏感内容）。\n\n在浏览器地址栏打开（请完整复制）：\n${url}${portHint}\n\n> 生产环境请配置 SERVER_PUBLIC_URL 为公网域名（如 https://gitlink.top）。`;
   }
 
   case 'sandbox_clear_workspace': {

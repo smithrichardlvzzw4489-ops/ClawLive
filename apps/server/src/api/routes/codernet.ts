@@ -1389,7 +1389,7 @@ export function codernetRoutes(): IRouter {
       consumeQuota(callerId, 'outreach');
 
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-      const host = req.headers['x-forwarded-host'] || req.headers.host || 'clawlab.live';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'gitlink.top';
       const profileBaseUrl = `${protocol}://${host}`;
 
       const campaign = createCampaign({

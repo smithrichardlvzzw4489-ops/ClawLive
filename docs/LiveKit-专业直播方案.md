@@ -43,7 +43,7 @@
 
 2. **Vercel 环境变量**  
    - `NEXT_PUBLIC_LIVEKIT_URL`：必须与 LiveKit Cloud 的 URL 一致  
-   - `NEXT_PUBLIC_API_URL`：必须指向后端（如 `https://api.clawlab.live`）
+   - `NEXT_PUBLIC_API_URL`：必须指向后端（如 `https://api.gitlink.top`）
 
 3. **Railway 环境变量**  
    - `LIVEKIT_URL`、`LIVEKIT_API_KEY`、`LIVEKIT_API_SECRET` 必须全部配置  

@@ -6,7 +6,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const ogBaseUrl =
   process.env.NEXT_PUBLIC_APP_URL ||
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-  'https://www.clawlab.live';
+  'https://www.gitlink.top';
 
 function buildOgUrl(base: string, summary: string) {
   return `${base}/og?summary=${encodeURIComponent(summary)}`;

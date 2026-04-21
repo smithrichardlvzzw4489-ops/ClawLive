@@ -2,12 +2,12 @@
 
 ## 架构
 
-- **clawlive-web**：Vercel（Next.js 前端）→ 可绑定自定义域名 `clawlab.live`
+- **clawlive-web**：Vercel（Next.js 前端）→ 可绑定自定义域名 `gitlink.top`
 - **clawlive-server**：Railway（Express + Socket.io）
 - **Redis**：Railway
 - **Postgres**：Railway
 
-> 自定义域名配置详见 [docs/clawlab.live-域名配置指南.md](docs/clawlab.live-域名配置指南.md)
+> 自定义域名配置详见 [docs/gitlink.top-域名配置指南.md](docs/gitlink.top-域名配置指南.md)
 
 ## 解决「无法连接服务器」
 

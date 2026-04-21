@@ -110,7 +110,7 @@ function looksLikeEmail(s: string): boolean {
 }
 
 function publicAppBaseUrl(): string {
-  return (process.env.SERVER_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || "https://clawlab.live")
+  return (process.env.SERVER_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || "https://gitlink.top")
     .trim()
     .replace(/\/$/, "");
 }
