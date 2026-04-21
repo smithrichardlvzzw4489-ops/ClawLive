@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { BRAND_ZH } from '@/lib/brand';
 
-const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.gitlink.top').replace(/\/$/, '');
+const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.clawlab.live').replace(/\/$/, '');
 
 type Props = {
   children: React.ReactNode;

@@ -203,7 +203,7 @@ export function parseStoredJobSignals(raw: unknown): JobSeekingSignal[] {
 /** 站内「开放机会」链接、邮件等用的公网 origin（无配置时回退生产域名）。 */
 export function getPublicSiteBaseUrl(): string {
   const u = (process.env.SERVER_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || '').trim().replace(/\/$/, '');
-  return u || 'https://gitlink.top';
+  return u || 'https://clawlab.live';
 }
 
 /**

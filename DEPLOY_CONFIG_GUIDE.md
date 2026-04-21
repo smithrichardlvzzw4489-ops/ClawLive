@@ -12,7 +12,7 @@
 |--------|------|--------|
 | `PORT` | 服务端口，Railway 通常自动注入 | `3001` |
 | `JWT_SECRET` | JWT 签名密钥，登录认证用 | `your-random-secret-at-least-32-chars` |
-| `CORS_ORIGIN` | 允许的前端域名（可选，默认已含 gitlink.top） | `https://www.gitlink.top,https://gitlink.top` |
+| `CORS_ORIGIN` | 允许的前端域名（可选，默认已含 clawlab.live） | `https://www.clawlab.live,https://clawlab.live` |
 
 ### 2. Redis（多实例必配）
 
@@ -148,7 +148,7 @@
 ### Socket 连接失败
 
 1. 确认 `NEXT_PUBLIC_API_URL` 或 `NEXT_PUBLIC_SOCKET_URL` 正确
-2. 确认后端 CORS 允许前端域名（默认已含 gitlink.top）
+2. 确认后端 CORS 允许前端域名（默认已含 clawlab.live）
 3. 检查浏览器控制台是否有跨域或网络错误
 
 ---
@@ -162,7 +162,7 @@ PORT=3001
 JWT_SECRET=your-secure-random-secret-change-this
 REDIS_URL=rediss://default:xxx@us1-xxxxx.upstash.io:6379
 WEBHOOK_SECRET=dev-webhook-secret-change-in-production
-CORS_ORIGIN=https://www.gitlink.top,https://gitlink.top
+CORS_ORIGIN=https://www.clawlab.live,https://clawlab.live
 ```
 
 ### Vercel 前端环境变量示例

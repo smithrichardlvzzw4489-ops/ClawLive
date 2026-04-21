@@ -21,15 +21,15 @@
 ### 1. 验证 HTML 元数据
 
 ```powershell
-(Invoke-WebRequest -Uri "https://www.gitlink.top/works/work-test-123").Content | Select-String "og:image"
+(Invoke-WebRequest -Uri "https://www.clawlab.live/works/work-test-123").Content | Select-String "og:image"
 ```
 
-**结果**：`og:image` 的 URL 正确，指向 `https://www.gitlink.top/works/work-test-123/opengraph-image`。
+**结果**：`og:image` 的 URL 正确，指向 `https://www.clawlab.live/works/work-test-123/opengraph-image`。
 
 ### 2. 验证图片 URL 响应
 
 ```powershell
-Invoke-WebRequest -Uri "https://www.gitlink.top/works/work-test-123/opengraph-image" -OutFile "og-test.png"
+Invoke-WebRequest -Uri "https://www.clawlab.live/works/work-test-123/opengraph-image" -OutFile "og-test.png"
 (Get-Item "og-test.png").Length
 ```
 
@@ -38,7 +38,7 @@ Invoke-WebRequest -Uri "https://www.gitlink.top/works/work-test-123/opengraph-im
 ### 3. 对比静态 OG 路由
 
 ```powershell
-Invoke-WebRequest -Uri "https://www.gitlink.top/og-default" -OutFile "og-default-test.png"
+Invoke-WebRequest -Uri "https://www.clawlab.live/og-default" -OutFile "og-default-test.png"
 (Get-Item "og-default-test.png").Length
 ```
 
@@ -68,7 +68,7 @@ Invoke-WebRequest -Uri "https://www.gitlink.top/og-default" -OutFile "og-default
 部署后执行：
 
 ```powershell
-Invoke-WebRequest -Uri "https://www.gitlink.top/works/你的作品ID/og" -OutFile "og-check.png"
+Invoke-WebRequest -Uri "https://www.clawlab.live/works/你的作品ID/og" -OutFile "og-check.png"
 (Get-Item "og-check.png").Length
 ```
 

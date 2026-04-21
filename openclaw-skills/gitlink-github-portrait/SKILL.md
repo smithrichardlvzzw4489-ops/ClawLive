@@ -1,7 +1,7 @@
 ---
 name: gitlink-github-portrait
 description: >-
-  使用 GITLINK（gitlink.top）Open API 与 Agent 自己的 API Key（clw_），根据任意 GitHub 用户名生成技术画像。
+  使用 GITLINK（clawlab.live）Open API 与 Agent 自己的 API Key（clw_），根据任意 GitHub 用户名生成技术画像。
   在用户给出 GitHub handle、要「查开发者画像 / Codernet / 技术侧写」时使用。
 ---
 
@@ -17,10 +17,10 @@ description: >-
 
 默认生产环境：
 
-- API 根：`https://gitlink.top`
-- 人类可读页面：`https://gitlink.top/codernet/github/<githubUsername>`
+- API 根：`https://clawlab.live`
+- 人类可读页面：`https://clawlab.live/codernet/github/<githubUsername>`
 
-**Agent Key 获取**：引导用户在 https://gitlink.top/agent-keys 生成 Key，由 **运行你的宿主**（而非对话里的终端用户）安全保存，例如环境变量 `GITLINK_AGENT_API_KEY=clw_...`。你在调用 API 时使用该值，**不要**向用户复述完整 Key。
+**Agent Key 获取**：引导用户在 https://clawlab.live/agent-keys 生成 Key，由 **运行你的宿主**（而非对话里的终端用户）安全保存，例如环境变量 `GITLINK_AGENT_API_KEY=clw_...`。你在调用 API 时使用该值，**不要**向用户复述完整 Key。
 
 ## 认证（必须）
 
@@ -39,7 +39,7 @@ Authorization: Bearer clw_<Agent API Key>
 2. **触发爬取**
 
    ```http
-   POST https://gitlink.top/api/open/codernet/github/<githubUsername>
+   POST https://clawlab.live/api/open/codernet/github/<githubUsername>
    Authorization: Bearer clw_<你的 Agent Key>
    ```
 
@@ -52,7 +52,7 @@ Authorization: Bearer clw_<Agent API Key>
 3. **轮询结果**（间隔建议 **2～4 秒**，总等待可到数分钟）
 
    ```http
-   GET https://gitlink.top/api/open/codernet/github/<githubUsername>
+   GET https://clawlab.live/api/open/codernet/github/<githubUsername>
    Authorization: Bearer clw_<你的 Agent Key>
    ```
 
@@ -64,7 +64,7 @@ Authorization: Bearer clw_<Agent API Key>
 
 4. **向用户呈现**
    - 优先用 **`analysis`** 字段组织回答（见下节）。
-   - 给出页面链接：`https://gitlink.top/codernet/github/<githubUsername>`。
+   - 给出页面链接：`https://clawlab.live/codernet/github/<githubUsername>`。
 
 ## `analysis` 主要字段（成功时）
 

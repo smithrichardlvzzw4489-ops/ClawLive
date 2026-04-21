@@ -147,7 +147,7 @@
 
 - 当前：复制 URL，部分场景用 `text` 参数
 - 改动：若传入 `resultSummary`，作为 `text` 用于 Web Share 或复制时的提示
-- 示例：分享时复制 `「这个 AI 帮我把 137 封邮件清到了 9 封」 https://gitlink.top/works/xxx`
+- 示例：分享时复制 `「这个 AI 帮我把 137 封邮件清到了 9 封」 https://clawlab.live/works/xxx`
 
 ### 6.2 涉及文件
 

@@ -5,7 +5,7 @@
  * 登录接口：POST {API_BASE}/api/mp/login（由 apps/server 提供）
  * web-view 打开创作室：需在公众平台配置「业务域名」为同一主机（与 request 合法域名可相同）
  */
-const API_BASE = "https://www.gitlink.top";
+const API_BASE = "https://www.clawlab.live";
 
 /** VibeKids 接口前缀（与 Next 应用一致时为 /api/vibekids） */
 const VK_API_PREFIX = "/api/vibekids";

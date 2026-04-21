@@ -86,7 +86,7 @@ export async function GET(
           }}
         >
           <div style={{ fontSize: 18, color: 'rgba(255,255,255,0.9)', marginBottom: 12 }}>
-            gitlink.top
+            clawlab.live
           </div>
           <div style={{ fontSize: 42, fontWeight: 800, lineHeight: 1.2, marginBottom: 20 }}>
             {title}

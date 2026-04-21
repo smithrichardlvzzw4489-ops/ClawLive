@@ -451,11 +451,11 @@ function messageToHtml(rawMessage: string, profileUrl: string): string {
   ${escaped}
   <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 24px 0;" />
   <p style="font-size: 12px; color: #888;">
-    Sent via <a href="https://gitlink.top" style="color: #7c3aed; text-decoration: none;">GITLINK</a>
+    Sent via <a href="https://clawlab.live" style="color: #7c3aed; text-decoration: none;">GITLINK</a>
     &nbsp;|&nbsp;
     <a href="${profileUrl}" style="color: #7c3aed; text-decoration: none;">View your developer profile</a>
     &nbsp;|&nbsp;
-    <a href="https://gitlink.top/unsubscribe" style="color: #888; text-decoration: underline;">Unsubscribe</a>
+    <a href="https://clawlab.live/unsubscribe" style="color: #888; text-decoration: underline;">Unsubscribe</a>
   </p>
 </div>`;
 }
@@ -495,7 +495,7 @@ export function createCampaign(params: {
     intent: params.intent,
     senderName: params.senderName,
     senderInfo: params.senderInfo,
-    profileBaseUrl: params.profileBaseUrl || 'https://gitlink.top',
+    profileBaseUrl: params.profileBaseUrl || 'https://clawlab.live',
     status: 'draft',
     totalFound: 0,
     recipients: [],
@@ -735,7 +735,7 @@ export async function previewMessage(params: {
     intent: params.intent,
     senderName: params.senderName,
     senderInfo: params.senderInfo,
-    profileBaseUrl: 'https://gitlink.top',
+    profileBaseUrl: 'https://clawlab.live',
     status: 'draft',
     totalFound: 0,
     recipients: [],

@@ -1,12 +1,12 @@
-# gitlink.top 域名配置指南
+# clawlab.live 域名配置指南
 
-本指南帮助你将 ClawLive 前端绑定到自定义域名 `gitlink.top`。
+本指南帮助你将 ClawLive 前端绑定到自定义域名 `clawlab.live`。
 
 ## 架构说明
 
-- **前端**：Vercel → 绑定 `gitlink.top`
+- **前端**：Vercel → 绑定 `clawlab.live`
 - **后端**：Railway → 继续使用 `*.up.railway.app`（无需改）
-- **CORS**：后端已内置允许 `gitlink.top`，无需额外配置
+- **CORS**：后端已内置允许 `clawlab.live`，无需额外配置
 
 ---
 
@@ -20,21 +20,21 @@
 
 ### 2. 添加域名
 
-1. 在输入框输入 `gitlink.top`
+1. 在输入框输入 `clawlab.live`
 2. 点击 **Add**
 3. Vercel 会显示 DNS 配置说明（见下一步）
 
 ### 3. 可选：同时添加 www
 
-如需支持 `www.gitlink.top`，再添加 `www.gitlink.top`。
+如需支持 `www.clawlab.live`，再添加 `www.clawlab.live`。
 
 ---
 
 ## 二、在域名注册商配置 DNS
 
-到你购买 `gitlink.top` 的注册商（如 Cloudflare、阿里云、腾讯云、Namecheap 等）的 DNS 管理页面，添加以下记录：
+到你购买 `clawlab.live` 的注册商（如 Cloudflare、阿里云、腾讯云、Namecheap 等）的 DNS 管理页面，添加以下记录：
 
-### 根域名 gitlink.top
+### 根域名 clawlab.live
 
 | 类型 | 名称 | 值 | TTL |
 |------|------|-----|-----|
@@ -60,7 +60,7 @@
 
 1. **Vercel 验证**：回到 Vercel Domains 页面，等待状态变为 **Valid**
 2. **DNS 生效**：通常 5 分钟～48 小时，国内常见 10～30 分钟
-3. **访问测试**：在浏览器打开 `https://gitlink.top`
+3. **访问测试**：在浏览器打开 `https://clawlab.live`
 
 ---
 
@@ -72,19 +72,19 @@
 |------|------|------|
 | Vercel | `NEXT_PUBLIC_API_URL` | 继续指向 Railway 后端地址 |
 | Vercel | `NEXT_PUBLIC_SOCKET_URL` | 同上 |
-| Vercel | `NEXT_PUBLIC_APP_URL` | **推荐** `https://www.gitlink.top`，用于分享卡片 (og:image) 的绝对地址 |
-| Railway | `CORS_ORIGIN` | 可选，代码已内置允许 gitlink.top |
+| Vercel | `NEXT_PUBLIC_APP_URL` | **推荐** `https://www.clawlab.live`，用于分享卡片 (og:image) 的绝对地址 |
+| Railway | `CORS_ORIGIN` | 可选，代码已内置允许 clawlab.live |
 
 ---
 
-## 五、可选：后端使用 api.gitlink.top
+## 五、可选：后端使用 api.clawlab.live
 
-若希望后端也使用自定义域名（如 `https://api.gitlink.top`）：
+若希望后端也使用自定义域名（如 `https://api.clawlab.live`）：
 
 ### 1. Railway 添加自定义域名
 
 1. Railway → clawlive-server → **Settings** → **Networking**
-2. 在 **Custom Domain** 添加 `api.gitlink.top`
+2. 在 **Custom Domain** 添加 `api.clawlab.live`
 3. Railway 会给出 CNAME 目标（如 `xxx.up.railway.app`）
 
 ### 2. 在域名注册商添加 CNAME
@@ -96,11 +96,11 @@
 ### 3. 更新 Vercel 环境变量
 
 ```
-NEXT_PUBLIC_API_URL=https://api.gitlink.top
-NEXT_PUBLIC_SOCKET_URL=https://api.gitlink.top
+NEXT_PUBLIC_API_URL=https://api.clawlab.live
+NEXT_PUBLIC_SOCKET_URL=https://api.clawlab.live
 ```
 
-保存后重新部署前端。后端 CORS 已支持 `*.gitlink.top`，无需额外配置。
+保存后重新部署前端。后端 CORS 已支持 `*.clawlab.live`，无需额外配置。
 
 ---
 
@@ -109,12 +109,12 @@ NEXT_PUBLIC_SOCKET_URL=https://api.gitlink.top
 ### 1. 域名添加后显示「Invalid Configuration」
 
 - 检查 DNS 记录是否正确添加
-- 使用 [dnschecker.org](https://dnschecker.org) 查询 `gitlink.top` 的 A 记录是否已生效
+- 使用 [dnschecker.org](https://dnschecker.org) 查询 `clawlab.live` 的 A 记录是否已生效
 
 ### 2. 访问显示「无法连接服务器」
 
 - 确认 Vercel 环境变量 `NEXT_PUBLIC_API_URL` 正确
-- 后端 CORS 已内置 gitlink.top，一般无需修改 Railway 变量
+- 后端 CORS 已内置 clawlab.live，一般无需修改 Railway 变量
 
 ### 3. HTTPS 证书
 

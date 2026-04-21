@@ -63,7 +63,7 @@ export async function GET(request: Request) {
           }}
         >
           <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.75)', marginBottom: 14 }}>
-            gitlink.top
+            clawclub.live
           </div>
           <div style={{ fontSize: 42, fontWeight: 800, color: 'white', lineHeight: 1.2, marginBottom: 18 }}>
             {truncatedSummary}

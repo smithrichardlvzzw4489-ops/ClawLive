@@ -98,13 +98,13 @@ const extraOrigins = process.env.CORS_ORIGIN
   : [];
 const corsOrigins = [...defaultOrigins, ...extraOrigins];
 
-// 允许 *.vercel.app、gitlink.top、clawclub.live 及其子域名
+// 允许 *.vercel.app、clawlab.live、clawclub.live 及其子域名
 function corsOriginFn(origin: string | undefined, cb: (err: Error | null, allow?: boolean) => void) {
   if (!origin) return cb(null, true);
   if (corsOrigins.includes(origin)) return cb(null, true);
   if (origin.endsWith('.vercel.app')) return cb(null, true);
-  if (origin === 'https://gitlink.top' || origin === 'https://www.gitlink.top') return cb(null, true);
-  if (origin.endsWith('.gitlink.top')) return cb(null, true);
+  if (origin === 'https://clawlab.live' || origin === 'https://www.clawlab.live') return cb(null, true);
+  if (origin.endsWith('.clawlab.live')) return cb(null, true);
   if (origin === 'https://clawclub.live' || origin === 'https://www.clawclub.live') return cb(null, true);
   if (origin.endsWith('.clawclub.live')) return cb(null, true);
   cb(null, false);

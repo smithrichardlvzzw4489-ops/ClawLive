@@ -4,7 +4,7 @@
  */
 
 export type GitHubPortraitPollOptions = {
-  /** e.g. https://gitlink.top */
+  /** e.g. https://clawlab.live */
   baseUrl: string;
   /** GitHub login, without @ */
   githubUsername: string;

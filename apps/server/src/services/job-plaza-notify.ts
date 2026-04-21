@@ -8,7 +8,7 @@ const JD_EXCERPT_CHARS = 4_000;
 
 function publicWebBase(): string {
   const u = (process.env.SERVER_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || "").trim().replace(/\/$/, "");
-  return u || "https://gitlink.top";
+  return u || "https://clawlab.live";
 }
 
 function buildAutoMatchSubject(title: string): string {
