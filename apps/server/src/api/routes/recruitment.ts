@@ -20,6 +20,7 @@ import {
   capIgnoredUsernamesArray,
   RECRUIT_FIRST_RECOMMEND_QUOTA_COST,
   RECRUIT_MANUAL_RECOMMEND_QUOTA_COST,
+  type RecruitmentRecommendHit,
 } from "../../services/recruitment-recommend";
 import { generateRecruitmentOutreachEmail } from "../../services/recruitment-outreach-email";
 import { extractContactInfo, sendOutreachHtmlToDeveloper } from "../../services/codernet-outreach";
@@ -141,6 +142,81 @@ function serializeCandidate(row: {
   };
 }
 
+/** 待查看池覆盖 backlog 中同用户名，便于取最新 score / oneLiner */
+function recommendHitMapFromJd(jd: {
+  pendingRecommendHits?: unknown;
+  recommendBacklogHits?: unknown;
+}): Map<string, RecruitmentRecommendHit> {
+  const m = new Map<string, RecruitmentRecommendHit>();
+  for (const h of parsePendingRecommendHits(jd.recommendBacklogHits)) {
+    m.set(normGh(h.githubUsername), h);
+  }
+  for (const h of parsePendingRecommendHits(jd.pendingRecommendHits)) {
+    m.set(normGh(h.githubUsername), h);
+  }
+  return m;
+}
+
+/**
+ * DB 为空时，用岗位待查看池/backlog 中的推荐条补全简介、匹配度、推荐时间；仍无则给默认可读文案/时间，避免列表大量「—」。
+ */
+function serializeCandidateMerged(
+  c: {
+    id: string;
+    githubUsername: string;
+    displayName: string | null;
+    email: string | null;
+    notes: string | null;
+    intro: string | null;
+    matchScore: number | null;
+    systemRecommendedAt: Date | null;
+    pipelineStage: string;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  hit: RecruitmentRecommendHit | undefined,
+  jdFirstRecommendAt: Date | null,
+) {
+  const introDb = c.intro && String(c.intro).trim() ? String(c.intro).trim() : "";
+  let intro =
+    introDb ||
+    (hit?.oneLiner?.trim() ? hit.oneLiner.trim() : "") ||
+    (hit?.reason?.trim() ? hit.reason.trim().slice(0, Math.min(2000, MAX_CANDIDATE_INTRO)) : "");
+  if (!intro) {
+    intro = c.displayName?.trim()
+      ? `${c.displayName.trim()} — 已加入本 JD，可点击「画像」查看 GitHub 公开贡献与标签。`
+      : `GitHub @${c.githubUsername} — 已加入本 JD，可点击「画像」查看技术画像与仓库。`;
+  }
+  if (intro.length > MAX_CANDIDATE_INTRO) intro = intro.slice(0, MAX_CANDIDATE_INTRO);
+
+  let matchScore = c.matchScore;
+  if (matchScore == null || (typeof matchScore === "number" && !Number.isFinite(matchScore))) {
+    matchScore =
+      hit != null && typeof hit.score === "number" && Number.isFinite(hit.score) ? hit.score : 0;
+  }
+
+  let systemRecommendedAt: Date | null = c.systemRecommendedAt;
+  if (!systemRecommendedAt) {
+    if (hit?.addedAt) {
+      const d = new Date(hit.addedAt);
+      systemRecommendedAt = Number.isFinite(d.getTime()) ? d : null;
+    }
+    if (!systemRecommendedAt && jdFirstRecommendAt) {
+      systemRecommendedAt = jdFirstRecommendAt;
+    }
+    if (!systemRecommendedAt) {
+      systemRecommendedAt = c.createdAt;
+    }
+  }
+
+  return serializeCandidate({
+    ...c,
+    intro,
+    matchScore,
+    systemRecommendedAt,
+  });
+}
+
 function serializeJd(row: {
   id: string;
   authorId: string;
@@ -204,7 +280,12 @@ function serializeJd(row: {
     backlogRecommendCount: parsePendingRecommendHits(row.recommendBacklogHits).length,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
-    candidates: (row.candidates || []).map((c) => serializeCandidate(c)),
+    candidates: (() => {
+      const hitMap = recommendHitMapFromJd(row);
+      return (row.candidates || []).map((c) =>
+        serializeCandidateMerged(c, hitMap.get(normGh(c.githubUsername)), row.firstRecommendAt ?? null),
+      );
+    })(),
   };
 }
 
@@ -529,8 +610,13 @@ export function recruitmentRoutes(): Router {
         });
         return created;
       });
+      const hitMap = recommendHitMapFromJd(jd);
       res.status(201).json({
-        candidate: serializeCandidate(row),
+        candidate: serializeCandidateMerged(
+          row,
+          hitMap.get(normGh(row.githubUsername)),
+          jd.firstRecommendAt ?? null,
+        ),
       });
     } catch (e: unknown) {
       if (e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2002") {
@@ -588,8 +674,13 @@ export function recruitmentRoutes(): Router {
         where: { id: cid },
         data,
       });
+      const hitMap = recommendHitMapFromJd(jd);
       res.json({
-        candidate: serializeCandidate(row),
+        candidate: serializeCandidateMerged(
+          row,
+          hitMap.get(normGh(row.githubUsername)),
+          jd.firstRecommendAt ?? null,
+        ),
       });
     } catch (e) {
       console.error("[recruitment] patch candidate", e);
@@ -650,10 +741,13 @@ export function recruitmentRoutes(): Router {
         where: { jobPostingId },
         orderBy: { updatedAt: "desc" },
       });
+      const hitMap = recommendHitMapFromJd(jd);
       res.json({
         updated,
         attempted,
-        candidates: rows.map((row) => serializeCandidate(row)),
+        candidates: rows.map((r) =>
+          serializeCandidateMerged(r, hitMap.get(normGh(r.githubUsername)), jd.firstRecommendAt ?? null),
+        ),
       });
     } catch (e) {
       console.error("[recruitment] resolve-emails", e);
