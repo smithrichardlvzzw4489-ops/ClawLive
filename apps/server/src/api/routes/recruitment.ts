@@ -158,6 +158,44 @@ function recommendHitMapFromJd(jd: {
 }
 
 /**
+ * POST 加入候选人：若 body 未带简介/匹配度/推荐时间，则从当前 JD 的待查看池或 backlog 命中条写入 DB。
+ * 入池后该用户会从 JSON 中移除，故必须在落库前从池里取值，否则列表只能靠合并兜底且匹配度常变成 0。
+ */
+function effectiveCandidateFieldsFromCreateBody(
+  body: unknown,
+  poolHit: RecruitmentRecommendHit | undefined,
+): { intro: string | null; matchScore: number | null; systemRecommendedAt: Date | null } {
+  let intro = parseIntroFromCreateBody(body);
+  if (intro == null && poolHit) {
+    const ol = poolHit.oneLiner?.trim();
+    const re = poolHit.reason?.trim()
+      ? poolHit.reason.trim().slice(0, Math.min(2000, MAX_CANDIDATE_INTRO))
+      : "";
+    const combined = ol || re;
+    intro =
+      combined.length > MAX_CANDIDATE_INTRO ? combined.slice(0, MAX_CANDIDATE_INTRO) : combined || null;
+  }
+
+  let matchScore = parseMatchScoreFromBody(body);
+  if (
+    matchScore == null &&
+    poolHit != null &&
+    typeof poolHit.score === "number" &&
+    Number.isFinite(poolHit.score)
+  ) {
+    matchScore = poolHit.score;
+  }
+
+  let systemRecommendedAt = parseSystemRecommendedAtFromBody(body);
+  if (systemRecommendedAt == null && poolHit?.addedAt) {
+    const d = new Date(poolHit.addedAt);
+    systemRecommendedAt = Number.isFinite(d.getTime()) ? d : null;
+  }
+
+  return { intro, matchScore, systemRecommendedAt };
+}
+
+/**
  * DB 为空时，用岗位待查看池/backlog 中的推荐条补全简介、匹配度、推荐时间；仍无则给默认可读文案/时间，避免列表大量「—」。
  */
 function serializeCandidateMerged(
@@ -584,6 +622,9 @@ export function recruitmentRoutes(): Router {
         pipelineStage = "新建";
       }
 
+      const poolHit = recommendHitMapFromJd(jd).get(normGh(githubUsername));
+      const eff = effectiveCandidateFieldsFromCreateBody(req.body, poolHit);
+
       const row = await prisma.$transaction(async (tx) => {
         const created = await tx.jobPostingCandidate.create({
           data: {
@@ -593,9 +634,9 @@ export function recruitmentRoutes(): Router {
             email,
             notes,
             pipelineStage,
-            intro: parseIntroFromCreateBody(req.body),
-            matchScore: parseMatchScoreFromBody(req.body),
-            systemRecommendedAt: parseSystemRecommendedAtFromBody(req.body),
+            intro: eff.intro,
+            matchScore: eff.matchScore,
+            systemRecommendedAt: eff.systemRecommendedAt,
           },
         });
         const pending = parsePendingRecommendHits(jd.pendingRecommendHits).filter(

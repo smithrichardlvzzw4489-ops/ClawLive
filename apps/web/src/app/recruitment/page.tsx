@@ -62,7 +62,9 @@ function recommendAddBody(gh: string, pool: RecommendHit[] | null | undefined) {
   const key = gh.trim().toLowerCase();
   const hit = pool?.find((h) => h.githubUsername.trim().toLowerCase() === key);
   if (!hit) return { githubUsername: gh };
-  const intro = hit.oneLiner?.trim() || null;
+  const one = hit.oneLiner?.trim();
+  const reason = hit.reason?.trim();
+  const intro = one || (reason ? reason.slice(0, 2000) : '') || null;
   const matchScore = typeof hit.score === 'number' && Number.isFinite(hit.score) ? hit.score : null;
   const systemRecommendedAt = hit.addedAt?.trim() || new Date().toISOString();
   return {
